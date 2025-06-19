@@ -5,14 +5,18 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.Button
@@ -26,6 +30,7 @@ import android.widget.TableRow
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
@@ -34,6 +39,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
@@ -66,7 +72,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 class ListInspectionActivity : AppCompatActivity() {
     private var featureName = ""
@@ -323,6 +332,21 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
+    private fun formatStartDate(startDate: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")) // Indonesian format
+
+            val parsed = inputFormat.parse(startDate)
+            outputFormat.format(parsed)
+
+        } catch (e: Exception) {
+            AppLogger.e("Error formatting start date: ${e.message}")
+            // Fallback: just take first 10 characters (date part)
+            startDate.take(10)
+        }
+    }
+
     @SuppressLint("InflateParams", "SetTextI18n", "MissingInflatedId", "Recycle")
     private fun showDetailData(inspectionPath: InspectionWithDetailRelations) {
         val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_history_inspeksi, null)
@@ -333,17 +357,17 @@ class ListInspectionActivity : AppCompatActivity() {
 
         val dialog = BottomSheetDialog(this@ListInspectionActivity)
         dialog.setContentView(view)
-
-        // Get the LinearLayout containers from XML
+        val titleDialogDetailTable = view.findViewById<TextView>(R.id.titleDialogDetailTable)
+        titleDialogDetailTable.text = "Inspeksi ${formatStartDate(inspectionPath.inspeksi.created_date_start)} ${inspectionPath.tph!!.blok_kode}-${inspectionPath.tph.nomor}"
         val tphContainer = view.findViewById<LinearLayout>(R.id.tblLytTPH)
         val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
         val gpsContainer = view.findViewById<LinearLayout>(R.id.tblLytGPS)
 
         // Populate TPH Section
-        populateTPHData(tphContainer, inspectionPath.inspeksi)
+        populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, view)
+
 
         val detailList = inspectionPath.detailInspeksi
-        AppLogger.d("Detail count: ${detailList.size}")
         populateIssueData(issueContainer, detailList, view)
 
         // Populate GPS Section
@@ -374,22 +398,69 @@ class ListInspectionActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel) {
+    private fun formatDateRange(startDate: String, endDate: String): String {
+        return try {
+            // Parse the input dates (assuming they're in ISO format like "2024-01-15 10:30:00")
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("HH:mm:ss", Locale("id", "ID")) // Indonesian locale
+
+            val startParsed = inputFormat.parse(startDate)
+            val endParsed = inputFormat.parse(endDate)
+
+            val formattedStart = outputFormat.format(startParsed)
+            val formattedEnd = outputFormat.format(endParsed)
+
+            "$formattedStart s.d\n$formattedEnd"
+
+        } catch (e: Exception) {
+            AppLogger.e("Error formatting date range: ${e.message}")
+            // Fallback: just show the raw dates
+            "$startDate\ns.d\n$endDate"
+        }
+    }
+
+    private fun formatBarisText(jenisKondisi: Int, baris1: Int, baris2: Int?): String {
+        return when (jenisKondisi) {
+            1 -> {
+                // Jenis kondisi 1: Show baris range
+                if (baris2 != null) {
+                    "Baris $baris1 - $baris2"
+                } else {
+                    "Baris $baris1" // Fallback if baris2 is null
+                }
+            }
+            2 -> {
+                // Jenis kondisi 2: Show terasan
+                "Terasan (Baris $baris1)"
+            }
+            else -> {
+                // Unknown jenis kondisi - fallback
+                "Baris $baris1"
+            }
+        }
+    }
+
+    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, parentView: View){
+        parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr} ${tph.blok_kode}" // No TPH
+        val jamMulaiSelesai = formatDateRange(inspection.created_date_start, inspection.created_date_end)
+        parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = jamMulaiSelesai
+        parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
+        val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris1, inspection.baris2)
+        parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
+
+        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString() // Brondolan Tinggal
+        val frameLayoutFoto = parentView.findViewById<FrameLayout>(R.id.frameLayoutFoto)
+        val imageView = parentView.findViewById<ImageView>(R.id.ivFoto)
+
+        loadInspectionPhoto(frameLayoutFoto, imageView, inspection.foto)
+
+        // Clear container for dynamic items
         container.removeAllViews()
 
         val tphData = listOf(
-            SummaryItem("TPH ID", inspection.tph_id.toString()),
-            SummaryItem("Tanggal Panen", inspection.date_panen),
-            SummaryItem("Jalur Masuk", inspection.jalur_masuk),
-            SummaryItem("Brondolan Tinggal", inspection.brd_tinggal.toString()),
-            SummaryItem("Buah Tinggal", inspection.buah_tinggal.toString()),
-            SummaryItem("Jenis Kondisi", getJenisKondisiText(inspection.jenis_kondisi)),
-            SummaryItem("Baris 1", inspection.baris1.toString()),
-            SummaryItem("Baris 2", inspection.baris2?.toString() ?: "-"),
             SummaryItem("Jumlah Pokok Inspeksi", inspection.jml_pkk_inspeksi.toString()),
-            SummaryItem("Tanggal Mulai", inspection.created_date_start),
-            SummaryItem("Tanggal Selesai", inspection.created_date_end),
-            SummaryItem("Dibuat Oleh", inspection.created_by)
+            SummaryItem("Buah Tinggal", inspection.buah_tinggal.toString()),
+            SummaryItem("Brondolan Tinggal", inspection.brd_tinggal.toString()),
         )
 
         for (item in tphData) {
@@ -413,7 +484,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
         // Update title with count
         val titleIssue = dialogView.findViewById<TextView>(R.id.titleIssue)
-        titleIssue.text = "Detail Temuan (${detailInspeksi.size} Pokok)"
+        titleIssue.text = "Temuan (${detailInspeksi.size} Pokok)"
 
         if (detailInspeksi.isEmpty()) {
             val noDataText = TextView(this).apply {
@@ -495,13 +566,15 @@ class ListInspectionActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                headerHeight // EXACT HEIGHT
+                headerHeight // EXACT HEIGHTP
             )
         }
 
         val columnHeaders = listOf(
-            "Prioritas", "Pokok\nPanen", "Susunan\nPelepah",
-            "Pelepah\nSengkleh", "Kondisi\nPruning", "Brondolan", "Status"
+            "Prioritas", "Pokok di\nPanen", "Susunan\nPelepah",
+            "Pelepah\nSengkleh", "Kondisi\nPruning",
+            "Buah Masak\nTinggal","Buah M1", "Buah M2", "Brondolan Kutip",
+            "Foto"
         )
 
         // Add scrollable header cells
@@ -649,8 +722,11 @@ class ListInspectionActivity : AppCompatActivity() {
                 getSusunanPelepahText(detail.susunan_pelepah),
                 getPelepahSengklehText(detail.pelepah_sengkleh),
                 getKondisiPruningText(detail.kondisi_pruning),
+                detail.ripe?.toString() ?: "0",
+                detail.buahm1?.toString() ?: "0",
+                detail.buahm2?.toString() ?: "0",
                 detail.brd_tidak_dikutip?.toString() ?: "0",
-                getStatusText(detail.status_upload)
+                "FOTO"
             )
 
             // Add scrollable cells
@@ -664,20 +740,27 @@ class ListInspectionActivity : AppCompatActivity() {
                     setBackgroundColor(Color.WHITE) // Scrollable cells remain white
                 }
 
-                val dataCellText = TextView(this).apply {
-                    text = cellText
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    )
-                    gravity = Gravity.CENTER
-                    setTextColor(Color.BLACK)
-                    textSize = 13f
-                    typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
-                    setPadding(8, 8, 8, 8)
+                // Special handling for the last column (Photo)
+                if (cellIndex == rowData.size - 1) {
+                    // Create photo preview cell
+                    createPhotoCell(dataCell, detail.foto, detail.no_pokok.toString())
+                } else {
+                    // Regular text cell
+                    val dataCellText = TextView(this).apply {
+                        text = cellText
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT
+                        )
+                        gravity = Gravity.CENTER
+                        setTextColor(Color.BLACK)
+                        textSize = 13f
+                        typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+                        setPadding(8, 8, 8, 8)
+                    }
+                    dataCell.addView(dataCellText)
                 }
 
-                dataCell.addView(dataCellText)
                 scrollableDataRow.addView(dataCell)
             }
 
@@ -687,7 +770,7 @@ class ListInspectionActivity : AppCompatActivity() {
             if (!detail.komentar.isNullOrEmpty()) {
                 // Create the comment text
                 val commentText = TextView(this).apply {
-                    text = "${detail.komentar}"
+                    text = "Komentar temuan: ${detail.komentar}"
                     setPadding(12, 8, 12, 8)
                     setTextColor(Color.DKGRAY)
                     textSize = 13f
@@ -745,6 +828,272 @@ class ListInspectionActivity : AppCompatActivity() {
         container.addView(mainContainer)
     }
 
+    private fun createPhotoCell(dataCell: FrameLayout, photoFileName: String?, noPokokText: String) {
+        if (photoFileName.isNullOrEmpty()) {
+            // No photo available - show placeholder
+            val noPhotoText = TextView(this).apply {
+                text = "No Photo"
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                gravity = Gravity.CENTER
+                setTextColor(Color.GRAY)
+                textSize = 10f
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+            }
+            dataCell.addView(noPhotoText)
+            return
+        }
+
+        // Get the photo path
+        val rootApp = File(
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+        ).toString()
+
+        val fullImagePath = File(rootApp, photoFileName).absolutePath
+        val file = File(fullImagePath)
+
+        if (!file.exists()) {
+            // Photo file doesn't exist - show error
+            val errorText = TextView(this).apply {
+                text = "Photo\nNot Found"
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                gravity = Gravity.CENTER
+                setTextColor(Color.RED)
+                textSize = 9f
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+            }
+            dataCell.addView(errorText)
+            return
+        }
+
+        // Create image view for photo preview
+        val imageView = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ).apply {
+                setMargins(8, 8, 8, 8) // Add some padding around the image
+            }
+            scaleType = ImageView.ScaleType.CENTER_CROP
+
+            // Add ripple effect for click feedback
+            val rippleDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(ColorUtils.setAlphaComponent(Color.GRAY, (0.3 * 255).toInt()))
+                cornerRadius = 8f
+            }
+            foreground = rippleDrawable
+            isClickable = true
+            isFocusable = true
+        }
+
+        // Load the image
+        try {
+            val bitmap = BitmapFactory.decodeFile(fullImagePath)
+            if (bitmap != null) {
+                imageView.setImageBitmap(bitmap)
+            } else {
+                // Failed to decode - show placeholder
+                imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error loading preview image: ${e.message}")
+            imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+        }
+
+        // Add click listener for full screen view
+        imageView.setOnClickListener {
+            showFullScreenPhoto(
+                fullImagePath,
+                "Temuan Pokok $noPokokText"
+            )
+        }
+
+        dataCell.addView(imageView)
+    }
+
+    private fun loadInspectionPhoto(frameContainer: FrameLayout, imageView: ImageView?, photoFileName: String?) {
+        // Clear any existing views in frame container
+        frameContainer.removeAllViews()
+
+        if (photoFileName.isNullOrEmpty()) {
+            // No photo available - show placeholder
+            val noPhotoText = TextView(this).apply {
+                text = "No Photo"
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                gravity = Gravity.CENTER
+                setTextColor(Color.GRAY)
+                textSize = 10f
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+            }
+            frameContainer.addView(noPhotoText)
+            return
+        }
+
+        // Get the photo path
+        val rootApp = File(
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+        ).toString()
+
+        val fullImagePath = File(rootApp, photoFileName).absolutePath
+        val file = File(fullImagePath)
+
+        if (!file.exists()) {
+            // Photo file doesn't exist - show error
+            val errorText = TextView(this).apply {
+                text = "Photo\nNot Found"
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                gravity = Gravity.CENTER
+                setTextColor(Color.RED)
+                textSize = 9f
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+            }
+            frameContainer.addView(errorText)
+            return
+        }
+
+        // Create image view for photo preview
+        val photoImageView = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ).apply {
+                setMargins(4, 4, 4, 4) // Add some padding around the image
+            }
+            scaleType = ImageView.ScaleType.CENTER_CROP
+
+            // Add ripple effect for click feedback
+            val rippleDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(ColorUtils.setAlphaComponent(Color.GRAY, (0.3 * 255).toInt()))
+                cornerRadius = 8f
+            }
+            foreground = rippleDrawable
+            isClickable = true
+            isFocusable = true
+        }
+
+        // Load the image
+        try {
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = 2 // Reduce memory usage for preview
+                inJustDecodeBounds = false
+            }
+            val bitmap = BitmapFactory.decodeFile(fullImagePath, options)
+            if (bitmap != null) {
+                photoImageView.setImageBitmap(bitmap)
+            } else {
+                // Failed to decode - show placeholder
+                photoImageView.setImageResource(android.R.drawable.ic_menu_gallery)
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error loading preview image: ${e.message}")
+            photoImageView.setImageResource(android.R.drawable.ic_menu_gallery)
+        }
+
+        // Add click listener for full screen view
+        photoImageView.setOnClickListener {
+            showFullScreenPhoto(
+                fullImagePath,
+                "Foto Inspeksi TPH"
+            )
+        }
+
+        frameContainer.addView(photoImageView)
+    }
+
+    private fun showFullScreenPhoto(
+        imagePath: String,
+        title: String,
+        bottomSheetDialog: BottomSheetDialog? = null
+    ) {
+        AppLogger.d("showFullScreenPhoto called with: $imagePath, $title")
+
+        // Create full screen dialog
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+
+        // Inflate your existing camera_edit layout
+        val view = LayoutInflater.from(this).inflate(R.layout.camera_edit, null)
+        dialog.setContentView(view)
+
+        // Find components in the inflated layout
+        val fotoZoom = view.findViewById<com.github.chrisbanes.photoview.PhotoView>(R.id.fotoZoom)
+        val cardCloseZoom = view.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+        val cardChangePhoto = view.findViewById<MaterialCardView>(R.id.cardChangePhoto)
+        val cardDeletePhoto = view.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
+        val clZoomLayout = view.findViewById<ConstraintLayout>(R.id.clZoomLayout)
+
+        AppLogger.d("Dialog components found: fotoZoom=${fotoZoom != null}, cardCloseZoom=${cardCloseZoom != null}")
+
+        // Make sure the zoom layout is visible
+        clZoomLayout?.visibility = View.VISIBLE
+
+        // Load image into PhotoView
+        val file = File(imagePath)
+        if (file.exists()) {
+            try {
+                val bitmap = BitmapFactory.decodeFile(imagePath)
+                if (bitmap != null) {
+                    fotoZoom?.setImageBitmap(bitmap)
+                    AppLogger.d("Full screen photo loaded successfully in dialog: $title")
+                } else {
+                    AppLogger.e("Failed to decode bitmap for full screen")
+                    return
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error loading full screen photo: ${e.message}")
+                return
+            }
+        } else {
+            AppLogger.e("Image file not found for full screen: $imagePath")
+            return
+        }
+
+        // Hide change and delete buttons for view-only mode
+        cardChangePhoto?.visibility = View.GONE
+        cardDeletePhoto?.visibility = View.GONE
+
+        // Function to close full screen and show bottom sheet again
+        fun closeFullScreenAndShowBottomSheet() {
+            AppLogger.d("Closing full screen and showing bottom sheet again")
+            dialog.dismiss()
+            bottomSheetDialog?.show() // Show the bottom sheet again if provided
+        }
+
+        // Set up close button
+        cardCloseZoom?.setOnClickListener {
+            AppLogger.d("Close button clicked")
+            closeFullScreenAndShowBottomSheet()
+        }
+
+        // Optional: Close on photo tap
+        fotoZoom?.setOnClickListener {
+            AppLogger.d("Photo tapped - closing dialog")
+            closeFullScreenAndShowBottomSheet()
+        }
+
+        // Show dialog
+        try {
+            dialog.show()
+            AppLogger.d("Full screen dialog shown successfully")
+        } catch (e: Exception) {
+            AppLogger.e("Error showing full screen dialog: ${e.message}")
+        }
+    }
+
     // Keep your existing helper functions
     private fun getSusunanPelepahText(susunan: Int?): String {
         return when (susunan) {
@@ -772,14 +1121,6 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-    private fun getStatusText(status: String): String {
-        return when (status.lowercase()) {
-            "uploaded" -> "✅ Upload"
-            "pending" -> "⏳ Pending"
-            "failed" -> "❌ Gagal"
-            else -> "⏳ Pending"
-        }
-    }
 
     private fun populateGPSData(container: LinearLayout, inspection: InspectionModel) {
         container.removeAllViews()
@@ -827,7 +1168,7 @@ class ListInspectionActivity : AppCompatActivity() {
     private fun getPokokPanenText(pokokPanen: Int?): String {
         return when (pokokPanen) {
             1 -> "Ya"
-            0 -> "Tidak"
+            2 -> "Tidak"
             else -> "-"
         }
     }

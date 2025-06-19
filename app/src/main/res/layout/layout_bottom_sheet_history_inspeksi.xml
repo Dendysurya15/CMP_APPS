@@ -16,6 +16,7 @@
         android:fontFamily="@font/manrope_extrabold"
         android:text="Detail Inspeksi"
         android:textColor="@color/black"
+        android:gravity="center"
         android:textSize="@dimen/l"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -56,13 +57,187 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
-
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
-                android:padding="16dp"
-                android:text="Informasi TPH"
+                android:paddingHorizontal="16dp"
+                android:text="Detail Temuan di TPH"
                 android:textColor="@color/black"
-                android:textSize="18sp" />
+                android:textSize="@dimen/l" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                >
+
+                <!-- LEFT COLUMN -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Est/Afd/Blok"
+                        android:background="@color/graylight"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvEstAfdBlok"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="-"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Item 2 Left -->
+                    <TextView
+                        android:id="@+id/tvTitleLeft2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/graylight"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Jam Mulai/Selesai"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvJamMulaiSelesai"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="-"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Item 3 Left -->
+
+                    <TextView
+                        android:id="@+id/tvTitleLeft3"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Jalur Masuk"
+                        android:background="@color/graylight"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:textStyle="italic" />
+
+                    <TextView
+                        android:id="@+id/tvJalurMasuk"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="-"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:id="@+id/tvTitleRight1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:background="@color/graylight"
+                        android:text="Baris"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvBaris"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="-"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp" />
+
+                </LinearLayout>
+
+                <!-- RIGHT COLUMN -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp">
+
+                    <!-- Item 2 Right -->
+                    <TextView
+                        android:id="@+id/tvTitleRight2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:background="@color/graylight"
+                        android:text="Komentar Temuan"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvKomentarTPH"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="-"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp"
+                        android:maxLines="4"
+                        android:ellipsize="end" />
+
+                    <!-- Item 3 Right -->
+                    <TextView
+                        android:id="@+id/tvTitleRight3"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Foto"
+                        android:background="@color/graylight"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <!-- Changed TextView to FrameLayout containing ImageView -->
+                    <FrameLayout
+                        android:id="@+id/frameLayoutFoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="10dp"
+                        >
+
+                        <ImageView
+                            android:id="@+id/ivFoto"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_margin="2dp"
+                            android:scaleType="centerCrop"
+                            android:contentDescription="Foto Inspeksi" />
+
+                    </FrameLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
 
             <LinearLayout
                 android:id="@+id/tblLytTPH"
@@ -90,7 +265,7 @@
                 android:padding="16dp"
                 android:text="Detail Temuan"
                 android:textColor="@color/black"
-                android:textSize="18sp" />
+                android:textSize="@dimen/l" />
 
             <LinearLayout
                 android:id="@+id/tblLytIssue"
