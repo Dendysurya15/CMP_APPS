@@ -141,14 +141,6 @@
                 android:gravity="center"
                 android:padding="10dp">
 
-<!--                <ImageView-->
-<!--                    android:id="@+id/closeZoom"-->
-<!--                    android:layout_width="24dp"-->
-<!--                    android:layout_height="24dp"-->
-<!--                    android:src="@drawable/f"-->
-<!--                    app:tint="@color/black"-->
-<!--                    tools:ignore="ContentDescription" />-->
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

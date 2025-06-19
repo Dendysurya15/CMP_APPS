@@ -18,6 +18,7 @@ import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TableLayout
@@ -26,6 +27,7 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -34,6 +36,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.InspectionDetailModel
+import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
 //import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
@@ -321,8 +325,6 @@ class ListInspectionActivity : AppCompatActivity() {
 
     @SuppressLint("InflateParams", "SetTextI18n", "MissingInflatedId", "Recycle")
     private fun showDetailData(inspectionPath: InspectionWithDetailRelations) {
-
-
         val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_history_inspeksi, null)
         view.background = ContextCompat.getDrawable(
             this@ListInspectionActivity,
@@ -332,11 +334,31 @@ class ListInspectionActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this@ListInspectionActivity)
         dialog.setContentView(view)
 
+        // Get the LinearLayout containers from XML
+        val tphContainer = view.findViewById<LinearLayout>(R.id.tblLytTPH)
+        val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
+        val gpsContainer = view.findViewById<LinearLayout>(R.id.tblLytGPS)
+
+        // Populate TPH Section
+        populateTPHData(tphContainer, inspectionPath.inspeksi)
+
+        val detailList = inspectionPath.detailInspeksi
+        AppLogger.d("Detail count: ${detailList.size}")
+        populateIssueData(issueContainer, detailList, view)
+
+        // Populate GPS Section
+        populateGPSData(gpsContainer, inspectionPath.inspeksi)
+
+        // Handle close button
+        val btnClose = view.findViewById<Button>(R.id.btnCloseDetailTable)
+        btnClose.setOnClickListener {
+            dialog.dismiss()
+        }
+
         dialog.setOnShowListener {
             val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             val behavior = BottomSheetBehavior.from(bottomSheet!!)
 
-            // Set the height to 85% of screen height
             val displayMetrics = resources.displayMetrics
             val screenHeight = displayMetrics.heightPixels
             val desiredHeight = (screenHeight * 0.85).toInt()
@@ -345,12 +367,509 @@ class ListInspectionActivity : AppCompatActivity() {
             bottomSheet?.requestLayout()
 
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
-            behavior.isDraggable = false // Optional: allow dragging
-            behavior.peekHeight = desiredHeight // Set peek height to same as max height
+            behavior.isDraggable = false
+            behavior.peekHeight = desiredHeight
         }
 
         dialog.show()
     }
+
+    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel) {
+        container.removeAllViews()
+
+        val tphData = listOf(
+            SummaryItem("TPH ID", inspection.tph_id.toString()),
+            SummaryItem("Tanggal Panen", inspection.date_panen),
+            SummaryItem("Jalur Masuk", inspection.jalur_masuk),
+            SummaryItem("Brondolan Tinggal", inspection.brd_tinggal.toString()),
+            SummaryItem("Buah Tinggal", inspection.buah_tinggal.toString()),
+            SummaryItem("Jenis Kondisi", getJenisKondisiText(inspection.jenis_kondisi)),
+            SummaryItem("Baris 1", inspection.baris1.toString()),
+            SummaryItem("Baris 2", inspection.baris2?.toString() ?: "-"),
+            SummaryItem("Jumlah Pokok Inspeksi", inspection.jml_pkk_inspeksi.toString()),
+            SummaryItem("Tanggal Mulai", inspection.created_date_start),
+            SummaryItem("Tanggal Selesai", inspection.created_date_end),
+            SummaryItem("Dibuat Oleh", inspection.created_by)
+        )
+
+        for (item in tphData) {
+            val rowLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+
+                addView(createRowTextView(item.title, Gravity.START, 2f, true))
+                addView(createRowTextView(item.value, Gravity.CENTER, 1f, false))
+            }
+            container.addView(rowLayout)
+        }
+    }
+
+    private fun populateIssueData(container: LinearLayout, detailInspeksi: List<InspectionDetailModel>, dialogView: View) {
+
+        container.removeAllViews()
+
+        // Update title with count
+        val titleIssue = dialogView.findViewById<TextView>(R.id.titleIssue)
+        titleIssue.text = "Detail Temuan (${detailInspeksi.size} Pokok)"
+
+        if (detailInspeksi.isEmpty()) {
+            val noDataText = TextView(this).apply {
+                text = "Tidak ada temuan pada inspeksi ini"
+                setPadding(32, 32, 32, 32)
+                setTextColor(Color.GRAY)
+                textSize = 16f
+                gravity = Gravity.CENTER
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+            }
+            container.addView(noDataText)
+            return
+        }
+
+        // Constants
+        val headerHeight = 150 // EXACT height - no wrapping allowed
+        val rowHeight = 120     // EXACT height - no wrapping allowed
+        val frozenWidth = 150
+        val columnWidth = 250
+
+        // Define comment background color
+        val commentBackgroundColor = ColorUtils.setAlphaComponent(
+            ContextCompat.getColor(this@ListInspectionActivity, R.color.graydarker),
+            (0.1 * 255).toInt()
+        )
+
+        // Main container
+        val mainContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // ==================== HEADER SECTION ====================
+        val headerContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                headerHeight // EXACT HEIGHT
+            )
+        }
+
+        // Frozen header cell
+        val frozenHeaderCell = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(frozenWidth, headerHeight).apply {
+                setMargins(0, 0, 4, 0) // Right margin for separation
+            }
+            setBackgroundColor(ContextCompat.getColor(this@ListInspectionActivity, R.color.greenDarker))
+        }
+
+        val frozenHeaderText = TextView(this).apply {
+            text = "Nomor\nPokok"
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_bold)
+            setPadding(8, 8, 8, 8)
+        }
+        frozenHeaderCell.addView(frozenHeaderText)
+
+        // Scrollable header container
+        val scrollableHeaderContainer = HorizontalScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                headerHeight, // EXACT HEIGHT
+                1f
+            )
+            isHorizontalScrollBarEnabled = false
+            scrollBarStyle = View.SCROLLBARS_OUTSIDE_OVERLAY
+        }
+
+        val scrollableHeaderRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                headerHeight // EXACT HEIGHT
+            )
+        }
+
+        val columnHeaders = listOf(
+            "Prioritas", "Pokok\nPanen", "Susunan\nPelepah",
+            "Pelepah\nSengkleh", "Kondisi\nPruning", "Brondolan", "Status"
+        )
+
+        // Add scrollable header cells
+        columnHeaders.forEachIndexed { index, headerText ->
+            val headerCell = FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(columnWidth, headerHeight).apply {
+                    if (index < columnHeaders.size - 1) {
+                        setMargins(0, 0, 4, 0) // Right margin except for last column
+                    }
+                }
+                setBackgroundColor(ContextCompat.getColor(this@ListInspectionActivity, R.color.greenDarker))
+            }
+
+            val headerTextView = TextView(this).apply {
+                text = headerText
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_bold)
+                setPadding(8, 8, 8, 8)
+            }
+
+            headerCell.addView(headerTextView)
+            scrollableHeaderRow.addView(headerCell)
+        }
+
+        scrollableHeaderContainer.addView(scrollableHeaderRow)
+        headerContainer.addView(frozenHeaderCell)
+        headerContainer.addView(scrollableHeaderContainer)
+
+        // ==================== DATA SECTION ====================
+        val dataContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // Frozen column container
+        val frozenDataContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(frozenWidth, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        // Scrollable data container
+        val scrollableDataContainer = HorizontalScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+            isHorizontalScrollBarEnabled = false
+            scrollBarStyle = View.SCROLLBARS_OUTSIDE_OVERLAY
+        }
+
+        val scrollableDataContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // Sync scrolling between header and data
+        scrollableHeaderContainer.setOnScrollChangeListener { _, scrollX, _, _, _ ->
+            scrollableDataContainer.scrollTo(scrollX, scrollableDataContainer.scrollY)
+        }
+
+        scrollableDataContainer.setOnScrollChangeListener { _, scrollX, _, _, _ ->
+            scrollableHeaderContainer.scrollTo(scrollX, scrollableHeaderContainer.scrollY)
+        }
+
+        // Add data rows
+        detailInspeksi.forEachIndexed { index, detail ->
+            // Check if this detail has a comment to determine background color and height
+            val hasComment = !detail.komentar.isNullOrEmpty()
+            val frozenCellBackgroundColor = commentBackgroundColor
+
+            // Calculate total height for frozen cell (including comment if exists)
+            var totalFrozenHeight = rowHeight
+            if (hasComment) {
+                // Calculate comment height
+                val tempTextView = TextView(this).apply {
+                    text = detail.komentar
+                    textSize = 13f
+                    typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+                }
+                val textPaint = tempTextView.paint
+                val textWidth = columnWidth * columnHeaders.size - 24
+                val staticLayout = android.text.StaticLayout.Builder.obtain(
+                    detail.komentar ?: "",
+                    0,
+                    detail.komentar?.length ?: 0,
+                    textPaint,
+                    textWidth
+                ).build()
+                val commentHeight = maxOf(staticLayout.height + 32, 60)
+                totalFrozenHeight += commentHeight
+            }
+
+            // Frozen cell - SPANS BOTH DATA AND COMMENT ROWS
+            val frozenDataCell = FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(frozenWidth, totalFrozenHeight).apply {
+                    setMargins(0, 0, 4, 0) // Right margin for separation
+                    if (index > 0) setMargins(0, 8, 4, 0) // Add top margin between rows
+                }
+                setBackgroundColor(frozenCellBackgroundColor) // Dynamic background color
+            }
+
+            val frozenDataText = TextView(this).apply {
+                text = detail.no_pokok.toString()
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                gravity = Gravity.CENTER // This centers both horizontally and vertically across the entire height
+                setTextColor(Color.BLACK)
+                textSize = 12f
+                typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+                setPadding(8, 8, 8, 8)
+                setSingleLine(true) // FORCE SINGLE LINE
+            }
+            frozenDataCell.addView(frozenDataText)
+            frozenDataContainer.addView(frozenDataCell)
+
+            // Scrollable row
+            val scrollableDataRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    rowHeight // EXACT HEIGHT
+                ).apply {
+                    if (index > 0) setMargins(0, 8, 0, 0) // Add top margin between rows
+                }
+            }
+
+            val rowData = listOf(
+                getPrioritasText(detail.prioritas),
+                getPokokPanenText(detail.pokok_panen),
+                getSusunanPelepahText(detail.susunan_pelepah),
+                getPelepahSengklehText(detail.pelepah_sengkleh),
+                getKondisiPruningText(detail.kondisi_pruning),
+                detail.brd_tidak_dikutip?.toString() ?: "0",
+                getStatusText(detail.status_upload)
+            )
+
+            // Add scrollable cells
+            rowData.forEachIndexed { cellIndex, cellText ->
+                val dataCell = FrameLayout(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(columnWidth, rowHeight).apply {
+                        if (cellIndex < rowData.size - 1) {
+                            setMargins(0, 0, 4, 0) // Right margin except for last column
+                        }
+                    }
+                    setBackgroundColor(Color.WHITE) // Scrollable cells remain white
+                }
+
+                val dataCellText = TextView(this).apply {
+                    text = cellText
+                    layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.BLACK)
+                    textSize = 13f
+                    typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+                    setPadding(8, 8, 8, 8)
+                }
+
+                dataCell.addView(dataCellText)
+                scrollableDataRow.addView(dataCell)
+            }
+
+            scrollableDataContent.addView(scrollableDataRow)
+
+            // Add comment row if exists (NO SPACER NEEDED - frozen cell already spans both rows)
+            if (!detail.komentar.isNullOrEmpty()) {
+                // Create the comment text
+                val commentText = TextView(this).apply {
+                    text = "${detail.komentar}"
+                    setPadding(12, 8, 12, 8)
+                    setTextColor(Color.DKGRAY)
+                    textSize = 13f
+                    typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        setColor(commentBackgroundColor)
+                        cornerRadius = 6f
+                    }
+                }
+
+                // Measure the text height dynamically
+                val textPaint = commentText.paint
+                val textWidth = columnWidth * columnHeaders.size - 24 // Subtract padding
+                val staticLayout = android.text.StaticLayout.Builder.obtain(
+                    detail.komentar ?: "",
+                    0,
+                    detail.komentar?.length ?: 0,
+                    textPaint,
+                    textWidth
+                ).build()
+
+                // Calculate dynamic height (text height + padding + margin)
+                val dynamicHeight = staticLayout.height + 32 // 16 top + 16 bottom padding
+                val finalHeight = maxOf(dynamicHeight, 60) // Minimum height of 60
+
+                // Add comment to scrollable area with dynamic height
+                val commentRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        finalHeight // Use dynamic height
+                    )
+                    setPadding(8, 4, 8, 4)
+                }
+
+                // Update the comment text layout params
+                commentText.layoutParams = LinearLayout.LayoutParams(
+                    columnWidth * columnHeaders.size,
+                    LinearLayout.LayoutParams.MATCH_PARENT
+                )
+
+                commentRow.addView(commentText)
+                scrollableDataContent.addView(commentRow)
+            }
+        }
+
+        scrollableDataContainer.addView(scrollableDataContent)
+        dataContainer.addView(frozenDataContainer)
+        dataContainer.addView(scrollableDataContainer)
+
+        // Add everything to main container
+        mainContainer.addView(headerContainer)
+        mainContainer.addView(dataContainer)
+        container.addView(mainContainer)
+    }
+
+    // Keep your existing helper functions
+    private fun getSusunanPelepahText(susunan: Int?): String {
+        return when (susunan) {
+            1 -> "Baik"
+            2 -> "Sedang"
+            3 -> "Buruk"
+            else -> "-"
+        }
+    }
+
+    private fun getPelepahSengklehText(sengkleh: Int?): String {
+        return when (sengkleh) {
+            1 -> "Ada"
+            0 -> "Tidak Ada"
+            else -> "-"
+        }
+    }
+
+    private fun getKondisiPruningText(pruning: Int?): String {
+        return when (pruning) {
+            1 -> "Baik"
+            2 -> "Sedang"
+            3 -> "Buruk"
+            else -> "-"
+        }
+    }
+
+    private fun getStatusText(status: String): String {
+        return when (status.lowercase()) {
+            "uploaded" -> "✅ Upload"
+            "pending" -> "⏳ Pending"
+            "failed" -> "❌ Gagal"
+            else -> "⏳ Pending"
+        }
+    }
+
+    private fun populateGPSData(container: LinearLayout, inspection: InspectionModel) {
+        container.removeAllViews()
+
+        val gpsData = listOf(
+            SummaryItem("Latitude TPH", String.format("%.6f", inspection.latTPH)),
+            SummaryItem("Longitude TPH", String.format("%.6f", inspection.lonTPH)),
+            SummaryItem("Koordinat TPH", "${String.format("%.6f", inspection.latTPH)}, ${String.format("%.6f", inspection.lonTPH)}"),
+            SummaryItem("Tracking Path", if (inspection.tracking_path.isNotEmpty()) "✓ Tersedia" else "✗ Tidak ada")
+        )
+
+        for (item in gpsData) {
+            val rowLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+
+                addView(createRowTextView(item.title, Gravity.START, 2f, true))
+                addView(createRowTextView(item.value, Gravity.CENTER, 1f, false))
+            }
+            container.addView(rowLayout)
+        }
+    }
+
+    // Keep your existing helper functions
+    private fun getJenisKondisiText(kondisi: Int): String {
+        return when (kondisi) {
+            1 -> "Normal"
+            2 -> "Terasan"
+            else -> "Tidak diketahui"
+        }
+    }
+
+    private fun getPrioritasText(prioritas: Int?): String {
+        return when (prioritas) {
+            1 -> "Tinggi"
+            2 -> "Sedang"
+            3 -> "Rendah"
+            else -> "-"
+        }
+    }
+
+    private fun getPokokPanenText(pokokPanen: Int?): String {
+        return when (pokokPanen) {
+            1 -> "Ya"
+            0 -> "Tidak"
+            else -> "-"
+        }
+    }
+
+    fun createRowTextView(
+        text: String,
+        gravity: Int,
+        weight: Float,
+        isTitle: Boolean = false
+    ): TextView {
+        return TextView(this).apply {
+            this.text = text
+            setPadding(32, 32, 32, 32)
+            setTextColor(Color.BLACK)
+            textSize = 15f
+            this.gravity = gravity or Gravity.CENTER_VERTICAL
+            typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_semibold)
+            maxLines = Int.MAX_VALUE
+            ellipsize = null
+            isSingleLine = false
+
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
+                .apply {
+                    setMargins(5, 5, 5, 5)
+                }
+
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(
+                    ColorUtils.setAlphaComponent(
+                        ContextCompat.getColor(this@ListInspectionActivity, R.color.graydarker),
+                        (0.2 * 255).toInt()
+                    )
+                )
+                cornerRadii = if (isTitle) floatArrayOf(20f, 20f, 0f, 0f, 0f, 0f, 20f, 20f)
+                else floatArrayOf(0f, 0f, 20f, 20f, 20f, 20f, 0f, 0f)
+            }
+        }
+    }
+
+    // Keep your existing createRowTextView, createHeaderTextView, createDataTextView functions
+    data class SummaryItem(val title: String, val value: String)
 
     private fun stopLoadingAnimation(
         loadingLogo: ImageView,
@@ -379,7 +898,6 @@ class ListInspectionActivity : AppCompatActivity() {
         loadingDialog.setMessage("Loading data...")
 
         inspectionViewModel.inspectionWithDetails.observe(this) { inspectionPaths ->
-            AppLogger.d(inspectionPaths.toString())
             adapter.setData(inspectionPaths)
             Handler(Looper.getMainLooper()).postDelayed({
                 loadingDialog.dismiss()

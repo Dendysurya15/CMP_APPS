@@ -14,6 +14,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
+        android:text="Detail Inspeksi"
         android:textColor="@color/black"
         android:textSize="@dimen/l"
         android:textStyle="bold"
@@ -44,13 +45,86 @@
         app:layout_constraintTop_toBottomOf="@+id/dashedLine">
 
         <LinearLayout
-            android:id="@+id/contentContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- TPH SECTION -->
+            <TextView
+                android:id="@+id/titleTPH"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
 
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="16dp"
+                android:text="Informasi TPH"
+                android:textColor="@color/black"
+                android:textSize="18sp" />
 
+            <LinearLayout
+                android:id="@+id/tblLytTPH"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- DASHED LINE 1 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/dashed_straight_line" />
+
+            <!-- ISSUE SECTION -->
+            <TextView
+                android:id="@+id/titleIssue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="16dp"
+                android:text="Detail Temuan"
+                android:textColor="@color/black"
+                android:textSize="18sp" />
+
+            <LinearLayout
+                android:id="@+id/tblLytIssue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- DASHED LINE 2 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/dashed_straight_line" />
+
+            <!-- GPS SECTION -->
+            <TextView
+                android:id="@+id/titleGPS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center"
+                android:padding="16dp"
+                android:text="Informasi GPS"
+                android:textColor="@color/black"
+                android:textSize="18sp" />
+
+            <LinearLayout
+                android:id="@+id/tblLytGPS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

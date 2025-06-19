@@ -11,7 +11,7 @@ data class InspectionWithDetailRelations(
         parentColumn = "id",
         entityColumn = "id_inspeksi"
     )
-    val detailInspeksi: InspectionDetailModel?,
+    val detailInspeksi: List<InspectionDetailModel>,
 
     @Relation(
         parentColumn = "tph_id",
