@@ -1603,6 +1603,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
 
+
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
             btnGenerateQRTPH.setOnClickListener {
@@ -2823,8 +2824,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
 
-                    AppLogger.d("masuk gesss")
-
                     lifecycleScope.launch {
 
                         if (panenList.isNotEmpty()) {
@@ -3552,7 +3551,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
-                        btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                        btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
 
@@ -3582,7 +3581,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         if (panenList.size > 0) {
                             btnGenerateQRTPH.visibility = View.VISIBLE
                             tvGenQRFull.visibility = View.VISIBLE
-                            btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                            btnGenerateQRTPHUnl.visibility = View.GONE
                             tvGenQR60.visibility = View.VISIBLE
                             val headerCheckBoxPanen =
                                 findViewById<ConstraintLayout>(R.id.tableHeader)
