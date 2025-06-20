@@ -17,5 +17,11 @@ data class InspectionWithDetailRelations(
         parentColumn = "tph_id",
         entityColumn = "id"
     )
-    val tph: TPHNewModel?
+    val tph: TPHNewModel?,
+
+    @Relation(
+        parentColumn = "tph_id",
+        entityColumn = "tph_id"
+    )
+    val panen: List<PanenEntity>
 )

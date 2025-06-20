@@ -3535,23 +3535,24 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
             if (isTriggeredBtnScanned) {
-                // Button was triggered - show appropriate message based on search results
                 if (isEmptyScannedTPH) {
-                    // Search was done but no TPH found
                     tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
                     tvErrorScannedNotSelected.visibility = View.VISIBLE
                     errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
+                    isValid = false
                 } else {
                     // Search was done and TPH found, but user hasn't selected one
                     tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
                     tvErrorScannedNotSelected.visibility = View.VISIBLE
                     errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
+                    isValid = false
                 }
             } else {
                 // Button not triggered yet - ask user to search first
                 tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
                 tvErrorScannedNotSelected.visibility = View.VISIBLE
                 errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
+                isValid = false
             }
         } else {
             // TPH is selected or no afdeling selected - hide error

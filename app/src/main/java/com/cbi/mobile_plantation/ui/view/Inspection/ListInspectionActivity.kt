@@ -18,6 +18,7 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.CheckBox
@@ -45,7 +46,10 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
+import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
+import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
+import com.cbi.mobile_plantation.ui.adapter.Worker
 //import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity.SummaryItem
@@ -60,6 +64,8 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -85,8 +91,7 @@ class ListInspectionActivity : AppCompatActivity() {
     private var userName: String? = null
     private var estateName: String? = null
     private var jabatanUser: String? = null
-    private var afdelingUser: String? = null
-
+    private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
     private var prefManager: PrefManager? = null
     private lateinit var dateButton: Button
     private lateinit var adapter: ListInspectionAdapter
@@ -128,7 +133,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
         dateButton = findViewById(R.id.calendarPicker)
         dateButton.text = AppUtils.getTodaysDate()
-
+        selectedPemanenAdapter = SelectedWorkerAdapter()
 
         setupHeader()
         initViewModel()
@@ -361,17 +366,13 @@ class ListInspectionActivity : AppCompatActivity() {
         titleDialogDetailTable.text = "Inspeksi ${formatStartDate(inspectionPath.inspeksi.created_date_start)} ${inspectionPath.tph!!.blok_kode}-${inspectionPath.tph.nomor}"
         val tphContainer = view.findViewById<LinearLayout>(R.id.tblLytTPH)
         val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
-        val gpsContainer = view.findViewById<LinearLayout>(R.id.tblLytGPS)
 
         // Populate TPH Section
-        populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, view)
+        populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, inspectionPath.panen,  view)
 
 
         val detailList = inspectionPath.detailInspeksi
         populateIssueData(issueContainer, detailList, view)
-
-        // Populate GPS Section
-        populateGPSData(gpsContainer, inspectionPath.inspeksi)
 
         // Handle close button
         val btnClose = view.findViewById<Button>(R.id.btnCloseDetailTable)
@@ -440,8 +441,8 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, parentView: View){
-        parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr} ${tph.blok_kode}" // No TPH
+    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: List<PanenEntity>, parentView: View) {
+        parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr!!.takeLast(2)} ${tph.blok_kode}"
         val jamMulaiSelesai = formatDateRange(inspection.created_date_start, inspection.created_date_end)
         parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = jamMulaiSelesai
         parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
@@ -454,7 +455,73 @@ class ListInspectionActivity : AppCompatActivity() {
 
         loadInspectionPhoto(frameLayoutFoto, imageView, inspection.foto)
 
-        // Clear container for dynamic items
+        // Setup RecyclerView for pemanen
+        val rvSelectedPemanen = parentView.findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
+        val pemanenAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanen.adapter = pemanenAdapter
+        rvSelectedPemanen.layoutManager = FlexboxLayoutManager(parentView.context).apply {
+            justifyContent = JustifyContent.FLEX_START
+        }
+
+        // Set display mode to show names without remove buttons
+        pemanenAdapter.setDisplayOnly(true)
+
+        if (panen.isNotEmpty()) {
+            rvSelectedPemanen.visibility = View.VISIBLE
+
+            val allWorkers = mutableSetOf<Pair<String, String>>() // Use Set to avoid duplicates
+
+            panen.forEach { panenItem ->
+                // Split NIKs and names by comma
+                val niks = panenItem.karyawan_nik.split(",").map { it.trim() }
+                val names = panenItem.karyawan_nama.split(",").map { it.trim() }
+
+                // Match each NIK with corresponding name by index position
+                val maxIndex = minOf(niks.size, names.size)
+                for (i in 0 until maxIndex) {
+                    val nik = niks[i]
+                    val name = names[i]
+                    if (nik.isNotEmpty() && name.isNotEmpty()) {
+                        allWorkers.add(Pair(nik, name))
+                    }
+                }
+            }
+
+            allWorkers.forEach { (nik, name) ->
+                val formattedName = "$nik - $name"
+                val worker = Worker(nik, formattedName)
+                pemanenAdapter.addWorker(worker)
+            }
+
+            rvSelectedPemanen.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    rvSelectedPemanen.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                    // Style all visible items to be more compact
+                    for (i in 0 until rvSelectedPemanen.childCount) {
+                        val childView = rvSelectedPemanen.getChildAt(i)
+
+                        // Make text smaller
+                        val textView = childView.findViewById<TextView>(R.id.worker_name)
+                        textView?.textSize = 12f
+
+                        // Reduce container padding
+                        val container = childView.findViewById<LinearLayout>(R.id.worker_container)
+                        val density = parentView.context.resources.displayMetrics.density
+                        container?.setPadding(
+                            (8 * density).toInt(), // 8dp to pixels
+                            (4 * density).toInt(), // 4dp to pixels
+                            (8 * density).toInt(), // 8dp to pixels
+                            (4 * density).toInt()  // 4dp to pixels
+                        )// You'll need to convert dp to px
+                    }
+                }
+            })
+        } else {
+            rvSelectedPemanen.visibility = View.GONE
+        }
+
+
         container.removeAllViews()
 
         val tphData = listOf(
