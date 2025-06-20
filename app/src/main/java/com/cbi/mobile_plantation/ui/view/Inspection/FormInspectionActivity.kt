@@ -540,8 +540,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         if (shouldReopenBottomSheet) {
                             shouldReopenBottomSheet = false
-                            bottomNavInspect.visibility = View.VISIBLE
                             Handler(Looper.getMainLooper()).postDelayed({
+                                bottomNavInspect.visibility = View.VISIBLE
                                 showViewPhotoBottomSheet(null, isInTPH)
                             }, 100)
                         }
@@ -1172,6 +1172,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
                 etPhotoComment.clearFocus()
+                bottomNavInspect.visibility = View.GONE
                 true
             } else {
                 false
@@ -1294,6 +1295,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val filePath = File(rootApp, resultFileName)
         ivAddPhoto.setOnClickListener {
+            bottomNavInspect.visibility = View.GONE
             when {
                 ContextCompat.checkSelfPermission(
                     this,
@@ -1337,8 +1339,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             )
                         }, 100)
                     } else {
+
                         shouldReopenBottomSheet = true
                         Handler(Looper.getMainLooper()).postDelayed({
+                            bottomNavInspect.visibility = View.GONE
                             cameraViewModel.takeCameraPhotos(
                                 this,
                                 currentPage.toString(),
@@ -1404,7 +1408,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         bottomSheetDialog.show()
     }
 
-    private fun setKeyboardVisibilityListener() {
+        private fun setKeyboardVisibilityListener() {
         val rootView = findViewById<View>(android.R.id.content)
         keyboardWatcher = SoftKeyboardStateWatcher(
             rootView,
@@ -1597,7 +1601,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 if (activeBottomNavId == R.id.navMenuAncakInspect) {
 
                 }else{
-                    AppLogger.d("masuk sini gessss")
                     vibrate(500)
                     return@setOnItemSelectedListener false
                 }
