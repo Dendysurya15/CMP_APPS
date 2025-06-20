@@ -27,6 +27,8 @@ import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import android.util.Rational
 import android.util.Size
@@ -141,13 +143,13 @@ class CameraRepository(
         when (deviceOrientation) {
             270 -> Log.d(TAG, "  → 270° = Landscape Left = LEFT HAND grip")
             90 -> Log.d(TAG, "  → 90° = Landscape Right = RIGHT HAND grip")
-            0 -> Log.d(TAG, "  → 0° = Portrait = BOTH HANDS (convert to landscape)")
-            180 -> Log.d(TAG, "  → 180° = Portrait Upside Down = BOTH HANDS (convert to landscape)")
+            0 -> Log.d(TAG, "  → 0° = Portrait = NOT ALLOWED")
+            180 -> Log.d(TAG, "  → 180° = Portrait Upside Down = NOT ALLOWED")
             else -> Log.d(TAG, "  → ${deviceOrientation}° = Unknown orientation")
         }
         Log.d(TAG, "=================================")
 
-        // FIXED: Handle all orientations to produce landscape final images
+        // UPDATED: Only handle landscape orientations, portrait should be prevented
         val finalRotation = when (deviceOrientation) {
             270 -> {
                 // Left hand landscape - apply 180° to fix upside down
@@ -159,18 +161,9 @@ class CameraRepository(
                 Log.d(TAG, "👋 RIGHT HAND LANDSCAPE - No rotation needed")
                 0
             }
-            0 -> {
-                // Portrait - rotate to landscape format (same as right hand result)
-                Log.d(TAG, "📱 PORTRAIT MODE - Converting to landscape format (90° rotation)")
-                90
-            }
-            180 -> {
-                // Portrait upside down - rotate to landscape format
-                Log.d(TAG, "📱 PORTRAIT UPSIDE DOWN - Converting to landscape format (270° rotation)")
-                270
-            }
             else -> {
-                Log.d(TAG, "❓ UNKNOWN ORIENTATION - Using standard camera rotation: $rotationAngle°")
+                // This should not happen as portrait capture is now prevented
+                Log.d(TAG, "❓ UNEXPECTED ORIENTATION - Using standard camera rotation: $rotationAngle°")
                 rotationAngle
             }
         }
@@ -210,6 +203,12 @@ class CameraRepository(
         Log.d(TAG, "=== BITMAP ROTATION END ===")
 
         return rotatedBitmap
+    }
+
+    // 2. Add helper function to check if device is in portrait mode:
+    private fun isInPortraitMode(orientationHandler: CameraOrientationHandler): Boolean {
+        val deviceOrientation = orientationHandler.getCurrentOrientation()
+        return deviceOrientation == 0 || deviceOrientation == 180
     }
 
     private fun addToGallery(photoFile: File) {
@@ -752,23 +751,47 @@ class CameraRepository(
         torchButton?.bringToFront()
         switchButton?.bringToFront()
 
+        fun vibrate(context: Context) {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(
+                    VibrationEffect.createOneShot(
+                        50,
+                        VibrationEffect.DEFAULT_AMPLITUDE
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(50)
+            }
+        }
+
+
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.apply {
             setOnClickListener {
+                // Check if in portrait mode before capturing
+                if (isInPortraitMode(orientationHandler)) {
+                    // Prevent capture in portrait mode
+                    vibrate(context)
+                    Toast.makeText(
+                        context,
+                        "Mohon putar HP ke mode landscape",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
                 isEnabled = false
 
                 if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
-                    capReq =
-                        cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
 
                     // Apply the same flash settings for the actual photo capture
                     if (isFlashlightOn) {
                         capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
-                        capReq.set(
-                            CaptureRequest.CONTROL_AE_MODE,
-                            CaptureRequest.CONTROL_AE_MODE_ON
-                        )
+                        capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                         capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
                         capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
                         capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
@@ -806,14 +829,13 @@ class CameraRepository(
                         null
                     )
                 } else {
-                    // Just log the error and re-enable the button
-                    Log.e("CameraError", "CameraDevice or ImageReader is null")
                     isEnabled = true
                 }
             }
         }
 
     }
+
 
     fun statusCamera(): Boolean {
         rotatedCam = false
