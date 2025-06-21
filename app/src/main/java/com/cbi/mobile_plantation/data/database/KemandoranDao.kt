@@ -43,7 +43,7 @@ abstract class KemandoranDao {
     @Query(
         """
     SELECT * FROM kemandoran 
-    WHERE id = :idKemandoran
+    WHERE kemandoran_ppro = :idKemandoran
     """
     )
     abstract fun getKemandoranByTheId(

@@ -46,6 +46,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    suspend fun loadInspectionCount(datetime: String? = null): Int {
+        val count = repository.getInspectionCount(datetime)
+        return count
+    }
+
+
     fun loadInspectionPaths(datetime: String? = null) {
         viewModelScope.launch {
             _inspectionWithDetails.value = repository.getInspectionData(datetime)

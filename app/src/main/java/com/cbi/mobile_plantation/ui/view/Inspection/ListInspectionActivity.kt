@@ -448,8 +448,9 @@ class ListInspectionActivity : AppCompatActivity() {
         parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
         val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris1, inspection.baris2)
         parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
+        parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formatToIndonesianDate(inspection.date_panen)
 
-        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString() // Brondolan Tinggal
+        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString()
         val frameLayoutFoto = parentView.findViewById<FrameLayout>(R.id.frameLayoutFoto)
         val imageView = parentView.findViewById<ImageView>(R.id.ivFoto)
 

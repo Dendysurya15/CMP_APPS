@@ -31,6 +31,15 @@ abstract class InspectionDao {
         datetime: String? = null
     ): List<InspectionWithDetailRelations>
 
+    @Query("""
+    SELECT COUNT(*) FROM ${AppUtils.DatabaseTables.INSPEKSI}
+    WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
+""")
+    abstract suspend fun getInspectionCount(
+        datetime: String? = null
+    ): Int
+
+
     @Transaction
     @Query("SELECT * FROM inspeksi")
     abstract fun getTPHHasBeenInspect(): List<InspectionModel>

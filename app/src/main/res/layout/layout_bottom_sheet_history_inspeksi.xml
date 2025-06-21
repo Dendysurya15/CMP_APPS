@@ -99,27 +99,7 @@
                         android:layout_marginBottom="12dp" />
 
                     <!-- Item 2 Left -->
-                    <TextView
-                        android:id="@+id/tvTitleLeft2"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@color/graylight"
-                        android:fontFamily="@font/manrope_bold"
-                        android:text="Jam Mulai/Selesai"
-                        android:textColor="@color/black"
-                        android:textStyle="italic"
-                        android:textSize="@dimen/m"
-                        android:layout_marginBottom="2dp" />
 
-                    <TextView
-                        android:id="@+id/tvJamMulaiSelesai"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/manrope_medium"
-                        android:text="-"
-                        android:textColor="@color/black"
-                        android:textSize="@dimen/m"
-                        android:layout_marginBottom="12dp" />
 
                     <!-- Item 3 Left -->
                     <TextView
@@ -170,6 +150,26 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/manrope_bold"
                         android:background="@color/graylight"
+                        android:text="Tanggal Panen"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvTglPanen"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:background="@color/graylight"
                         android:text="Pemanen"
                         android:textColor="@color/black"
                         android:textStyle="italic"
@@ -192,6 +192,28 @@
                     android:layout_weight="1"
                     android:orientation="vertical"
                     android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:id="@+id/tvTitleLeft2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/graylight"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Jam Mulai/Selesai"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvJamMulaiSelesai"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:text="-"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="12dp" />
 
                     <!-- Item 2 Right -->
                     <TextView

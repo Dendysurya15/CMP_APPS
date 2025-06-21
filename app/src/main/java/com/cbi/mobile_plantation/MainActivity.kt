@@ -131,7 +131,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, FormInspectionActivity::class.java))
+        startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }
 

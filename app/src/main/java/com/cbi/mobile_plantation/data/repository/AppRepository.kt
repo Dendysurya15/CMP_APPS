@@ -87,6 +87,17 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getInspectionCount(
+        datetime: String? = null
+    ): Int {
+        return try {
+            inspectionDao.getInspectionCount(datetime)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection count: ${e.message}")
+            0  // Return 0 if there's an error
+        }
+    }
+
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
