@@ -1975,6 +1975,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val tphId = item.optString("tph", "")
                             val createdDate = item.optString("created_date", "")
                             val createdBy = item.optInt("created_by", 0)
+                            val spb_kode = item.optString("spb_kode", "")
                             val ancak = item.optInt("ancak", 0)
 
                             // Extract jjg values for jjg_json
@@ -2044,7 +2045,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             AppLogger.d("Creating entity: tphId=$tphId, date=$createdDate, kemandoranId=$kemandoranId, karyawanId=$karyawanId, karyawanNik=$karyawanNik")
 
-                            // Create a PanenEntity with the required fields
                             val panenEntity = PanenEntity(
                                 tph_id = tphId.toString(),
                                 date_created = createdDate,
@@ -2068,7 +2068,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 status_restan = 0,
                                 scan_status = 0,
                                 dataIsZipped = 0,
-                                no_espb = "",
+                                no_espb = spb_kode,
                                 username = "",
                                 status_upload = 0,
                                 status_uploaded_image = "0",
@@ -2076,7 +2076,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 status_insert_mpanen = 0,
                                 status_scan_mpanen = 0,
                                 jumlah_pemanen = karyawanNikList.size,
-                                archive_mpanen = 0
+                                archive_mpanen = 0,
+                                isPushedToServer = 1
                             )
 
                             panenList.add(panenEntity)

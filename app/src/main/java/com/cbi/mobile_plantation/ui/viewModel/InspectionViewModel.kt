@@ -31,6 +31,9 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         data class Error(val message: String) : SaveDataInspectionState()
     }
 
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
+
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
@@ -51,12 +54,26 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         return count
     }
 
+    fun updateDataIsZippedHP(ids: List<Int>, status:Int) {
+
+        AppLogger.d(ids.toString())
+        AppLogger.d("masuk gak sih ")
+        viewModelScope.launch {
+            try {
+                repository.updateDataInspeksiIsZippedHP(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
 
     fun loadInspectionPaths(datetime: String? = null) {
         viewModelScope.launch {
             _inspectionWithDetails.value = repository.getInspectionData(datetime)
         }
     }
+
 
     suspend fun saveDataInspection(
         created_date_start: String,

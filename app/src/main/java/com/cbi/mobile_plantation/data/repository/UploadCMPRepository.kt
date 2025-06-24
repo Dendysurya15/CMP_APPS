@@ -46,6 +46,7 @@ class UploadCMPRepository(context: Context) {
     private val panenDao = database.panenDao()
     private val absensiDao = database.absensiDao()
     private val espbDao = database.espbDao()
+    private val inspeksiDao = database.inspectionDao()
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
@@ -310,7 +311,6 @@ class UploadCMPRepository(context: Context) {
 
                 if (type == "image") {
                     try {
-                        // Parse the data as JSON array of image objects
                         AppLogger.d("====== PARSING IMAGE DATA ======")
                         val imageList = Gson().fromJson(
                             data,
@@ -382,6 +382,18 @@ class UploadCMPRepository(context: Context) {
                                         }
                                         AppUtils.DatabaseTables.ABSENSI -> {
                                             absensiDao.updateStatusUploadedImage(
+                                                listOf(tableId),
+                                                errorJson
+                                            )
+                                        }
+                                        AppUtils.DatabaseTables.INSPEKSI -> {
+                                            inspeksiDao.updateStatusUploadedImageInspeksi(
+                                                listOf(tableId),
+                                                errorJson
+                                            )
+                                        }
+                                        AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                            inspeksiDao.updateStatusUploadedImageInspeksiDetail(
                                                 listOf(tableId),
                                                 errorJson
                                             )
@@ -490,6 +502,16 @@ class UploadCMPRepository(context: Context) {
                                                         listOf(tableIdInt), "200"
                                                     )
                                                 }
+                                                AppUtils.DatabaseTables.INSPEKSI -> {
+                                                    inspeksiDao.updateStatusUploadedImageInspeksi(
+                                                        listOf(tableIdInt), "200"
+                                                    )
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                    inspeksiDao.updateStatusUploadedImageInspeksiDetail(
+                                                        listOf(tableIdInt), "200"
+                                                    )
+                                                }
                                             }
                                         }
 
@@ -517,6 +539,16 @@ class UploadCMPRepository(context: Context) {
                                                 }
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     absensiDao.updateStatusUploadedImage(
+                                                        listOf(tableIdInt), errorJson
+                                                    )
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI -> {
+                                                    inspeksiDao.updateStatusUploadedImageInspeksi(
+                                                        listOf(tableIdInt), errorJson
+                                                    )
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                    inspeksiDao.updateStatusUploadedImageInspeksiDetail(
                                                         listOf(tableIdInt), errorJson
                                                     )
                                                 }
@@ -553,6 +585,16 @@ class UploadCMPRepository(context: Context) {
                                             }
                                             AppUtils.DatabaseTables.ABSENSI -> {
                                                 absensiDao.updateStatusUploadedImage(
+                                                    listOf(tableIdInt), errorJson
+                                                )
+                                            }
+                                            AppUtils.DatabaseTables.INSPEKSI -> {
+                                                inspeksiDao.updateStatusUploadedImageInspeksi(
+                                                    listOf(tableIdInt), errorJson
+                                                )
+                                            }
+                                            AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                inspeksiDao.updateStatusUploadedImageInspeksiDetail(
                                                     listOf(tableIdInt), errorJson
                                                 )
                                             }
@@ -597,6 +639,16 @@ class UploadCMPRepository(context: Context) {
                                             absensiDao.updateStatusUploadedImage(
                                                 listOf(tableIdInt),
                                                 errorJson
+                                            )
+                                        }
+                                        AppUtils.DatabaseTables.INSPEKSI -> {
+                                            inspeksiDao.updateStatusUploadedImageInspeksi(
+                                                listOf(tableIdInt), errorJson
+                                            )
+                                        }
+                                        AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                            inspeksiDao.updateStatusUploadedImageInspeksiDetail(
+                                                listOf(tableIdInt), errorJson
                                             )
                                         }
                                     }

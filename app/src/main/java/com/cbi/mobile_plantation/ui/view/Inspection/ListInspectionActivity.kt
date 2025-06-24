@@ -309,7 +309,7 @@ class ListInspectionActivity : AppCompatActivity() {
             addItemDecoration(DividerItemDecoration(this.context, LinearLayoutManager.VERTICAL))
         }
 
-        val headers = listOf("BLOK", "TOTAL PKK", "JAM MULAI/\nJAM SELESAI", "STATUS")
+        val headers = listOf("BLOK", "TOTAL PKK", "JAM MULAI/\nJAM SELESAI", "STATUS\nUPLOAD")
         updateTableHeaders(headers)
     }
 
@@ -917,7 +917,7 @@ class ListInspectionActivity : AppCompatActivity() {
         // Get the photo path
         val rootApp = File(
             getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok}"
         ).toString()
 
         val fullImagePath = File(rootApp, photoFileName).absolutePath
@@ -1010,7 +1010,7 @@ class ListInspectionActivity : AppCompatActivity() {
         // Get the photo path
         val rootApp = File(
             getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH}"
         ).toString()
 
         val fullImagePath = File(rootApp, photoFileName).absolutePath

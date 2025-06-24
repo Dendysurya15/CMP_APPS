@@ -31,6 +31,9 @@ abstract class InspectionDao {
         datetime: String? = null
     ): List<InspectionWithDetailRelations>
 
+    @Query("UPDATE inspeksi SET dataIsZipped = :status WHERE id IN (:ids)")
+    abstract  suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
+
     @Query("""
     SELECT COUNT(*) FROM ${AppUtils.DatabaseTables.INSPEKSI}
     WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
@@ -39,6 +42,11 @@ abstract class InspectionDao {
         datetime: String? = null
     ): Int
 
+    @Query("UPDATE inspeksi SET status_uploaded_image = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImageInspeksi(ids: List<Int>, status: String): Int
+
+    @Query("UPDATE inspeksi_detail SET status_uploaded_image = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImageInspeksiDetail(ids: List<Int>, status: String): Int
 
     @Transaction
     @Query("SELECT * FROM inspeksi")

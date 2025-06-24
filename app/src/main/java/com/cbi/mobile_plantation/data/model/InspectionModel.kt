@@ -30,6 +30,7 @@ data class InspectionModel(
     val komentar: String? = null,
     val latTPH: Double,
     val lonTPH: Double,
+    val dataIsZipped: Int = 0,
     val app_version: String,
     val status_upload: String,
     val status_uploaded_image: String,

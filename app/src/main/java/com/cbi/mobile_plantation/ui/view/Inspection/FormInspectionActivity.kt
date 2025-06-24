@@ -128,6 +128,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import org.w3c.dom.Text
 import java.io.File
 import java.text.SimpleDateFormat
@@ -970,6 +971,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 Log.d("SaveInspection", "Added end location to trackingLocation")
                             }
 
+                            val trackingJson = JSONObject().apply {
+                                trackingLocation.forEach { (key, location) ->
+                                    put(key, JSONObject().apply {
+                                        put("lat", location.lat)
+                                        put("lon", location.lon)
+                                    })
+                                }
+                            }
+
+//
+//                            val formattedTracking =
+//                                trackingLocation.values.joinToString("#") { "${it.lat},${it.lon}" }
+//
+//                            AppLogger.d(formattedTracking.toString())
+
                             val dateEndInspection = SimpleDateFormat(
                                 "yyyy-MM-dd HH:mm:ss",
                                 Locale.getDefault()
@@ -1012,7 +1028,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 baris1 = br1Value.toInt(),
                                 baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
                                 jml_pkk_inspeksi = totalPokokInspection,
-                                tracking_path = trackingLocation.toString(),
+                                tracking_path = trackingJson.toString(),
                                 latTPH = lat ?: 0.0,
                                 lonTPH = lon ?: 0.0,
                                 foto = photoInTPH,
@@ -1136,11 +1152,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
-        val rootApp = File(
-            this.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-            "CMP-${WaterMarkFotoDanFolder.WMInspeksi}"
-        ).toString()
-
         val bottomSheetDialog = BottomSheetDialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_inspection_photo, null)
         bottomSheetDialog.setContentView(view)
@@ -1215,6 +1226,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 //            sourceFoto = "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan #Pokok ${currentData.pokokNumber}"
             var kondisi  = if(selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
             sourceFoto = " $kondisi #Pokok ${currentData.pokokNumber}"
+        }
+
+        val watermarkType = if (isInTPH == true) {
+            WaterMarkFotoDanFolder.WMInspeksiTPH
+        } else {
+            WaterMarkFotoDanFolder.WMInspeksiPokok
         }
 
         ibDeletePhotoInspect.visibility = View.GONE
@@ -1292,6 +1309,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (fileName != null) {
             resultFileName = fileName
         }
+        val rootApp = File(
+            this.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${watermarkType}"
+        ).toString()
 
         val filePath = File(rootApp, resultFileName)
         ivAddPhoto.setOnClickListener {
@@ -1320,7 +1341,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             null,
                                             "", // soon assign lat lon
                                             currentPage.toString(),
-                                            WaterMarkFotoDanFolder.WMInspeksi,
+                                        watermarkType,
                                             lat,
                                             lon,
                                             sourceFoto
@@ -1351,7 +1372,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 null,
                                 "", // soon assign lat lon
                                 currentPage.toString(),
-                                WaterMarkFotoDanFolder.WMInspeksi,
+                            watermarkType,
                                 lat,
                                 lon,
                                 sourceFoto
@@ -2186,7 +2207,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Build the correct file path
             val rootApp = File(
                 getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH}"
             ).toString()
 
             val fullImagePath = File(rootApp, photoInTPH).absolutePath
@@ -2364,7 +2385,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 // Build correct path for pageData photo
                 val rootApp = File(
                     getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                    "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksi}"
+                    "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok}"
                 ).toString()
 
                 val fullImagePath = File(rootApp, pageData.photo).absolutePath

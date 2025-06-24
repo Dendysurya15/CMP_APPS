@@ -51,8 +51,6 @@ class AppRepository(context: Context) {
     private val kemandoranDao = database.kemandoranDao()
     private val transporterDao = database.transporterDao()
     private val inspectionDao = database.inspectionDao()
-//    private val inspectionPathDao = database.inspectionPathDao()
-    private val inspectionDetaiLDao = database.inspectionDetailDao()
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
@@ -854,6 +852,10 @@ class AppRepository(context: Context) {
 
     suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int) {
         hektarPanenDao.updateDataIsZippedHP(ids, status)
+    }
+
+    suspend fun updateDataInspeksiIsZippedHP(ids: List<Int>, status: Int) {
+        inspectionDao.updateDataIsZippedHP(ids, status)
     }
 
     suspend fun getBlokKodeByTphId(tphId: Int): String? = withContext(Dispatchers.IO) {

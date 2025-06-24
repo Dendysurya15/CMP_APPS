@@ -56,6 +56,7 @@ class DataPanenInspectionRepository(
                 put("jjg_bayar")
                 put("jjg_kirim")
                 put("kemandoran")
+                put("spb_kode")
             })
 
             // Build WHERE clause with multiple conditions

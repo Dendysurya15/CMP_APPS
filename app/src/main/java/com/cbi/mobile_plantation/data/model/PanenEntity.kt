@@ -38,5 +38,6 @@ data class PanenEntity(
     val status_insert_mpanen: Int = 0,
     val status_scan_mpanen: Int = 0,
     val jumlah_pemanen: Int = 1,
-    val archive_mpanen: Int=0
+    val archive_mpanen: Int=0,
+    val isPushedToServer: Int = 0
     )

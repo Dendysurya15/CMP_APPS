@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.annotation.SuppressLint
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -70,14 +71,22 @@ class ListInspectionAdapter(
                 val endTime = formatTime(item.inspeksi.created_date_end)
                 td3.text = "$startTime\n$endTime"
 
-                // Column 4: STATUS (based on upload status)
-                val status = when (item.inspeksi.status_upload) {
-                    "uploaded" -> "Uploaded"
-                    "pending" -> "Pending"
-                    "failed" -> "Failed"
-                    else -> "Not Uploaded"
+                val statusIcon = if (item.inspeksi.status_upload == "0") {
+                    R.drawable.baseline_close_24
+                } else {
+                    R.drawable.baseline_check_box_24
                 }
-                td4.text = status
+
+                val iconColor = if (item.inspeksi.status_upload == "0") {
+                    ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
+                } else {
+                    ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark)
+                }
+
+                td4.text = ""
+                td4.gravity = Gravity.CENTER_VERTICAL
+                td4.setCompoundDrawablesWithIntrinsicBounds(0, statusIcon, 0, 0)
+                td4.compoundDrawables[1]?.setTint(iconColor) // Tint the top drawable
 
             }
         }

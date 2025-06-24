@@ -44,6 +44,7 @@ import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
@@ -163,6 +164,7 @@ class HomePageActivity : AppCompatActivity() {
     private val globalEspbIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalHektarPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalAbsensiPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private var globalInspeksiIds: List<Int> = emptyList()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private var globalHektaranIds: List<Int> = emptyList()
@@ -914,13 +916,6 @@ class HomePageActivity : AppCompatActivity() {
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
         prefManager!!.registeredDeviceUsername = prefManager!!.username
-        panenViewModel.updateStatus.observeOnce(this) { success ->
-            if (success) {
-                AppLogger.d("✅ Panen Archive Updated Successfully")
-            } else {
-                AppLogger.e("❌ Panen Archive Update Failed")
-            }
-        }
 
         uploadCMPViewModel.updateStatusUploadCMP.observe(this) { (id, success) ->
             if (success) {
@@ -1643,7 +1638,8 @@ class HomePageActivity : AppCompatActivity() {
 
             val featuresToFetch = listOf(
                 AppUtils.DatabaseTables.ESPB,
-                AppUtils.DatabaseTables.PANEN
+                AppUtils.DatabaseTables.PANEN,
+                AppUtils.DatabaseTables.INSPEKSI
             )
             val combinedUploadData = mutableMapOf<String, Any>()
             lifecycleScope.launch {
@@ -1654,7 +1650,10 @@ class HomePageActivity : AppCompatActivity() {
                     CompletableDeferred<List<AbsensiKemandoranRelations>>()
                 val hektarPanenDeferred =
                     CompletableDeferred<List<HektarPanenEntity>>()
+                val inspeksiDeferred =
+                    CompletableDeferred<List<InspectionWithDetailRelations>>()
                 val zipDeferred = CompletableDeferred<Boolean>()
+
 
                 panenViewModel.loadActivePanenESPBAll()
                 delay(100)
@@ -1694,17 +1693,26 @@ class HomePageActivity : AppCompatActivity() {
                     ) // Ensure it's never null
                 }
 
+                inspectionViewModel.loadInspectionPaths()
+                delay(100)
+                inspectionViewModel.inspectionWithDetails.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "Inspeksi Data Received: ${list.size}")
+                    inspeksiDeferred.complete(
+                        list ?: emptyList()
+                    ) // Ensure it's never null
+                }
+
 
                 var unzippedPanenData: List<Map<String, Any>> = emptyList()
                 var unzippedESPBData: List<Map<String, Any>> = emptyList()
                 var unzippedHektaranData: List<Map<String, Any>> = emptyList()
                 var unzippedAbsensiData: List<Map<String, Any>> = emptyList()
+                var unzippedInspeksiData = mutableListOf<Map<String, Any>>()
 
                 var mappedPanenData: List<Map<String, Any>> = emptyList()
                 var mappedESPBData: List<Map<String, Any>> = emptyList()
-                var mappedHektaranData: List<Map<String, Any>> = emptyList()
-                var mappedAbsensiData: List<Map<String, Any>> = emptyList()
-
+                var mappedInspeksiData = mutableListOf<Map<String, Any>>()
+                var allPhotosInspeksi = mutableListOf<Map<String, String>>()
                 var allPhotosPanen = mutableListOf<Map<String, String>>()
                 var allPhotosAbsensi = mutableListOf<Map<String, String>>()
                 var hektaranJson = ""
@@ -1714,6 +1722,7 @@ class HomePageActivity : AppCompatActivity() {
                     val espbList = espbDeferred.await()
                     val absensiList = absensiDeferred.await()
                     val hektarPanenList = hektarPanenDeferred.await()
+                    val inspeksiList = inspeksiDeferred.await()
 
                     // Prepare to search for photo files in CMP directories
                     val picturesDirs = listOf(
@@ -1735,7 +1744,7 @@ class HomePageActivity : AppCompatActivity() {
 
                         cmpDirectories.addAll(dirs)
                     }
-
+                    AppLogger.d("panenList $panenList")
                     if (panenList.isNotEmpty()) {
 
                         val uniquePhotos =
@@ -2039,6 +2048,8 @@ class HomePageActivity : AppCompatActivity() {
                         }
 
 
+
+                        AppLogger.d("panenData $panenDataToUpload")
                         // Only create the panen JSON file if there's data to upload
                         if (panenDataToUpload.isNotEmpty()) {
                             // Split into batches of 50
@@ -2120,6 +2131,10 @@ class HomePageActivity : AppCompatActivity() {
 
                             // Only include items that are not yet zipped
                             isZipped == 0
+                        }
+
+                        globalPanenIds = unzippedPanenData.mapNotNull { item ->
+                            item["id"] as? Int
                         }
                     }
 
@@ -2244,29 +2259,29 @@ class HomePageActivity : AppCompatActivity() {
 
 
                                 // Convert to JSON
-                                val espbJson = Gson().toJson(wrappedData)
-//                                                AppLogger.d("espbJson $espbJson")
+//                                val espbJson = Gson().toJson(wrappedData)
+////                                                AppLogger.d("espbJson $espbJson")
+////
+//                                                try {
+//                                                    val tempDir =
+//                                                        File(getExternalFilesDir(null), "TEMP").apply {
+//                                                            if (!exists()) mkdirs()
+//                                                        }
 //
-                                                try {
-                                                    val tempDir =
-                                                        File(getExternalFilesDir(null), "TEMP").apply {
-                                                            if (!exists()) mkdirs()
-                                                        }
-
-                                                    val filename =
-                                                        "espb_data_${System.currentTimeMillis()}.json"
-                                                    val tempFile = File(tempDir, filename)
-
-                                                    FileOutputStream(tempFile).use { fos ->
-                                                        fos.write(espbJson.toByteArray())
-                                                    }
-
-                                                    AppLogger.d("Saved raw espb data to temp file: ${tempFile.absolutePath}")
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
-                                                    e.printStackTrace()
-                                                }
-                                AppLogger.d(espbJson.toString())
+//                                                    val filename =
+//                                                        "espb_data_${System.currentTimeMillis()}.json"
+//                                                    val tempFile = File(tempDir, filename)
+//
+//                                                    FileOutputStream(tempFile).use { fos ->
+//                                                        fos.write(espbJson.toByteArray())
+//                                                    }
+//
+//                                                    AppLogger.d("Saved raw espb data to temp file: ${tempFile.absolutePath}")
+//                                                } catch (e: Exception) {
+//                                                    AppLogger.e("Failed to save espb data to temp file: ${e.message}")
+//                                                    e.printStackTrace()
+//                                                }
+//                                AppLogger.d(espbJson.toString())
                                 // Extract all IDs
                                 val espbIds = ArrayList<Int>()
                                 for (item in mappedESPBData) {
@@ -2283,12 +2298,12 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // Store as a single entry
-                                combinedUploadData[AppUtils.DatabaseTables.ESPB] =
-                                    mapOf(
-                                        "data" to espbJson,
-                                        "filename" to "espb_data.json",
-                                        "ids" to espbIds
-                                    )
+//                                combinedUploadData[AppUtils.DatabaseTables.ESPB] =
+//                                    mapOf(
+//                                        "data" to espbJson,
+//                                        "filename" to "espb_data.json",
+//                                        "ids" to espbIds
+//                                    )
                             }
 
 
@@ -2303,6 +2318,11 @@ class HomePageActivity : AppCompatActivity() {
                                 // Only include items that are not yet zipped
                                 isZipped == 0
                             }
+
+                            globalESPBIds = unzippedESPBData.mapNotNull { item ->
+                                item["id"] as? Int
+                            }
+
                         } else {
                             AppLogger.d("No ESPB data with status_upload == 0 to upload")
                             // Initialize empty arrays if no data to upload
@@ -2576,17 +2596,6 @@ class HomePageActivity : AppCompatActivity() {
 //                                                e.printStackTrace()
 //                                            }
 
-                            // Extract all IDs for tracking
-                            val hektaranIds =
-                                hektarPanenToUpload.mapNotNull { it.id }
-
-                            // Store as a single entry
-                            combinedUploadData[AppUtils.DatabaseTables.HEKTAR_PANEN] =
-                                mapOf(
-                                    "data" to hektaranJson,
-                                    "filename" to "hektaran_data.json",
-                                    "ids" to hektaranIds
-                                )
 
                             unzippedHektaranData = restructuredData.filter { item ->
                                 // Get the blok value from the current item
@@ -2600,16 +2609,30 @@ class HomePageActivity : AppCompatActivity() {
                                 notYetZipped
                             }
 
-                            globalHektaranIds = hektaranIds
+                            globalHektaranIds = unzippedHektaranData.flatMap { item ->
+                                val blok = item["blok"] as? Int ?: 0
+
+                                // Find all original data items for this blok that are not yet zipped
+                                hektarPanenList.filter {
+                                    it.blok == blok && it.status_upload == 0 && it.dataIsZipped == 0
+                                }.mapNotNull { it.id }
+                            }
+
+                            combinedUploadData[AppUtils.DatabaseTables.HEKTAR_PANEN] = mapOf(
+                                "data" to hektaranJson,
+                                "filename" to "hektaran_data.json",
+                                "ids" to globalHektaranIds
+                            )
+
 
                         } else {
-                            mappedHektaranData = emptyList()
+//                            mappedHektaranData = emptyList()
                             globalHektaranIds = emptyList()
                             unzippedHektaranData = emptyList()
                         }
                     }
 
-//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
                     if (absensiList.isNotEmpty()) {
                         // First, process photos/images regardless of status_upload
                         val absensiWithPendingImages = absensiList.filter { data ->
@@ -3131,18 +3154,9 @@ class HomePageActivity : AppCompatActivity() {
 //                                                e.printStackTrace()
 //                                            }
 
-                            AppLogger.d(absensiJson)
-
-                            // Extract all IDs for tracking
-                            val absensiIds = absensiToUpload.map { it.absensi.id }
 
                             // Store as a single entry
-                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
-                                mapOf(
-                                    "data" to absensiJson,
-                                    "filename" to "absensi_data.json",
-                                    "ids" to absensiIds
-                                )
+
 
                             // Keep track of which records have been processed for zipping
                             unzippedAbsensiData = restructuredData.filter { item ->
@@ -3165,12 +3179,538 @@ class HomePageActivity : AppCompatActivity() {
                                 notYetZipped
                             }
 
-                            globalAbsensiIds = absensiIds
+                            // Extract IDs from items that match the unzippedAbsensiData criteria
+                            globalAbsensiIds = absensiList.filter { absensiRelation ->
+                                absensiRelation.absensi.status_upload == 0 &&
+                                        absensiRelation.absensi.dataIsZipped == 0
+                            }.map { it.absensi.id }
+
+                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
+                                mapOf(
+                                    "data" to absensiJson,
+                                    "filename" to "absensi_data.json",
+                                    "ids" to globalAbsensiIds
+                                )
+
+
                         } else {
-                            // If no data to upload, still set these variables
-                            mappedAbsensiData = emptyList()
+//                            mappedAbsensiData = emptyList()
                             globalAbsensiIds = emptyList()
                             unzippedAbsensiData = emptyList()
+                        }
+                    }
+
+                    if (inspeksiList.isNotEmpty()) {
+
+                        val uniquePhotos = mutableMapOf<String, Map<String, String>>()
+
+                        // Prepare to search for photo files in CMP directories
+                        val picturesDirs = listOf(
+                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                            File(
+                                getExternalFilesDir(null)?.parent ?: "",
+                                "Pictures"
+                            )
+                        ).filterNotNull()
+
+                        // Find all CMP directories upfront
+                        val cmpDirectories = mutableListOf<File>()
+                        for (picturesDir in picturesDirs) {
+                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                continue
+                            }
+
+                            // Look specifically for CMP-INSPEKSI TPH directory
+                            val cmpInspeksiDir = File(picturesDir, "CMP-INSPEKSI TPH")
+                            if (cmpInspeksiDir.exists() && cmpInspeksiDir.isDirectory) {
+                                cmpDirectories.add(cmpInspeksiDir)
+                            }
+
+                            // Also check for any other CMP directories
+                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-INSPEKSI TPH"
+                            } ?: emptyArray()
+
+                            cmpDirectories.addAll(otherCmpDirs)
+                        }
+
+                        AppLogger.d("Found ${cmpDirectories.size} CMP directories for inspeksi")
+
+                        mappedInspeksiData = inspeksiList.mapNotNull { inspeksiWithRelations ->
+
+                            // Handle photos from main inspeksi
+                            val inspeksiPhotoNames =
+                                inspeksiWithRelations.inspeksi.foto?.split(";") ?: listOf()
+
+                            // Process main inspeksi photos
+                            for (photoName in inspeksiPhotoNames) {
+                                val trimmedName = photoName.trim()
+                                if (trimmedName.isEmpty()) continue
+
+                                if (trimmedName in uniquePhotos) continue
+
+                                // Check main inspeksi status
+                                var shouldSkip = false
+                                if (inspeksiWithRelations.inspeksi.status_uploaded_image == "200") {
+                                    shouldSkip = true
+                                }
+
+                                if (shouldSkip) {
+                                    AppLogger.d("Skipping main inspeksi photo $trimmedName - fully uploaded (status 200)")
+                                    continue
+                                }
+
+                                var photoFound = false
+
+                                for (cmpDir in cmpDirectories) {
+                                    val photoFile = File(cmpDir, trimmedName)
+
+                                    if (photoFile.exists() && photoFile.isFile) {
+                                        var shouldAdd = false
+
+                                        // Check if photo needs upload based on status
+                                        if (inspeksiWithRelations.inspeksi.status_uploaded_image == "0") {
+                                            shouldAdd = true
+                                            AppLogger.d("Photo $trimmedName hasn't been uploaded (status 0)")
+                                        } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith(
+                                                "{"
+                                            )
+                                        ) {
+                                            try {
+                                                val errorJson = Gson().fromJson(
+                                                    inspeksiWithRelations.inspeksi.status_uploaded_image,
+                                                    JsonObject::class.java
+                                                )
+                                                val errorArray =
+                                                    errorJson?.get("error")?.asJsonArray
+
+                                                errorArray?.forEach { errorItem ->
+                                                    if (errorItem.asString == trimmedName) {
+                                                        shouldAdd = true
+                                                        AppLogger.d("Photo $trimmedName is marked as error in inspeksi ${inspeksiWithRelations.inspeksi.id}")
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                            }
+                                        }
+
+                                        val createdDate =
+                                            inspeksiWithRelations.inspeksi.created_date_start ?: ""
+                                        val formattedDate = try {
+                                            val dateFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val date = dateFormat.parse(createdDate)
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(date ?: Date())
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error formatting date: ${e.message}")
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(Date())
+                                        }
+
+                                        val basePathImage =
+                                            formattedDate + prefManager!!.estateUserLogin
+
+                                        if (shouldAdd) {
+                                            uniquePhotos[trimmedName] = mapOf(
+                                                "name" to trimmedName,
+                                                "path" to photoFile.absolutePath,
+                                                "size" to photoFile.length().toString(),
+                                                "table_ids" to inspeksiWithRelations.inspeksi.id.toString(),
+                                                "base_path" to basePathImage,
+                                                "database" to AppUtils.DatabaseTables.INSPEKSI
+                                            )
+                                            AppLogger.d("Added main inspeksi photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                        }
+
+                                        photoFound = true
+                                        break
+                                    }
+                                }
+
+                                if (!photoFound) {
+                                    AppLogger.w("Main inspeksi photo not found: $trimmedName")
+                                }
+                            }
+
+                            // Handle photos from inspeksi detail
+                            inspeksiWithRelations.detailInspeksi.forEach { detail ->
+                                val detailPhotoNames = detail.foto?.split(";") ?: listOf()
+
+                                for (photoName in detailPhotoNames) {
+                                    val trimmedName = photoName.trim()
+                                    if (trimmedName.isEmpty()) continue
+
+                                    if (trimmedName in uniquePhotos) continue
+
+                                    // Check detail status
+                                    var shouldSkip = false
+                                    if (detail.status_uploaded_image == "200") {
+                                        shouldSkip = true
+                                    }
+
+                                    if (shouldSkip) {
+                                        AppLogger.d("Skipping detail photo $trimmedName - fully uploaded (status 200)")
+                                        continue
+                                    }
+
+                                    var photoFound = false
+
+                                    for (cmpDir in cmpDirectories) {
+                                        val photoFile = File(cmpDir, trimmedName)
+
+                                        if (photoFile.exists() && photoFile.isFile) {
+                                            var shouldAdd = false
+
+                                            // Check if photo needs upload based on detail status
+                                            if (detail.status_uploaded_image == "0") {
+                                                shouldAdd = true
+                                                AppLogger.d("Detail photo $trimmedName hasn't been uploaded (status 0)")
+                                            } else if (detail.status_uploaded_image.startsWith("{")) {
+                                                try {
+                                                    val errorJson = Gson().fromJson(
+                                                        detail.status_uploaded_image,
+                                                        JsonObject::class.java
+                                                    )
+                                                    val errorArray =
+                                                        errorJson?.get("error")?.asJsonArray
+
+                                                    errorArray?.forEach { errorItem ->
+                                                        if (errorItem.asString == trimmedName) {
+                                                            shouldAdd = true
+                                                            AppLogger.d("Photo $trimmedName is marked as error in detail ${detail.id}")
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error parsing detail upload status JSON: ${e.message}")
+                                                }
+                                            }
+
+                                            val createdDate =
+                                                inspeksiWithRelations.inspeksi.created_date_start
+                                                    ?: ""
+                                            val formattedDate = try {
+                                                val dateFormat = SimpleDateFormat(
+                                                    "yyyy-MM-dd HH:mm:ss",
+                                                    Locale.getDefault()
+                                                )
+                                                val date = dateFormat.parse(createdDate)
+                                                val outputFormat = SimpleDateFormat(
+                                                    "yyyy/MM/dd/",
+                                                    Locale.getDefault()
+                                                )
+                                                outputFormat.format(date ?: Date())
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error formatting date: ${e.message}")
+                                                val outputFormat = SimpleDateFormat(
+                                                    "yyyy/MM/dd/",
+                                                    Locale.getDefault()
+                                                )
+                                                outputFormat.format(Date())
+                                            }
+
+                                            val basePathImage =
+                                                formattedDate + prefManager!!.estateUserLogin
+
+                                            if (shouldAdd) {
+                                                uniquePhotos[trimmedName] = mapOf(
+                                                    "name" to trimmedName,
+                                                    "path" to photoFile.absolutePath,
+                                                    "size" to photoFile.length().toString(),
+                                                    "table_ids" to (detail.id ?: 0).toString(),
+                                                    "base_path" to basePathImage,
+                                                    "database" to AppUtils.DatabaseTables.INSPEKSI_DETAIL
+                                                )
+                                                AppLogger.d("Added detail inspeksi photo for upload: $trimmedName at ${photoFile.absolutePath} (detail id: ${detail.id})")
+                                            }
+
+                                            photoFound = true
+                                            break
+                                        }
+                                    }
+
+                                    if (!photoFound) {
+                                        AppLogger.w("Detail inspeksi photo not found: $trimmedName")
+                                    }
+                                }
+                            }
+
+                            val createdDate =
+                                inspeksiWithRelations.inspeksi.created_date_start ?: ""
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
+
+                            // Process inspeksi photos
+                            val originalInspeksiFotoString =
+                                inspeksiWithRelations.inspeksi.foto ?: ""
+                            val modifiedInspeksiFotoString =
+                                if (originalInspeksiFotoString.contains(";")) {
+                                    originalInspeksiFotoString.split(";")
+                                        .map { photoName -> "$basePath${photoName.trim()}" }
+                                        .joinToString(";")
+                                } else if (originalInspeksiFotoString.isNotEmpty()) {
+                                    "$basePath$originalInspeksiFotoString"
+                                } else {
+                                    ""
+                                }
+
+                            val inspeksiDetailArray =
+                                inspeksiWithRelations.detailInspeksi.map { detail ->
+                                    val originalDetailFotoString = detail.foto ?: ""
+                                    val modifiedDetailFotoString =
+                                        if (originalDetailFotoString.contains(";")) {
+                                            originalDetailFotoString.split(";")
+                                                .map { photoName -> "$basePath${photoName.trim()}" }
+                                                .joinToString(";")
+                                        } else if (originalDetailFotoString.isNotEmpty()) {
+                                            "$basePath$originalDetailFotoString"
+                                        } else {
+                                            ""
+                                        }
+
+                                    // Return as Map, not as string
+                                    mapOf<String, Any>(
+                                        "id" to (detail.id ?: 0),
+                                        "id_inspeksi" to (detail.id_inspeksi ?: 0),
+                                        "no_pokok" to (detail.no_pokok ?: ""),
+                                        "prioritas" to (detail.prioritas ?: ""),
+                                        "pokok_panen" to (detail.pokok_panen ?: ""),
+                                        "susunan_pelepah" to (detail.susunan_pelepah ?: ""),
+                                        "pelepah_sengkleh" to (detail.pelepah_sengkleh ?: ""),
+                                        "kondisi_pruning" to (detail.kondisi_pruning ?: ""),
+                                        "ripe" to (detail.ripe ?: ""),
+                                        "buahm1" to (detail.buahm1 ?: ""),
+                                        "buahm2" to (detail.buahm2 ?: ""),
+                                        "brd_tidak_dikutip" to (detail.brd_tidak_dikutip ?: ""),
+                                        "foto" to modifiedDetailFotoString,
+                                        "komentar" to (detail.komentar ?: ""),
+                                        "latIssue" to (detail.latIssue ?: 0.0),
+                                        "lonIssue" to (detail.lonIssue ?: 0.0),
+                                        "status_upload" to (detail.status_upload ?: ""),
+                                        "status_uploaded_image" to (detail.status_uploaded_image
+                                            ?: "")
+                                    )
+                                }
+
+                            try {
+                                mapOf<String, Any>(
+                                    "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
+                                    "id_panen" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
+                                    // Add TPH info with proper null safety
+                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString()
+                                        ?: ""),
+                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString()
+                                        ?: ""),
+                                    "company" to (inspeksiWithRelations.tph?.company ?: 0),
+                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr
+                                        ?: ""),
+                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama
+                                        ?: ""),
+                                    "dept" to (inspeksiWithRelations.tph?.dept ?: 0),
+                                    "dept_ppro" to (inspeksiWithRelations.tph?.dept_ppro ?: 0),
+                                    "dept_abbr" to (inspeksiWithRelations.tph?.dept_abbr ?: ""),
+                                    "dept_nama" to (inspeksiWithRelations.tph?.dept_nama ?: ""),
+                                    "divisi" to (inspeksiWithRelations.tph?.divisi ?: 0),
+                                    "divisi_ppro" to (inspeksiWithRelations.tph?.divisi_ppro ?: 0),
+                                    "divisi_abbr" to (inspeksiWithRelations.tph?.divisi_abbr ?: ""),
+                                    "divisi_nama" to (inspeksiWithRelations.tph?.divisi_nama ?: ""),
+                                    "blok" to (inspeksiWithRelations.tph?.blok ?: 0),
+                                    "blok_ppro" to (inspeksiWithRelations.tph?.blok_ppro ?: 0),
+                                    "blok_kode" to (inspeksiWithRelations.tph?.blok_kode ?: ""),
+                                    "blok_nama" to (inspeksiWithRelations.tph?.blok_nama ?: ""),
+                                    "tph" to (inspeksiWithRelations.tph?.id ?: 0),
+                                    "tph_nomor" to (inspeksiWithRelations.tph?.nomor ?: ""),
+                                    "ancak" to (inspeksiWithRelations.tph?.ancak ?: ""),
+                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date_start
+                                        ?: ""),
+                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
+                                        ?: ""),
+                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
+                                        ?: ""),
+                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
+                                        ?: ""),
+                                    "inspeksi_baris1" to (inspeksiWithRelations.inspeksi.baris1
+                                        ?: ""),
+                                    "inspeksi_baris2" to (inspeksiWithRelations.inspeksi.baris2
+                                        ?: ""),
+                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by
+                                        ?: ""),
+                                    "brd_tinggal" to (inspeksiWithRelations.inspeksi.brd_tinggal
+                                        ?: ""),
+                                    "buah_tinggal" to (inspeksiWithRelations.inspeksi.buah_tinggal
+                                        ?: ""),
+                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
+                                        ?: 0),
+                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
+                                        ?: ""),
+                                    "foto" to modifiedInspeksiFotoString,
+                                    "komentar" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
+                                    "latTPH" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
+                                    "lonTPH" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
+                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version
+                                        ?: ""),
+                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
+                                        ?: ""),
+                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image
+                                        ?: ""),
+                                    "inspeksi_detail" to inspeksiDetailArray
+                                )
+                            } catch (e: Exception) {
+                                AppLogger.e("Error creating inspeksi map: ${e.message}")
+                                null
+                            }
+                        }.toMutableList()
+
+                        // Save the final mapped JSON to temp file for debugging
+                        val wrappedInspeksiData = mapOf(
+                            AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
+                        )
+                        val inspeksiJson = Gson().toJson(wrappedInspeksiData)
+
+                        try {
+                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                if (!exists()) mkdirs()
+                            }
+
+                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
+                            val tempFile = File(tempDir, filename)
+
+                            FileOutputStream(tempFile).use { fos ->
+                                fos.write(inspeksiJson.toByteArray())
+                            }
+
+                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
+                        } catch (e: Exception) {
+                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
+                            e.printStackTrace()
+                        }
+
+                        // Filter data to upload (status_upload == 0)
+                        val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
+                            val statusUpload = inspeksiMap["status_upload"] as? String
+                            statusUpload == "0"
+                        }
+
+                        // Only create the inspeksi JSON file if there's data to upload
+                        if (inspeksiDataToUpload.isNotEmpty()) {
+                            val inspeksiBatches = inspeksiDataToUpload.chunked(25)
+                            val inspeksiBatchMap = mutableMapOf<String, Any>()
+
+                            inspeksiBatches.forEachIndexed { batchIndex, batch ->
+                                val wrappedBatch = mapOf(
+                                    AppUtils.DatabaseTables.INSPEKSI to batch
+                                )
+
+                                val batchJson = Gson().toJson(wrappedBatch)
+                                val batchKey = "batch_${batchIndex + 1}"
+
+                                val batchIds = batch.mapNotNull { it["id"] as? Int }
+
+                                val filename = if (inspeksiBatches.size == 1) {
+                                    "Data Inspeksi ${prefManager!!.estateUserLogin}"
+                                } else {
+                                    "Data Inspeksi ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
+                                }
+
+                                inspeksiBatchMap[batchKey] = mapOf(
+                                    "data" to batchJson,
+                                    "filename" to filename,
+                                    "ids" to batchIds
+                                )
+                            }
+
+                            if (inspeksiBatchMap.isNotEmpty()) {
+                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] =
+                                    inspeksiBatchMap
+                            }
+                        }
+
+                        // ===== SPLIT INSPEKSI PHOTOS INTO TPH AND POKOK =====
+                        // Separate inspeksi photos by type based on database field
+                        val allPhotosInspeksiTph = mutableListOf<Map<String, String>>()
+                        val allPhotosInspeksiPokok = mutableListOf<Map<String, String>>()
+
+                        uniquePhotos.values.forEach { photoMap ->
+                            val databaseField = photoMap["database"] ?: ""
+
+                            when (databaseField) {
+                                AppUtils.DatabaseTables.INSPEKSI -> {
+                                    allPhotosInspeksiTph.add(photoMap)
+                                }
+
+                                AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                    allPhotosInspeksiPokok.add(photoMap)
+                                }
+
+                                else -> {
+                                    // Default fallback
+                                    allPhotosInspeksiTph.add(photoMap)
+                                    AppLogger.w("Unknown database field: $databaseField - adding to TPH category")
+                                }
+                            }
+                        }
+
+                        // Add TPH photos to upload data
+                        if (allPhotosInspeksiTph.isNotEmpty()) {
+                            AppLogger.d("Adding ${allPhotosInspeksiTph.size} unique inspeksi TPH photos to upload data")
+                            combinedUploadData["foto_inspeksi_tph"] = allPhotosInspeksiTph
+                        } else {
+                            AppLogger.w("No inspeksi TPH photos found to upload")
+                        }
+
+                        // Add Pokok photos to upload data
+                        if (allPhotosInspeksiPokok.isNotEmpty()) {
+                            AppLogger.d("Adding ${allPhotosInspeksiPokok.size} unique inspeksi Pokok photos to upload data")
+                            combinedUploadData["foto_inspeksi_pokok"] = allPhotosInspeksiPokok
+                        } else {
+                            AppLogger.w("No inspeksi Pokok photos found to upload")
+                        }
+
+                        // Keep the original combined list if needed elsewhere
+                        allPhotosInspeksi =
+                            (allPhotosInspeksiTph + allPhotosInspeksiPokok).toMutableList()
+
+                        unzippedInspeksiData = mappedInspeksiData.filter { item ->
+                            // Get the ID
+                            val id = item["id"] as? Int ?: 0
+
+                            val original = inspeksiList.find { it.inspeksi.id == id }
+                            val isZipped = original?.inspeksi?.dataIsZipped ?: 0
+
+                            isZipped == 0
+                        }.toMutableList()
+
+                        globalInspeksiIds = unzippedInspeksiData.mapNotNull { item ->
+                            item["id"] as? Int
                         }
                     }
 
@@ -3189,9 +3729,12 @@ class HomePageActivity : AppCompatActivity() {
                     if (unzippedESPBData.isNotEmpty()) {
                         uploadDataList.add(AppUtils.DatabaseTables.ESPB to unzippedESPBData)
                     }
+                    if (unzippedInspeksiData.isNotEmpty()) {
+                        uploadDataList.add(AppUtils.DatabaseTables.INSPEKSI to unzippedInspeksiData)
+                    }
 
                     if (uploadDataList.isNotEmpty()) {
-
+                        AppLogger.d("uploadDataList $uploadDataList")
                         lifecycleScope.launch(Dispatchers.IO) {
                             AppUtils.createAndSaveZipUploadCMPSingle(
                                 this@HomePageActivity,
@@ -3199,22 +3742,104 @@ class HomePageActivity : AppCompatActivity() {
                                 prefManager!!.idUserLogin.toString()
                             ) { success, fileName, fullPath, zipFile ->
                                 if (success) {
-                                    lifecycleScope.launch(Dispatchers.IO) {
+                                    lifecycleScope.launch(Dispatchers.Main) {
+                                        val updateDeferreds =
+                                            mutableListOf<CompletableDeferred<Boolean>>()
                                         featuresToFetch.forEach { feature ->
+                                            AppLogger.d("Processing feature: $feature")
+
                                             val ids = when (feature) {
                                                 AppUtils.DatabaseTables.ESPB -> globalESPBIds
                                                 AppUtils.DatabaseTables.PANEN -> globalPanenIds
+                                                AppUtils.DatabaseTables.INSPEKSI -> globalInspeksiIds
                                                 else -> emptyList()
                                             }
 
                                             if (ids.isNotEmpty()) {
-                                                archiveUpdateActions[feature]?.invoke(
-                                                    ids
-                                                )
+                                                AppLogger.d("Updating ${ids.size} records for $feature")
+                                                val updateDeferred = CompletableDeferred<Boolean>()
+                                                updateDeferreds.add(updateDeferred)
+
+                                                // Get the appropriate ViewModel and observe the result
+                                                when (feature) {
+                                                    AppUtils.DatabaseTables.ESPB -> {
+                                                        weightBridgeViewModel.updateStatus.observeOnce(
+                                                            this@HomePageActivity
+                                                        ) { success ->
+                                                            if (success) {
+                                                                AppLogger.d("✅ $feature Archive Updated Successfully")
+                                                                updateDeferred.complete(true)
+                                                            } else {
+                                                                AppLogger.e("❌ $feature Archive Update Failed")
+                                                                updateDeferred.complete(false)
+                                                            }
+                                                        }
+                                                        // Trigger the update
+                                                        archiveUpdateActions[feature]?.invoke(ids)
+                                                    }
+
+                                                    AppUtils.DatabaseTables.PANEN -> {
+                                                        panenViewModel.updateStatus.observeOnce(this@HomePageActivity) { success ->
+                                                            if (success) {
+                                                                AppLogger.d("✅ $feature Archive Updated Successfully")
+                                                                updateDeferred.complete(true)
+                                                            } else {
+                                                                AppLogger.e("❌ $feature Archive Update Failed")
+                                                                updateDeferred.complete(false)
+                                                            }
+                                                        }
+                                                        // Trigger the update
+                                                        archiveUpdateActions[feature]?.invoke(ids)
+                                                    }
+
+                                                    AppUtils.DatabaseTables.INSPEKSI -> {
+                                                        inspectionViewModel.updateStatus.observeOnce(
+                                                            this@HomePageActivity
+                                                        ) { success ->
+                                                            if (success) {
+                                                                AppLogger.d("✅ $feature Archive Updated Successfully")
+                                                                updateDeferred.complete(true)
+                                                            } else {
+                                                                AppLogger.e("❌ $feature Archive Update Failed")
+                                                                updateDeferred.complete(false)
+                                                            }
+                                                        }
+                                                        // Trigger the update
+                                                        archiveUpdateActions[feature]?.invoke(ids)
+                                                    }
+
+                                                    else -> {
+                                                        // Unknown feature, just complete as success
+                                                        updateDeferred.complete(true)
+                                                    }
+                                                }
                                             }
                                         }
+
+                                        // Wait for all updates to complete (switch back to IO if needed)
+                                        if (updateDeferreds.isNotEmpty()) {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val results = updateDeferreds.map { it.await() }
+                                                    val allSuccessful = results.all { it }
+
+                                                    if (allSuccessful) {
+                                                        AppLogger.d("✅ All archive updates completed successfully")
+                                                        zipDeferred.complete(true)
+                                                    } else {
+                                                        AppLogger.e("❌ Some archive updates failed")
+                                                        zipDeferred.complete(false)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("❌ Error waiting for archive updates: ${e.message}")
+                                                    zipDeferred.complete(false)
+                                                }
+                                            }
+                                        } else {
+                                            // No updates needed
+                                            zipDeferred.complete(true)
+                                        }
                                     }
-                                    zipDeferred.complete(true)
                                 } else {
                                     Log.e("UploadCheck", "❌ ZIP creation failed")
                                     zipDeferred.complete(false)
@@ -3288,11 +3913,11 @@ class HomePageActivity : AppCompatActivity() {
                     loadingDialog.dismiss()
                 }
 
-                val zipSuccess = zipDeferred.await()
                 val updatedPanenList = panenDeferred.await()
                 val updatedESPBList = espbDeferred.await()
                 val updatedHektarPanenList = hektarPanenDeferred.await()
                 val updatedAbsensiList = absensiDeferred.await()
+                val updatedInspeksiList = inspeksiDeferred.await()
 
                 val panenToUpload = updatedPanenList.filter {
                     it.panen.status_upload == 0
@@ -3306,11 +3931,14 @@ class HomePageActivity : AppCompatActivity() {
                 val absensiPanenToUpload = updatedAbsensiList.filter {
                     it.absensi.status_upload == 0
                 }
+                val inspeksiPanenToUpload = updatedInspeksiList.filter {
+                    it.inspeksi.status_upload == "0"
+                }
 
                 val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
                 val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
                 val hasItemsToUpload =
-                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload
+                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty()
 
                 if (hasItemsToUpload) {
                     val uploadDataJson = Gson().toJson(combinedUploadData)
@@ -3364,6 +3992,8 @@ class HomePageActivity : AppCompatActivity() {
             )
         },
         AppUtils.DatabaseTables.PANEN to { ids: List<Int> ->
+
+            AppLogger.d("ids panen $ids")
             panenViewModel.updateDataIsZippedPanen(
                 ids,
                 1
@@ -3371,6 +4001,13 @@ class HomePageActivity : AppCompatActivity() {
         },
         AppUtils.DatabaseTables.HEKTAR_PANEN to { ids: List<Int> ->
             hektarPanenViewModel.updateDataIsZippedHP(
+                ids,
+                1
+            )
+        },
+        AppUtils.DatabaseTables.INSPEKSI to { ids: List<Int> ->
+            AppLogger.d("ids INSPEKSI $ids")
+            inspectionViewModel.updateDataIsZippedHP(
                 ids,
                 1
             )
@@ -3611,6 +4248,47 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
+                // Process Inspeksi batches (add this after the ESPB processing block)
+                val inspeksiBatches = dataMap[AppUtils.DatabaseTables.INSPEKSI] as? Map<*, *>
+                if (inspeksiBatches != null) {
+                    AppLogger.d("Found inspeksi batches: ${inspeksiBatches.keys}")
+
+                    inspeksiBatches.entries.forEachIndexed { index, entry ->
+                        val batchKey = entry.key as? String ?: ""
+                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
+
+                        val inspeksiData = batchInfo["data"] as? String
+                        val inspeksiFilename = batchInfo["filename"] as? String
+                        val inspeksiIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+
+                        if (inspeksiData != null && inspeksiData.isNotEmpty() && inspeksiFilename != null) {
+                            val batchNumber = batchKey.replace("batch_", "")
+                            val dataSize = inspeksiData.length.toLong()
+
+                            val tableIdsJson = JSONObject().apply {
+                                put(AppUtils.DatabaseTables.INSPEKSI, JSONArray(inspeksiIds))
+                            }.toString()
+
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = inspeksiFilename,
+                                fullPath = "",
+                                baseFilename = inspeksiFilename,
+                                data = inspeksiData,
+                                type = "json",
+                                tableIds = tableIdsJson,
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
+                            )
+
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, dataSize)
+                            AppLogger.d("Added inspeksi batch $batchNumber to upload items (size: $dataSize bytes)")
+                        } else {
+                            AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
+                        }
+                    }
+                }
+
                 if (fotoPanen != null && fotoPanen.isNotEmpty()) {
                     AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
                     var totalPhotoSize = 0L
@@ -3688,6 +4366,90 @@ class HomePageActivity : AppCompatActivity() {
                         adapter.setFileSize(uploadItem.id, totalPhotoSize)
                     } else {
                         AppLogger.w("No photo files found for upload")
+                    }
+                }
+
+                // Process foto_inspeksi_tph
+                val fotoInspeksiTph = dataMap["foto_inspeksi_tph"] as? List<*>
+                if (fotoInspeksiTph != null && fotoInspeksiTph.isNotEmpty()) {
+                    AppLogger.d("Processing inspeksi TPH photo data: ${fotoInspeksiTph.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoInspeksiTph.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("Inspeksi TPH Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing inspeksi TPH photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount inspeksi TPH photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Inspeksi TPH ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_inspeksi_tph",
+                            baseFilename = "",
+                            data = gson.toJson(fotoInspeksiTph),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.INSPEKSI
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding inspeksi TPH photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No inspeksi TPH photo files found for upload")
+                    }
+                }
+
+                // Process foto_inspeksi_pokok
+                val fotoInspeksiPokok = dataMap["foto_inspeksi_pokok"] as? List<*>
+                if (fotoInspeksiPokok != null && fotoInspeksiPokok.isNotEmpty()) {
+                    AppLogger.d("Processing inspeksi Pokok photo data: ${fotoInspeksiPokok.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoInspeksiPokok.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("Inspeksi Pokok Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing inspeksi Pokok photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount inspeksi Pokok photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Inspeksi Pokok ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_inspeksi_pokok",
+                            baseFilename = "",
+                            data = gson.toJson(fotoInspeksiPokok),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding inspeksi Pokok photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No inspeksi Pokok photo files found for upload")
                     }
                 }
 
@@ -4581,7 +5343,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun startDownloadsV2(
         datasetRequests: List<DatasetRequest>,
         previewData: String? = null,
-        titleDialog:String? = "Sinkronisasi Restan & Dataset"
+        titleDialog: String? = "Sinkronisasi Restan & Dataset"
     ) {
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
@@ -4931,7 +5693,7 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDownloads(previewData: String? = null, titleDialog : String?= null) {
+    private fun startDownloads(previewData: String? = null, titleDialog: String? = null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
