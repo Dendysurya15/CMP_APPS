@@ -164,6 +164,7 @@ class HomePageActivity : AppCompatActivity() {
     private val globalEspbIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalHektarPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalAbsensiPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private val globalInspeksiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private var globalInspeksiIds: List<Int> = emptyList()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
@@ -1136,12 +1137,8 @@ class HomePageActivity : AppCompatActivity() {
                                 try {
                                     delay(500)
 
-                                    val isMandor1 = prefManager!!.jabatanUserLogin!!.contains(
-                                        AppUtils.ListFeatureByRoleUser.Mandor1,
-                                        ignoreCase = true
-                                    )
-                                    val isAsisten = prefManager!!.jabatanUserLogin!!.contains(
-                                        AppUtils.ListFeatureByRoleUser.Asisten,
+                                    val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                        AppUtils.ListFeatureByRoleUser.KeraniPanen,
                                         ignoreCase = true
                                     )
 
@@ -1152,7 +1149,7 @@ class HomePageActivity : AppCompatActivity() {
                                     // Validate afdelingId and get valid integer value
                                     var validAfdelingId: Int? = null
 
-                                    if (isMandor1 || isAsisten) {
+                                    if (!isKeraniPanen) {
                                         AppLogger.d("Validation triggered for Mandor Panen or Asisten")
 
                                         // Check if afdelingId is null or empty
@@ -1183,11 +1180,11 @@ class HomePageActivity : AppCompatActivity() {
                                             }
                                         }
                                     } else {
-                                        AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
+                                        AppLogger.d("Validation skipped - user is Kerani Panen")
                                     }
 
                                     // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                    if ((isMandor1 || isAsisten) && validAfdelingId != null) {
+                                    if ((!isKeraniPanen) && validAfdelingId != null) {
                                         // Create a deferred result that will be completed when data is received
                                         val dataPanenInspeksiDeffered =
                                             CompletableDeferred<String>()
@@ -1744,7 +1741,7 @@ class HomePageActivity : AppCompatActivity() {
 
                         cmpDirectories.addAll(dirs)
                     }
-                    AppLogger.d("panenList $panenList")
+
                     if (panenList.isNotEmpty()) {
 
                         val uniquePhotos =
@@ -2143,6 +2140,7 @@ class HomePageActivity : AppCompatActivity() {
                             data.status_upload_cmp_sp == 0
                         }
 
+                        AppLogger.d("espbList $espbList")
                         if (espbDataToUpload.isNotEmpty()) {
                             mappedESPBData = espbDataToUpload.map { data ->
                                 val blokJjgList =
@@ -2259,8 +2257,8 @@ class HomePageActivity : AppCompatActivity() {
 
 
                                 // Convert to JSON
-//                                val espbJson = Gson().toJson(wrappedData)
-////                                                AppLogger.d("espbJson $espbJson")
+                                val espbJson = Gson().toJson(wrappedData)
+//                                                AppLogger.d("espbJson $espbJson")
 ////
 //                                                try {
 //                                                    val tempDir =
@@ -2298,30 +2296,31 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // Store as a single entry
-//                                combinedUploadData[AppUtils.DatabaseTables.ESPB] =
-//                                    mapOf(
-//                                        "data" to espbJson,
-//                                        "filename" to "espb_data.json",
-//                                        "ids" to espbIds
-//                                    )
+                                unzippedESPBData = mappedESPBData.filter { item ->
+                                    // Get the ID
+                                    val id = item["id"] as? Int ?: 0
+
+                                    // Check if this item has dataIsZipped = 0 in the original data
+                                    val original = espbList.find { it.id == id }
+                                    val isZipped = original?.dataIsZipped ?: 0
+
+                                    // Only include items that are not yet zipped
+                                    isZipped == 0
+                                }
+
+                                globalESPBIds = unzippedESPBData.mapNotNull { item ->
+                                    item["id"] as? Int
+                                }
+
+
+                                combinedUploadData[AppUtils.DatabaseTables.ESPB] =
+                                    mapOf(
+                                        "data" to espbJson,
+                                        "filename" to "espb_data.json",
+                                        "ids" to globalESPBIds
+                                    )
                             }
 
-
-                            unzippedESPBData = mappedESPBData.filter { item ->
-                                // Get the ID
-                                val id = item["id"] as? Int ?: 0
-
-                                // Check if this item has dataIsZipped = 0 in the original data
-                                val original = espbList.find { it.id == id }
-                                val isZipped = original?.dataIsZipped ?: 0
-
-                                // Only include items that are not yet zipped
-                                isZipped == 0
-                            }
-
-                            globalESPBIds = unzippedESPBData.mapNotNull { item ->
-                                item["id"] as? Int
-                            }
 
                         } else {
                             AppLogger.d("No ESPB data with status_upload == 0 to upload")
@@ -3200,6 +3199,7 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
+                    AppLogger.d(inspeksiList.toString())
                     if (inspeksiList.isNotEmpty()) {
 
                         val uniquePhotos = mutableMapOf<String, Map<String, String>>()
@@ -3507,14 +3507,18 @@ class HomePageActivity : AppCompatActivity() {
                                         "susunan_pelepah" to (detail.susunan_pelepah ?: ""),
                                         "pelepah_sengkleh" to (detail.pelepah_sengkleh ?: ""),
                                         "kondisi_pruning" to (detail.kondisi_pruning ?: ""),
-                                        "ripe" to (detail.ripe ?: ""),
-                                        "buahm1" to (detail.buahm1 ?: ""),
-                                        "buahm2" to (detail.buahm2 ?: ""),
-                                        "brd_tidak_dikutip" to (detail.brd_tidak_dikutip ?: ""),
+                                        "buah_masak" to (detail.ripe ?: ""),
+                                        "buah_mentah" to (detail.buahm1 ?: ""),
+                                        "buah_matang" to (detail.buahm2 ?: ""),
+                                        "brondolan_tdk_dikutip" to (detail.brd_tidak_dikutip ?: ""),
                                         "foto" to modifiedDetailFotoString,
-                                        "komentar" to (detail.komentar ?: ""),
-                                        "latIssue" to (detail.latIssue ?: 0.0),
-                                        "lonIssue" to (detail.lonIssue ?: 0.0),
+                                        "catatan" to (detail.komentar ?: ""),
+                                        "created_date" to (inspeksiWithRelations.inspeksi.created_date_start ?: ""),
+                                        "created_name" to prefManager!!.nameUserLogin.toString(),
+                                        "created_by" to (inspeksiWithRelations.inspeksi.created_by
+                                            ?: ""),
+                                        "lat" to (detail.latIssue ?: 0.0),
+                                        "lon" to (detail.lonIssue ?: 0.0),
                                         "status_upload" to (detail.status_upload ?: ""),
                                         "status_uploaded_image" to (detail.status_uploaded_image
                                             ?: "")
@@ -3524,7 +3528,7 @@ class HomePageActivity : AppCompatActivity() {
                             try {
                                 mapOf<String, Any>(
                                     "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
-                                    "id_panen" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
+                                    "id_panen" to (inspeksiWithRelations.panen?.id ?: 0),
                                     // Add TPH info with proper null safety
                                     "regional" to (inspeksiWithRelations.tph?.regional?.toString()
                                         ?: ""),
@@ -3554,28 +3558,31 @@ class HomePageActivity : AppCompatActivity() {
                                         ?: ""),
                                     "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
                                         ?: ""),
+                                    "inspeksi_putaran" to 1,
                                     "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
-                                        ?: ""),
+                                        ?.split("-")?.firstOrNull()?.trim() ?: ""),
                                     "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
                                         ?: ""),
                                     "inspeksi_baris1" to (inspeksiWithRelations.inspeksi.baris1
                                         ?: ""),
                                     "inspeksi_baris2" to (inspeksiWithRelations.inspeksi.baris2
                                         ?: ""),
+                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
+                                        ?: 0),
+                                    "foto_temuan_tph" to modifiedInspeksiFotoString,
+                                    "catatan" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
+                                    "created_date" to (inspeksiWithRelations.inspeksi.created_date_start ?: ""),
+                                    "created_name" to prefManager!!.nameUserLogin.toString(),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
-                                        ?: ""),
-                                    "brd_tinggal" to (inspeksiWithRelations.inspeksi.brd_tinggal
                                         ?: ""),
                                     "buah_tinggal" to (inspeksiWithRelations.inspeksi.buah_tinggal
                                         ?: ""),
-                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
-                                        ?: 0),
+                                    "brondolan_tinggal" to (inspeksiWithRelations.inspeksi.brd_tinggal
+                                        ?: ""),
+                                    "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
+                                    "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
                                     "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
                                         ?: ""),
-                                    "foto" to modifiedInspeksiFotoString,
-                                    "komentar" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
-                                    "latTPH" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
-                                    "lonTPH" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
                                     "app_version" to (inspeksiWithRelations.inspeksi.app_version
                                         ?: ""),
                                     "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
@@ -3620,6 +3627,7 @@ class HomePageActivity : AppCompatActivity() {
                             statusUpload == "0"
                         }
 
+                        AppLogger.d("mappedInspeksiData $mappedInspeksiData")
                         // Only create the inspeksi JSON file if there's data to upload
                         if (inspeksiDataToUpload.isNotEmpty()) {
                             val inspeksiBatches = inspeksiDataToUpload.chunked(25)
@@ -3648,6 +3656,8 @@ class HomePageActivity : AppCompatActivity() {
                                 )
                             }
 
+
+                            AppLogger.d("inspeksiBatchMap $inspeksiBatchMap")
                             if (inspeksiBatchMap.isNotEmpty()) {
                                 combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] =
                                     inspeksiBatchMap
@@ -3919,6 +3929,8 @@ class HomePageActivity : AppCompatActivity() {
                 val updatedAbsensiList = absensiDeferred.await()
                 val updatedInspeksiList = inspeksiDeferred.await()
 
+                AppLogger.d("updatedESPBList $updatedESPBList")
+
                 val panenToUpload = updatedPanenList.filter {
                     it.panen.status_upload == 0
                 }
@@ -3937,9 +3949,12 @@ class HomePageActivity : AppCompatActivity() {
 
                 val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
                 val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
+                val hasPhotosInspeksiToUpload = allPhotosInspeksi.isNotEmpty()
                 val hasItemsToUpload =
-                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty()
+                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty() || hasPhotosInspeksiToUpload
 
+
+                AppLogger.d("combinedUploadData $combinedUploadData")
                 if (hasItemsToUpload) {
                     val uploadDataJson = Gson().toJson(combinedUploadData)
                     setupDialogUpload(uploadDataJson)
@@ -3967,6 +3982,7 @@ class HomePageActivity : AppCompatActivity() {
         val espbIds = globalEspbIdsByPart[partNumber] ?: emptyList()
         val hektarPanenIds = globalHektarPanenIdsByPart[partNumber] ?: emptyList()
         val absensiPanenIds = globalAbsensiPanenIdsByPart[partNumber] ?: emptyList()
+        val inspeksiPanenIds = globalInspeksiPanenIdsByPart[partNumber] ?: emptyList()
 
         if (panenIds.isNotEmpty()) {
             tableMap[AppUtils.DatabaseTables.PANEN] = panenIds
@@ -3979,6 +3995,12 @@ class HomePageActivity : AppCompatActivity() {
         }
         if (absensiPanenIds.isNotEmpty()) {
             tableMap[AppUtils.DatabaseTables.ABSENSI] = absensiPanenIds
+        }
+        if (inspeksiPanenIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.INSPEKSI] = inspeksiPanenIds
+        }
+        if (inspeksiPanenIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.INSPEKSI_DETAIL] = inspeksiPanenIds
         }
 
         return Gson().toJson(tableMap) // Convert to JSON string
@@ -4967,7 +4989,7 @@ class HomePageActivity : AppCompatActivity() {
                                         // Parse the table_ids to determine if it's PANEN or ESPB
                                         val tableIdsJson = JSONObject(tableIds)
 
-                                        AppLogger.d(tableIdsJson.toString())
+                                        AppLogger.d("tableIdsJson $tableIdsJson")
 
                                         if (tableIdsJson.has(AppUtils.DatabaseTables.PANEN)) {
                                             val panenIdsArray =
@@ -5760,8 +5782,11 @@ class HomePageActivity : AppCompatActivity() {
                 loadingDialog.dismiss()
             }
 
+            AppLogger.d("isTriggerFeatureInspection $isTriggerFeatureInspection")
+            AppLogger.d("filteredRequests $filteredRequests")
             if (filteredRequests.isNotEmpty()) {
                 if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection) {
+                    AppLogger.d("masuk klo gess")
                     startDownloadsV2(filteredRequests, previewData, titleDialog)
                 } else {
                     dialog.show()
@@ -5797,6 +5822,9 @@ class HomePageActivity : AppCompatActivity() {
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
+
+        val isKeraniPanen =
+            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true)
 
         val isMandor1 =
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true)
@@ -5843,8 +5871,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
 
-        if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
-            AppLogger.d("kalsjdflkajslf")
+        if (isTriggerFeatureInspection && !isKeraniPanen) {
             AppLogger.d(isTriggerFeatureInspection.toString())
             datasets.add(
                 DatasetRequest(

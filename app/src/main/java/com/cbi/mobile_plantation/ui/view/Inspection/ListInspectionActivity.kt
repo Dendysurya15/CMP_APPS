@@ -441,7 +441,7 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: List<PanenEntity>, parentView: View) {
+    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: PanenEntity?, parentView: View) {
         parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr!!.takeLast(2)} ${tph.blok_kode}"
         val jamMulaiSelesai = formatDateRange(inspection.created_date_start, inspection.created_date_end)
         parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = jamMulaiSelesai
@@ -467,27 +467,30 @@ class ListInspectionActivity : AppCompatActivity() {
         // Set display mode to show names without remove buttons
         pemanenAdapter.setDisplayOnly(true)
 
-        if (panen.isNotEmpty()) {
+        AppLogger.d("panen $panen")
+        // Check if panen exists and has worker data
+        if (panen != null && (panen.karyawan_nik.isNotEmpty() || panen.karyawan_nama.isNotEmpty())) {
             rvSelectedPemanen.visibility = View.VISIBLE
 
-            val allWorkers = mutableSetOf<Pair<String, String>>() // Use Set to avoid duplicates
+            AppLogger.d("panen.karyawan_nik ${panen.karyawan_nik}")
+            AppLogger.d("panen.karyawan_nama ${panen.karyawan_nama}")
 
-            panen.forEach { panenItem ->
-                // Split NIKs and names by comma
-                val niks = panenItem.karyawan_nik.split(",").map { it.trim() }
-                val names = panenItem.karyawan_nama.split(",").map { it.trim() }
+            val allWorkers = mutableSetOf<Pair<String, String>>()
 
-                // Match each NIK with corresponding name by index position
-                val maxIndex = minOf(niks.size, names.size)
-                for (i in 0 until maxIndex) {
-                    val nik = niks[i]
-                    val name = names[i]
-                    if (nik.isNotEmpty() && name.isNotEmpty()) {
-                        allWorkers.add(Pair(nik, name))
-                    }
+            val niks = panen.karyawan_nik.split(",").map { it.trim() }
+            val names = panen.karyawan_nama.split(",").map { it.trim() }
+
+            // Match each NIK with corresponding name by index position
+            val maxIndex = minOf(niks.size, names.size)
+            for (i in 0 until maxIndex) {
+                val nik = niks[i]
+                val name = names[i]
+                if (nik.isNotEmpty() && name.isNotEmpty()) {
+                    allWorkers.add(Pair(nik, name))
                 }
             }
 
+            // Add workers to adapter
             allWorkers.forEach { (nik, name) ->
                 val formattedName = "$nik - $name"
                 val worker = Worker(nik, formattedName)
@@ -514,14 +517,14 @@ class ListInspectionActivity : AppCompatActivity() {
                             (4 * density).toInt(), // 4dp to pixels
                             (8 * density).toInt(), // 8dp to pixels
                             (4 * density).toInt()  // 4dp to pixels
-                        )// You'll need to convert dp to px
+                        )
                     }
                 }
             })
         } else {
+            // No panen data or no worker data
             rvSelectedPemanen.visibility = View.GONE
         }
-
 
         container.removeAllViews()
 

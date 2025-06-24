@@ -166,6 +166,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var lon: Double? = null
     private var currentAccuracy: Float = 0F
     private var selectedTPHIdByScan: Int? = null
+    private var selectedIdPanenByScan: Int? = null
     private var selectedEstateByScan: String? = null
     private var selectedBlokByScan: String? = null
     private var selectedAfdelingByScan: String? = null
@@ -321,6 +322,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
+            selectedIdPanenByScan = null
             selectedEstateByScan = null
             selectedAfdelingByScan = null
             selectedBlokByScan = null
@@ -1019,7 +1021,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 created_date_start = dateStartInspection,
                                 created_date_end = dateEndInspection,
                                 created_by = userId.toString(),
-                                tph_id = selectedTPHIdByScan!!,
+                                tph_id = selectedTPHIdByScan ?: 0,
+                                id_panen = selectedIdPanenByScan ?: 0,
                                 date_panen = selectedTanggalPanenByScan!!,
                                 jalur_masuk = selectedJalurMasuk,
                                 brd_tinggal = jumBrdTglPath,
@@ -1566,6 +1569,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     function = {
                         isTriggeredBtnScanned = true
                         selectedEstateByScan = null
+                        selectedIdPanenByScan = null
                         selectedAfdelingByScan = null
                         selectedBlokByScan = null
                         selectedTPHIdByScan = null
@@ -1585,6 +1589,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             } else {
                 isTriggeredBtnScanned = true
                 selectedEstateByScan = null
+                selectedIdPanenByScan = null
                 selectedAfdelingByScan = null
                 selectedBlokByScan = null
                 selectedTPHIdByScan = null
@@ -3172,7 +3177,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val firstTph = matchingPanenList.first().tph
                         dateCreated = firstPanen?.date_created ?: ""
                         ancakValue = firstTph?.ancak ?: ""
-
+                        selectedIdPanenByScan =  firstPanen?.id ?: 0
                         selectedEstateByScan =  firstTph?.dept_abbr ?: ""
                         selectedAfdelingByScan =  firstTph?.divisi_abbr ?: ""
                         selectedBlokByScan =  firstTph?.blok_kode ?: ""

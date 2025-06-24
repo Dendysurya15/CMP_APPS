@@ -39,6 +39,7 @@ class DataPanenInspectionRepository(
         val jsonObject = JSONObject().apply {
             put("table", "panen")
             put("select", JSONArray().apply {
+                put("id")
                 put("tph")
                 put("tph_nomor")
                 put("ancak")

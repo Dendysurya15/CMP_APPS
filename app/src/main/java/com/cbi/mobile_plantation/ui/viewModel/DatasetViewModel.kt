@@ -1718,7 +1718,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             status_insert_mpanen = 0,
                                             status_scan_mpanen = 0,
                                             jumlah_pemanen = 0,
-                                            archive_mpanen = 0
+                                            archive_mpanen = 0,
+                                            isPushedToServer = 1
                                         )
 
                                         panenList.add(panenEntity)
@@ -1851,21 +1852,56 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     AppLogger.e("Failed to insert restan record: ${panen.tph_id}, ${panen.date_created}")
                                                 }
                                             } else {
-                                                // Record exists -> UPDATE
-                                                AppLogger.d("Record exists, updating: ${panen.tph_id}, ${panen.date_created}")
+                                                // Record exists -> UPDATE with status_espb protection
+                                                AppLogger.d("Record exists, checking for update: ${panen.tph_id}, ${panen.date_created}")
 
                                                 try {
                                                     // Get the existing record ID
                                                     val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
 
                                                     if (recordId > 0) {
-                                                        // Create updated record with same ID
-                                                        val updatedRecord = panen.copy(id = recordId)
+                                                        // Get the existing record to check current status_espb
+                                                        val existingRecord = panenDao.getById(recordId)
 
-                                                        // Update the record
-                                                        panenDao.update(listOf(updatedRecord))
-                                                        successCount++
-                                                        AppLogger.d("Updated existing record ID $recordId: ${panen.tph_id}, ${panen.date_created}")
+                                                        if (existingRecord != null) {
+                                                            // Check if existing record has status_espb = 1 and new record has status_espb = 0
+                                                            if (existingRecord.status_espb == 1 && panen.status_espb == 0) {
+                                                                // Don't update - preserve the local status_espb = 1
+                                                                AppLogger.d("Skipping update - existing record has status_espb=1, preserving local status: ${panen.tph_id}, ${panen.date_created}")
+                                                                // Still count as success since we're intentionally not updating
+                                                                successCount++
+                                                            } else {
+                                                                val updatedRecord = panen.copy(
+                                                                    id = recordId,
+                                                                    // Preserve local status_espb if it's higher than incoming status
+                                                                    status_espb = maxOf(existingRecord.status_espb, panen.status_espb),
+                                                                    // Preserve other local fields that shouldn't be overwritten
+                                                                    status_upload = existingRecord.status_upload,
+                                                                    status_uploaded_image = existingRecord.status_uploaded_image,
+                                                                    // Preserve local photos and comments if they exist
+                                                                    foto = if (existingRecord.foto.isNotEmpty()) existingRecord.foto else panen.foto,
+                                                                    komentar = if (existingRecord.komentar.isNotEmpty()) existingRecord.komentar else panen.komentar,
+                                                                    // Preserve local coordinates if they exist
+                                                                    lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
+                                                                    lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
+                                                                )
+
+                                                                // Update the record
+                                                                panenDao.update(listOf(updatedRecord))
+                                                                successCount++
+                                                                AppLogger.d("Updated existing record ID $recordId: ${panen.tph_id}, ${panen.date_created} (status_espb: ${existingRecord.status_espb} -> ${updatedRecord.status_espb})")
+                                                            }
+                                                        } else {
+                                                            AppLogger.e("Existing record not found for ID $recordId: ${panen.tph_id}, ${panen.date_created}")
+                                                            // Fallback: insert as new
+                                                            val result = panenDao.insertWithTransaction(panen)
+                                                            if (result.isSuccess) {
+                                                                successCount++
+                                                                AppLogger.d("Inserted as new after existing record not found: ${panen.tph_id}, ${panen.date_created}")
+                                                            } else {
+                                                                failCount++
+                                                            }
+                                                        }
                                                     } else {
                                                         // Fallback: insert as new if we can't find the ID
                                                         AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
@@ -1972,6 +2008,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val item = dataArray.getJSONObject(i)
 
                             // Extract required fields
+                            val idPanen = item.optInt("id", 0)
                             val tphId = item.optString("tph", "")
                             val createdDate = item.optString("created_date", "")
                             val createdBy = item.optInt("created_by", 0)
@@ -2046,6 +2083,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             AppLogger.d("Creating entity: tphId=$tphId, date=$createdDate, kemandoranId=$kemandoranId, karyawanId=$karyawanId, karyawanNik=$karyawanNik")
 
                             val panenEntity = PanenEntity(
+                                id = idPanen,
                                 tph_id = tphId.toString(),
                                 date_created = createdDate,
                                 created_by = createdBy,
@@ -2101,50 +2139,39 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 for (panen in panenList) {
                                     try {
-                                        // Check if record already exists in local DB
-                                        val exists = panenDao.exists(panen.tph_id, panen.date_created)
+                                        // Check if record exists by ID
+                                        val existingRecord = panenDao.getById(panen.id)
 
-                                        if (!exists) {
+                                        if (existingRecord == null) {
                                             // Record doesn't exist -> INSERT
                                             val result = panenDao.insertWithTransaction(panen)
                                             if (result.isSuccess) {
                                                 successCount++
-                                                AppLogger.d("Inserted new panen record: ${panen.tph_id}, ${panen.date_created}")
+                                                AppLogger.d("Inserted new panen record: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
                                             } else {
                                                 failCount++
-                                                AppLogger.e("Failed to insert panen record: ${panen.tph_id}, ${panen.date_created}")
+                                                AppLogger.e("Failed to insert panen record: ID=${panen.id}")
                                             }
                                         } else {
-                                            // Record exists -> UPDATE
-                                            AppLogger.d("Record exists, updating: ${panen.tph_id}, ${panen.date_created}")
+                                            // Record exists -> UPDATE (preserve local-only fields)
+                                            AppLogger.d("Record exists, updating: ID=${panen.id}")
 
-                                            try {
-                                                // Get the existing record ID
-                                                val recordId = panenDao.getIdByTphIdAndDateCreated(panen.tph_id, panen.date_created)
+                                            val updatedRecord = panen.copy(
+                                                // Preserve local status if higher
+                                                status_espb = maxOf(existingRecord.status_espb, panen.status_espb),
+                                                status_upload = existingRecord.status_upload,
+                                                status_uploaded_image = existingRecord.status_uploaded_image,
+                                                // Preserve local photos and comments if they exist
+                                                foto = if (existingRecord.foto.isNotEmpty()) existingRecord.foto else panen.foto,
+                                                komentar = if (existingRecord.komentar.isNotEmpty()) existingRecord.komentar else panen.komentar,
+                                                // Preserve local coordinates if they exist
+                                                lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
+                                                lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
+                                            )
 
-                                                if (recordId > 0) {
-                                                    // Create updated record with same ID
-                                                    val updatedRecord = panen.copy(id = recordId)
-
-                                                    // Update the record
-                                                    panenDao.update(listOf(updatedRecord))
-                                                    successCount++
-                                                    AppLogger.d("Updated existing record ID $recordId: ${panen.tph_id}, ${panen.date_created}")
-                                                } else {
-                                                    // Fallback: insert as new if we can't find the ID
-                                                    AppLogger.e("Couldn't find existing record to update: ${panen.tph_id}, ${panen.date_created}")
-                                                    val result = panenDao.insertWithTransaction(panen)
-                                                    if (result.isSuccess) {
-                                                        successCount++
-                                                        AppLogger.d("Inserted as new after update failure: ${panen.tph_id}, ${panen.date_created}")
-                                                    } else {
-                                                        failCount++
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                failCount++
-                                                AppLogger.e("Error updating record: ${e.message}")
-                                            }
+                                            panenDao.update(listOf(updatedRecord))
+                                            successCount++
+                                            AppLogger.d("Updated existing record ID ${panen.id}")
                                         }
                                     } catch (e: Exception) {
                                         failCount++

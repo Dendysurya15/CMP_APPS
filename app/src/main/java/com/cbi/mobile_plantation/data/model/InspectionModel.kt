@@ -17,6 +17,7 @@ data class InspectionModel(
     val created_date_end: String,
     val created_by: String,
     val tph_id:Int,
+    val id_panen:Int,
     val date_panen:String,
     val jalur_masuk: String,
     val brd_tinggal: Int,
