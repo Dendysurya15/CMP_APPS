@@ -74,6 +74,30 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun updateStatusUploadInspeksiPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadInspeksiPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
+    fun updateStatusUploadInspeksiDetailPanen(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadInspeksiDetailPanen(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
 
     suspend fun saveDataInspection(
         created_date_start: String,

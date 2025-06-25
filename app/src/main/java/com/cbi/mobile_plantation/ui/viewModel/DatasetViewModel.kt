@@ -73,6 +73,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val espbDao = database.espbDao()
     private val panenDao = database.panenDao()
     private val absensiDao = database.absensiDao()
+    private val inspeksiDao = database.inspectionDao()
     private val karyawanDao = database.karyawanDao()
     private val blokDao = database.blokDao()
     private val hektarPanenDao = database.hektarPanenDao()
@@ -744,7 +745,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.MandorPanen -> {
                                                             hektarPanenDao.updateStatusUploadHektarPanen(idList, statusCode)
-                                                            AppLogger.d("Updated panen_table successfully")
+                                                            AppLogger.d("Updated hektar_panen_table successfully")
                                                         }
                                                     }
                                                 }
@@ -752,10 +753,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.MandorPanen -> {
                                                             absensiDao.updateStatusUploadAbsensiPanen(idList, statusCode)
-                                                            AppLogger.d("Updated panen_table successfully")
+                                                            AppLogger.d("Updated absensi_table successfully")
                                                         }
                                                     }
-
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI -> {
+                                                    // Add inspeksi update logic
+                                                    inspeksiDao.updateStatusUploadInspeksiPanen(idList, statusCode)
+                                                    AppLogger.d("Updated inspeksi_table successfully")
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                    // Add inspeksi detail update logic
+                                                    inspeksiDao.updateStatusUploadInspeksiDetailPanen(idList, statusCode)
+                                                    AppLogger.d("Updated inspeksi_detail_table successfully")
                                                 }
                                                 else -> {
                                                     AppLogger.w("Unknown table name: $tableName")

@@ -165,6 +165,7 @@ class HomePageActivity : AppCompatActivity() {
     private val globalHektarPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalAbsensiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private val globalInspeksiDetailPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private var globalInspeksiIds: List<Int> = emptyList()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
@@ -3199,7 +3200,7 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
-                    AppLogger.d(inspeksiList.toString())
+
                     if (inspeksiList.isNotEmpty()) {
 
                         val uniquePhotos = mutableMapOf<String, Map<String, String>>()
@@ -3513,7 +3514,8 @@ class HomePageActivity : AppCompatActivity() {
                                         "brondolan_tdk_dikutip" to (detail.brd_tidak_dikutip ?: ""),
                                         "foto" to modifiedDetailFotoString,
                                         "catatan" to (detail.komentar ?: ""),
-                                        "created_date" to (inspeksiWithRelations.inspeksi.created_date_start ?: ""),
+                                        "created_date" to (inspeksiWithRelations.inspeksi.created_date_start
+                                            ?: ""),
                                         "created_name" to prefManager!!.nameUserLogin.toString(),
                                         "created_by" to (inspeksiWithRelations.inspeksi.created_by
                                             ?: ""),
@@ -3571,7 +3573,8 @@ class HomePageActivity : AppCompatActivity() {
                                         ?: 0),
                                     "foto_temuan_tph" to modifiedInspeksiFotoString,
                                     "catatan" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
-                                    "created_date" to (inspeksiWithRelations.inspeksi.created_date_start ?: ""),
+                                    "created_date" to (inspeksiWithRelations.inspeksi.created_date_start
+                                        ?: ""),
                                     "created_name" to prefManager!!.nameUserLogin.toString(),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
                                         ?: ""),
@@ -3643,6 +3646,21 @@ class HomePageActivity : AppCompatActivity() {
 
                                 val batchIds = batch.mapNotNull { it["id"] as? Int }
 
+                                val inspeksiIds = batch.mapNotNull { it["id"] as? Int }
+
+                                // Collect inspeksi_detail IDs from nested arrays
+                                val inspeksiDetailIds = mutableListOf<Int>()
+                                batch.forEach { inspeksiItem ->
+                                    val detailArray = inspeksiItem["inspeksi_detail"] as? List<*>
+                                    detailArray?.forEach { detailItem ->
+                                        val detailMap = detailItem as? Map<*, *>
+                                        val detailId = detailMap?.get("id") as? Int
+                                        if (detailId != null && detailId != 0) {
+                                            inspeksiDetailIds.add(detailId)
+                                        }
+                                    }
+                                }
+
                                 val filename = if (inspeksiBatches.size == 1) {
                                     "Data Inspeksi ${prefManager!!.estateUserLogin}"
                                 } else {
@@ -3652,7 +3670,8 @@ class HomePageActivity : AppCompatActivity() {
                                 inspeksiBatchMap[batchKey] = mapOf(
                                     "data" to batchJson,
                                     "filename" to filename,
-                                    "ids" to batchIds
+                                    "ids" to batchIds,
+                                    "detail_ids" to inspeksiDetailIds
                                 )
                             }
 
@@ -3664,8 +3683,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-                        // ===== SPLIT INSPEKSI PHOTOS INTO TPH AND POKOK =====
-                        // Separate inspeksi photos by type based on database field
                         val allPhotosInspeksiTph = mutableListOf<Map<String, String>>()
                         val allPhotosInspeksiPokok = mutableListOf<Map<String, String>>()
 
@@ -3744,7 +3761,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
 
                     if (uploadDataList.isNotEmpty()) {
-                        AppLogger.d("uploadDataList $uploadDataList")
+
                         lifecycleScope.launch(Dispatchers.IO) {
                             AppUtils.createAndSaveZipUploadCMPSingle(
                                 this@HomePageActivity,
@@ -3983,6 +4000,8 @@ class HomePageActivity : AppCompatActivity() {
         val hektarPanenIds = globalHektarPanenIdsByPart[partNumber] ?: emptyList()
         val absensiPanenIds = globalAbsensiPanenIdsByPart[partNumber] ?: emptyList()
         val inspeksiPanenIds = globalInspeksiPanenIdsByPart[partNumber] ?: emptyList()
+        val inspeksiDetailPanenIds = globalInspeksiDetailPanenIdsByPart[partNumber] ?: emptyList()
+
 
         if (panenIds.isNotEmpty()) {
             tableMap[AppUtils.DatabaseTables.PANEN] = panenIds
@@ -3999,8 +4018,8 @@ class HomePageActivity : AppCompatActivity() {
         if (inspeksiPanenIds.isNotEmpty()) {
             tableMap[AppUtils.DatabaseTables.INSPEKSI] = inspeksiPanenIds
         }
-        if (inspeksiPanenIds.isNotEmpty()) {
-            tableMap[AppUtils.DatabaseTables.INSPEKSI_DETAIL] = inspeksiPanenIds
+        if (inspeksiDetailPanenIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.INSPEKSI_DETAIL] = inspeksiDetailPanenIds
         }
 
         return Gson().toJson(tableMap) // Convert to JSON string
@@ -4110,6 +4129,8 @@ class HomePageActivity : AppCompatActivity() {
                 val gson = Gson()
                 val dataMap = gson.fromJson(uploadData, Map::class.java)
                 AppLogger.d("Data map keys: ${dataMap.keys}")
+                AppLogger.d(dataMap.toString())
+                AppLogger.d("slkdjflkajsfd")
 
                 // Extract the data for panen, espb, and photo files
                 val panenFilePath = dataMap[AppUtils.DatabaseTables.PANEN] as? String
@@ -4282,6 +4303,7 @@ class HomePageActivity : AppCompatActivity() {
                         val inspeksiData = batchInfo["data"] as? String
                         val inspeksiFilename = batchInfo["filename"] as? String
                         val inspeksiIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+                        val detailIds = batchInfo["detail_ids"] as? List<Int> ?: emptyList()
 
                         if (inspeksiData != null && inspeksiData.isNotEmpty() && inspeksiFilename != null) {
                             val batchNumber = batchKey.replace("batch_", "")
@@ -4289,8 +4311,8 @@ class HomePageActivity : AppCompatActivity() {
 
                             val tableIdsJson = JSONObject().apply {
                                 put(AppUtils.DatabaseTables.INSPEKSI, JSONArray(inspeksiIds))
+                                put(AppUtils.DatabaseTables.INSPEKSI_DETAIL, JSONArray(detailIds))
                             }.toString()
-
                             val uploadItem = UploadCMPItem(
                                 id = itemId++,
                                 title = inspeksiFilename,
@@ -4305,6 +4327,7 @@ class HomePageActivity : AppCompatActivity() {
                             uploadItems.add(uploadItem)
                             adapter.setFileSize(uploadItem.id, dataSize)
                             AppLogger.d("Added inspeksi batch $batchNumber to upload items (size: $dataSize bytes)")
+                            AppLogger.d("Inspeksi IDs: $inspeksiIds, Detail IDs: $detailIds")
                         } else {
                             AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
                         }
@@ -4526,9 +4549,6 @@ class HomePageActivity : AppCompatActivity() {
             titleTV.text = "Upload Data CMP"
 
             val itemsToUpload = uploadItems.toList()
-
-
-            AppLogger.d("itemsToUpload $itemsToUpload")
 
             // Start the upload process
             uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
@@ -4986,48 +5006,62 @@ class HomePageActivity : AppCompatActivity() {
                                     // Extract table_ids from the response
                                     val tableIds = response.table_ids
                                     if (tableIds != null) {
-                                        // Parse the table_ids to determine if it's PANEN or ESPB
+                                        // Parse the table_ids to determine table types
                                         val tableIdsJson = JSONObject(tableIds)
-
                                         AppLogger.d("tableIdsJson $tableIdsJson")
 
-                                        if (tableIdsJson.has(AppUtils.DatabaseTables.PANEN)) {
-                                            val panenIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
-                                            val panenIds = (0 until panenIdsArray.length()).map {
-                                                panenIdsArray.getInt(it)
-                                            }
-                                            globalPanenIdsByPart[keyJsonName] = panenIds
-                                            AppLogger.d("Extracted PANEN IDs from response: $panenIds")
-                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.ESPB)) {
-                                            val espbIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
-                                            val espbIds = (0 until espbIdsArray.length()).map {
-                                                espbIdsArray.getInt(it)
-                                            }
-                                            globalEspbIdsByPart[keyJsonName] = espbIds
-                                            AppLogger.d("Extracted ESPB IDs from response: $espbIds")
-                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.HEKTAR_PANEN)) {
-                                            val hektarPanenIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.HEKTAR_PANEN)
-                                            val hektarPanenIds =
-                                                (0 until hektarPanenIdsArray.length()).map {
-                                                    hektarPanenIdsArray.getInt(it)
+                                        // Process each table type separately
+                                        tableIdsJson.keys().forEach { tableType ->
+                                            when (tableType) {
+                                                AppUtils.DatabaseTables.PANEN -> {
+                                                    val panenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
+                                                    val panenIds = (0 until panenIdsArray.length()).map {
+                                                        panenIdsArray.getInt(it)
+                                                    }
+                                                    globalPanenIdsByPart[keyJsonName] = panenIds
+                                                    AppLogger.d("Extracted PANEN IDs from response: $panenIds")
                                                 }
-                                            globalHektarPanenIdsByPart[keyJsonName] = hektarPanenIds
-                                            AppLogger.d("Extracted Hektar Panen IDs from response: $hektarPanenIds")
-                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.ABSENSI)) {
-                                            val absensiPanenIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ABSENSI)
-                                            val absensiPanenIds =
-                                                (0 until absensiPanenIdsArray.length()).map {
-                                                    absensiPanenIdsArray.getInt(it)
+                                                AppUtils.DatabaseTables.ESPB -> {
+                                                    val espbIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
+                                                    val espbIds = (0 until espbIdsArray.length()).map {
+                                                        espbIdsArray.getInt(it)
+                                                    }
+                                                    globalEspbIdsByPart[keyJsonName] = espbIds
+                                                    AppLogger.d("Extracted ESPB IDs from response: $espbIds")
                                                 }
-                                            globalAbsensiPanenIdsByPart[keyJsonName] =
-                                                absensiPanenIds
-                                            AppLogger.d("Extracted Absensi IDs from response: $absensiPanenIds")
-                                        } else {
-
+                                                AppUtils.DatabaseTables.HEKTAR_PANEN -> {
+                                                    val hektarPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.HEKTAR_PANEN)
+                                                    val hektarPanenIds = (0 until hektarPanenIdsArray.length()).map {
+                                                        hektarPanenIdsArray.getInt(it)
+                                                    }
+                                                    globalHektarPanenIdsByPart[keyJsonName] = hektarPanenIds
+                                                    AppLogger.d("Extracted Hektar Panen IDs from response: $hektarPanenIds")
+                                                }
+                                                AppUtils.DatabaseTables.ABSENSI -> {
+                                                    val absensiPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ABSENSI)
+                                                    val absensiPanenIds = (0 until absensiPanenIdsArray.length()).map {
+                                                        absensiPanenIdsArray.getInt(it)
+                                                    }
+                                                    globalAbsensiPanenIdsByPart[keyJsonName] = absensiPanenIds
+                                                    AppLogger.d("Extracted Absensi IDs from response: $absensiPanenIds")
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI -> {
+                                                    val inspeksiPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.INSPEKSI)
+                                                    val inspeksiPanenIds = (0 until inspeksiPanenIdsArray.length()).map {
+                                                        inspeksiPanenIdsArray.getInt(it)
+                                                    }
+                                                    globalInspeksiPanenIdsByPart[keyJsonName] = inspeksiPanenIds
+                                                    AppLogger.d("Extracted Inspeksi IDs from response: $inspeksiPanenIds")
+                                                }
+                                                AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                    val inspeksiDetailPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.INSPEKSI_DETAIL)
+                                                    val inspeksiDetailPanenIds = (0 until inspeksiDetailPanenIdsArray.length()).map {
+                                                        inspeksiDetailPanenIdsArray.getInt(it)
+                                                    }
+                                                    globalInspeksiDetailPanenIdsByPart[keyJsonName] = inspeksiDetailPanenIds
+                                                    AppLogger.d("Extracted Inspeksi Detail IDs from response: $inspeksiDetailPanenIds")
+                                                }
+                                            }
                                         }
                                     } else {
                                         AppLogger.w("No table_ids found in response for $keyJsonName")
@@ -5035,6 +5069,8 @@ class HomePageActivity : AppCompatActivity() {
                                         globalEspbIdsByPart[keyJsonName] = emptyList()
                                         globalHektarPanenIdsByPart[keyJsonName] = emptyList()
                                         globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
+                                        globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
+                                        globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
                                     }
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
@@ -5042,12 +5078,16 @@ class HomePageActivity : AppCompatActivity() {
                                     globalEspbIdsByPart[keyJsonName] = emptyList()
                                     globalHektarPanenIdsByPart[keyJsonName] = emptyList()
                                     globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
+                                    globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
+                                    globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
                                 }
                             } else {
                                 globalPanenIdsByPart[keyJsonName] = emptyList()
                                 globalEspbIdsByPart[keyJsonName] = emptyList()
                                 globalHektarPanenIdsByPart[keyJsonName] = emptyList()
                                 globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
+                                globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
+                                globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
                             }
                         } else if (response.type == "image") {
                             globalResponseJsonUploadList.add(
@@ -5101,6 +5141,8 @@ class HomePageActivity : AppCompatActivity() {
             if (responseInfo.status == 1 || responseInfo.status == 2 || responseInfo.status == 3) {
 //                val fileName = responseInfo.nama_file
                 val trackingId = responseInfo.trackingId.toString()
+
+                AppLogger.d(trackingId)
 
                 try {
                     // Get the PANEN IDs for this file
@@ -5158,6 +5200,33 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("Updated status_upload to ${responseInfo.status} for absensi IDs: $absensiPanenIds")
                     } else {
                         AppLogger.d("No absensi IDs found for file $trackingId")
+                    }
+
+                    val inspeksiPanenIds = globalInspeksiPanenIdsByPart[trackingId] ?: emptyList()
+                    if (inspeksiPanenIds.isNotEmpty()) {
+                        AppLogger.d("Found ${inspeksiPanenIds.size} absensi IDs for file $trackingId: $inspeksiPanenIds")
+
+                        inspectionViewModel.updateStatusUploadInspeksiPanen(
+                            inspeksiPanenIds,
+                            responseInfo.status
+                        )
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for inspeksi IDs: $inspeksiPanenIds")
+                    } else {
+                        AppLogger.d("No inspeksi IDs found for file $trackingId")
+                    }
+
+                    val inspeksiDetailPanenIds =
+                        globalInspeksiDetailPanenIdsByPart[trackingId] ?: emptyList()
+                    if (inspeksiDetailPanenIds.isNotEmpty()) {
+                        AppLogger.d("Found ${inspeksiDetailPanenIds.size} absensi IDs for file $trackingId: $inspeksiDetailPanenIds")
+
+                        inspectionViewModel.updateStatusUploadInspeksiDetailPanen(
+                            inspeksiDetailPanenIds,
+                            responseInfo.status
+                        )
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for inspeksi detail IDs: $inspeksiDetailPanenIds")
+                    } else {
+                        AppLogger.d("No inspeksi detail IDs found for file $trackingId")
                     }
 
                     val jsonResultTableIds = createJsonTableNameMapping(trackingId)

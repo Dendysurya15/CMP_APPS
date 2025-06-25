@@ -31,6 +31,12 @@ abstract class InspectionDao {
         datetime: String? = null
     ): List<InspectionWithDetailRelations>
 
+    @Query("UPDATE inspeksi SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadInspeksiPanen(ids: List<Int>, status: Int)
+
+    @Query("UPDATE inspeksi_detail SET status_upload = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadInspeksiDetailPanen(ids: List<Int>, status: Int)
+
     @Query("UPDATE inspeksi SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract  suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
 

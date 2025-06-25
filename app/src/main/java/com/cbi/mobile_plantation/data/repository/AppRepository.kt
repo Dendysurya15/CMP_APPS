@@ -258,49 +258,49 @@ class AppRepository(context: Context) {
                                 totalJjg.add(
                                     MathFun().round(
                                         jjgJson.optInt("TO", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 unripe.add(
                                     MathFun().round(
                                         jjgJson.optInt("UN", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 overripe.add(
                                     MathFun().round(
                                         jjgJson.optInt("OV", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 emptyBunch.add(
                                     MathFun().round(
                                         jjgJson.optInt("EM", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 abnormal.add(
                                     MathFun().round(
                                         jjgJson.optInt("AB", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 ripe.add(
                                     MathFun().round(
                                         jjgJson.optInt("RI", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 kirimPabrik.add(
                                     MathFun().round(
                                         jjgJson.optInt("KP", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 dibayar.add(
                                     MathFun().round(
                                         jjgJson.optInt("PA", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 tphIds.add(entity.tph_id)
@@ -832,6 +832,16 @@ class AppRepository(context: Context) {
         }
     }
 
+
+    suspend fun updateStatusUploadInspeksiPanen(ids: List<Int>, statusUpload: Int) {
+        inspectionDao.updateStatusUploadInspeksiPanen(ids, statusUpload)
+    }
+
+    suspend fun updateStatusUploadInspeksiDetailPanen(ids: List<Int>, statusUpload: Int) {
+        inspectionDao.updateStatusUploadInspeksiDetailPanen(ids, statusUpload)
+    }
+
+
     suspend fun getAllHektarPanen(): Result<List<HektarPanenEntity>> =
         withContext(Dispatchers.IO) {
             try {
@@ -1097,9 +1107,10 @@ class AppRepository(context: Context) {
         espbDao.deleteByID(id)
     }
 
-    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String) = withContext(Dispatchers.IO) {
-        espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
-    }
+    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String) =
+        withContext(Dispatchers.IO) {
+            espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
+        }
 
 
     suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {

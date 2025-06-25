@@ -6,8 +6,6 @@ import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadResults
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.StagingApiClient
