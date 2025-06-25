@@ -29,6 +29,7 @@ import retrofit2.Response
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
+import java.net.SocketTimeoutException
 
 
 sealed class SaveResultNewUploadDataCMP {
@@ -113,172 +114,7 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
-    suspend fun uploadZipToServerV2(
-        fileZipPath: String,
-        batchUuid: String,
-        partNumber: Int,
-        totalParts: Int,
-        onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
-    ): Result<UploadWBCMPResponse> {
-        return try {
-            withContext(Dispatchers.IO) {
 
-
-                val file = File(fileZipPath)
-
-                onProgressUpdate(0, false, null)
-//
-//test failure sengaja
-//                AppLogger.d("askljdlfkjasdf")
-//                if (partNumber == 2 || partNumber == 4) {
-//                    val errorMsg = "Simulated failure for part $partNumber"
-//                    AppLogger.d(errorMsg)
-//                    onProgressUpdate(100, false, errorMsg)
-//                    return@withContext Result.failure(Exception(errorMsg))
-//                }
-
-                // Check if file exists
-                if (!file.exists()) {
-                    val errorMsg = "File does not exist: $fileZipPath"
-                    AppLogger.d(errorMsg)
-                    onProgressUpdate(100, false, errorMsg)
-                    return@withContext Result.failure(Exception(errorMsg))
-                }
-
-                // Check if file is readable
-                if (!file.canRead()) {
-                    val errorMsg = "File exists but is not readable: $fileZipPath"
-                    AppLogger.d(errorMsg)
-                    onProgressUpdate(100, false, errorMsg)
-                    return@withContext Result.failure(Exception(errorMsg))
-                }
-
-                // Check if file has valid size
-                if (file.length() <= 0) {
-                    val errorMsg = "File exists but is empty (0 bytes): $fileZipPath"
-                    AppLogger.d(errorMsg)
-                    onProgressUpdate(100, false, errorMsg)
-                    return@withContext Result.failure(Exception(errorMsg))
-                }
-
-
-                // Check if file has valid ZIP signature (optional, more thorough validation)
-                try {
-                    val inputStream = FileInputStream(file)
-                    val signature = ByteArray(4)
-                    val bytesRead = inputStream.read(signature)
-                    inputStream.close()
-
-                    if (bytesRead != 4 ||
-                        signature[0] != 0x50.toByte() || // 'P'
-                        signature[1] != 0x4B.toByte() || // 'K'
-                        signature[2] != 0x03.toByte() ||
-                        signature[3] != 0x04.toByte()
-                    ) {
-                        val errorMsg =
-                            "File exists but does not appear to be a valid ZIP file: $fileZipPath"
-                        AppLogger.d(errorMsg)
-                        onProgressUpdate(100, false, errorMsg)
-                        return@withContext Result.failure(Exception(errorMsg))
-                    }
-                } catch (e: Exception) {
-                    val errorMsg = "Error validating ZIP file signature: ${e.message}"
-                    AppLogger.d(errorMsg)
-                    onProgressUpdate(100, false, errorMsg)
-                    return@withContext Result.failure(Exception(errorMsg))
-                }
-
-                val fileSize = file.length()
-                AppLogger.d(
-                    "Starting file upload: ${file.name}, Size: ${
-                        AppUtils.formatFileSize(
-                            fileSize
-                        )
-                    }"
-                )
-                val progressRequestBody = ProgressRequestBody(
-                    file,
-                    "application/zip"
-                ) { progress, bytesUploaded, totalBytes, done ->
-                    AppLogger.d(
-                        "Upload progress: $progress% (${
-                            AppUtils.formatFileSize(
-                                bytesUploaded
-                            )
-                        }/${AppUtils.formatFileSize(totalBytes)})"
-                    )
-
-                    // Only update progress during active upload
-                    if (!done) {
-                        onProgressUpdate(progress, false, null)
-                    }
-                }
-
-                // Create the parts for the multipart request
-                val filePart =
-                    MultipartBody.Part.createFormData("zipFile", file.name, progressRequestBody)
-
-                // Create RequestBody objects for the new parameters
-                val uuidPart = RequestBody.create("text/plain".toMediaTypeOrNull(), batchUuid)
-                val partPart =
-                    RequestBody.create("text/plain".toMediaTypeOrNull(), partNumber.toString())
-                val totalPart =
-                    RequestBody.create("text/plain".toMediaTypeOrNull(), totalParts.toString())
-
-                AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
-
-                try {
-//                    val response = TestingAPIClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
-                    val response = TestingAPIClient.instance.uploadZip(filePart)
-
-                    AppLogger.d("response $response")
-                    if (response.isSuccessful) {
-                        val responseBody = response.body()
-                        if (responseBody != null) {
-                            AppLogger.d("Upload successful: ${file.name}")
-                            AppLogger.d("Response Code: ${response.code()}")
-                            AppLogger.d("Response Headers: ${response.headers()}")
-                            AppLogger.d("Response Body: ${responseBody}")
-
-                            // Mark as success with 100% progress
-                            onProgressUpdate(100, true, null)
-                            Result.success(responseBody)
-                        } else {
-                            val errorMsg = "Upload successful but response body is null"
-                            AppLogger.d(errorMsg)
-                            onProgressUpdate(100, false, errorMsg)
-                            Result.failure(Exception(errorMsg))
-                        }
-                    } else {
-                        val errorBody = response.errorBody()?.string()
-                        val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
-
-                        AppLogger.d("Upload failed: $errorMsg")
-                        AppLogger.d("Response Code: ${response.code()}")
-                        AppLogger.d("Response Message: ${response.message()}")
-                        AppLogger.d("Response Headers: ${response.headers()}")
-                        AppLogger.d("Response Body: $errorBody")
-
-                        onProgressUpdate(100, false, errorMsg)
-                        Result.failure(Exception(errorMsg))
-                    }
-                } catch (e: Exception) {
-                    // Handle network errors consistently for all files
-                    val errorMsg = "Network error: ${e.message}"
-                    AppLogger.d(errorMsg)
-                    onProgressUpdate(100, false, errorMsg)
-                    Result.failure(Exception(errorMsg))  // Return failure directly, don't rethrow
-                }
-            }
-        } catch (e: Exception) {
-            // This outer catch should now only be hit for errors in the withContext setup
-            // or other unexpected exceptions, not for network errors
-            val errorMsg = "Error preparing upload: ${e.message}"
-            AppLogger.d(errorMsg)
-            onProgressUpdate(100, false, errorMsg)
-            Result.failure(Exception(errorMsg))
-        }
-    }
 
     data class ImageFileInfo(
         val file: File,
@@ -432,6 +268,11 @@ class UploadCMPRepository(context: Context) {
                             AppLogger.d("Table ID: ${fileInfo.tableId}")
 
                             try {
+
+//                                if (index == 0) {
+//                                    throw SocketTimeoutException("Connection timeout - simulated error")
+//                                }
+
                                 // Create the multipart data for single image
                                 val photoRequestBody = RequestBody.create(
                                     "image/*".toMediaTypeOrNull(),
