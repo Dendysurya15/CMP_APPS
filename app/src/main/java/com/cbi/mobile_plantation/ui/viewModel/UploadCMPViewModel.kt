@@ -210,95 +210,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-//    fun uploadMultipleZipsV2(items: List<UploadCMPItem>) {
-//        viewModelScope.launch {
-//            // Reset counters
-//            _completedCount.value = 0
-//            _totalCount.value = items.size
-//
-//            val progressMap = items.associate { it.id to 0 }
-//            val statusMap = items.associate {
-//                // First item should be UPLOADING, others WAITING
-//                if (it.id == items.firstOrNull()?.id) {
-//                    it.id to AppUtils.UploadStatusUtils.UPLOADING
-//                } else {
-//                    it.id to AppUtils.UploadStatusUtils.WAITING
-//                }
-//            }
-//            val errorMap = items.associate { it.id to null as String? }
-//            val responseMap = items.associate { it.id to null as UploadV3Response? }
-//
-//            _itemProgressMap.value = progressMap
-//            _itemStatusMap.value = statusMap
-//            _itemErrorMap.value = errorMap
-//            _itemResponseMap.value = responseMap
-//
-//            // Generate a unique batch UUID for this upload session
-//            val batchUuid = UUID.randomUUID().toString()
-//            AppLogger.d("Generated batch UUID: $batchUuid for ${items.size} files")
-//
-//            // For each item, upload sequentially
-//            for (item in items) {
-//
-//                if (item.id != items.firstOrNull()?.id) {
-//                    // Update current item status to UPLOADING
-//                    AppLogger.d("masuk broo update to uploading")
-//                    updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
-//                }
-//
-//                // For current item, also update the original LiveData
-//                _uploadProgressCMP.value = 0
-//                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
-//                _uploadErrorCMP.value = null
-//                _uploadResponseCMP.value = null
-//
-//                AppLogger.d("Uploading file ${item.title} as part ${item.partNumber} of ${item.totalParts}, UUID: $batchUuid")
-//
-//
-//                val result = repository.uploadZipToServerV2(
-//                    fileZipPath = item.fullPath,
-//                    batchUuid = batchUuid,
-//                    partNumber = item.partNumber,
-//                    totalParts = item.totalParts
-//                ) { progress, isSuccess, error ->
-//                    // Update item's progress
-//                    // Update item's progress
-//                    updateItemProgress(item.id, progress)
-//
-//                    // Determine status - FIXED LOGIC HERE
-//                    val status = when {
-//                        !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
-//                        isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
-//                        else -> AppUtils.UploadStatusUtils.UPLOADING  // Keep as UPLOADING for any progress including 0
-//                    }
-//
-//                    // Update item's status and error
-//                    updateItemStatus(item.id, status)
-//                    updateItemError(item.id, error)
-//
-//                    // Also update the original LiveData for current item
-//                    _uploadProgressCMP.postValue(progress)
-//                    _uploadStatusCMP.postValue(status)
-//                    _uploadErrorCMP.postValue(error)
-//                }
-//
-//                // Process result
-//                result?.let {
-//                    if (it.isSuccess) {
-//                        val response = it.getOrNull()
-//                        // Update item's response
-//                        updateItemResponse(item.id, response)
-//                    }
-//                }
-//
-//                // Increase completed count regardless of success or failure
-//                _completedCount.value = (_completedCount.value ?: 0) + 1
-//            }
-//        }
-//    }
-
-
-
     fun uploadMultipleJsonsV3(items: List<UploadCMPItem>) {
         viewModelScope.launch {
             // Reset counters - these operations are safe as they're in the viewModelScope
@@ -343,8 +254,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 val tableIds = item.tableIds
                 val databaseTable = item.databaseTable
 
-                // In your uploadMultipleJsonsV3 function, replace the onProgressUpdate callback for image uploads:
-
                 val result = repository.uploadJsonToServerV3(
                     jsonFilePath = jsonFilePath,
                     filename = filename,
@@ -353,40 +262,40 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     tableIds = tableIds,
                     databaseTable = databaseTable,
                     onProgressUpdate = { progress, isSuccess, error ->
-                        // This callback will be running on the main thread
                         // Update item's progress
                         updateItemProgress(item.id, progress)
 
                         // FOR IMAGE UPLOADS: Only update status when progress reaches 100%
                         if (type == "image") {
                             if (progress >= 100) {
-                                // Final status update - only when completely done
-                                val finalStatus = if (isSuccess) {
-                                    AppUtils.UploadStatusUtils.SUCCESS
+                                AppLogger.d("Image upload completed for item ${item.id}: progress=$progress, isSuccess=$isSuccess")
+
+                                updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
+                                // FIXED: Only set actual errors, not success messages
+                                if (!error.isNullOrEmpty() && !error.startsWith("✓") && !error.contains("uploaded successfully")) {
+                                    updateItemError(item.id, error) // Only actual errors
                                 } else {
-                                    AppUtils.UploadStatusUtils.FAILED
+                                    updateItemError(item.id, null) // Clear error for success messages
                                 }
-                                updateItemStatus(item.id, finalStatus)
-                                updateItemError(item.id, error) // Final error message with all details
 
-                                // Also update the original LiveData for current item
                                 _uploadProgressCMP.value = progress
-                                _uploadStatusCMP.value = finalStatus
-                                _uploadErrorCMP.value = error
+                                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
+                                _uploadErrorCMP.value = if (!error.isNullOrEmpty() && !error.startsWith("✓") && !error.contains("uploaded successfully")) error else null
 
-                                AppLogger.d("Final status update for image item ${item.id}: $finalStatus")
-                                if (error != null) {
-                                    AppLogger.d("Final error for image item ${item.id}: $error")
-                                }
+                                AppLogger.d("Image upload progress 100% for item ${item.id} - waiting for final result")
                             } else {
                                 // For intermediate progress (1-99%), keep status as UPLOADING
                                 updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
-                                updateItemError(item.id, error) // Keep intermediate error messages for display
+                                // FIXED: Only set actual errors, not success messages
+                                if (!error.isNullOrEmpty() && !error.startsWith("✓") && !error.contains("uploaded successfully")) {
+                                    updateItemError(item.id, error) // Only actual errors
+                                } else {
+                                    updateItemError(item.id, null) // Clear error for success messages
+                                }
 
-                                // Also update the original LiveData for current item
                                 _uploadProgressCMP.value = progress
                                 _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
-                                _uploadErrorCMP.value = error
+                                _uploadErrorCMP.value = if (!error.isNullOrEmpty() && !error.startsWith("✓") && !error.contains("uploaded successfully")) error else null
 
                                 AppLogger.d("Intermediate progress for image item ${item.id}: $progress% - Status: UPLOADING - Message: $error")
                             }
@@ -398,27 +307,55 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                                 else -> AppUtils.UploadStatusUtils.UPLOADING
                             }
 
-                            // Update item's status and error
                             updateItemStatus(item.id, status)
-                            updateItemError(item.id, error)
+                            // FIXED: Only set actual errors for non-image uploads too
+                            if (!error.isNullOrEmpty() && status == AppUtils.UploadStatusUtils.FAILED) {
+                                updateItemError(item.id, error) // Only actual errors
+                            } else {
+                                updateItemError(item.id, null) // Clear error for success
+                            }
 
-                            // Also update the original LiveData for current item
                             _uploadProgressCMP.value = progress
                             _uploadStatusCMP.value = status
-                            _uploadErrorCMP.value = error
+                            _uploadErrorCMP.value = if (!error.isNullOrEmpty() && status == AppUtils.UploadStatusUtils.FAILED) error else null
                         }
                     }
                 )
 
-                // Process result
                 result.fold(
                     onSuccess = { response ->
-                        // Update item's response
+                        AppLogger.d("Upload result for item ${item.id}: success=${response.success}")
+
                         updateItemResponse(item.id, response)
+
+                        val finalStatus = if (response.success) {
+                            AppUtils.UploadStatusUtils.SUCCESS
+                        } else {
+                            AppUtils.UploadStatusUtils.FAILED
+                        }
+
+                        updateItemStatus(item.id, finalStatus)
+
+                        // FIXED: Only set error if it's actually a failure
+                        if (!response.success) {
+                            updateItemError(item.id, response.message ?: "Upload failed")
+                        } else {
+                            updateItemError(item.id, null) // Clear any previous errors on success
+                        }
+
+                        AppLogger.d("Final status set for item ${item.id}: $finalStatus")
+
+                        _uploadStatusCMP.value = finalStatus
+                        _uploadErrorCMP.value = if (!response.success) response.message else null
                     },
                     onFailure = { error ->
-                        // Error handling is already done in the onProgressUpdate callback
                         AppLogger.d("Upload failed for ${item.title}: ${error.message}")
+
+                        updateItemStatus(item.id, AppUtils.UploadStatusUtils.FAILED)
+                        updateItemError(item.id, error.message) // This is a real error
+
+                        _uploadStatusCMP.value = AppUtils.UploadStatusUtils.FAILED
+                        _uploadErrorCMP.value = error.message
                     }
                 )
 
@@ -427,6 +364,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
     }
+
 
     // Helper functions for updating individual items
     private fun updateItemProgress(id: Int, progress: Int) {
