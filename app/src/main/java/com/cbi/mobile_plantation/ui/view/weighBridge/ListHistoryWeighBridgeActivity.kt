@@ -1235,7 +1235,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                     val formattedBlokList =
                                         blokJjgList.mapNotNull { (idBlok, totalJjg) ->
                                             val blokKode =
-                                                blokData?.find { it.id == idBlok }?.nama
+                                                blokData?.find { it.id_ppro == idBlok }?.kode
                                             if (blokKode != null && totalJjg != null) {
                                                 "• $blokKode ($totalJjg jjg)"
                                             } else null

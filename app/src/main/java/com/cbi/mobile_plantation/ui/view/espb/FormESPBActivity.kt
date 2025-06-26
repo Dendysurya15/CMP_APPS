@@ -891,6 +891,8 @@ class FormESPBActivity : AppCompatActivity() {
                     if (mekanisasi == 0) {
 
                         AppLogger.d("uniqueNikPemanen $uniqueNikPemanen")
+
+                        AppLogger.d(blok_jjg.toString())
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
                             nopol = selectedNopol,

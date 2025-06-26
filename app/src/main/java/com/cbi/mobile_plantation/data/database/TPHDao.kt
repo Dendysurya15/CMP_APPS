@@ -77,8 +77,8 @@ abstract class TPHDao {
         }
     }
 
-        @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
-        abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
+    @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
+    abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertTPHAsistensi(tph: List<TPHNewModel>)
@@ -97,14 +97,16 @@ abstract class TPHDao {
     @Query("SELECT COUNT(*) FROM tph")
     abstract suspend fun getCount(): Int
 
-    @Query("""
+    @Query(
+        """
     SELECT 
         nomor as tphNomor,
         blok_kode as blokKode,
         blok as blokId
     FROM tph
     WHERE id = :id
-""")
+"""
+    )
     abstract suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo?
 
     @Query("SELECT DISTINCT dept, dept_abbr FROM tph WHERE dept IS NOT NULL AND dept_abbr IS NOT NULL")
@@ -142,7 +144,7 @@ abstract class TPHDao {
     """
     )
     abstract fun getTPHByCriteria(
-        idEstate: Int, idDivisi:Int, tahunTanam : String,  idBlok :Int
+        idEstate: Int, idDivisi: Int, tahunTanam: String, idBlok: Int
     ): List<TPHNewModel>
 
     @Query(
@@ -165,7 +167,7 @@ abstract class TPHDao {
     GROUP BY blok
     """
     )
-    abstract  fun getBlokById(
+    abstract fun getBlokById(
         idListBlok: List<Int>
     ): List<TPHNewModel>
 
