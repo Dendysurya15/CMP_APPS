@@ -4937,8 +4937,6 @@ class HomePageActivity : AppCompatActivity() {
                                         btnUploadDataCMP.visibility = View.GONE
                                         btnRetryUpload.visibility = View.VISIBLE
 
-                                        // For error case, dismiss the dialog immediately
-                                        AppLogger.d("gas brroooo")
                                         // Re-enable buttons
                                         closeDialogBtn.isEnabled = true
                                         closeDialogBtn.alpha = 1f

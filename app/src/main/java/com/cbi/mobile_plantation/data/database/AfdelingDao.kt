@@ -22,6 +22,9 @@ abstract class AfdelingDao {
     @Query("SELECT COUNT(*) FROM afdeling")
     abstract suspend fun getCount(): Int
 
+    @Query("SELECT abbr FROM afdeling WHERE id = :afdelingId LIMIT 1")
+    abstract suspend fun getAfdelingNameById(afdelingId: Int): String?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract fun insertAll(afdelings: List<AfdelingModel>)
 

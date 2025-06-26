@@ -145,9 +145,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     data class SummaryItem(val title: String, val value: String)
     data class Location(val lat: Double = 0.0, val lon: Double = 0.0)
-
+    private var afdelingNameUser: String? = null
     private lateinit var btnScanTPHRadius: MaterialButton
+    private lateinit var btnMulaiDariTPH: MaterialButton
+    private lateinit var btnMulaiDariPokok: MaterialButton
     private lateinit var loadingDialog: LoadingDialog
+    private lateinit var selectionScreen: LinearLayout
+    private lateinit var mainContentWrapper: ConstraintLayout
+    private lateinit var headerFormInspection: View
     private var prefManager: PrefManager? = null
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
@@ -248,7 +253,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var selectedBlok: String = ""
     private var selectedTPHValue: Int? = null
     private var selectedJalurMasuk: String = ""
-//    private var selectedInspeksiValue: String = ""
+
+    //    private var selectedInspeksiValue: String = ""
     private var selectedKondisiValue: String = ""
 
     private var isInTPH: Boolean = true
@@ -278,6 +284,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
     private lateinit var fabPhotoInfoBlok: FloatingActionButton
+    private lateinit var clInfoBlokSection: ConstraintLayout
+    private lateinit var clFormInspection: ConstraintLayout
+    private lateinit var clSummaryInspection: ConstraintLayout
     private lateinit var fabSaveFormAncak: FloatingActionButton
     private var activityInitialized = false
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -287,6 +296,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
         }
     }
+    private var isStartFromTPH = true // true = TPH first, false = Pokok first
+    private var hasSelectedMode = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -297,7 +308,15 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun initUI() {
+        clSummaryInspection = findViewById(R.id.clSummaryInspection)
+        clFormInspection = findViewById(R.id.clFormInspection)
+        clInfoBlokSection = findViewById(R.id.clInfoBlokSection)
+        selectionScreen = findViewById(R.id.selectionScreen)
+        mainContentWrapper = findViewById(R.id.mainContentWrapper)
+        headerFormInspection = findViewById(R.id.headerFormInspection)
+        btnMulaiDariTPH = findViewById(R.id.btnMulaiDariTPH)
         btnScanTPHRadius = findViewById(R.id.btnScanTPHRadius)
+        btnMulaiDariPokok = findViewById(R.id.btnMulaiDariPokok)
         tphScannedResultRecyclerView = findViewById(R.id.tphScannedResultRecyclerView)
         titleScannedTPHInsideRadius = findViewById(R.id.titleScannedTPHInsideRadius)
         descScannedTPHInsideRadius = findViewById(R.id.descScannedTPHInsideRadius)
@@ -388,7 +407,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
         infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
-
+        setupSelectionButtons()
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
@@ -441,6 +460,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                             panenDeferred.complete(list ?: emptyList())
                         }
                     }
+
+                    val afdelingNameDeferred = async {
+                        try {
+                            val afdelingId = prefManager!!.afdelingIdUserLogin
+                            inspectionViewModel.getAfdelingName(afdelingId!!.toInt())
+                        } catch (e: Exception) {
+                            null // Return null if error
+                        }
+                    }
+                    delay(100)
+                    afdelingNameUser = afdelingNameDeferred.await()
 
 
                     val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
@@ -550,6 +580,48 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
+                    // NEW: Check if we're in main content - go back to selection screen with data check
+                    hasSelectedMode && mainContentWrapper.visibility == View.VISIBLE -> {
+                        // Check if any data exists
+
+                        AppLogger.d(hasExistingData().toString())
+                        if (hasExistingData()) {
+                            vibrate()
+                            AlertDialogUtility.withTwoActions(
+                                this@FormInspectionActivity,
+                                "Kembali ke Pemilihan",
+                                "Data akan hilang",
+                                "Data yang sudah diisi akan hilang. Apakah Anda yakin ingin kembali?",
+                                "warning.json",
+                                ContextCompat.getColor(
+                                    this@FormInspectionActivity,
+                                    R.color.bluedarklight
+                                ),
+                                function = {
+                                    showSelectionScreen()
+                                    headerFormInspection.visibility = View.GONE
+                                    hasSelectedMode = false
+                                }
+                            )
+                        } else {
+                            // No data exists, go back directly
+                            showSelectionScreen()
+                            headerFormInspection.visibility = View.GONE
+                            hasSelectedMode = false
+                        }
+                    }
+
+                    // When in selection screen - exit to homepage without alert
+                    selectionScreen.visibility == View.VISIBLE -> {
+                        val intent = Intent(
+                            this@FormInspectionActivity,
+                            HomePageActivity::class.java
+                        )
+                        startActivity(intent)
+                        finishAffinity()
+                    }
+
+                    // Any other case - exit to homepage with alert
                     else -> {
                         vibrate()
                         AlertDialogUtility.withTwoActions(
@@ -563,11 +635,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 R.color.bluedarklight
                             ),
                             function = {
-                                val intent =
-                                    Intent(
-                                        this@FormInspectionActivity,
-                                        HomePageActivity::class.java
-                                    )
+                                val intent = Intent(
+                                    this@FormInspectionActivity,
+                                    HomePageActivity::class.java
+                                )
                                 startActivity(intent)
                                 finishAffinity()
                             }
@@ -576,7 +647,136 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
         })
+
+
+
+
     }
+
+    // Helper function to check if any data exists
+    private fun hasExistingData(): Boolean {
+        return selectedIdPanenByScan != null ||
+                selectedEstateByScan != null ||
+                selectedAfdelingByScan != null ||
+                selectedBlokByScan != null ||
+                selectedTPHNomorByScan != null ||
+                selectedAncakByScan != null ||
+                selectedTanggalPanenByScan != null ||
+                selectedTPHValue != null ||
+                photoInTPH != null ||
+                komentarInTPH != null
+    }
+
+    private fun showSelectionScreen() {
+        selectionScreen.visibility = View.VISIBLE
+        mainContentWrapper.visibility = View.GONE
+
+        // Reset any selected data
+        selectedTPHIdByScan = null
+        selectedIdPanenByScan = null
+        selectedEstateByScan = null
+        selectedAfdelingByScan = null
+        selectedBlokByScan = null
+        selectedTPHNomorByScan = null
+        selectedAncakByScan = null
+        selectedTanggalPanenByScan = null
+        selectedTPHValue = null
+        photoInTPH = null
+        komentarInTPH = null
+
+        // Clear any form data if needed
+        formAncakViewModel.clearAllData()
+    }
+
+    private fun setupSelectionButtons() {
+        btnMulaiDariTPH.setOnClickListener {
+            isStartFromTPH = true
+            hasSelectedMode = true
+            setupNavigationForTPHMode()
+            showMainContent()
+        }
+
+        btnMulaiDariPokok.setOnClickListener {
+            isStartFromTPH = false
+            hasSelectedMode = true
+            setupNavigationForPokokMode()
+            showMainContent()
+        }
+    }
+
+    private fun showMainContent() {
+        selectionScreen.visibility = View.GONE
+        mainContentWrapper.visibility = View.VISIBLE
+        headerFormInspection.visibility = View.VISIBLE
+
+        if (isStartFromTPH) {
+            showInfoBlokScreen()
+            isInTPH = true
+            bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
+        } else {
+            isInTPH = false
+            showFormInspectionScreen()
+            bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
+        }
+
+    }
+    private fun showInfoBlokScreen() {
+        clInfoBlokSection.visibility = View.VISIBLE
+        fabPhotoInfoBlok.visibility = View.VISIBLE
+        clFormInspection.visibility = View.GONE
+        clSummaryInspection.visibility = View.GONE
+    }
+    private fun showFormInspectionScreen() {
+        val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
+        formAncakViewModel.updateInfoFormAncak(
+            estateName ?: "",
+            afdResult ?: "",
+            selectedBlokByScan ?: ""
+        )
+
+        fabPhotoInfoBlok.visibility = View.GONE
+        clInfoBlokSection.visibility = View.GONE
+        clSummaryInspection.visibility = View.GONE
+        clFormInspection.post {
+            vpFormAncak.post {
+                clFormInspection.visibility = View.VISIBLE
+            }
+        }
+    }
+
+
+    private fun setupNavigationForTPHMode() {
+        updateBottomNavigationOrder(true)
+    }
+
+    private fun setupNavigationForPokokMode() {
+        updateBottomNavigationOrder(false)
+    }
+
+    private fun updateBottomNavigationOrder(isTPHFirst: Boolean) {
+        val menu = bottomNavInspect.menu
+        menu.clear()
+
+        if (isTPHFirst) {
+            // TPH mode: Info Blok -> P. Ancak -> Summary
+            menu.add(0, R.id.navMenuBlokInspect, 0, "Info. Blok")
+                .setIcon(R.drawable.ic_home_black_24dp)
+            menu.add(0, R.id.navMenuAncakInspect, 1, "P. Ancak")
+                .setIcon(R.drawable.baseline_grain_24)
+            menu.add(0, R.id.navMenuSummaryInspect, 2, "Summary")
+                .setIcon(R.drawable.list_solid)
+        } else {
+            // Pokok mode: P. Ancak -> Info Blok -> Summary
+            AppLogger.d("masuk sini bro")
+            menu.add(0, R.id.navMenuAncakInspect, 0, "P. Ancak")
+                .setIcon(R.drawable.baseline_grain_24)
+            menu.add(0, R.id.navMenuBlokInspect, 1, "Info. Blok")
+                .setIcon(R.drawable.ic_home_black_24dp)
+            menu.add(0, R.id.navMenuSummaryInspect, 2, "Summary")
+                .setIcon(R.drawable.list_solid)
+        }
+    }
+
 
     @SuppressLint("DefaultLocale")
     override fun onResume() {
@@ -755,7 +955,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
             // Show/hide photo FAB based on conditions
-            fabPhotoFormAncak.visibility = if ( emptyTreeValue == 1) {
+            fabPhotoFormAncak.visibility = if (emptyTreeValue == 1) {
                 View.VISIBLE
             } else {
                 View.GONE
@@ -956,7 +1156,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             Log.d("SaveInspection", "dateStartInspection: $dateStartInspection")
                             Log.d("SaveInspection", "userId: $userId")
                             Log.d("SaveInspection", "selectedTPHIdByScan: $selectedTPHIdByScan")
-                            Log.d("SaveInspection", "selectedTanggalPanenByScan: $selectedTanggalPanenByScan")
+                            Log.d(
+                                "SaveInspection",
+                                "selectedTanggalPanenByScan: $selectedTanggalPanenByScan"
+                            )
                             Log.d("SaveInspection", "selectedJalurMasuk: $selectedJalurMasuk")
                             Log.d("SaveInspection", "jumBrdTglPath: $jumBrdTglPath")
                             Log.d("SaveInspection", "jumBuahTglPath: $jumBuahTglPath")
@@ -982,11 +1185,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 }
                             }
 
-//
-//                            val formattedTracking =
-//                                trackingLocation.values.joinToString("#") { "${it.lat},${it.lon}" }
-//
-//                            AppLogger.d(formattedTracking.toString())
 
                             val dateEndInspection = SimpleDateFormat(
                                 "yyyy-MM-dd HH:mm:ss",
@@ -1009,11 +1207,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                             }
 
                             if (selectedTanggalPanenByScan == null) {
-                                Log.e("SaveInspection", "ERROR: selectedTanggalPanenByScan is null!")
+                                Log.e(
+                                    "SaveInspection",
+                                    "ERROR: selectedTanggalPanenByScan is null!"
+                                )
                                 throw Exception("Tanggal panen tidak boleh kosong")
                             }
 
-                            Log.d("SaveInspection", "trackingLocation: ${trackingLocation.toString()}")
+                            Log.d(
+                                "SaveInspection",
+                                "trackingLocation: ${trackingLocation.toString()}"
+                            )
 
                             // Save main inspection first
                             Log.d("SaveInspection", "=== Calling saveDataInspection ===")
@@ -1045,22 +1249,35 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             when (result) {
                                 is InspectionViewModel.SaveDataInspectionState.Success -> {
-                                    Log.d("SaveInspection", "Main inspection saved successfully with ID: ${result.inspectionId}")
-
-                                    // Now save inspection details using the generated ID
-                                    Log.d("SaveInspection", "=== Calling saveDataInspectionDetails ===")
-                                    val detailResult = inspectionViewModel.saveDataInspectionDetails(
-                                        inspectionId = result.inspectionId.toString(),
-                                        formData = formData,
-                                        totalPages = totalPages,
+                                    Log.d(
+                                        "SaveInspection",
+                                        "Main inspection saved successfully with ID: ${result.inspectionId}"
                                     )
 
-                                    Log.d("SaveInspection", "saveDataInspectionDetails result: $detailResult")
+                                    // Now save inspection details using the generated ID
+                                    Log.d(
+                                        "SaveInspection",
+                                        "=== Calling saveDataInspectionDetails ==="
+                                    )
+                                    val detailResult =
+                                        inspectionViewModel.saveDataInspectionDetails(
+                                            inspectionId = result.inspectionId.toString(),
+                                            formData = formData,
+                                            totalPages = totalPages,
+                                        )
+
+                                    Log.d(
+                                        "SaveInspection",
+                                        "saveDataInspectionDetails result: $detailResult"
+                                    )
                                     loadingDialog.dismiss()
 
                                     when (detailResult) {
                                         is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
-                                            Log.d("SaveInspection", "Inspection details saved successfully")
+                                            Log.d(
+                                                "SaveInspection",
+                                                "Inspection details saved successfully"
+                                            )
                                             AlertDialogUtility.withSingleAction(
                                                 this@FormInspectionActivity,
                                                 stringXML(R.string.al_back),
@@ -1079,7 +1296,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         }
 
                                         is InspectionViewModel.SaveDataInspectionDetailsState.Error -> {
-                                            Log.e("SaveInspection", "Error saving inspection details: ${detailResult.message}")
+                                            Log.e(
+                                                "SaveInspection",
+                                                "Error saving inspection details: ${detailResult.message}"
+                                            )
                                             AlertDialogUtility.withSingleAction(
                                                 this@FormInspectionActivity,
                                                 stringXML(R.string.al_back),
@@ -1093,7 +1313,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 }
 
                                 is InspectionViewModel.SaveDataInspectionState.Error -> {
-                                    Log.e("SaveInspection", "Error saving main inspection: ${result.message}")
+                                    Log.e(
+                                        "SaveInspection",
+                                        "Error saving main inspection: ${result.message}"
+                                    )
                                     loadingDialog.dismiss()
                                     AlertDialogUtility.withSingleAction(
                                         this@FormInspectionActivity,
@@ -1204,7 +1427,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         bottomSheetDialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         bottomSheetDialog.setOnShowListener {
-            val bottomSheet = bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val bottomSheet =
+                bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             val behavior = BottomSheetBehavior.from(bottomSheet!!)
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
             behavior.isDraggable = false
@@ -1222,12 +1446,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
 
         var sourceFoto = ""
-        if(isInTPH == true){
-            sourceFoto =  "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
-        }
-        else{
+        if (isInTPH == true) {
+            sourceFoto =
+                "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+        } else {
 //            sourceFoto = "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan #Pokok ${currentData.pokokNumber}"
-            var kondisi  = if(selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+            var kondisi =
+                if (selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
             sourceFoto = " $kondisi #Pokok ${currentData.pokokNumber}"
         }
 
@@ -1336,6 +1561,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 onChangePhoto = {
                                     shouldReopenBottomSheet = true
                                     Handler(Looper.getMainLooper()).postDelayed({
+                                        headerFormInspection.visibility = View.GONE
                                         cameraViewModel.takeCameraPhotos(
                                             this,
                                             currentPage.toString(),
@@ -1344,7 +1570,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             null,
                                             "", // soon assign lat lon
                                             currentPage.toString(),
-                                        watermarkType,
+                                            watermarkType,
                                             lat,
                                             lon,
                                             sourceFoto
@@ -1366,6 +1592,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         shouldReopenBottomSheet = true
                         Handler(Looper.getMainLooper()).postDelayed({
+
                             bottomNavInspect.visibility = View.GONE
                             cameraViewModel.takeCameraPhotos(
                                 this,
@@ -1375,7 +1602,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 null,
                                 "", // soon assign lat lon
                                 currentPage.toString(),
-                            watermarkType,
+                                watermarkType,
                                 lat,
                                 lon,
                                 sourceFoto
@@ -1432,7 +1659,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         bottomSheetDialog.show()
     }
 
-        private fun setKeyboardVisibilityListener() {
+    private fun setKeyboardVisibilityListener() {
         val rootView = findViewById<View>(android.R.id.content)
         keyboardWatcher = SoftKeyboardStateWatcher(
             rootView,
@@ -1618,26 +1845,30 @@ open class FormInspectionActivity : AppCompatActivity(),
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
-            loadingDialog.show()
-            loadingDialog.setMessage("Loading data...")
-
-            if (!validateAndShowErrors() || activeBottomNavId == R.id.navMenuAncakInspect) {
-                loadingDialog.dismiss()
-
-                if (activeBottomNavId == R.id.navMenuAncakInspect) {
-
-                }else{
+            // Only validate when clicking Summary
+            if (item.itemId == R.id.navMenuSummaryInspect) {
+                if (!validateAndShowErrors()) {
                     vibrate(500)
+
+                    // Navigate to Info Blok tab when validation fails
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
+                    }, 100)
+
                     return@setOnItemSelectedListener false
                 }
-
             }
+
+            loadingDialog.show()
+            loadingDialog.setMessage("Loading data...")
 
             lifecycleScope.launch {
 
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
+                            clFormInspection.visibility = View.GONE
+                            clInfoBlokSection.visibility = View.VISIBLE
                             infoBlokView.visibility = View.VISIBLE
                             fabPhotoInfoBlok.visibility = View.VISIBLE
                             formInspectionView.visibility = View.GONE
@@ -1651,6 +1882,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     R.id.navMenuAncakInspect -> {
                         withContext(Dispatchers.Main) {
                             isInTPH = false
+                            clInfoBlokSection.visibility = View.GONE
+                            clFormInspection.visibility = View.VISIBLE
                             if (!trackingLocation.containsKey("start")) {
                                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
@@ -1664,9 +1897,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             formAncakViewModel.updateInfoFormAncak(
                                 estateName ?: "",
                                 afdResult,
-                                selectedBlok
+                                selectedBlokByScan ?: ""
                             )
-//                            formAncakViewModel.updateTypeInspection(selectedInspeksiValue.toInt() == 1)
                             fabPhotoInfoBlok.visibility = View.GONE
                             infoBlokView.visibility = View.GONE
                             summaryView.visibility = View.GONE
@@ -1704,8 +1936,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 else -> false
             }
         }
-        bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
-
         inputMappings = listOf(
             Triple(
                 findViewById(R.id.lyEstInspect),
@@ -1975,7 +2205,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         spannable.append("\nTanggal Panen ")
         val tanggalStart = spannable.length
-        spannable.append(AppUtils.formatToIndonesianDate(selectedTanggalPanenByScan!!) ?: "")
+        val formattedDate = selectedTanggalPanenByScan?.let {
+            AppUtils.formatToIndonesianDate(it)
+        } ?: "Tidak tersedia"
+        spannable.append(formattedDate)
         spannable.setSpan(
             StyleSpan(Typeface.BOLD),
             tanggalStart,
@@ -2165,12 +2398,12 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (bottomSheet != null) {
                 val screenHeight = resources.displayMetrics.heightPixels
                 var desiredHeight = 0
-                if(temuanType == "Temuan di TPH"){
+                if (temuanType == "Temuan di TPH") {
                     desiredHeight = (screenHeight * 0.4).toInt()
-                }else{
+                } else {
                     desiredHeight = (screenHeight * 0.8).toInt()
                 }
-            // 80% of screen height
+                // 80% of screen height
 
                 val layoutParams = bottomSheet.layoutParams
                 layoutParams.height = desiredHeight
@@ -3118,7 +3351,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         AppLogger.d(photoInTPH.toString())
-        if(photoInTPH != null){
+        if (photoInTPH != null) {
             AlertDialogUtility.withTwoActions(
                 this@FormInspectionActivity, // Replace with your actual Activity name
                 "Lanjutkan Hapus Foto",
@@ -3134,7 +3367,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 cancelFunction = {
                 }
             )
-        }else{
+        } else {
             isProcessingTPHSelection = true
 
             tvErrorScannedNotSelected.visibility = View.GONE
@@ -3177,10 +3410,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val firstTph = matchingPanenList.first().tph
                         dateCreated = firstPanen?.date_created ?: ""
                         ancakValue = firstTph?.ancak ?: ""
-                        selectedIdPanenByScan =  firstPanen?.id ?: 0
-                        selectedEstateByScan =  firstTph?.dept_abbr ?: ""
-                        selectedAfdelingByScan =  firstTph?.divisi_abbr ?: ""
-                        selectedBlokByScan =  firstTph?.blok_kode ?: ""
+                        selectedIdPanenByScan = firstPanen?.id ?: 0
+                        selectedEstateByScan = firstTph?.dept_abbr ?: ""
+                        selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
+                        selectedBlokByScan = firstTph?.blok_kode ?: ""
                     }
 
 
@@ -3281,7 +3514,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
                             if (selectedName.isNotEmpty()) {
-                                karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
+                                karyawanIdMap[selectedName] =
+                                    individualKaryawanId.toIntOrNull() ?: 0
                                 kemandoranIdMap[selectedName] =
                                     selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
@@ -3565,13 +3799,15 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
             if (isTriggeredBtnScanned) {
                 if (isEmptyScannedTPH) {
-                    tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
+                    tvErrorScannedNotSelected.text =
+                        stringXML(R.string.al_no_tph_detected_trigger_submit)
                     tvErrorScannedNotSelected.visibility = View.VISIBLE
                     errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
                     isValid = false
                 } else {
                     // Search was done and TPH found, but user hasn't selected one
-                    tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
+                    tvErrorScannedNotSelected.text =
+                        "Silakan untuk memilih TPH yang ingin diperiksa!"
                     tvErrorScannedNotSelected.visibility = View.VISIBLE
                     errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
                     isValid = false
@@ -3589,7 +3825,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
-        if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
+        if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim()
+                .isNotEmpty()
+        ) {
             val br1Int = br1Value.trim().toIntOrNull() ?: 0
             val br2Int = br2Value.trim().toIntOrNull() ?: 0
 

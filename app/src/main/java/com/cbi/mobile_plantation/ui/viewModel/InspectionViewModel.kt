@@ -49,6 +49,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    suspend fun getAfdelingName(afdelingId: Int): String? {
+        return repository.getAfdelingName(afdelingId)
+    }
+
     suspend fun loadInspectionCount(datetime: String? = null): Int {
         val count = repository.getInspectionCount(datetime)
         return count

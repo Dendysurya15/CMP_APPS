@@ -54,7 +54,7 @@ class AppRepository(context: Context) {
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
-    private val blokDao = database.blokDao()
+    private val afdelingDao = database.afdelingDao()
 
 
     sealed class SaveResultPanen {
@@ -72,6 +72,10 @@ class AppRepository(context: Context) {
 
     suspend fun insertInspectionDetails(inspectionDetailList: List<InspectionDetailModel>) {
         inspectionDao.insertInspectionDetails(inspectionDetailList)
+    }
+
+    suspend fun getAfdelingName(afdelingId: Int): String? {
+        return afdelingDao.getAfdelingNameById(afdelingId)
     }
 
     suspend fun getInspectionData(
