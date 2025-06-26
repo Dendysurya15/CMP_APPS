@@ -168,6 +168,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+    suspend fun getAfdelingById(afdelingId: Int): AfdelingModel? {
+        return repository.getAfdelingById(afdelingId)
+    }
+
     fun getDistinctMasterDeptInfo() {
         viewModelScope.launch {
             repository.getDistinctDeptInfo()
@@ -1762,7 +1766,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         status0WithNullSpb++
 
                                         // ADD THE ENTITY TO PANEN LIST HERE - Only for status_espb=0 with null spb_kode
-                                        val jjgJson = "{\"PA\": $jjgKirim}"
+                                        AppLogger.d("askldjlaskdfjlaskdf")
+                                        val jjgJson = "{\"KP\": $jjgKirim}"
                                         AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
 
                                         // Create a PanenEntity with the required fields
@@ -2757,12 +2762,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     if (divisiObject.has("nama") && !divisiObject.get("nama").isJsonNull)
                                         divisiObject.get("nama").asString else null
 
+                                val sinkronisasi_otomatis =
+                                    if (divisiObject.has("sinkronisasi_otomatis") && !divisiObject.get("sinkronisasi_otomatis").isJsonNull)
+                                        divisiObject.get("sinkronisasi_otomatis").asInt else 0
+
                                 val afdeling = AfdelingModel(
                                     id = divisiId,
                                     id_ppro = divisiIdPpro,
                                     abbr = divisiAbbr,
                                     nama = divisiNama,
-                                    estate_id = id
+                                    estate_id = id,
+                                    sinkronisasi_otomatis = sinkronisasi_otomatis
                                 )
                                 afdelingList.add(afdeling)
                             } catch (e: Exception) {
@@ -3340,12 +3350,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                         )
                                                                             divisiObject.get("nama").asString else null
 
+
+                                                                    val sinkronisasi_otomatis =
+                                                                        if (divisiObject.has("sinkronisasi_otomatis") && !divisiObject.get("sinkronisasi_otomatis").isJsonNull)
+                                                                            divisiObject.get("sinkronisasi_otomatis").asInt else 0
+
                                                                     val afdeling = AfdelingModel(
                                                                         id = divisiId,
                                                                         id_ppro = divisiIdPpro,
                                                                         abbr = divisiAbbr,
                                                                         nama = divisiNama,
-                                                                        estate_id = id
+                                                                        estate_id = id,
+                                                                        sinkronisasi_otomatis = sinkronisasi_otomatis
                                                                     )
                                                                     afdelingList.add(afdeling)
                                                                 } catch (e: Exception) {

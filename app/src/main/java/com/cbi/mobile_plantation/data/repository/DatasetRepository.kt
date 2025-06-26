@@ -72,6 +72,10 @@ class DatasetRepository(
         return kemandoranDao.getBlokByDivisiAndDept(divisiId, deptId)
     }
 
+    suspend fun getAfdelingById(afdelingId: Int): AfdelingModel? {
+        return afdelingDao.getAfdelingById(afdelingId)
+    }
+
 
     suspend fun getDatasetCount(datasetName: String, deptId: Int? = null): Int {
         return when (datasetName) {

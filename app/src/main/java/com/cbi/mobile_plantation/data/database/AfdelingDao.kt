@@ -28,6 +28,10 @@ abstract class AfdelingDao {
     @Query("DELETE FROM afdeling")
     abstract fun deleteAll()
 
+    @Query("SELECT * FROM afdeling WHERE id = :afdelingId LIMIT 1")
+    abstract suspend fun getAfdelingById(afdelingId: Int): AfdelingModel?
+
+
 
     @Query(
         """

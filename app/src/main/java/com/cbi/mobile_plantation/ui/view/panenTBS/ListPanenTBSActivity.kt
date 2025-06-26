@@ -967,7 +967,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setActiveCard(cardTersimpan)
             loadingDialog.show()
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-                val standardHeaders = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+                val standardHeaders = listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
                 updateTableHeaders(standardHeaders)
             }
 
@@ -1038,7 +1038,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             loadingDialog.show()
 
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
-                val standardHeaders = listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+                val standardHeaders = listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
                 updateTableHeaders(standardHeaders)
             } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 //untuk rekap per blok
@@ -1113,7 +1113,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         "NAMA\nPEMANEN",
                         "BLOK/JJG",
                         "JUMLAH\nTRANSAKSI",
-                        "TOTAL JJG/\nJJG DIBAYAR"
+                        "KIRIM PABRIK/\nJJG DIBAYAR"
                     )
                 updateTableHeaders(rekapHeaders)
             }
@@ -1167,7 +1167,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setActiveCard(cardRekapPerBlok)
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 val rekapHeaders =
-                    listOf("NAMA\nBLOK", "JUMLAH\nTRANSAKSI", "TOTAL\nJJG", "TOTAL\nDIBAYAR")
+                    listOf("NAMA\nBLOK", "JUMLAH\nTRANSAKSI", "KIRIM\nPABRIK", "TOTAL\nDIBAYAR")
                 updateTableHeaders(rekapHeaders)
             }
             loadingDialog.show()
@@ -1315,7 +1315,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             throw IllegalArgumentException("Invalid JSON format in jjg_json: $jjgJsonString")
                         }
 
-                        val key = "PA"
+                        val key = "KP"
 
                         val toValue = if (jjgJson.has(key)) {
                             jjgJson.getInt(key)
@@ -1487,11 +1487,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val selectedItems = listAdapter.getSelectedItems()
         Log.d("ListPanenTBSActivityESPB", "selectedItems: $selectedItems")
         val tph1AD0 =
-            convertToFormattedString(selectedItems.toString(), 0).replace("{\"PA\": ", "")
+            convertToFormattedString(selectedItems.toString(), 0).replace("{\"KP\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD0")
         val tph1AD2 =
-            convertToFormattedString(selectedItems.toString(), 1).replace("{\"PA\": ", "")
+            convertToFormattedString(selectedItems.toString(), 1).replace("{\"KP\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsAD: $tph1AD2")
 
@@ -1552,12 +1552,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val tph1NO = convertToFormattedString(
             selectedItems2.toString(),
             listTPHDriver
-        ).replace("{\"PA\": ", "").replace("},", ",")
+        ).replace("{\"KP\": ", "").replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
 
         //get item which is not selected
         val tph0before =
-            convertToFormattedString(allItems.toString(), 0).replace("{\"PA\": ", "")
+            convertToFormattedString(allItems.toString(), 0).replace("{\"KP\": ", "")
                 .replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItems0: $tph0before")
 
@@ -1602,6 +1602,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
+
 
         if (featureName == "Buat eSPB") {
             btnGenerateQRTPH.setImageResource(R.drawable.baseline_save_24)
@@ -2588,7 +2589,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                 parts[2].trim() // Third index for KP value
 
                                             // Create JSON for jjg_json
-                                            val jjgJson = "{\"PA\": $kpValue}"
+                                            val jjgJson = "{\"KP\": $kpValue}"
 
                                             try {
                                                 // Convert tphId to Int for the query
@@ -2662,7 +2663,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             for (data in processedDataList) {
                                 try {
                                     val jjgJson = JSONObject(data["jjg_json"].toString())
-                                    val kpValue = jjgJson.optDouble("PA", 0.0)
+                                    val kpValue = jjgJson.optDouble("KP", 0.0)
                                     totalKpSum += kpValue
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing jjg_json: ${e.message}")
@@ -2707,7 +2708,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             // State 1: Merge by blok (similar to your existing merge logic)
                             val globalMergedBlokMap =
                                 mutableMapOf<String, MutableMap<String, Any>>()
-                            val jjgTypes = listOf("PA")
+                            val jjgTypes = listOf("KP")
 
                             for (blokData in processedDataList) {
                                 val blokName = blokData["blok_name"].toString()
@@ -2736,7 +2737,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     existingBlokData["jjg_json"] = existingJjgJson.toString()
 
                                     // For restan, use KP as the total
-                                    val newTotalKP = existingJjgJson.optDouble("PA", 0.0)
+                                    val newTotalKP = existingJjgJson.optDouble("KP", 0.0)
                                     existingBlokData["jjg_total"] =
                                         if (newTotalKP == newTotalKP.toInt().toDouble()) {
                                             newTotalKP.toInt().toString()
@@ -2768,7 +2769,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     val mutableBlokData = blokData.toMutableMap()
 
                                     // Format the KP value
-                                    val jjgKP = jjgValues["PA"] ?: 0.0
+                                    val jjgKP = jjgValues["KP"] ?: 0.0
                                     val formattedJjgKP = if (jjgKP == jjgKP.toInt().toDouble()) {
                                         jjgKP.toInt().toString()
                                     } else {
@@ -2832,6 +2833,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             originalMappedData.clear()
                             panenList.map { panenWithRelations ->
+
+
+                                AppLogger.d("Raw tph_id: ${panenWithRelations.panen.tph_id}")
+                                AppLogger.d("tph_id type: ${panenWithRelations.panen.tph_id?.javaClass?.simpleName}")
+
+                                AppLogger.d("TPH object: ${panenWithRelations.tph}")
+                                AppLogger.d("TPH is null: ${panenWithRelations.tph == null}")
+
+                                if (panenWithRelations.tph == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@ListPanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        "Data TPH Tidak Ditemukan",
+                                        "TPH dengan ID ${panenWithRelations.panen.tph_id} tidak ditemukan di database. Silakan periksa data TPH.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        finish()
+                                    }
+                                    return@launch // Exit the entire coroutine
+                                }
 
                                 val karyawanNiks =
                                     panenWithRelations.panen.karyawan_nik?.toString()?.split(",")
@@ -3131,8 +3153,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     }
 
                                     // Format JJG TO value
-                                    val jjgTO = jjgValues["TO"] ?: 0.0
-                                    val formattedJjgTO = if (jjgTO == jjgTO.toInt().toDouble()) {
+                                    val jjgTO = jjgValues["KP"] ?: 0.0
+                                    val formattedJjgKP = if (jjgTO == jjgTO.toInt().toDouble()) {
                                         jjgTO.toInt().toString()
                                     } else {
                                         String.format(
@@ -3175,12 +3197,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             }
 
                                         // Update JJG total (TO)
-                                        val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
+                                        val newTotalKP = existingJjgJson.optDouble("KP", 0.0)
                                         existingWorkerData["jjg_total_blok"] =
-                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
-                                                newTotalTO.toInt().toString()
+                                            if (newTotalKP == newTotalKP.toInt().toDouble()) {
+                                                newTotalKP.toInt().toString()
                                             } else {
-                                                String.format(Locale.US, "%.1f", newTotalTO)
+                                                String.format(Locale.US, "%.1f", newTotalKP)
                                             }
 
                                         // Update counters
@@ -3247,10 +3269,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                         // Set initial values
                                         mutableWorkerData["jjg_each_blok"] =
-                                            "$blokName($formattedJjgTO)"
+                                            "$blokName($formattedJjgKP)"
                                         mutableWorkerData["jjg_each_blok_bullet"] =
-                                            "• $blokName ($formattedJjgTO Jjg)"
-                                        mutableWorkerData["jjg_total_blok"] = formattedJjgTO
+                                            "• $blokName ($formattedJjgKP Jjg)"
+                                        mutableWorkerData["jjg_total_blok"] = formattedJjgKP
                                         mutableWorkerData["jjg_dibayar"] = formattedJjgPA
                                         mutableWorkerData["occurrence_count"] = "1"
                                         mutableWorkerData["tph_ids"] = tphId
@@ -3334,12 +3356,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         existingBlokData["jjg_json"] = existingJjgJson.toString()
 
                                         // For jjg_total and jjg_dibayar, use TO and PA as in state 2
-                                        val newTotalTO = existingJjgJson.optDouble("TO", 0.0)
+                                        val newTotalKP = existingJjgJson.optDouble("KP", 0.0)
                                         existingBlokData["jjg_total"] =
-                                            if (newTotalTO == newTotalTO.toInt().toDouble()) {
-                                                newTotalTO.toInt().toString()
+                                            if (newTotalKP == newTotalKP.toInt().toDouble()) {
+                                                newTotalKP.toInt().toString()
                                             } else {
-                                                String.format(Locale.US, "%.1f", newTotalTO)
+                                                String.format(Locale.US, "%.1f", newTotalKP)
                                             }
 
                                         val jjgPA = existingJjgJson.optDouble("PA", 0.0)
@@ -3408,7 +3430,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                         // Format the TO and PA values
                                         val jjgTO = jjgValues["TO"] ?: 0.0
-                                        val formattedJjgTO =
+                                        val formattedJjgKP =
                                             if (jjgTO == jjgTO.toInt().toDouble()) {
                                                 jjgTO.toInt().toString()
                                             } else {
@@ -3424,13 +3446,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             }
 
                                         // Add blok-specific fields
-                                        mutableBlokData["jjg_total"] = formattedJjgTO
+                                        mutableBlokData["jjg_total"] = formattedJjgKP
                                         mutableBlokData["jjg_dibayar"] = formattedJjgPA
                                         mutableBlokData["jumlah_transaksi"] = "1"
                                         mutableBlokData["tph_ids"] = tphId
                                         mutableBlokData["tph_count"] = "1"
                                         mutableBlokData["jjg_each_blok"] =
-                                            "$formattedJjgTO ($formattedJjgPA)"
+                                            "$formattedJjgKP ($formattedJjgPA)"
 
                                         // Create worker tracking with proper handling of multiple workers
                                         mutableBlokData["nama_karyawans_all"] =
@@ -3529,7 +3551,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
-                        btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                        btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
 
@@ -3559,7 +3581,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         if (panenList.size > 0) {
                             btnGenerateQRTPH.visibility = View.VISIBLE
                             tvGenQRFull.visibility = View.VISIBLE
-                            btnGenerateQRTPHUnl.visibility = View.VISIBLE
+                            btnGenerateQRTPHUnl.visibility = View.GONE
                             tvGenQR60.visibility = View.VISIBLE
                             val headerCheckBoxPanen =
                                 findViewById<ConstraintLayout>(R.id.tableHeader)
@@ -3599,6 +3621,26 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             recyclerView.visibility = View.VISIBLE
 
                             mappedData = panenList.map { panenWithRelations ->
+
+                                AppLogger.d("Raw tph_id: ${panenWithRelations.panen.tph_id}")
+                                AppLogger.d("tph_id type: ${panenWithRelations.panen.tph_id?.javaClass?.simpleName}")
+
+                                AppLogger.d("TPH object: ${panenWithRelations.tph}")
+                                AppLogger.d("TPH is null: ${panenWithRelations.tph == null}")
+
+                                if (panenWithRelations.tph == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@ListPanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        "Data TPH Tidak Ditemukan",
+                                        "TPH dengan ID ${panenWithRelations.panen.tph_id} tidak ditemukan di database. Silakan periksa data TPH.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        finish()
+                                    }
+                                    return@launch // Exit the entire coroutine
+                                }
                                 val pemuatList = panenWithRelations.panen.karyawan_id.split(",")
                                     .map { it.trim() }
                                     .filter { it.isNotEmpty() }
@@ -4530,11 +4572,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val listBlokTextView: TextView = findViewById(R.id.listBlok) // Add this line
         val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
         val headers = if (featureName == "Buat eSPB") {
-            listOf("BLOK", "NO TPH/JJG", "JAM", "KP")
+            listOf("BLOK", "NO TPH/\nJJG KIRIM", "JAM", "KP")
         } else if (featureName == "Detail eSPB") {
-            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+            listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
         } else {
-            listOf("BLOK", "NO TPH", "TOTAL JJG", "JAM")
+            listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
         }
         updateTableHeaders(headers)
 
@@ -4571,7 +4613,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     totalTphTextView.text = tphCount.toString()
                     totalJjgTextView.text = jjgCount.toString()
                     tvTotalTPH.text = "Jmlh Transaksi: "
-                    titleTotalJjg.text = "Jjg Bayar: "
+                    titleTotalJjg.text = "Kirim Pabrik: "
 
                     // No need to format again, just join the already formatted blocks
                     val blocksText = formattedBlocks.joinToString(", ")
@@ -4584,9 +4626,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
         } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-            titleTotalJjg.text = "Jjg Bayar: "
+            titleTotalJjg.text = "Kirim Pabrik: "
         } else {
-            titleTotalJjg.text = "Jjg Bayar: "
+            titleTotalJjg.text = "Kirim Pabrik: "
         }
     }
 
@@ -4626,10 +4668,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             val kpNumber = try {
                                 val jjgJson = panenWithRelations.panen.jjg_json ?: ""
-                                if (jjgJson.startsWith("{") && jjgJson.contains("PA")) {
+                                if (jjgJson.startsWith("{") && jjgJson.contains("KP")) {
                                     val gson = Gson()
                                     val jsonObject = gson.fromJson(jjgJson, JsonObject::class.java)
-                                    jsonObject.get("PA")?.asString ?: jjgJson
+                                    jsonObject.get("KP")?.asString ?: jjgJson
                                 } else {
                                     // If it's not JSON, use as is
                                     jjgJson
@@ -4763,11 +4805,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val status = parts[3].trim()
 
                         val kpNumber = try {
-                            if (kpValue.startsWith("{") && kpValue.contains("PA")) {
+                            if (kpValue.startsWith("{") && kpValue.contains("KP")) {
                                 // Parse JSON: {"PA": 18} -> "18"
                                 val gson = Gson()
                                 val jsonObject = gson.fromJson(kpValue, JsonObject::class.java)
-                                jsonObject.get("PA")?.asString ?: kpValue
+                                jsonObject.get("KP")?.asString ?: kpValue
                             } else {
                                 // If it's not JSON, use as is
                                 kpValue
