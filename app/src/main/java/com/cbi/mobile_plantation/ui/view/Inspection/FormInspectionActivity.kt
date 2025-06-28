@@ -146,6 +146,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     data class SummaryItem(val title: String, val value: String)
     data class Location(val lat: Double = 0.0, val lon: Double = 0.0)
     private var afdelingNameUser: String? = null
+    private lateinit var alertCardScanRadius: MaterialCardView
+    private lateinit var alertTvScannedRadius: TextView
     private lateinit var btnScanTPHRadius: MaterialButton
     private lateinit var btnMulaiDariTPH: MaterialButton
     private lateinit var btnMulaiDariPokok: MaterialButton
@@ -280,6 +282,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
+
+    private lateinit var titlePemanenInspeksi: TextView
+    private lateinit var descPemanenInspeksi: TextView
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
@@ -308,6 +313,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun initUI() {
+        titlePemanenInspeksi = findViewById(R.id.titlePemanenInspeksi)
+        descPemanenInspeksi = findViewById(R.id.descPemanenInspeksi)
         clSummaryInspection = findViewById(R.id.clSummaryInspection)
         clFormInspection = findViewById(R.id.clFormInspection)
         clInfoBlokSection = findViewById(R.id.clInfoBlokSection)
@@ -315,6 +322,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         mainContentWrapper = findViewById(R.id.mainContentWrapper)
         headerFormInspection = findViewById(R.id.headerFormInspection)
         btnMulaiDariTPH = findViewById(R.id.btnMulaiDariTPH)
+        alertCardScanRadius = findViewById(R.id.alertCardScanRadius)
+        alertTvScannedRadius = findViewById(R.id.alertTvScannedRadius)
         btnScanTPHRadius = findViewById(R.id.btnScanTPHRadius)
         btnMulaiDariPokok = findViewById(R.id.btnMulaiDariPokok)
         tphScannedResultRecyclerView = findViewById(R.id.tphScannedResultRecyclerView)
@@ -663,14 +672,38 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedAncakByScan != null ||
                 selectedTanggalPanenByScan != null ||
                 selectedTPHValue != null ||
-                photoInTPH != null ||
-                komentarInTPH != null
+                photoInTPH != null || br1Value != null || br2Value != null ||
+                komentarInTPH != null || jumBrdTglPath != 0 || jumBuahTglPath != 0 || selectedJalurMasuk != ""
+    }
+
+    private fun hideResultScan(){
+        selectedPemanenAdapter.clearAllWorkers()
+        titlePemanenInspeksi.visibility = View.GONE
+        descPemanenInspeksi.visibility = View.GONE
+        alertCardScanRadius.visibility = View.GONE
+        alertTvScannedRadius.visibility = View.GONE
+        btnScanTPHRadius.visibility = View.GONE
+        titleScannedTPHInsideRadius.visibility = View.GONE
+        descScannedTPHInsideRadius.visibility = View.GONE
+        emptyScannedTPHInsideRadius.visibility = View.GONE
+        tphScannedResultRecyclerView.visibility = View.GONE
+        layoutAutoScan.visibility = View.GONE
+        tvErrorScannedNotSelected.visibility = View.GONE
     }
 
     private fun showSelectionScreen() {
         selectionScreen.visibility = View.VISIBLE
         mainContentWrapper.visibility = View.GONE
+        hideResultScan()
+        selectedJalurMasuk = ""
 
+        setupSpinnerView(
+            findViewById(R.id.lyJalurInspect),
+            (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
+        )
+
+        jumBrdTglPath = 0
+        jumBuahTglPath = 0
         // Reset any selected data
         selectedTPHIdByScan = null
         selectedIdPanenByScan = null
@@ -684,9 +717,24 @@ open class FormInspectionActivity : AppCompatActivity(),
         photoInTPH = null
         komentarInTPH = null
 
-        // Clear any form data if needed
         formAncakViewModel.clearAllData()
-    }
+
+        val counterMappings = listOf(
+            Triple(R.id.lyBrdTglInspect, "Brondolan Tinggal", ::jumBrdTglPath),
+            Triple(R.id.lyBuahTglInspect, "Buah Tinggal", ::jumBuahTglPath),
+        )
+        counterMappings.forEach { (layoutId, labelText, counterVar) ->
+            setupPanenWithButtons(layoutId, labelText, counterVar)
+        }
+
+        br1Value = ""
+        br2Value = ""
+
+        // Clear the actual EditText views
+        val editTextLayouts = listOf(R.id.lyBaris1Inspect, R.id.lyBaris2Inspect)
+        editTextLayouts.forEach { layoutId ->
+            findViewById<View>(layoutId)?.findViewById<EditText>(R.id.etHomeMarkerTPH)?.setText("")
+        }    }
 
     private fun setupSelectionButtons() {
         btnMulaiDariTPH.setOnClickListener {
@@ -2006,10 +2054,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 InputType.RADIO -> {
                     when (layoutView.id) {
-//                        R.id.lyInspectionType -> setupRadioView(
-//                            layoutView,
-//                            listRadioItems["InspectionType"] ?: emptyMap(), ::1
-//                        )
 
                         R.id.lyConditionType -> setupRadioView(
                             layoutView,
@@ -2029,6 +2073,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             Triple(R.id.lyBuahTglInspect, "Buah Tinggal", ::jumBuahTglPath),
         )
         counterMappings.forEach { (layoutId, labelText, counterVar) ->
+
+            AppLogger.d("counterVar $counterVar")
             setupPanenWithButtons(layoutId, labelText, counterVar)
         }
 
@@ -3173,6 +3219,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     ) {
         when (linearLayout.id) {
             R.id.lyAfdInspect -> {
+                hideResultScan()
                 selectedAfdeling = selectedItem
                 selectedAfdelingIdSpinner = position
                 isTriggeredBtnScanned = false
