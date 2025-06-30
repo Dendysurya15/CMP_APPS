@@ -86,6 +86,6 @@ class DataPanenInspectionRepository(
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
         // Make the API call
-        return apiService.getDataRaw(requestBody)
+        return TestingApiService.getDataRaw(requestBody)
     }
 }

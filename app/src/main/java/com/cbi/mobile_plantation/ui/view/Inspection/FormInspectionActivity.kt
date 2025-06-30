@@ -195,8 +195,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var tvErrorScannedNotSelected: TextView
     private var dateStartInspection: String = ""
 
-    //    private lateinit var lyPemanen1Inspect: LinearLayout
-    private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
+    private var panenTPH: List<PanenEntityWithRelations> = emptyList()
 
     private data class TPHData(
         val count: Int,
@@ -204,7 +203,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         val limitTPH: String? = null
     )
 
-    private var inspectionStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private val trackingLocation: MutableMap<String, Location> = mutableMapOf()
     private val listRadioItems: Map<String, Map<String, String>> = mapOf(
         "InspectionType" to mapOf(
@@ -234,7 +232,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var locationEnable: Boolean = false
 
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
-
+    private var hasInspectionStarted = false
     private var divisiList: List<TPHNewModel> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var tphList: List<PanenEntityWithRelations> = emptyList()
@@ -282,7 +280,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
-
+    private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private lateinit var titlePemanenInspeksi: TextView
     private lateinit var descPemanenInspeksi: TextView
     private lateinit var fabPrevFormAncak: FloatingActionButton
@@ -404,7 +402,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 100f
+        radiusMinimum = prefManager!!.radiusMinimum
         boundaryAccuracy = prefManager!!.boundaryAccuracy
         initViewModel()
         initUI()
@@ -442,24 +440,19 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-
-                            tphList = list
+                            panenTPH = list ?: emptyList()
                             val tphDataMap = mutableMapOf<Int, TPHData>()
-
                             list?.forEach { panen ->
                                 val tphId = panen.tph?.id
                                 val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                val limitTPH =
-                                    panen.tph?.limit_tph  // Extract limit_tph directly from panen.tph
+                                val limitTPH = panen.tph?.limit_tph
 
                                 if (tphId != null && jenisTPHId != null) {
-                                    val existingData = tphDataMap[tphId]
                                     tphDataMap[tphId] = FormInspectionActivity.TPHData(
                                         count = 0,
                                         jenisTPHId = jenisTPHId,
                                         limitTPH = limitTPH!!
                                     )
-
                                 }
                             }
 
@@ -491,42 +484,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                         panenViewModel.jenisTPHList.observe(this@FormInspectionActivity) { list ->
                             jenisTPHListGlobal = list ?: emptyList()
                             jenisTPHDeferred.complete(list ?: emptyList())
-                        }
-                    }
-
-
-                    val inspectionDeferred = CompletableDeferred<List<InspectionModel>>()
-
-                    inspectionViewModel.getTPHHasBeenInspect()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) { // Ensure observation is on main thread
-                        inspectionViewModel.inspectionList.observe(this@FormInspectionActivity) { list ->
-                            val tphDataMap = mutableMapOf<Int, TPHData>()
-
-                            list?.forEach { inspection ->
-                                val tphId = inspection.tph_id
-
-                                if (tphId != null) {
-                                    val existingData = tphDataMap[tphId]
-                                    if (existingData != null) {
-                                        // Increment the count for existing TPH
-                                        tphDataMap[tphId] =
-                                            existingData.copy(count = existingData.count + 1)
-                                    } else {
-                                        tphDataMap[tphId] =
-                                            TPHData(
-                                                count = 1,
-                                                limitTPH = "1"
-                                            )
-                                    }
-                                }
-                            }
-
-                            inspectionStoredLocal.clear()
-                            inspectionStoredLocal.putAll(tphDataMap)
-
-                            inspectionDeferred.complete(list ?: emptyList())
                         }
                     }
 
@@ -694,7 +651,10 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun showSelectionScreen() {
         selectionScreen.visibility = View.VISIBLE
         mainContentWrapper.visibility = View.GONE
+        hasInspectionStarted = false
         hideResultScan()
+        dateStartInspection = ""
+        trackingLocation.clear()
         selectedJalurMasuk = ""
 
         setupSpinnerView(
@@ -775,6 +735,21 @@ open class FormInspectionActivity : AppCompatActivity(),
         clSummaryInspection.visibility = View.GONE
     }
     private fun showFormInspectionScreen() {
+
+        if (!hasInspectionStarted) {
+            if (!trackingLocation.containsKey("start")) {
+                trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
+            }
+
+            dateStartInspection = SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss",
+                Locale.getDefault()
+            ).format(Date())
+
+            hasInspectionStarted = true
+            AppLogger.d("Inspection started immediately in Pokok mode at: $dateStartInspection")
+        }
+
         val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
         formAncakViewModel.updateInfoFormAncak(
             estateName ?: "",
@@ -1936,10 +1911,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
 
-                            dateStartInspection = SimpleDateFormat(
-                                "yyyy-MM-dd HH:mm:ss",
-                                Locale.getDefault()
-                            ).format(Date())
+                            if (!hasInspectionStarted) {
+                                if (!trackingLocation.containsKey("start")) {
+                                    trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
+                                }
+
+                                dateStartInspection = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date())
+
+                                hasInspectionStarted = true
+                                AppLogger.d("Inspection started at: $dateStartInspection")
+                            } else {
+                                AppLogger.d("Inspection already started, keeping original start time: $dateStartInspection")
+                            }
 
                             val afdResult = selectedAfdeling.replaceFirst("AFD-", "")
                             formAncakViewModel.updateInfoFormAncak(
@@ -2436,7 +2422,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         bottomSheetDialog.setContentView(view)
-
+1
         // Set bottom sheet height to 80% of screen height and disable drag-to-dismiss
         bottomSheetDialog.setOnShowListener { dialog ->
             val bottomSheet =
@@ -2445,7 +2431,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val screenHeight = resources.displayMetrics.heightPixels
                 var desiredHeight = 0
                 if (temuanType == "Temuan di TPH") {
-                    desiredHeight = (screenHeight * 0.4).toInt()
+                    desiredHeight = (screenHeight * 0.5).toInt()
                 } else {
                     desiredHeight = (screenHeight * 0.8).toInt()
                 }
@@ -3262,41 +3248,78 @@ open class FormInspectionActivity : AppCompatActivity(),
                             try {
                                 val estateIdToUse = estateId!!.toInt()
 
-                                // Get the TPH IDs that have been selected for panen
-                                val selectedTPHIds = panenStoredLocal.keys.toList()
-                                AppLogger.d("Selected TPH IDs from panenStoredLocal: $selectedTPHIds (count: ${selectedTPHIds.size})")
+                                val selectedTPHIds = panenTPH.mapNotNull { panenWithRelationship ->
+                                    panenWithRelationship.panen.tph_id?.toIntOrNull()
+                                }
+                                AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
 
                                 AppLogger.d(selectedTPHIds.size.toString())
+
+                                AppLogger.d("panenTPH size: ${panenTPH.size}")
                                 val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
                                     estateIdToUse,
                                     selectedDivisiId,
-                                    selectedTPHIds
+                                    selectedTPHIds.distinct()
                                 )
 
                                 AppLogger.d("Database returned ${tphList.size} TPH records")
 
-                                tphList.mapNotNull { tph ->
+                                val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
+
+                                tphList.forEach { tph ->
                                     val id = tph.id
                                     val lat = tph.lat?.toDoubleOrNull()
                                     val lon = tph.lon?.toDoubleOrNull()
                                     val nomor = tph.nomor ?: ""
-                                    val blokKode = tph.blok_kode ?: ""
+                                    val baseBlokKode = tph.blok_kode ?: ""
                                     val jenisTPHId = tph.jenis_tph_id ?: "1"
 
                                     if (id != null && lat != null && lon != null) {
-                                        AppLogger.d("Processing valid TPH: ID=$id, lat=$lat, lon=$lon, nomor=$nomor")
-                                        id to ScannedTPHLocation(
-                                            lat,
-                                            lon,
-                                            nomor,
-                                            blokKode,
-                                            jenisTPHId
-                                        )
+                                        // Find all panen records that match this TPH ID
+                                        val matchingPanenList = panenTPH.filter { panenWithRelationship ->
+                                            panenWithRelationship.panen.tph_id?.toIntOrNull() == id
+                                        }
+
+                                        if (matchingPanenList.isNotEmpty()) {
+                                            AppLogger.d("TPH ID $id has ${matchingPanenList.size} matching panen records")
+
+                                            // Create entries for each panen record
+                                            matchingPanenList.forEachIndexed { index, panenWithRelationship ->
+                                                val increment = index + 1
+                                                val blokKode = if (matchingPanenList.size > 1) {
+                                                    "$baseBlokKode Transaksi ke-$increment"
+                                                } else {
+                                                    baseBlokKode
+                                                }
+
+                                                // Use panen ID as the unique key
+                                                val uniqueKey = panenWithRelationship.panen.id
+
+                                                AppLogger.d("Processing Panen: ID=$uniqueKey, TPH_ID=$id, occurrence=$increment, blokKode=$blokKode")
+
+                                                resultMap[uniqueKey] = ScannedTPHLocation(
+                                                    lat,
+                                                    lon,
+                                                    nomor,
+                                                    blokKode,
+                                                    jenisTPHId
+                                                )
+                                            }
+                                        } else {
+                                            // This shouldn't happen, but handle it just in case
+                                            AppLogger.w("No matching panen records found for TPH ID: $id")
+                                            AppLogger.w("This is unexpected - TPH was in selectedTPHIds but no panen match found")
+
+                                            // Optionally, you could still add it with a default key
+                                            // resultMap[id] = ScannedTPHLocation(lat, lon, nomor, baseBlokKode, jenisTPHId)
+                                        }
                                     } else {
                                         AppLogger.w("Skipping invalid TPH: ID=$id, lat=$lat, lon=$lon")
-                                        null
                                     }
-                                }.toMap()
+                                }
+
+                                AppLogger.d("Final resultMap size: ${resultMap.size}")
+                                resultMap
 
                             } catch (e: Exception) {
                                 AppLogger.e("Error in latLonResult: ${e.message}", e.toString())
@@ -3305,7 +3328,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
 
                         try {
+
                             latLonMap = latLonResult.await()
+                            AppLogger.d("latlonmap $latLonMap")
                             AppLogger.d("latLonMap created successfully with ${latLonMap.size} entries")
                             AppLogger.d("latLonMap keys: ${latLonMap.keys}")
                         } catch (e: Exception) {
@@ -3397,7 +3422,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             return
         }
 
-        AppLogger.d(photoInTPH.toString())
         if (photoInTPH != null) {
             AlertDialogUtility.withTwoActions(
                 this@FormInspectionActivity, // Replace with your actual Activity name
@@ -3430,19 +3454,13 @@ open class FormInspectionActivity : AppCompatActivity(),
             karyawanIdMap.clear()
             kemandoranIdMap.clear()
             rvSelectedPemanen.visibility = View.VISIBLE
-
-            // Set display mode to show names without remove buttons
             selectedPemanenAdapter.setDisplayOnly(true)
-
-            selectedTPHIdByScan = selectedTPHInLIst.id
             selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
-
-            // Add a small delay to allow UI to update and prevent rapid clicking
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    val matchingPanenList = tphList.filter { panenWithRelations ->
-                        val tphId = panenWithRelations.tph?.id
-//                    AppLogger.d("Checking TPH ID: $tphId against selected: ${selectedTPHInLIst.id}")
+
+                    val matchingPanenList = panenTPH.filter { panenWithRelations ->
+                        val tphId = panenWithRelations.panen?.id
                         tphId == selectedTPHInLIst.id
                     }
 
@@ -3450,21 +3468,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                     var dateCreated = ""
                     var ancakValue = ""
 
-                    AppLogger.d(matchingPanenList.toString())
-                    AppLogger.d(matchingPanenList.first().tph.toString())
                     if (matchingPanenList.isNotEmpty()) {
                         val firstPanen = matchingPanenList.first().panen
                         val firstTph = matchingPanenList.first().tph
                         dateCreated = firstPanen?.date_created ?: ""
                         ancakValue = firstTph?.ancak ?: ""
+
                         selectedIdPanenByScan = firstPanen?.id ?: 0
+                        selectedTPHIdByScan = firstPanen?.tph_id?.toIntOrNull() ?: 0
                         selectedEstateByScan = firstTph?.dept_abbr ?: ""
                         selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
                         selectedBlokByScan = firstTph?.blok_kode ?: ""
                     }
 
-
-                    // Use Set to avoid duplicates - store the formatted "NIK - Name" strings
                     val karyawanFormattedSet = mutableSetOf<String>()
 
                     matchingPanenList.forEach { panenWithRelations ->
@@ -3707,29 +3723,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                 results
             )
             val distance = results[0]
-
-            val tphData = inspectionStoredLocal[id]
-            val selectedCount = tphData?.count ?: 0
-            val isSelected = selectedCount > 0
-            val isCurrentlySelected = id == selectedTPHIdByScan
-
-            // Calculate the final limit to use
-            val limit = tphData?.limitTPH?.toInt()
-
-            // Include if within radius OR is the currently selected TPH
-            if (distance <= radiusMinimum || isCurrentlySelected) {
+            if (distance <= radiusMinimum) {
                 resultsList.add(
                     ScannedTPHSelectionItem(
                         id = id,
                         number = location.nomor,
                         blockCode = location.blokKode,
                         distance = distance,
-                        isAlreadySelected = isSelected,
-                        selectionCount = selectedCount,
-                        canBeSelectedAgain = selectedCount < limit ?: 1,
+                        isAlreadySelected = false,
+                        selectionCount = 0,
+                        canBeSelectedAgain = true,
                         isWithinRange = distance <= radiusMinimum,
                         jenisTPHId = jenisTPHId.toString(),
-                        customLimit = limit.toString()
+                        customLimit = "0"
                     )
                 )
 
@@ -3843,6 +3849,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
 
+
+        AppLogger.d(selectedTPHIdByScan.toString())
+        AppLogger.d(selectedAfdeling.toString())
         if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
             if (isTriggeredBtnScanned) {
                 if (isEmptyScannedTPH) {

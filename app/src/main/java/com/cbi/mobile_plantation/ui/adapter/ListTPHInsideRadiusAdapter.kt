@@ -191,7 +191,7 @@ class ListTPHInsideRadiusAdapter(
             selectedTPHId = tphItem.id
         }
 
-        if (tphItem.isAlreadySelected && enforceSelectionLimits) { // Add enforceSelectionLimits check
+        if (tphItem.isAlreadySelected && enforceSelectionLimits) {
             val jenisTPHId = tphItem.jenisTPHId.toInt()
             // Get the default limit from jenisTPHList
             val defaultLimit = jenisTPHList.find { it.id == jenisTPHId }?.limit ?: 1
