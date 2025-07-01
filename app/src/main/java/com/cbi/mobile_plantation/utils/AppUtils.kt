@@ -251,6 +251,7 @@ object AppUtils {
         const val kendaraan = "kendaraan"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val sinkronisasiRestan = "Sinkronisasi Data Restan"
+        const val sinkronisasiDataUser = "Sinkronisasi Data User"
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
     }

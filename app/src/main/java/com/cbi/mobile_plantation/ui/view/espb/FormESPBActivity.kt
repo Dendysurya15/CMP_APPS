@@ -829,6 +829,28 @@ class FormESPBActivity : AppCompatActivity() {
 
             val btnPreviewFullQR: MaterialButton = findViewById(R.id.btnPreviewFullQR)
 
+            AppLogger.d(blok_jjg.toString())
+            val json = constructESPBJson(
+                blok_jjg = blok_jjg,
+                nopol = selectedNopol,
+                driver = driver,
+                pemuat_id = uniqueIdKaryawan,
+                transporter_id = transporter_id,
+                mill_id = selectedMillId!!,
+                created_by_id = idPetugas!!,
+                no_espb = noESPBStr,
+                tph0 = "",
+                tph1 = tph1,
+                appVersion = appVersion,
+                osVersion = osVersion,
+                phoneModel = phoneModel,
+                pemuat_nik = uniqueNikPemanen,
+                kemandoran_id = uniqueKemandoranId
+            )
+
+            AppLogger.d("json $json")
+            val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
+
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -891,28 +913,6 @@ class FormESPBActivity : AppCompatActivity() {
                     if (mekanisasi == 0) {
 
                         AppLogger.d("uniqueNikPemanen $uniqueNikPemanen")
-
-                        AppLogger.d(blok_jjg.toString())
-                        val json = constructESPBJson(
-                            blok_jjg = blok_jjg,
-                            nopol = selectedNopol,
-                            driver = driver,
-                            pemuat_id = uniqueIdKaryawan,
-                            transporter_id = transporter_id,
-                            mill_id = selectedMillId!!,
-                            created_by_id = idPetugas!!,
-                            no_espb = noESPBStr,
-                            tph0 = "",
-                            tph1 = tph1,
-                            appVersion = appVersion,
-                            osVersion = osVersion,
-                            phoneModel = phoneModel,
-                            pemuat_nik = uniqueNikPemanen,
-                            kemandoran_id = uniqueKemandoranId
-                        )
-
-                        AppLogger.d("json $json")
-                        val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 
 
 

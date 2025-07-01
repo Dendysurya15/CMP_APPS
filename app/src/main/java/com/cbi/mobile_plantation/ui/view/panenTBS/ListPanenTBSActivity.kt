@@ -2380,6 +2380,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             // Minify JSON first
             val minifiedJson = JSONObject(jsonData).toString()
+            val originalJsonSize = minifiedJson.toByteArray(StandardCharsets.UTF_8).size
+            AppLogger.d("Original JSON size: $originalJsonSize bytes")
 
             // Reject empty JSON
             if (minifiedJson == "{}") {
@@ -2399,13 +2401,31 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
 
                 val zipBytes = byteArrayOutputStream.toByteArray()
+                val zipSize = zipBytes.size
+                AppLogger.d("Zip size: $zipSize bytes")
+                AppLogger.d("Compression ratio: ${String.format("%.2f", (originalJsonSize.toDouble() / zipSize.toDouble()))}:1")
+                AppLogger.d("Size reduction: ${String.format("%.1f", ((originalJsonSize - zipSize).toDouble() / originalJsonSize.toDouble() * 100))}%")
+
                 val base64Encoded = Base64.encodeToString(zipBytes, Base64.NO_WRAP)
+                val base64Size = base64Encoded.length
+                AppLogger.d("Base64 encoded size: $base64Size characters")
 
                 val midPoint = base64Encoded.length / 2
                 val firstHalf = base64Encoded.substring(0, midPoint)
                 val secondHalf = base64Encoded.substring(midPoint)
 
-                firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
+                val finalResult = firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
+                val finalSize = finalResult.length
+                AppLogger.d("Final QR data size: $finalSize characters")
+
+                // Size summary
+                AppLogger.d("=== SIZE SUMMARY ===")
+                AppLogger.d("Original JSON: $originalJsonSize bytes")
+                AppLogger.d("Compressed ZIP: $zipSize bytes")
+                AppLogger.d("Base64 encoded: $base64Size chars")
+                AppLogger.d("Final QR data: $finalSize chars")
+
+                finalResult
             }
         } catch (e: JSONException) {
             AppLogger.e("JSON Processing Error: ${e.message}")

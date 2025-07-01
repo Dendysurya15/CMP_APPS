@@ -5033,6 +5033,10 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
+//            prefManager!!.afdelingIdUserLogin = null
+
+            AppLogger.d("prefManager!!.afdelingIdUserLogin ${prefManager!!.afdelingIdUserLogin}")
+
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
                 // Get datasets - estates are already loaded from the click handler
                 getDatasetsToDownload(
@@ -5103,7 +5107,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
-
+        AppLogger.d("prefmanager id ${prefManager!!.idUserLogin}")
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
@@ -5174,6 +5178,16 @@ class HomePageActivity : AppCompatActivity() {
                     estate = estateId,
                     lastModified = null,
                     dataset = AppUtils.DatasetNames.sinkronisasiRestan
+                )
+            )
+        }
+
+        if (isTriggerButtonSinkronisasiData) {
+            datasets.add(
+                DatasetRequest(
+                    lastModified = null,
+                    idUser = prefManager!!.idUserLogin,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataUser
                 )
             )
         }
