@@ -1397,6 +1397,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("SetTextI18n", "InflateParams")
     private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null) {
+
+        AppLogger.d("a;lskdflkas;dfkl")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -1467,17 +1469,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
-
-        var sourceFoto = ""
-        if (isInTPH == true) {
-            sourceFoto =
-                "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
-        } else {
-//            sourceFoto = "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan #Pokok ${currentData.pokokNumber}"
-            var kondisi =
-                if (selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
-            sourceFoto = " $kondisi #Pokok ${currentData.pokokNumber}"
-        }
 
         val watermarkType = if (isInTPH == true) {
             WaterMarkFotoDanFolder.WMInspeksiTPH
@@ -1596,7 +1587,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             watermarkType,
                                             lat,
                                             lon,
-                                            sourceFoto
+                                            generateSourceFoto(currentData)
                                         )
                                     }, 100)
                                 },
@@ -1628,7 +1619,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 watermarkType,
                                 lat,
                                 lon,
-                                sourceFoto
+                                generateSourceFoto(currentData)
                             )
                         }, 100)
                     }
@@ -1681,6 +1672,26 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         bottomSheetDialog.show()
     }
+
+    fun generateSourceFoto(data: FormAncakViewModel.PageData): String {
+        return if (isInTPH == true) {
+            val limitedKomentar = if ((komentarInTPH?.length ?: 0) > 250) {
+                "${komentarInTPH?.substring(0, 250)}..."
+            } else {
+                komentarInTPH ?: ""
+            }
+            "$limitedKomentar\n$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+        } else {
+            val kondisi = if (selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+            val limitedComment = if ((data.comment?.length ?: 0) > 250) {
+                "${data.comment?.substring(0, 250)}..."
+            } else {
+                data.comment ?: ""
+            }
+            "$limitedComment\n$kondisi #Pokok ${data.pokokNumber}"
+        }
+    }
+
 
     private fun setKeyboardVisibilityListener() {
         val rootView = findViewById<View>(android.R.id.content)
