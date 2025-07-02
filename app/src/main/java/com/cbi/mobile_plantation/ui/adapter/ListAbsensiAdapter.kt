@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.ui.adapter.WeighBridgeAdapter.Info
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.PrefManager
@@ -22,6 +23,10 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
 import com.jaredrummler.materialspinner.MaterialSpinner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -164,7 +169,8 @@ class ListAbsensiAdapter(private val context: Context,
         val id: String,
         val nik: String,
         val name: String,
-        var status: String // Hadir, Mangkir, Sakit, Izin, Cuti
+        var status: String, // Hadir, Mangkir, Sakit, Izin, Cuti
+        val kemandoranKey: String? = null
     )
 
     // Adapter for employee attendance editing
@@ -339,7 +345,7 @@ class ListAbsensiAdapter(private val context: Context,
         )
         employeeList.addAll(mskEmployees)
 
-        // Parse TDK_MSK (Absent) employees - these will have "m" key in JSON
+        // Parse TDK_MSK (Absent) employees - these will have "m", "s", "i", "c" keys in JSON
         val tdkMskEmployees = parseNewAttendanceDataFromSeparateFields(
             item.karyawan_tdk_msk_id,
             item.karyawan_tdk_msk_nama,
@@ -367,11 +373,19 @@ class ListAbsensiAdapter(private val context: Context,
             editBottomSheetDialog.dismiss()
         }
 
-        // Save button
+        // Save button - IMPLEMENT THE SAVE FUNCTIONALITY
         editView.findViewById<Button>(R.id.btnUpdateAbsensi).setOnClickListener {
             val updatedEmployees = editAdapter.getUpdatedEmployees()
-//            handleSaveNewAttendanceStructure(updatedEmployees, item, context)
-            editBottomSheetDialog.dismiss()
+            handleSaveNewAttendanceStructure(updatedEmployees, item, context) { success ->
+                if (success) {
+                    editBottomSheetDialog.dismiss()
+                    // Refresh the main list
+//                    refreshAttendanceData()
+                    Toast.makeText(context, "Data absensi berhasil diupdate", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Gagal mengupdate data absensi", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         editBottomSheetDialog.setContentView(editView)
@@ -443,7 +457,8 @@ class ListAbsensiAdapter(private val context: Context,
                                                 id = id,
                                                 nik = niks[index],
                                                 name = names[index],
-                                                status = statusName
+                                                status = statusName,
+                                                kemandoranKey = kemandoranKey // IMPORTANT: Add kemandoran tracking
                                             )
                                         )
                                     }
@@ -459,6 +474,134 @@ class ListAbsensiAdapter(private val context: Context,
         }
 
         return employeeList
+    }
+
+    private fun handleSaveNewAttendanceStructure(
+        updatedEmployees: List<EmployeeAttendance>,
+        originalItem: AbsensiDataRekap,
+        context: Context,
+        callback: (Boolean) -> Unit
+    ) {
+
+        val database = AppDatabase.getDatabase(context)
+        val absensiDao = database.absensiDao()
+        try {
+            // Status mapping - reverse mapping for JSON keys
+            val statusToKeyMap = mapOf(
+                "Hadir" to "h",
+                "Mangkir" to "m",
+                "Sakit" to "s",
+                "Izin" to "i",
+                "Cuti" to "c"
+            )
+
+            // Separate present (Hadir) and absent (non-Hadir) employees
+            val presentEmployees = updatedEmployees.filter { it.status == "Hadir" }
+            val absentEmployees = updatedEmployees.filter { it.status != "Hadir" }
+
+            // Create MSK (Present) JSON structures
+            val mskIdJson = JSONObject()
+            val mskNamaJson = JSONObject()
+            val mskNikJson = JSONObject()
+
+            if (presentEmployees.isNotEmpty()) {
+                val hIdObj = JSONObject()
+                val hNamaObj = JSONObject()
+                val hNikObj = JSONObject()
+
+                // Group present employees by kemandoran
+                val presentByKemandoran = presentEmployees.groupBy { it.kemandoranKey ?: "314" }
+
+                presentByKemandoran.forEach { (kemandoran, employees) ->
+                    val ids = employees.map { it.id }.joinToString(",")
+                    val names = employees.map { it.name }.joinToString(",")
+                    val niks = employees.map { it.nik }.joinToString(",")
+
+                    hIdObj.put(kemandoran, ids)
+                    hNamaObj.put(kemandoran, names)
+                    hNikObj.put(kemandoran, niks)
+                }
+
+                mskIdJson.put("h", hIdObj)
+                mskNamaJson.put("h", hNamaObj)
+                mskNikJson.put("h", hNikObj)
+            }
+
+            // Create TDK_MSK (Absent) JSON structures
+            val tdkMskIdJson = JSONObject()
+            val tdkMskNamaJson = JSONObject()
+            val tdkMskNikJson = JSONObject()
+
+            if (absentEmployees.isNotEmpty()) {
+                // Group absent employees by status
+                val absentByStatus = absentEmployees.groupBy { it.status }
+
+                absentByStatus.forEach { (status, employees) ->
+                    val statusKey = statusToKeyMap[status] ?: return@forEach
+
+                    val statusIdObj = JSONObject()
+                    val statusNamaObj = JSONObject()
+                    val statusNikObj = JSONObject()
+
+                    // Group by kemandoran within each status
+                    val employeesByKemandoran = employees.groupBy { it.kemandoranKey ?: "314" }
+
+                    employeesByKemandoran.forEach { (kemandoran, kemandoranEmployees) ->
+                        val ids = kemandoranEmployees.map { it.id }.joinToString(",")
+                        val names = kemandoranEmployees.map { it.name }.joinToString(",")
+                        val niks = kemandoranEmployees.map { it.nik }.joinToString(",")
+
+                        statusIdObj.put(kemandoran, ids)
+                        statusNamaObj.put(kemandoran, names)
+                        statusNikObj.put(kemandoran, niks)
+                    }
+
+                    tdkMskIdJson.put(statusKey, statusIdObj)
+                    tdkMskNamaJson.put(statusKey, statusNamaObj)
+                    tdkMskNikJson.put(statusKey, statusNikObj)
+                }
+            }
+
+            // Create updated item with new JSON data
+            val updatedItem = originalItem.copy(
+                karyawan_msk_id = if (mskIdJson.length() > 0) mskIdJson.toString() else "{}",
+                karyawan_msk_nama = if (mskNamaJson.length() > 0) mskNamaJson.toString() else "{}",
+                karyawan_msk_nik = if (mskNikJson.length() > 0) mskNikJson.toString() else "{}",
+                karyawan_tdk_msk_id = if (tdkMskIdJson.length() > 0) tdkMskIdJson.toString() else "{}",
+                karyawan_tdk_msk_nama = if (tdkMskNamaJson.length() > 0) tdkMskNamaJson.toString() else "{}",
+                karyawan_tdk_msk_nik = if (tdkMskNikJson.length() > 0) tdkMskNikJson.toString() else "{}"
+            )
+
+            AppLogger.d(originalItem.toString())
+
+            // Log the updated data for debugging
+            AppLogger.d("Updated MSK ID: ${updatedItem.karyawan_msk_id}")
+            AppLogger.d("Updated MSK Nama: ${updatedItem.karyawan_msk_nama}")
+            AppLogger.d("Updated MSK NIK: ${updatedItem.karyawan_msk_nik}")
+            AppLogger.d("Updated TDK_MSK ID: ${updatedItem.karyawan_tdk_msk_id}")
+            AppLogger.d("Updated TDK_MSK Nama: ${updatedItem.karyawan_tdk_msk_nama}")
+            AppLogger.d("Updated TDK_MSK NIK: ${updatedItem.karyawan_tdk_msk_nik}")
+
+            CoroutineScope(Dispatchers.IO).launch {
+                absensiDao.updateAbsensiFields(
+                    id = originalItem.id,
+                    mskId = updatedItem.karyawan_msk_id,
+                    mskNama = updatedItem.karyawan_msk_nama,
+                    mskNik = updatedItem.karyawan_msk_nik,
+                    tdkMskId = updatedItem.karyawan_tdk_msk_id,
+                    tdkMskNama = updatedItem.karyawan_tdk_msk_nama,
+                    tdkMskNik = updatedItem.karyawan_tdk_msk_nik
+                )
+                withContext(Dispatchers.Main) {
+                    callback(true)
+                }
+            }
+
+
+        } catch (e: Exception) {
+            AppLogger.e("Error saving attendance data: ${e.message}")
+            callback(false)
+        }
     }
 
 
@@ -523,9 +666,46 @@ class ListAbsensiAdapter(private val context: Context,
 
             kemandoranKodes.forEachIndexed { index, kode ->
                 try {
-                    // Get NIK and Nama for this kemandoran kode
-                    val nikList = nikJsonObj.optString(kode, "").split(",").filter { it.isNotEmpty() }
-                    val namaList = namaJsonObj.optString(kode, "").split(",").filter { it.isNotEmpty() }
+                    val nikList = mutableListOf<String>()
+                    val namaList = mutableListOf<String>()
+
+                    // Get all category keys from both JSON objects
+                    val nikCategoryKeys = mutableListOf<String>()
+                    val namaCategoryKeys = mutableListOf<String>()
+
+                    // Collect NIK category keys
+                    val nikIterator = nikJsonObj.keys()
+                    while (nikIterator.hasNext()) {
+                        nikCategoryKeys.add(nikIterator.next())
+                    }
+
+                    // Collect Nama category keys
+                    val namaIterator = namaJsonObj.keys()
+                    while (namaIterator.hasNext()) {
+                        namaCategoryKeys.add(namaIterator.next())
+                    }
+
+                    // Process NIK data from all categories
+                    nikCategoryKeys.forEach { categoryKey ->
+                        val categoryObj = nikJsonObj.optJSONObject(categoryKey)
+                        if (categoryObj != null) {
+                            val nikData = categoryObj.optString(kode, "")
+                            if (nikData.isNotEmpty()) {
+                                nikList.addAll(nikData.split(",").filter { it.isNotEmpty() })
+                            }
+                        }
+                    }
+
+                    // Process Nama data from all categories
+                    namaCategoryKeys.forEach { categoryKey ->
+                        val categoryObj = namaJsonObj.optJSONObject(categoryKey)
+                        if (categoryObj != null) {
+                            val namaData = categoryObj.optString(kode, "")
+                            if (namaData.isNotEmpty()) {
+                                namaList.addAll(namaData.split(",").filter { it.isNotEmpty() })
+                            }
+                        }
+                    }
 
                     // Only add if there's data for this kemandoran
                     if (nikList.isNotEmpty() && namaList.isNotEmpty()) {
