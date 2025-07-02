@@ -5024,6 +5024,24 @@ class HomePageActivity : AppCompatActivity() {
             loadingDialog.dismiss()
             return
         }
+
+//        AppLogger.d("=== Current User Preferences Before Sync ===")
+//        AppLogger.d("nameUserLogin: ${prefManager!!.nameUserLogin}")
+//        AppLogger.d("jabatanUserLogin: ${prefManager!!.jabatanUserLogin}")
+//        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
+//        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
+//        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
+//        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
+//        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
+//        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
+//        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
+//        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
+//        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
+//        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
+//        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
+//        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
+//        AppLogger.d("=== End Current User Preferences Before Sync ===")
+
         try {
             val estateId = estateIdString.toInt()
             if (estateId <= 0) {
@@ -5033,9 +5051,6 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
-//            prefManager!!.afdelingIdUserLogin = null
-
-            AppLogger.d("prefManager!!.afdelingIdUserLogin ${prefManager!!.afdelingIdUserLogin}")
 
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
                 // Get datasets - estates are already loaded from the click handler

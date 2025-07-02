@@ -2080,6 +2080,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
                             val kemandoranNama = userData.optString("kemandoran_nama", "")
 
+                            // Extract kemandoranData for kode
+                            val kemandoranDataObject = userData.optJSONObject("kemandoranData")
+                            var kemandoranKode = ""
+                            if (kemandoranDataObject != null) {
+                                kemandoranKode = kemandoranDataObject.optString("kode", "")
+                            }
+
                             // Extract userOrg data
                             val userOrgArray = userData.optJSONArray("userOrg")
                             var dept = ""
@@ -2115,7 +2122,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             progressMap[itemId] = 85
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            // Update shared preferences with try-catch
                             try {
                                 prefManager.apply {
                                     nameUserLogin = nama
@@ -2130,10 +2136,27 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     kemandoranPPROUserLogin = kemandoranPpro.toString()
                                     kemandoranUserLogin = kemandoran.toString()
                                     kemandoranNamaUserLogin = kemandoranNama
+                                    kemandoranKodeUserLogin = kemandoranKode
                                     afdelingIdUserLogin = divisi
                                 }
 
-                                // Update to 95%
+//                                AppLogger.d("=== Updated User Preferences ===")
+//                                AppLogger.d("nameUserLogin: $nama")
+//                                AppLogger.d("jabatanUserLogin: $jabatan")
+//                                AppLogger.d("estateUserLogin: $estateAbbr")
+//                                AppLogger.d("estateUserLengkapLogin: $estateNama")
+//                                AppLogger.d("estateIdUserLogin: $dept")
+//                                AppLogger.d("regionalIdUserLogin: $regional")
+//                                AppLogger.d("companyIdUserLogin: ${company}")
+//                                AppLogger.d("companyAbbrUserLogin: $companyAbbr")
+//                                AppLogger.d("companyNamaUserLogin: $companyNama")
+//                                AppLogger.d("kemandoranPPROUserLogin: ${kemandoranPpro}")
+//                                AppLogger.d("kemandoranUserLogin: ${kemandoran}")
+//                                AppLogger.d("kemandoranNamaUserLogin: $kemandoranNama")
+//                                AppLogger.d("kemandoranKodeUserLogin: $kemandoranKode")
+//                                AppLogger.d("afdelingIdUserLogin: $divisi")
+//                                AppLogger.d("=== End Updated User Preferences ===")
+
                                 progressMap[itemId] = 95
                                 _itemProgressMap.postValue(progressMap.toMap())
 
@@ -2148,7 +2171,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 } else {
                                     AppUtils.UploadStatusUtils.UPDATED
                                 }
-
 
                             } catch (prefException: Exception) {
                                 progressMap[itemId] = 100

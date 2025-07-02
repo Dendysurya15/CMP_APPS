@@ -56,6 +56,16 @@ class SyncDataUserRepository(
                         put("nama")
                     })
                 })
+
+                // New JOIN with kemandoran_sync table
+                put(JSONObject().apply {
+                    put("table", "kemandoran_sync")
+                    put("select", JSONArray().apply {
+                        put("kode")
+                    })
+                    // Specify the join condition if needed
+                    put("on", "sys_user.kemandoran_ppro = kemandoran_sync.kemandoran_ppro")
+                })
             })
 
             // Build WHERE clause
