@@ -113,8 +113,7 @@ class FormESPBActivity : AppCompatActivity() {
     private var pemuatList: List<KaryawanModel> = emptyList()
     private var transporterList: List<TransporterModel> = emptyList()
     private var nopolList: List<KendaraanModel> = emptyList()
-
-    private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
+    private lateinit var backButton: ImageView
     private lateinit var viewModelFactory: ESPBViewModelFactory
     private var pemuatListId: ArrayList<String> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
@@ -143,9 +142,6 @@ class FormESPBActivity : AppCompatActivity() {
     private val karyawanNamaMap = mutableMapOf<String, String>()
     private var activityInitialized = false
     private var noESPBStr = "NULL"
-    private var pemuat_id = "NULL"
-    private var kemandoran_id = "NULL"
-    private var pemuat_nik = "NULL"
     private var tph1NoIdPanen = ""
     private lateinit var warningText: TextView
     private lateinit var warningCard: CardView
@@ -178,13 +174,52 @@ class FormESPBActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun updateWarningText() {
         warningText.text = "Peringatan, pastikan semua form sudah terisi dengan benar!\n" +
                 "Jika QR Code sudah tampil, maka anda harus melakukan Scan QR Code dan konfirmasi scan dengan menekan tombol!"
         warningText.setTextColor(ContextCompat.getColor(this, R.color.black))
     }
 
+    private fun createScannedResultFromTPH1(): String {
+        if (tph1.isEmpty()) return ""
+
+        // Extract TPH IDs from tph1 string format: "id,date,time,value;id,date,time,value"
+        val tphIds = tph1.split(";").mapNotNull { record ->
+            if (record.isNotEmpty()) {
+                val parts = record.split(",")
+                if (parts.isNotEmpty()) parts[0].trim() else null
+            } else null
+        }
+
+        return """{"tph":"${tphIds.joinToString(";")}"}"""
+    }
+
+    private fun navigateBackToListTPH() {
+        val intent = Intent(this, ListPanenTBSActivity::class.java)
+
+        // Pass the preserved scan data back
+        intent.putExtra("FEATURE_NAME", featureName)
+        intent.putExtra("scannedResult", createScannedResultFromTPH1())
+        intent.putExtra("previous_tph_1", tph1)
+        intent.putExtra("previous_tph_0", tph0)
+        intent.putExtra("previous_tph_1_id_panen", tph1IdPanen)
+        intent.putExtra("RESTORE_CHECKBOX_STATE", true) // Flag to restore checkbox states
+
+        AppLogger.d("Navigating back to ListPanenTBSActivity with data:")
+        AppLogger.d("tph1: $tph1")
+        AppLogger.d("tph0: $tph0")
+        AppLogger.d("tph1IdPanen: $tph1IdPanen")
+
+        startActivity(intent)
+        finishAffinity()
+    }
+
     private fun setupUI() {
+        backButton = findViewById<ImageView>(R.id.btn_back)
+        backButton.setOnClickListener {
+            onBackPressed()
+        }
         setupWarningCard()
         findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation)
             .apply {
@@ -194,18 +229,12 @@ class FormESPBActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
                     this@FormESPBActivity,
-                    "KEMBALI",
-                    "Kembali ke Menu utama?",
-                    "Data scan sebelumnya akan terhapus dan dapat diisi ulang kembali",
+                    "Kembali",
+                    "Kembali ke List TPH?",
+                    "Data yang sudah diisi akan hilang",
                     "warning.json",
                     function = {
-                        startActivity(
-                            Intent(
-                                this@FormESPBActivity,
-                                HomePageActivity::class.java
-                            )
-                        )
-                        finishAffinity()
+                        navigateBackToListTPH()
                     }
                 ) {
                 }

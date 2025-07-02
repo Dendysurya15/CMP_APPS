@@ -206,6 +206,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
         }
     }
+    private var shouldRestoreCheckboxState = false
+    private var previouslySelectedTphIds = mutableSetOf<String>()
     private val dateIndexMap = mutableMapOf<String, Int>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -337,6 +339,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private fun setupUI() {
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressed() }
+
+        shouldRestoreCheckboxState = intent.getBooleanExtra("RESTORE_CHECKBOX_STATE", false)
 
         globalFormattedDate = AppUtils.currentDate
         if (featureName == AppUtils.ListFeatureNames.BuatESPB || featureName == AppUtils.ListFeatureNames.DetailESPB) {
@@ -526,27 +530,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
         jabatanUser = prefManager!!.jabatanUserLogin
 
         // Get previous TPH data if available
-        val previousTph1 = intent.getStringExtra("previous_tph_1") ?: ""
-        val previousTph0 = intent.getStringExtra("previous_tph_0") ?: ""
-        val previousTph1IdPanen = intent.getStringExtra("previous_tph_1_id_panen") ?: ""
 
-        if (previousTph1.isNotEmpty()) {
-            Log.d("ListPanenTBSActivity", "Previous tph1 found: $previousTph1")
-            tph1 = previousTph1
-        }
 
-        if (previousTph0.isNotEmpty()) {
-            Log.d("ListPanenTBSActivity", "Previous tph0 found: $previousTph0")
-            tph0 = previousTph0
-        }
+        if (listTPHDriver.isNotEmpty() && !shouldRestoreCheckboxState) {
 
-        if (previousTph1IdPanen.isNotEmpty()) {
-            Log.d("ListPanenTBSActivity", "Previous tph1IdPanen found: $previousTph1IdPanen")
-            tph1IdPanen = previousTph1IdPanen
-        }
+            AppLogger.d("masuk sini gask sih")
+            AppLogger.d( "listTPHDriver $listTPHDriver")
 
-        if (listTPHDriver.isNotEmpty()) {
 
+            AppLogger.d("tph1 bro $tph1")
             // Extract TPH IDs from the current scan
             val currentScanTphIds = try {
                 val tphString = listTPHDriver
@@ -558,7 +550,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 ""
             }
 
-            AppLogger.d(currentScanTphIds)
 
             // If we have previous scan data stored in tph1, extract TPH IDs
             val previousScanTphIds = if (tph1.isNotEmpty()) {
@@ -597,11 +588,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupObservers()
-        absensiViewModel.loadActiveAbsensi()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
             setupSpeedDial()
+            setupCheckboxControl()  // Add this
         }
-        setupCheckboxControl()
         setupCardListeners()
         initializeFilterViews()
         setupSortButton()
@@ -632,7 +622,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             if (featureName == "Buat eSPB") {
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 val isStopScan = intent.getBooleanExtra("IS_STOP_SCAN_ESPB", false)
-                if (!isStopScan) {
+                if (!isStopScan && !shouldRestoreCheckboxState) {
+                    AppLogger.d(",asuk gasss")
                     playSound(R.raw.berhasil_scan)
                 }
                 panenViewModel.loadTPHNonESPB(0, 0, 0,1, AppUtils.currentDate)
@@ -691,9 +682,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             tph0 = espb.tph0
                             idsToUpdate = espb.ids_to_update
 
-
-                            AppLogger.d("tph1 $tph1")
-                            AppLogger.d("espb.tph1 ${espb.tph1}")
 
                             val idKaryawanStringList = pemuat_id
                                 .toString()                      // ensure it's a string
@@ -960,6 +948,42 @@ class ListPanenTBSActivity : AppCompatActivity() {
         })
     }
 
+    private fun restorePreviousTphData() {
+        val previousTph1 = intent.getStringExtra("previous_tph_1") ?: ""
+        val previousTph0 = intent.getStringExtra("previous_tph_0") ?: ""
+        val previousTph1IdPanen = intent.getStringExtra("previous_tph_1_id_panen") ?: ""
+
+        if (previousTph1.isNotEmpty()) {
+            tph1 = previousTph1
+        }
+        if (previousTph0.isNotEmpty()) {
+            tph0 = previousTph0
+        }
+        if (previousTph1IdPanen.isNotEmpty()) {
+            tph1IdPanen = previousTph1IdPanen
+        }
+    }
+    private fun extractPreviousSelections() {
+        try {
+            previouslySelectedTphIds.clear()
+
+            val previousTph1IdPanen = intent.getStringExtra("previous_tph_1_id_panen") ?: ""
+
+
+            AppLogger.d(previousTph1IdPanen)
+            if (previousTph1IdPanen.isNotEmpty()) {
+                val panenIds = previousTph1IdPanen.split(",").mapNotNull { id ->
+                    id.trim().takeIf { it.isNotEmpty() }
+                }.toSet()
+
+                previouslySelectedTphIds.addAll(panenIds)
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error extracting previous selections: ${e.message}")
+            previouslySelectedTphIds.clear()
+        }
+    }
+
     private fun setupCardListeners() {
         cardTersimpan.setOnClickListener {
 
@@ -977,10 +1001,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             listAdapter.updateArchiveState(currentState)
             val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-            headerCheckBox.visibility = View.VISIBLE
+            headerCheckBox.visibility = View.GONE
             val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-            flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+            flCheckBoxTableHeaderLayout.visibility = View.GONE
 
             if (featureName != AppUtils.ListFeatureNames.DetailESPB) {
                 speedDial.visibility =
@@ -993,7 +1017,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
             if (featureName == "Buat eSPB") {
-                flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+                flCheckBoxTableHeaderLayout.visibility = View.GONE
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 loadingDialog.setMessage("Loading data tph...")
@@ -1001,14 +1025,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBoxPanen.visibility = View.GONE
                 if (isAllDataFiltered) {
-                    AppLogger.d("masuk sini ges");
+
                     panenViewModel.loadTPHNonESPB(0, 0, 0,1)
                     panenViewModel.countTPHNonESPB(0, 0, 0,1)
                     panenViewModel.countTPHESPB(0, 0, 1,1)
                     panenViewModel.countHasBeenESPB(0, 0,1, 1)
                 } else {
 
-                    AppLogger.d("loh ges");
                     panenViewModel.loadTPHNonESPB(0, 0, 0,1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, 0,1, globalFormattedDate)
                     panenViewModel.countTPHESPB(0, 0, 1,1, globalFormattedDate)
@@ -1202,52 +1225,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadDataPerBlokDetailESPB() {
-        espbViewModel.getESPBById(espbId)
-
-        espbViewModel.espbEntity.observe(this@ListPanenTBSActivity) { espbWithRelations ->
-            if (espbWithRelations != null) {
-                try {
-                    // Extract ESPB data
-                    val espb = espbWithRelations
-
-                    blok_jjg = espb.blok_jjg
-                    nopol = espb.nopol
-                    driver = espb.driver
-                    pemuat_id = espb.pemuat_id
-                    transporter_id = espb.transporter_id
-                    mill_id = espb.mill_id
-                    created_by_id = espb.created_by_id
-                    no_espb = espb.noESPB
-                    tph0QR = espb.tph0
-                    tph1QR = espb.tph1
-                    creatorInfo = espb.creator_info
-                    dateTime = espb.created_at
-                    kemandoran_id = espb.kemandoran_id
-                    pemuat_nik = espb.pemuat_nik
-                    tph1 = espb.tph1
-                    tph0 = espb.tph0
-                    idsToUpdate = espb.ids_to_update
-
-                } catch (e: Exception) {
-                    Toasty.error(
-                        this@ListPanenTBSActivity,
-                        "Error displaying eSPB details: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    Log.e("ListPanenTBSActivity", "Error displaying eSPB details", e)
-                }
-            } else {
-                Toasty.error(
-                    this@ListPanenTBSActivity,
-                    "eSPB data not found",
-                    Toast.LENGTH_LONG
-                ).show()
-                ll_detail_espb.visibility = View.GONE
-            }
-        }
-    }
-
     private fun initializeViews() {
         cardTersimpan = findViewById(R.id.card_item_tersimpan)
         cardTerscan = findViewById(R.id.card_item_terscan)
@@ -1334,7 +1311,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val time = dateParts[1]  // 13:15:18
 
 
-                        AppLogger.d(key.toString())
                         // Use dateIndexMap.size as the index for new dates
                         append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
                     } catch (e: Exception) {
@@ -1544,10 +1520,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "tph1NoIdPanen:$tph1NoIdPanen")
 
 
-        if (playSound) {
+        if (playSound && !shouldRestoreCheckboxState) {
             playSound(R.raw.berhasil_scan)
         }
-
         val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
         val tph1NO = convertToFormattedString(
@@ -1849,7 +1824,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                                     if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen){
                                                         panenViewModel.archivePanenById(id)
                                                     }else if(featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan){
-                                                        AppLogger.d("aklsdjflakjsflkasdf ")
                                                         panenViewModel.changeStatusTransferRestan(id)
                                                     }
 
@@ -2604,9 +2578,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 lifecycleScope.launch {
 
 
-                    AppLogger.d("Masuk gess")
+
                     if (panenList.isNotEmpty()) {
-                        AppLogger.d(panenList.toString())
+
 
                         val processedDataList = mutableListOf<Map<String, Any>>()
                         var incrementalId = 1 // Start from 1
@@ -2876,12 +2850,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             originalMappedData.clear()
                             panenList.map { panenWithRelations ->
 
-
-                                AppLogger.d("Raw tph_id: ${panenWithRelations.panen.tph_id}")
-                                AppLogger.d("tph_id type: ${panenWithRelations.panen.tph_id?.javaClass?.simpleName}")
-
-                                AppLogger.d("TPH object: ${panenWithRelations.tph}")
-                                AppLogger.d("TPH is null: ${panenWithRelations.tph == null}")
 
                                 if (panenWithRelations.tph == null) {
                                     AlertDialogUtility.withSingleAction(
@@ -3635,7 +3603,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                         val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
                             .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-                        headerCheckBoxPanen.visibility = View.VISIBLE
+                        headerCheckBoxPanen.visibility = View.GONE
                     }
 
                 }, 500)
@@ -3664,11 +3632,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                             mappedData = panenList.map { panenWithRelations ->
 
-                                AppLogger.d("Raw tph_id: ${panenWithRelations.panen.tph_id}")
-                                AppLogger.d("tph_id type: ${panenWithRelations.panen.tph_id?.javaClass?.simpleName}")
-
-                                AppLogger.d("TPH object: ${panenWithRelations.tph}")
-                                AppLogger.d("TPH is null: ${panenWithRelations.tph == null}")
 
                                 if (panenWithRelations.tph == null) {
                                     AlertDialogUtility.withSingleAction(
@@ -3797,40 +3760,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             ViewModelProvider(this, factoryAbsensiViewModel)[AbsensiViewModel::class.java]
     }
 
-    fun extractJSONValue(jjgJson: String, fieldName: String): Double {
-        return try {
-            // Try to parse as JSON first
-            val jsonObject = JSONObject(jjgJson)
-            if (jsonObject.has(fieldName)) {
-                jsonObject.getDouble(fieldName)
-            } else {
-                0.0
-            }
-        } catch (e: Exception) {
-            try {
-                // Fallback to string parsing if JSON parsing fails
-                val fieldString = "\"$fieldName\":"
-                val startIndex = jjgJson.indexOf(fieldString) + fieldString.length
-
-                // Find the end of the value (either comma or closing brace)
-                val commaIndex = jjgJson.indexOf(",", startIndex)
-                val braceIndex = jjgJson.indexOf("}", startIndex)
-
-                // Choose the appropriate end index
-                val endIndex = if (commaIndex > 0 && (braceIndex < 0 || commaIndex < braceIndex)) {
-                    commaIndex
-                } else {
-                    braceIndex
-                }
-
-                jjgJson.substring(startIndex, endIndex).trim().toDouble()
-            } catch (e: Exception) {
-                AppLogger.d("Failed to extract $fieldName from JSON: $jjgJson")
-                0.0 // Return 0.0 if all parsing attempts fail
-            }
-        }
-    }
-
     private fun setupSearch() {
         searchEditText = findViewById(R.id.search_feature)
         val tvEmptyState = findViewById<TextView>(R.id.tvEmptyState)
@@ -3938,8 +3867,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, isChecked ->
                 if (!isSettingUpCheckbox) {
                     listAdapter.selectAll(isChecked)
-                    AppLogger.d("gassss")
-//                    speedDial.visibility = if (isChecked) View.VISIBLE else View.GONE
+                    speedDial.visibility = if (isChecked) View.VISIBLE else View.GONE
                 }
             }
         }
@@ -3948,7 +3876,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             isSettingUpCheckbox = true
             headerCheckBox.isChecked = listAdapter.isAllSelected()
 
-//            speedDial.visibility = if (selectedCount > 0) View.VISIBLE else View.GONE
+            speedDial.visibility = if (selectedCount > 0) View.VISIBLE else View.GONE
             isSettingUpCheckbox = false
         }
     }
@@ -4640,12 +4568,31 @@ class ListPanenTBSActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@ListPanenTBSActivity)
         }
 
-        tphListScan = processScannedResult(listTPHDriver)
+        if (shouldRestoreCheckboxState) {
+            AppLogger.d("Restoring checkbox state from previous session")
+            extractPreviousSelections()
+            clearTphData()
+            // ADD THIS: Set tphListScan for checkbox restoration
+            tphListScan = previouslySelectedTphIds.toList()
+        } else {
+            restorePreviousTphData()
+            // ADD THIS: Set tphListScan for normal scanning
+            tphListScan = processScannedResult(listTPHDriver)
+        }
 
-        if (tphListScan.isEmpty()) {
+        if (tphListScan.isEmpty() && !shouldRestoreCheckboxState) {
             Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
         } else {
-            listAdapter.setFeatureAndScanned(featureName, tphListScan)
+            AppLogger.d(tphListScan.toString())
+            AppLogger.d("Setting feature and scanned TPHs: ${tphListScan.size} items")
+            listAdapter.setFeatureAndScanned(featureName, tphListScan, shouldRestoreCheckboxState)
+        }
+
+        if (tphListScan.isEmpty() && !shouldRestoreCheckboxState) {
+            Toast.makeText(this, "Failed to process TPH QR", Toast.LENGTH_SHORT).show()
+        } else {
+            AppLogger.d("Setting feature and scanned TPHs: ${tphListScan.size} items")
+            listAdapter.setFeatureAndScanned(featureName, tphListScan, shouldRestoreCheckboxState)
         }
 
         if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
@@ -4824,8 +4771,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
 
-    // 5. Use your existing parseTPH1Data function (keep it as is)
-    // Updated parseTPH1Data function to match your TPHItem data class
     private suspend fun parseTPH1Data(tph1Data: String): List<TPHItem> {
         val tphItemList = mutableListOf<TPHItem>()
 
@@ -5134,6 +5079,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 tableHeader.findViewById<TextView>(headerIds[i]).visibility = View.GONE
             }
         }
+    }
+
+    private fun clearTphData() {
+        tph1 = ""
+        tph0 = ""
+        tph1IdPanen = ""
     }
 
     fun processScannedResult(scannedResult: String): List<String> {
