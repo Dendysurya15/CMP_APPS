@@ -6,6 +6,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
@@ -599,8 +600,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         absensiViewModel.loadActiveAbsensi()
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
             setupSpeedDial()
-            setupCheckboxControl()  // Add this
         }
+        setupCheckboxControl()
         setupCardListeners()
         initializeFilterViews()
         setupSortButton()
@@ -976,10 +977,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             listAdapter.updateArchiveState(currentState)
             val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-            headerCheckBox.visibility = View.GONE
+            headerCheckBox.visibility = View.VISIBLE
             val flCheckBoxTableHeaderLayout = findViewById<ConstraintLayout>(R.id.tableHeader)
                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-            flCheckBoxTableHeaderLayout.visibility = View.GONE
+            flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
 
             if (featureName != AppUtils.ListFeatureNames.DetailESPB) {
                 speedDial.visibility =
@@ -992,7 +993,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
             if (featureName == "Buat eSPB") {
-                flCheckBoxTableHeaderLayout.visibility = View.GONE
+                flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
                 panenViewModel.loadActivePanenESPB()
             } else if (featureName == "Rekap panen dan restan") {
                 loadingDialog.setMessage("Loading data tph...")
@@ -2374,6 +2375,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
 
+
     fun encodeJsonToBase64ZipQR(jsonData: String): String? {
         return try {
             if (jsonData.isBlank()) throw IllegalArgumentException("JSON data is empty")
@@ -2382,6 +2384,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val minifiedJson = JSONObject(jsonData).toString()
             val originalJsonSize = minifiedJson.toByteArray(StandardCharsets.UTF_8).size
             AppLogger.d("Original JSON size: $originalJsonSize bytes")
+
+            // SIZE CHECK: If original JSON is more than 4KB, just return null
+            if (originalJsonSize > 4096) { // 4KB = 4096 bytes
+                AppLogger.e("❌ JSON TOO LARGE: $originalJsonSize bytes (limit: 4096 bytes)")
+                AppLogger.e("❌ QR generation aborted - data exceeds size limit")
+                return null // Return null to indicate failure
+            }
 
             // Reject empty JSON
             if (minifiedJson == "{}") {
@@ -2402,9 +2411,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                 val zipBytes = byteArrayOutputStream.toByteArray()
                 val zipSize = zipBytes.size
-                AppLogger.d("Zip size: $zipSize bytes")
+
+                // Enhanced zip size logging
+                AppLogger.d("=== ZIP COMPRESSION DETAILS ===")
+                AppLogger.d("ZIP SIZE: $zipSize bytes")
+                AppLogger.d("ZIP SIZE: ${String.format("%.2f", zipSize / 1024.0)} KB")
                 AppLogger.d("Compression ratio: ${String.format("%.2f", (originalJsonSize.toDouble() / zipSize.toDouble()))}:1")
                 AppLogger.d("Size reduction: ${String.format("%.1f", ((originalJsonSize - zipSize).toDouble() / originalJsonSize.toDouble() * 100))}%")
+                AppLogger.d("=== END ZIP COMPRESSION DETAILS ===")
 
                 val base64Encoded = Base64.encodeToString(zipBytes, Base64.NO_WRAP)
                 val base64Size = base64Encoded.length
@@ -2425,19 +2439,27 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 AppLogger.d("Base64 encoded: $base64Size chars")
                 AppLogger.d("Final QR data: $finalSize chars")
 
+                // Additional check on final QR size
+                if (finalSize > 2000) {
+                    AppLogger.e("⚠️ WARNING: Final QR data is ${finalSize} characters - may be too large for scanning!")
+                } else {
+                    AppLogger.d("✅ QR data size is acceptable for scanning")
+                }
+
                 finalResult
             }
         } catch (e: JSONException) {
             AppLogger.e("JSON Processing Error: ${e.message}")
-            throw IllegalArgumentException(e.message.toString())
+            null // Return null instead of throwing exception
         } catch (e: IOException) {
             AppLogger.e("IO Error: ${e.message}")
-            throw IllegalArgumentException("${e.message}")
+            null // Return null instead of throwing exception
         } catch (e: Exception) {
             AppLogger.e("Encoding Error: ${e.message}")
-            throw IllegalArgumentException("${e.message}")
+            null // Return null instead of throwing exception
         }
     }
+
 
 
     private fun setupObservers() {
@@ -3613,7 +3635,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                         val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
                             .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
-                        headerCheckBoxPanen.visibility = View.GONE
+                        headerCheckBoxPanen.visibility = View.VISIBLE
                     }
 
                 }, 500)
@@ -3916,7 +3938,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, isChecked ->
                 if (!isSettingUpCheckbox) {
                     listAdapter.selectAll(isChecked)
-                    speedDial.visibility = if (isChecked) View.VISIBLE else View.GONE
+                    AppLogger.d("gassss")
+//                    speedDial.visibility = if (isChecked) View.VISIBLE else View.GONE
                 }
             }
         }
@@ -3925,7 +3948,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             isSettingUpCheckbox = true
             headerCheckBox.isChecked = listAdapter.isAllSelected()
 
-            speedDial.visibility = if (selectedCount > 0) View.VISIBLE else View.GONE
+//            speedDial.visibility = if (selectedCount > 0) View.VISIBLE else View.GONE
             isSettingUpCheckbox = false
         }
     }

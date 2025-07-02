@@ -2138,6 +2138,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     kemandoranNamaUserLogin = kemandoranNama
                                     kemandoranKodeUserLogin = kemandoranKode
                                     afdelingIdUserLogin = divisi
+
                                 }
 
 //                                AppLogger.d("=== Updated User Preferences ===")

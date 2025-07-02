@@ -5025,22 +5025,22 @@ class HomePageActivity : AppCompatActivity() {
             return
         }
 
-//        AppLogger.d("=== Current User Preferences Before Sync ===")
-//        AppLogger.d("nameUserLogin: ${prefManager!!.nameUserLogin}")
-//        AppLogger.d("jabatanUserLogin: ${prefManager!!.jabatanUserLogin}")
-//        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
-//        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
-//        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
-//        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
-//        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
-//        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
-//        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
-//        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
-//        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
-//        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
-//        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
-//        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
-//        AppLogger.d("=== End Current User Preferences Before Sync ===")
+        AppLogger.d("=== Current User Preferences Before Sync ===")
+        AppLogger.d("nameUserLogin: ${prefManager!!.nameUserLogin}")
+        AppLogger.d("jabatanUserLogin: ${prefManager!!.jabatanUserLogin}")
+        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
+        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
+        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
+        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
+        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
+        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
+        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
+        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
+        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
+        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
+        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
+        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
+        AppLogger.d("=== End Current User Preferences Before Sync ===")
 
         try {
             val estateId = estateIdString.toInt()
@@ -5122,7 +5122,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
-        AppLogger.d("prefmanager id ${prefManager!!.idUserLogin}")
+        
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =
