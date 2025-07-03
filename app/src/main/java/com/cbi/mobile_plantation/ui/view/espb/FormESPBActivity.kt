@@ -143,6 +143,7 @@ class FormESPBActivity : AppCompatActivity() {
     private var activityInitialized = false
     private var noESPBStr = "NULL"
     private var tph1NoIdPanen = ""
+    private var selectedTransporterName = ""
     private lateinit var warningText: TextView
     private lateinit var warningCard: CardView
 
@@ -1163,6 +1164,7 @@ class FormESPBActivity : AppCompatActivity() {
                 val infoTotalJjg = screenshotLayout.findViewById<View>(R.id.infoTotalJjg)
                 val infoTotalTransaksi = screenshotLayout.findViewById<View>(R.id.infoTotalTransaksi)
                 val infoNoESPB = screenshotLayout.findViewById<View>(R.id.infoNoESPB)
+                val infoTransporter = screenshotLayout.findViewById<View>(R.id.infoTransporter)
                 val infoDriver = screenshotLayout.findViewById<View>(R.id.infoDriver)
                 val infoNopol = screenshotLayout.findViewById<View>(R.id.infoNopol)
                 val infoPemuat = screenshotLayout.findViewById<View>(R.id.infoPemuat)
@@ -1252,6 +1254,10 @@ class FormESPBActivity : AppCompatActivity() {
                 setInfoData(infoTotalJjg, "Total Janjang", ": $totalJjg")
                 setInfoData(infoTotalTransaksi, "Jumlah Transaksi", ": $tphCount")
                 setInfoData(infoNoESPB, "E-SPB", ": $noESPBStr")
+                if (selectedTransporterId == 0) {
+                    selectedTransporterName = "Internal"
+                }
+                setInfoData(infoTransporter, "Transporter", ": $selectedTransporterName")
                 setInfoData(infoDriver, "Driver", ": $driver")
                 setInfoData(infoNopol, "Nomor Polisi", ": $selectedNopol")
                 setInfoData(infoPemuat, "Pemuat", ": $pemuatNama")
@@ -1776,12 +1782,17 @@ class FormESPBActivity : AppCompatActivity() {
                     AppLogger.e("Error finding selectedTransporterId: ${e.message}")
                     0
                 }
+                selectedTransporterName = try {
+                    transporterList.find { it.nama == selectedItem }?.nama!!
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selectedTransporterName: ${e.message}")
+                    ""
+                }
                 Log.d(
                     "FormESPBActivityTransporter",
                     "selectedTransporterId: $selectedTransporterId"
                 )
             }
-
             R.id.formEspbPemuat -> {
                 val selectedPemuat = selectedItem.toString()
                 AppLogger.d("Selected Pemuat: $selectedPemuat")
