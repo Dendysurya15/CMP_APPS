@@ -2076,11 +2076,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val username = userData.optString("username", "")
                             val nama = userData.optString("nama", "")
                             val jabatan = userData.optString("jabatan", "")
-                            val kemandoran = userData.optInt("kemandoran", 0)
-                            val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
-                            val kemandoranNama = userData.optString("kemandoran_nama", "")
+                            // Note: kemandoran fields are extracted but not saved to preferences
 
-                            // Extract kemandoranData for kode
+                            AppLogger.d("laskjdlfksdf")
+                            // Extract kemandoranData for kode (only if exists)
                             val kemandoranDataObject = userData.optJSONObject("kemandoranData")
                             var kemandoranKode = ""
                             if (kemandoranDataObject != null) {
@@ -2122,6 +2121,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             progressMap[itemId] = 85
                             _itemProgressMap.postValue(progressMap.toMap())
 
+                            // Extract kemandoran data (check if they exist)
+                            val kemandoran = userData.optInt("kemandoran", 0)
+                            val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
+                            val kemandoranNama = userData.optString("kemandoran_nama", "")
+
                             try {
                                 prefManager.apply {
                                     nameUserLogin = nama
@@ -2133,30 +2137,24 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     companyIdUserLogin = company.toString()
                                     companyAbbrUserLogin = companyAbbr
                                     companyNamaUserLogin = companyNama
-                                    kemandoranPPROUserLogin = kemandoranPpro.toString()
-                                    kemandoranUserLogin = kemandoran.toString()
-                                    kemandoranNamaUserLogin = kemandoranNama
-                                    kemandoranKodeUserLogin = kemandoranKode
                                     afdelingIdUserLogin = divisi
 
+                                    // Only save kemandoran data if kemandoran_ppro exists and is valid
+                                    if (kemandoranPpro > 0) {
+                                        kemandoranPPROUserLogin = kemandoranPpro.toString()
+                                        kemandoranUserLogin = kemandoran.toString()
+                                        kemandoranNamaUserLogin = kemandoranNama
+                                        kemandoranKodeUserLogin = kemandoranKode
+                                        AppLogger.d("Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")
+                                    } else {
+                                        // Clear kemandoran preferences if no valid data
+                                        kemandoranPPROUserLogin = ""
+                                        kemandoranUserLogin = ""
+                                        kemandoranNamaUserLogin = ""
+                                        kemandoranKodeUserLogin = ""
+                                        AppLogger.d("Cleared kemandoran data - no valid kemandoran_ppro found")
+                                    }
                                 }
-
-//                                AppLogger.d("=== Updated User Preferences ===")
-//                                AppLogger.d("nameUserLogin: $nama")
-//                                AppLogger.d("jabatanUserLogin: $jabatan")
-//                                AppLogger.d("estateUserLogin: $estateAbbr")
-//                                AppLogger.d("estateUserLengkapLogin: $estateNama")
-//                                AppLogger.d("estateIdUserLogin: $dept")
-//                                AppLogger.d("regionalIdUserLogin: $regional")
-//                                AppLogger.d("companyIdUserLogin: ${company}")
-//                                AppLogger.d("companyAbbrUserLogin: $companyAbbr")
-//                                AppLogger.d("companyNamaUserLogin: $companyNama")
-//                                AppLogger.d("kemandoranPPROUserLogin: ${kemandoranPpro}")
-//                                AppLogger.d("kemandoranUserLogin: ${kemandoran}")
-//                                AppLogger.d("kemandoranNamaUserLogin: $kemandoranNama")
-//                                AppLogger.d("kemandoranKodeUserLogin: $kemandoranKode")
-//                                AppLogger.d("afdelingIdUserLogin: $divisi")
-//                                AppLogger.d("=== End Updated User Preferences ===")
 
                                 progressMap[itemId] = 95
                                 _itemProgressMap.postValue(progressMap.toMap())
