@@ -1332,11 +1332,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     fun getSelectedItems(): List<Map<String, Any>> {
         AppLogger.d("=== getSelectedItems START ===")
-        AppLogger.d("selectedItems (manual): $selectedItems")
-        AppLogger.d("manuallyDeselectedItems: $manuallyDeselectedItems")
-        AppLogger.d("isRestoringFromPrevious: $isRestoringFromPrevious")
-        AppLogger.d("tphListScan: $tphListScan")
-
         val result = mutableListOf<Map<String, Any>>()
 
         // Get manually selected items
@@ -1347,26 +1342,26 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             }
         }
 
-        // Add scanned items ONLY if they haven't been manually deselected
-        // AND only if we're NOT restoring from previous session
-        if (!isRestoringFromPrevious) {
-            AppLogger.d("Processing scanned items (not restoring)")
-            for (i in tphList.indices) {
-                if (!manuallyDeselectedItems.contains(i)) {
-                    val item = tphList[i]
+        // Add scanned items if they haven't been manually deselected
+        for (i in tphList.indices) {
+            if (!manuallyDeselectedItems.contains(i) && !selectedItems.contains(i)) {
+                val item = tphList[i]
+                val isScannedMatch = if (isRestoringFromPrevious) {
+                    val panenId = item["id"]?.toString() ?: ""
+                    tphListScan.contains(panenId)
+                } else {
                     val tphId = extractData(item).tphId.toString()
-                    if (tphListScan.contains(tphId) && !selectedItems.contains(i)) {
-                        AppLogger.d("Adding scanned item at index $i (tphId: $tphId)")
-                        result.add(item)
-                    }
+                    tphListScan.contains(tphId)
+                }
+
+                if (isScannedMatch) {
+                    AppLogger.d("Adding scanned item at index $i")
+                    result.add(item)
                 }
             }
-        } else {
-            AppLogger.d("Skipping scanned items processing (isRestoringFromPrevious = true)")
         }
 
         AppLogger.d("getSelectedItems final result.size: ${result.size}")
-        AppLogger.d("=== getSelectedItems END ===")
         return result.distinct()
     }
 
@@ -1406,7 +1401,15 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
         val tphId = extractData(item).tphId.toString()
-        val isScannedItem = tphListScan.contains(tphId) && !isRestoringFromPrevious
+        val panenId = item["id"]?.toString() ?: ""
+
+        // Fix: Check for scanned items in both normal and restore modes
+        val isScannedItem = if (isRestoringFromPrevious) {
+            tphListScan.contains(panenId) // Match by panen ID when restoring
+        } else {
+            tphListScan.contains(tphId) // Match by TPH ID when scanning normally
+        }
+
         val originalPosition = tphList.indexOf(item)
 
         if (isScannedItem) {

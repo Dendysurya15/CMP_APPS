@@ -498,7 +498,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferredAbsensi = async { absensiViewModel.loadAbsensiCount() }
                     countAbsensi = countDeferredAbsensi.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapAbsensiPanen, countAbsensi.toString())
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.RekapAbsensiPanen,
+                            countAbsensi.toString()
+                        )
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapAbsensiPanen)
                     }
                 } catch (e: Exception) {
@@ -982,7 +985,8 @@ class HomePageActivity : AppCompatActivity() {
                             val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
 
                             withContext(Dispatchers.IO) {
-                                val afdelingData = datasetViewModel.getAfdelingById(afdelingId!!.toInt())
+                                val afdelingData =
+                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
                                 afdelingDeferred.complete(afdelingData)
                             }
 
@@ -1006,10 +1010,17 @@ class HomePageActivity : AppCompatActivity() {
                             if (afdeling.sinkronisasi_otomatis != 0) {
                                 // Check if sinkronisasi is required
                                 val lastSyncDateTime = prefManager!!.lastSyncDate
-                                val lastSyncDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(lastSyncDateTime)
-                                )
-                                val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                val lastSyncDate =
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                        SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        ).parse(lastSyncDateTime)
+                                    )
+                                val currentDate = SimpleDateFormat(
+                                    "yyyy-MM-dd",
+                                    Locale.getDefault()
+                                ).format(Date())
 
                                 if (lastSyncDate != currentDate) {
                                     AlertDialogUtility.withSingleAction(
@@ -1027,7 +1038,8 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             // All validations passed, proceed with attendance check
-                            val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+                            val absensiDeferred =
+                                CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                             absensiViewModel.loadActiveAbsensi()
                             delay(100)
@@ -2398,13 +2410,19 @@ class HomePageActivity : AppCompatActivity() {
                             // Process data for HEKTARAN (summary by date AND blok)
                             val groupedByDateAndBlok = hektarPanenToUpload.groupBy { data ->
                                 // Extract first date from date_created_panen
-                                val firstDate = data.date_created_panen.split(";").firstOrNull() ?: ""
+                                val firstDate =
+                                    data.date_created_panen.split(";").firstOrNull() ?: ""
                                 val dateOnly = if (firstDate.isNotEmpty()) {
                                     try {
-                                        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                        val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                        val inputFormat = SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        )
+                                        val outputFormat =
+                                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                                         val date = inputFormat.parse(firstDate)
-                                        date?.let { outputFormat.format(it) } ?: firstDate.split(" ")[0]
+                                        date?.let { outputFormat.format(it) }
+                                            ?: firstDate.split(" ")[0]
                                     } catch (e: Exception) {
                                         firstDate.split(" ")[0] // fallback to first part before space
                                     }
@@ -2422,191 +2440,212 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             // Create a list to hold our restructured data (with nested children)
-                            val restructuredData = groupedByDateAndBlok.map { (compositeKey, dataList) ->
-                                // Extract date and blok from composite key
-                                val (dateOnly, blokId) = compositeKey.split("_").let {
-                                    it[0] to it[1].toIntOrNull()
-                                }
-
-                                // Get first item to extract common properties
-                                val firstItem = dataList.first()
-
-                                // Calculate luasan_panen sum for this date+blok combination
-                                val totalLuasanPanen = dataList.sumOf { it.luas_panen.toDouble() }.toFloat()
-
-                                // Count distinct pemanen_nama for this date+blok combination
-                                val distinctPemanen = dataList.map { it.pemanen_nama }.distinct().size
-
-                                // Create a structure for this date+blok with its child details
-                                val hektaranData = mutableMapOf<String, Any>(
-                                    "tanggal" to dateOnly,
-                                    "regional" to (firstItem.regional ?: ""),
-                                    "wilayah" to (firstItem.wilayah ?: ""),
-                                    "company" to (firstItem.company ?: 0),
-                                    "company_abbr" to (firstItem.company_abbr ?: ""),
-                                    "company_nama" to (firstItem.company_nama ?: ""),
-                                    "dept" to (firstItem.dept ?: 0),
-                                    "dept_ppro" to (firstItem.dept_ppro ?: 0),
-                                    "dept_abbr" to (firstItem.dept_abbr ?: ""),
-                                    "dept_nama" to (firstItem.dept_nama ?: ""),
-                                    "divisi" to (firstItem.divisi ?: 0),
-                                    "divisi_abbr" to (firstItem.divisi_abbr ?: ""),
-                                    "divisi_nama" to (firstItem.divisi_nama ?: ""),
-                                    "blok" to (blokId ?: 0),
-                                    "blok_ppro" to (firstItem.blok_ppro ?: 0),
-                                    "blok_kode" to (firstItem.blok_kode ?: 0),
-                                    "blok_nama" to (firstItem.blok_nama ?: ""),
-                                    "luasan_blok" to (firstItem.luas_blok ?: ""),
-                                    "luasan_panen" to totalLuasanPanen,
-                                    "jumlah_pemanen" to distinctPemanen,
-                                    "created_name" to "",
-                                    "created_by" to (firstItem.created_by ?: ""),
-                                    "created_date" to (firstItem.date_created ?: ""),
-                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
-                                )
-
-                                // Process detail records for this date+blok combination
-                                val detailRecords = mutableListOf<Map<String, Any>>()
-
-                                // Process all data items for this date+blok combination
-                                for (data in dataList) {
-                                    // Split all arrays
-                                    val tphIdsList = data.tph_ids.split(";")
-                                    val totalJjgList = data.total_jjg_arr.split(";")
-                                    val unripeList = data.unripe_arr.split(";")
-                                    val overripeList = data.overripe_arr.split(";")
-                                    val emptyBunchList = data.empty_bunch_arr.split(";")
-                                    val abnormalList = data.abnormal_arr.split(";")
-                                    val ripeList = data.ripe_arr.split(";")
-                                    val kirimList = data.kirim_pabrik_arr.split(";")
-                                    val dibayarList = data.dibayar_arr.split(";")
-                                    val dateCreatedPanenList = data.date_created_panen.split(";")
-
-                                    AppLogger.d("Processing data for ${data.pemanen_nama} - Date: $dateOnly, Blok: $blokId")
-                                    AppLogger.d("TPH IDs: $tphIdsList")
-                                    AppLogger.d("Total JJG: $totalJjgList")
-
-                                    // Get kemandoran data (keeping your existing code)
-                                    val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
-                                    val kemandoranIds = listOf(data.kemandoran_id ?: "")
-
-                                    if (kemandoranIds.first().isNotEmpty()) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            try {
-                                                val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
-                                                kemandoranDeferred.complete(kemandoranList)
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error fetching kemandoran data: ${e.message}")
-                                                kemandoranDeferred.complete(emptyList())
-                                            }
-                                        }
-                                    } else {
-                                        kemandoranDeferred.complete(emptyList())
+                            val restructuredData =
+                                groupedByDateAndBlok.map { (compositeKey, dataList) ->
+                                    // Extract date and blok from composite key
+                                    val (dateOnly, blokId) = compositeKey.split("_").let {
+                                        it[0] to it[1].toIntOrNull()
                                     }
 
-                                    val kemandoranList = try {
-                                        kemandoranDeferred.await()
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error waiting for kemandoran data: ${e.message}")
-                                        emptyList()
-                                    }
+                                    // Get first item to extract common properties
+                                    val firstItem = dataList.first()
 
-                                    val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
-                                        kemandoranList.first().kemandoran_ppro ?: ""
-                                    } else {
-                                        ""
-                                    }
+                                    // Calculate luasan_panen sum for this date+blok combination
+                                    val totalLuasanPanen =
+                                        dataList.sumOf { it.luas_panen.toDouble() }.toFloat()
 
-                                    val kemandoranKode = if (kemandoranList.isNotEmpty()) {
-                                        kemandoranList.first().kode ?: ""
-                                    } else {
-                                        ""
-                                    }
+                                    // Count distinct pemanen_nama for this date+blok combination
+                                    val distinctPemanen =
+                                        dataList.map { it.pemanen_nama }.distinct().size
 
-                                    // Initialize totals for THIS data item
-                                    var totalJjgPanen = 0.0
-                                    var totalJjgMentah = 0.0
-                                    var totalJjgLewatMasak = 0.0
-                                    var totalJjgKosong = 0.0
-                                    var totalJjgAbnormal = 0.0
-                                    var totalJjgMasak = 0.0
-                                    var totalJjgKirim = 0.0
-                                    var totalJjgBayar = 0.0
-                                    val dateCreatedArray = mutableListOf<String>()
-                                    val tphArray = mutableListOf<String>()
-                                    val entryCount = tphIdsList.size
-
-                                    // Sum all JJG values for this data item
-                                    for (i in 0 until entryCount) {
-                                        if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
-                                            // Sum all JJG values
-                                            totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            tphArray.add(tphIdsList[i])
-
-                                            // Collect date_created values
-                                            val dateCreated = if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
-                                            if (dateCreated != null && dateCreated.isNotEmpty()) {
-                                                dateCreatedArray.add(dateCreated)
-                                            }
-                                        }
-                                    }
-
-                                    // Debug log to see what values we're getting
-                                    AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
-                                    AppLogger.d("Creating hektaran_detail for Date: $dateOnly, Blok: $blokId, Pemanen: ${data.pemanen_nama}")
-
-                                    // Create single entry with summed values for this data item
-                                    detailRecords.add(
-                                        mapOf<String, Any>(
-                                            "tipe" to "",
-                                            "blok" to (data.blok ?: 0),
-                                            "kemandoran_id" to (data.kemandoran_id ?: ""),
-                                            "kemandoran_nama" to (data.kemandoran_nama ?: ""),
-                                            "kemandoran_ppro" to kemandoranPpro,
-                                            "kemandoran_kode" to kemandoranKode,
-                                            "pemanen_nik" to (data.nik ?: ""),
-                                            "pemanen_nama" to (data.pemanen_nama ?: ""),
-                                            "tph" to Gson().toJson(tphArray),
-                                            "ancak" to "",
-                                            "jjg_panen" to totalJjgPanen.toString(),
-                                            "jjg_masak" to totalJjgMasak.toString(),
-                                            "jjg_mentah" to totalJjgMentah.toString(),
-                                            "jjg_lewat_masak" to totalJjgLewatMasak.toString(),
-                                            "jjg_kosong" to totalJjgKosong.toString(),
-                                            "jjg_abnormal" to totalJjgAbnormal.toString(),
-                                            "jjg_serangan_tikus" to "0",
-                                            "jjg_panjang" to "0",
-                                            "jjg_tidak_vcut" to "0",
-                                            "jjg_kirim" to totalJjgKirim.toString(),
-                                            "jjg_bayar" to totalJjgBayar.toString(),
-                                            "luasan" to data.luas_panen,
-                                            "date_panen" to Gson().toJson(dateCreatedArray),
-                                            "status" to 1,
-                                        )
+                                    // Create a structure for this date+blok with its child details
+                                    val hektaranData = mutableMapOf<String, Any>(
+                                        "tanggal" to dateOnly,
+                                        "regional" to (firstItem.regional ?: ""),
+                                        "wilayah" to (firstItem.wilayah ?: ""),
+                                        "company" to (firstItem.company ?: 0),
+                                        "company_abbr" to (firstItem.company_abbr ?: ""),
+                                        "company_nama" to (firstItem.company_nama ?: ""),
+                                        "dept" to (firstItem.dept ?: 0),
+                                        "dept_ppro" to (firstItem.dept_ppro ?: 0),
+                                        "dept_abbr" to (firstItem.dept_abbr ?: ""),
+                                        "dept_nama" to (firstItem.dept_nama ?: ""),
+                                        "divisi" to (firstItem.divisi ?: 0),
+                                        "divisi_abbr" to (firstItem.divisi_abbr ?: ""),
+                                        "divisi_nama" to (firstItem.divisi_nama ?: ""),
+                                        "blok" to (blokId ?: 0),
+                                        "blok_ppro" to (firstItem.blok_ppro ?: 0),
+                                        "blok_kode" to (firstItem.blok_kode ?: 0),
+                                        "blok_nama" to (firstItem.blok_nama ?: ""),
+                                        "luasan_blok" to (firstItem.luas_blok ?: ""),
+                                        "luasan_panen" to totalLuasanPanen,
+                                        "jumlah_pemanen" to distinctPemanen,
+                                        "created_name" to "",
+                                        "created_by" to (firstItem.created_by ?: ""),
+                                        "created_date" to (firstItem.date_created ?: ""),
+                                        "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                            .toString(),
                                     )
+
+                                    // Process detail records for this date+blok combination
+                                    val detailRecords = mutableListOf<Map<String, Any>>()
+
+                                    // Process all data items for this date+blok combination
+                                    for (data in dataList) {
+                                        // Split all arrays
+                                        val tphIdsList = data.tph_ids.split(";")
+                                        val totalJjgList = data.total_jjg_arr.split(";")
+                                        val unripeList = data.unripe_arr.split(";")
+                                        val overripeList = data.overripe_arr.split(";")
+                                        val emptyBunchList = data.empty_bunch_arr.split(";")
+                                        val abnormalList = data.abnormal_arr.split(";")
+                                        val ripeList = data.ripe_arr.split(";")
+                                        val kirimList = data.kirim_pabrik_arr.split(";")
+                                        val dibayarList = data.dibayar_arr.split(";")
+                                        val dateCreatedPanenList =
+                                            data.date_created_panen.split(";")
+
+                                        AppLogger.d("Processing data for ${data.pemanen_nama} - Date: $dateOnly, Blok: $blokId")
+                                        AppLogger.d("TPH IDs: $tphIdsList")
+                                        AppLogger.d("Total JJG: $totalJjgList")
+
+                                        // Get kemandoran data (keeping your existing code)
+                                        val kemandoranDeferred =
+                                            CompletableDeferred<List<KemandoranModel>>()
+                                        val kemandoranIds = listOf(data.kemandoran_id ?: "")
+
+                                        if (kemandoranIds.first().isNotEmpty()) {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val kemandoranList =
+                                                        absensiViewModel.getKemandoranById(
+                                                            kemandoranIds
+                                                        )
+                                                    kemandoranDeferred.complete(kemandoranList)
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error fetching kemandoran data: ${e.message}")
+                                                    kemandoranDeferred.complete(emptyList())
+                                                }
+                                            }
+                                        } else {
+                                            kemandoranDeferred.complete(emptyList())
+                                        }
+
+                                        val kemandoranList = try {
+                                            kemandoranDeferred.await()
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error waiting for kemandoran data: ${e.message}")
+                                            emptyList()
+                                        }
+
+                                        val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
+                                            kemandoranList.first().kemandoran_ppro ?: ""
+                                        } else {
+                                            ""
+                                        }
+
+                                        val kemandoranKode = if (kemandoranList.isNotEmpty()) {
+                                            kemandoranList.first().kode ?: ""
+                                        } else {
+                                            ""
+                                        }
+
+                                        // Initialize totals for THIS data item
+                                        var totalJjgPanen = 0.0
+                                        var totalJjgMentah = 0.0
+                                        var totalJjgLewatMasak = 0.0
+                                        var totalJjgKosong = 0.0
+                                        var totalJjgAbnormal = 0.0
+                                        var totalJjgMasak = 0.0
+                                        var totalJjgKirim = 0.0
+                                        var totalJjgBayar = 0.0
+                                        val dateCreatedArray = mutableListOf<String>()
+                                        val tphArray = mutableListOf<String>()
+                                        val entryCount = tphIdsList.size
+
+                                        // Sum all JJG values for this data item
+                                        for (i in 0 until entryCount) {
+                                            if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
+                                                // Sum all JJG values
+                                                totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                tphArray.add(tphIdsList[i])
+
+                                                // Collect date_created values
+                                                val dateCreated =
+                                                    if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
+                                                if (dateCreated != null && dateCreated.isNotEmpty()) {
+                                                    dateCreatedArray.add(dateCreated)
+                                                }
+                                            }
+                                        }
+
+                                        // Debug log to see what values we're getting
+                                        AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
+                                        AppLogger.d("Creating hektaran_detail for Date: $dateOnly, Blok: $blokId, Pemanen: ${data.pemanen_nama}")
+
+                                        // Create single entry with summed values for this data item
+                                        detailRecords.add(
+                                            mapOf<String, Any>(
+                                                "tipe" to "",
+                                                "blok" to (data.blok ?: 0),
+                                                "kemandoran_id" to (data.kemandoran_id ?: ""),
+                                                "kemandoran_nama" to (data.kemandoran_nama ?: ""),
+                                                "kemandoran_ppro" to kemandoranPpro,
+                                                "kemandoran_kode" to kemandoranKode,
+                                                "pemanen_nik" to (data.nik ?: ""),
+                                                "pemanen_nama" to (data.pemanen_nama ?: ""),
+                                                "tph" to Gson().toJson(tphArray),
+                                                "ancak" to "",
+                                                "jjg_panen" to totalJjgPanen.toString(),
+                                                "jjg_masak" to totalJjgMasak.toString(),
+                                                "jjg_mentah" to totalJjgMentah.toString(),
+                                                "jjg_lewat_masak" to totalJjgLewatMasak.toString(),
+                                                "jjg_kosong" to totalJjgKosong.toString(),
+                                                "jjg_abnormal" to totalJjgAbnormal.toString(),
+                                                "jjg_serangan_tikus" to "0",
+                                                "jjg_panjang" to "0",
+                                                "jjg_tidak_vcut" to "0",
+                                                "jjg_kirim" to totalJjgKirim.toString(),
+                                                "jjg_bayar" to totalJjgBayar.toString(),
+                                                "luasan" to data.luas_panen,
+                                                "date_panen" to Gson().toJson(dateCreatedArray),
+                                                "status" to 1,
+                                            )
+                                        )
+                                    }
+
+                                    AppLogger.d("Created hektaran for Date: $dateOnly, Blok: $blokId with ${detailRecords.size} detail records")
+
+                                    // Add the detail records as a child element to the hektaran data
+                                    hektaranData[AppUtils.DatabaseTables.HEKTARAN_DETAIL] =
+                                        detailRecords
+
+                                    // Return the complete hektaran structure with child details
+                                    hektaranData
                                 }
-
-                                AppLogger.d("Created hektaran for Date: $dateOnly, Blok: $blokId with ${detailRecords.size} detail records")
-
-                                // Add the detail records as a child element to the hektaran data
-                                hektaranData[AppUtils.DatabaseTables.HEKTARAN_DETAIL] = detailRecords
-
-                                // Return the complete hektaran structure with child details
-                                hektaranData
-                            }
 
                             AppLogger.d("Final restructured data count: ${restructuredData.size}")
                             restructuredData.forEachIndexed { index, item ->
                                 val tanggal = item["tanggal"]
                                 val blok = item["blok"]
-                                val detailCount = (item[AppUtils.DatabaseTables.HEKTARAN_DETAIL] as? List<*>)?.size ?: 0
+                                val detailCount =
+                                    (item[AppUtils.DatabaseTables.HEKTARAN_DETAIL] as? List<*>)?.size
+                                        ?: 0
                                 AppLogger.d("Hektaran $index: Date=$tanggal, Blok=$blok, Details=$detailCount")
                             }
 
@@ -2654,13 +2693,19 @@ class HomePageActivity : AppCompatActivity() {
 
                                 // Find data items with this date+blok that have dataIsZipped = 0
                                 val notYetZipped = hektarPanenList.any { data ->
-                                    val firstDate = data.date_created_panen.split(";").firstOrNull() ?: ""
+                                    val firstDate =
+                                        data.date_created_panen.split(";").firstOrNull() ?: ""
                                     val dateOnly = if (firstDate.isNotEmpty()) {
                                         try {
-                                            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                            val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                            val inputFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val outputFormat =
+                                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                                             val date = inputFormat.parse(firstDate)
-                                            date?.let { outputFormat.format(it) } ?: firstDate.split(" ")[0]
+                                            date?.let { outputFormat.format(it) }
+                                                ?: firstDate.split(" ")[0]
                                         } catch (e: Exception) {
                                             firstDate.split(" ")[0]
                                         }
@@ -4654,7 +4699,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun startDownloadsV2(
         datasetRequests: List<DatasetRequest>,
         previewData: String? = null,
-        titleDialog:String? = "Sinkronisasi Restan & Dataset"
+        titleDialog: String? = "Sinkronisasi Restan & Dataset"
     ) {
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
@@ -5004,7 +5049,7 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDownloads(previewData: String? = null, titleDialog : String?= null) {
+    private fun startDownloads(previewData: String? = null, titleDialog: String? = null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -5122,7 +5167,7 @@ class HomePageActivity : AppCompatActivity() {
         lastModifiedSettingJSON: String?
     ): List<DatasetRequest> {
         val datasets = mutableListOf<DatasetRequest>()
-        
+
         val jabatan = prefManager!!.jabatanUserLogin
         val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
         val isKeraniTimbang =

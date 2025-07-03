@@ -184,15 +184,8 @@ class FormESPBActivity : AppCompatActivity() {
     private fun createScannedResultFromTPH1(): String {
         if (tph1.isEmpty()) return ""
 
-        // Extract TPH IDs from tph1 string format: "id,date,time,value;id,date,time,value"
-        val tphIds = tph1.split(";").mapNotNull { record ->
-            if (record.isNotEmpty()) {
-                val parts = record.split(",")
-                if (parts.isNotEmpty()) parts[0].trim() else null
-            } else null
-        }
-
-        return """{"tph":"${tphIds.joinToString(";")}"}"""
+        val panenIds = tph1IdPanen.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        return "[${panenIds.joinToString(", ")}]" // Format as list of IDs for restoration
     }
 
     private fun navigateBackToListTPH() {
@@ -210,6 +203,7 @@ class FormESPBActivity : AppCompatActivity() {
         AppLogger.d("tph1: $tph1")
         AppLogger.d("tph0: $tph0")
         AppLogger.d("tph1IdPanen: $tph1IdPanen")
+        AppLogger.d("createScannedResultFromTPH1(): ${createScannedResultFromTPH1()}")
 
         startActivity(intent)
         finishAffinity()
