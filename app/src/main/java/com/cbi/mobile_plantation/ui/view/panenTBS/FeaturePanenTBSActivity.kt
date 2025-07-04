@@ -2212,7 +2212,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
 
-    private fun setupDownloadDialog(datasetRequests: List<DatasetRequest>) {
+    fun setupDownloadDialog(datasetRequests: List<DatasetRequest>) {
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
@@ -3119,7 +3119,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupSpinnerView(
+    fun setupSpinnerView(
         linearLayout: LinearLayout,
         data: List<String>,
         isMultiSelect: Boolean = false,

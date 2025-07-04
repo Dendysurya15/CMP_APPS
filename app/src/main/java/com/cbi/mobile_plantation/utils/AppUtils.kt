@@ -213,6 +213,7 @@ object AppUtils {
         const val RekapAbsensiPanen = "Rekap Absensi Panen"
         const val ScanAbsensiPanen = "Scan Absensi Panen"
         const val SinkronisasiData = "Sinkronisasi data"
+        const val UnduhTPHAsistensi = "Unduh TPH Asistensi"
         const val UploadDataCMP = "Upload Data CMP"
 
         const val ScanPanenMPanen = "Scan Mandor Panen"
