@@ -104,6 +104,12 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
             <include
+                android:id="@+id/infoTransporter"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+            <include
                 android:id="@+id/infoDriver"
                 layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
