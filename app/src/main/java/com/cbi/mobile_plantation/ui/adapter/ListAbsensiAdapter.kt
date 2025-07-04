@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -11,12 +12,14 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.ui.adapter.WeighBridgeAdapter.Info
+import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -375,17 +378,37 @@ class ListAbsensiAdapter(private val context: Context,
 
         // Save button - IMPLEMENT THE SAVE FUNCTIONALITY
         editView.findViewById<Button>(R.id.btnUpdateAbsensi).setOnClickListener {
-            val updatedEmployees = editAdapter.getUpdatedEmployees()
-            handleSaveNewAttendanceStructure(updatedEmployees, item, context) { success ->
-                if (success) {
-                    editBottomSheetDialog.dismiss()
-                    // Refresh the main list
-//                    refreshAttendanceData()
-                    Toast.makeText(context, "Data absensi berhasil diupdate", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Gagal mengupdate data absensi", Toast.LENGTH_SHORT).show()
+            // Tampilkan konfirmasi sebelum update
+            AlertDialogUtility.withTwoActions(
+                context,
+                "KONFIRMASI",
+                "Perbarui Data Absensi",
+                "Apakah Anda yakin ingin memperbarui data absensi ini?",
+                "warning.json",
+                function = {
+                    val updatedEmployees = editAdapter.getUpdatedEmployees()
+                    handleSaveNewAttendanceStructure(updatedEmployees, item, context) { success ->
+                        if (success) {
+                            editBottomSheetDialog.dismiss()
+
+                            // Tampilkan dialog sukses
+                            AlertDialogUtility.withTwoActions(
+                                context,
+                                "BERHASIL",
+                                "Data Berhasil Diperbarui",
+                                "Data absensi berhasil diperbarui",
+                                "success.json",
+                                function = {
+                                    // Kembali ke activity sebelumnya
+                                    (context as? Activity)?.finish()
+                                }
+                            )
+                        } else {
+                            Toast.makeText(context, "Gagal mengupdate data absensi", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
-            }
+            )
         }
 
         editBottomSheetDialog.setContentView(editView)

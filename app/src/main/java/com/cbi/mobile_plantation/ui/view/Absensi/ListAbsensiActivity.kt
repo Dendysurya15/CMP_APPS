@@ -1438,10 +1438,15 @@ class ListAbsensiActivity : AppCompatActivity() {
             val divisiAbbrSet = mutableSetOf<String>()
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
-            val karyawanMskSet = mutableSetOf<String>()
-            val karyawanTdkMskSet = mutableSetOf<String>()
-            val karyawanMskIdSet = mutableSetOf<String>()
-            val karyawanTdkMskIdSet = mutableSetOf<String>()
+
+            // Changed to use JSONObject for proper structure
+            val mergedKaryawanMskNik = JSONObject()
+            val mergedKaryawanTdkMskNik = JSONObject()
+            val mergedKaryawanMskId = JSONObject()
+            val mergedKaryawanTdkMskId = JSONObject()
+            val mergedKaryawanMskNama = JSONObject()
+            val mergedKaryawanTdkMskNama = JSONObject()
+
             val infoSet = mutableSetOf<String>()
 
             mappedData.forEach { data ->
@@ -1461,16 +1466,20 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
                 val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
+                val karyawanTdkMskNama = data["karyawan_tdk_msk_nama"]?.toString() ?: ""
 
                 // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Extract values from JSON strings and concatenate them
-                extractAndAddFromJson(karyawanMskNik, karyawanMskSet)
-                extractAndAddFromJson(karyawanTdkMskNik, karyawanTdkMskSet)
-                extractAndAddFromJson(karyawanMskId, karyawanMskIdSet)
-                extractAndAddFromJson(karyawanTdkMskId, karyawanTdkMskIdSet)
+                // Merge JSON objects properly using the correct function
+                mergeJsonObjects(karyawanMskNik, mergedKaryawanMskNik)
+                mergeJsonObjects(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
+                mergeJsonObjects(karyawanMskId, mergedKaryawanMskId)
+                mergeJsonObjects(karyawanTdkMskId, mergedKaryawanTdkMskId)
+                mergeJsonObjects(karyawanMskNama, mergedKaryawanMskNama)
+                mergeJsonObjects(karyawanTdkMskNama, mergedKaryawanTdkMskNama)
 
                 // Add other data
                 if (dept.isNotEmpty()) deptSet.add(dept)
@@ -1488,7 +1497,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON with concatenated values (not JSON structure)
+            // Final JSON with proper structure
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
@@ -1497,10 +1506,15 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi", JSONArray(divisiSet))
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
-                put("karyawan_msk_nik", JSONArray(karyawanMskSet))
-                put("karyawan_tdk_msk_nik", JSONArray(karyawanTdkMskSet))
-                put("karyawan_msk_id", JSONArray(karyawanMskIdSet))
-                put("karyawan_tdk_msk_id", JSONArray(karyawanTdkMskIdSet))
+
+                // Store as JSON objects, not arrays
+                put("karyawan_msk_nik", mergedKaryawanMskNik)
+                put("karyawan_tdk_msk_nik", mergedKaryawanTdkMskNik)
+                put("karyawan_msk_id", mergedKaryawanMskId)
+                put("karyawan_tdk_msk_id", mergedKaryawanTdkMskId)
+                put("karyawan_msk_nama", mergedKaryawanMskNama)
+                put("karyawan_tdk_msk_nama", mergedKaryawanTdkMskNama)
+
                 put("info", JSONArray(infoSet))
             }
 
@@ -1512,18 +1526,87 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
+    // Helper function to merge JSON objects
+    private fun mergeJsonObjects(jsonString: String, targetObject: JSONObject) {
+        if (jsonString.isNotEmpty()) {
+            try {
+                val sourceJson = JSONObject(jsonString)
+                val statusKeys = sourceJson.keys()
+
+                while (statusKeys.hasNext()) {
+                    val statusKey = statusKeys.next()
+                    val statusValue = sourceJson.opt(statusKey)
+
+                    when (statusValue) {
+                        is JSONObject -> {
+                            // Handle nested structure: {"status": {"kemandoran": "values"}}
+                            if (!targetObject.has(statusKey)) {
+                                targetObject.put(statusKey, JSONObject())
+                            }
+
+                            val targetStatusObject = targetObject.getJSONObject(statusKey)
+                            val kemandoranKeys = statusValue.keys()
+
+                            while (kemandoranKeys.hasNext()) {
+                                val kemandoranKey = kemandoranKeys.next()
+                                val kemandoranValue = statusValue.getString(kemandoranKey)
+
+                                if (targetStatusObject.has(kemandoranKey)) {
+                                    // Merge values if key already exists
+                                    val existingValue = targetStatusObject.getString(kemandoranKey)
+                                    val mergedValue = "$existingValue,$kemandoranValue"
+                                    targetStatusObject.put(kemandoranKey, mergedValue)
+                                } else {
+                                    targetStatusObject.put(kemandoranKey, kemandoranValue)
+                                }
+                            }
+                        }
+                        is String -> {
+                            // Handle flat structure: {"kemandoran": "values"}
+                            if (targetObject.has(statusKey)) {
+                                val existingValue = targetObject.getString(statusKey)
+                                val mergedValue = "$existingValue,$statusValue"
+                                targetObject.put(statusKey, mergedValue)
+                            } else {
+                                targetObject.put(statusKey, statusValue)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error merging JSON objects: ${e.message}")
+            }
+        }
+    }
+
     // Helper function to extract values from JSON string and add to set
     private fun extractAndAddFromJson(jsonString: String, targetSet: MutableSet<String>) {
         try {
             if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
                 val jsonObj = JSONObject(jsonString)
 
-                // Extract all values from all kemandoran and concatenate them
-                jsonObj.keys().forEach { kemandoranId ->
-                    val values = jsonObj.optString(kemandoranId, "")
-                    if (values.isNotEmpty()) {
-                        values.split(",").filter { it.trim().isNotEmpty() }
-                            .forEach { targetSet.add(it.trim()) }
+                // Handle nested JSON structure: {"status": {"kemandoran": "values"}}
+                jsonObj.keys().forEach { statusKey ->
+                    val statusValue = jsonObj.opt(statusKey)
+
+                    when (statusValue) {
+                        is JSONObject -> {
+                            // This is a nested object (status -> kemandoran -> values)
+                            statusValue.keys().forEach { kemandoranKey ->
+                                val kemandoranValue = statusValue.optString(kemandoranKey, "")
+                                if (kemandoranValue.isNotEmpty()) {
+                                    kemandoranValue.split(",").filter { it.trim().isNotEmpty() }
+                                        .forEach { targetSet.add(it.trim()) }
+                                }
+                            }
+                        }
+                        is String -> {
+                            // This is a direct string value (old format)
+                            if (statusValue.isNotEmpty()) {
+                                statusValue.split(",").filter { it.trim().isNotEmpty() }
+                                    .forEach { targetSet.add(it.trim()) }
+                            }
+                        }
                     }
                 }
             } else {
