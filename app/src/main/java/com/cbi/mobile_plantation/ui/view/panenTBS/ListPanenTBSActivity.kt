@@ -1618,7 +1618,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         } else {
             btnGenerateQRTPH.setOnClickListener {
-                generateQRTPH(60)
+                generateQRTPH(70)
             }
             btnGenerateQRTPHUnl.setOnClickListener {
                 generateQRTPH(0)
