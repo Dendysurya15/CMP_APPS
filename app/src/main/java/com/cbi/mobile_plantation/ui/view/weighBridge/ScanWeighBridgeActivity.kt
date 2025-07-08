@@ -457,7 +457,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "created_at" to globalCreatedAt,
                                     "pemuat_id" to globalPemuatId,
                                     "kemandoran_id" to globalKemandoranId,
-                                    "pemuat_nik" to globalPemuatNik,
                                     "nopol" to globalNopol,
                                     "driver" to globalDriver,
                                     "updated_nama" to prefManager!!.nameUserLogin.toString(),
@@ -1081,6 +1080,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     val idBlokList = blokJjgList.map { it.first }
 
+                    val idBlokString = idBlokList.joinToString(separator = ",")
+
                     val tphData = withContext(Dispatchers.Main) {
                         val tphDeferred = CompletableDeferred<TPHNewModel?>()
                         val firstBlockId = idBlokList.firstOrNull()
@@ -1100,7 +1101,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         // Wait for the TPH data and return it
                         tphDeferred.await()
                     }
-                    val concatenatedIds = idBlokList.joinToString(",")
+
                     val pemuatList =
                         modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
                             ?.filter { it.isNotEmpty() } ?: emptyList()
@@ -1118,26 +1119,25 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     val pemuatData = pemuatDeferred.await()
 
-                    AppLogger.d(pemuatData.toString())
                     val pemuatNama = pemuatData?.mapNotNull { "${it.nik} (${it.nama})" }
                         ?.takeIf { it.isNotEmpty() }
                         ?.joinToString("\n  ") ?: "-"
 
                     AppLogger.d("pemuatNama $pemuatNama")
 
-                    AppLogger.d(idBlokList.toString())
                     val blokData = try {
-                        AppLogger.d(idBlokList.toString())
                         weightBridgeViewModel.getDataByIdInBlok(idBlokList)
                     } catch (e: Exception) {
                         AppLogger.e("Error fetching Blok Data: ${e.message}")
                         null
                     } ?: emptyList()
 
-                    val blokIdToPproMap = blokData.associate { it.id to it.id_ppro }
+                    val blokIdToPproMap = blokData.associate { it.id_ppro to it.id }
 
-                    val BlokPPROJjg = blokJjgList.mapNotNull { (id, jjg) ->
-                        blokIdToPproMap[id]?.let { "$it,$jjg" }
+                    AppLogger.d("blokIdToPproMap $blokIdToPproMap")
+                    AppLogger.d("blokJjgList $blokJjgList")
+                    val BlokPPROJjg = blokJjgList.mapNotNull { (id_ppro, jjg) ->
+                        blokIdToPproMap[id_ppro]?.let { "$id_ppro,$jjg" } // Use id_ppro instead of 'it'
                     }.joinToString(";")
 
                     val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
@@ -1164,7 +1164,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
 
                     val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData.find { it.id == idBlok }?.kode
+                        val blokKode = blokData.find { it.id_ppro == idBlok }?.kode
                         if (blokKode != null && totalJjg != null) {
                             "• $blokKode ($totalJjg jjg)"
                         } else null
@@ -1207,45 +1207,21 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
-                    // Get the string from pemuat_nik
-                    val pemuatNikString = modifiedParsedData?.espb?.pemuat_nik.toString()
+                    val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
+                        // Split by comma, trim whitespace, filter empty values, then rejoin
+                        nikString.split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .joinToString(",")
+                    } ?: ""
 
-                    // Simple string extraction to get NIK values
-                    val nikList = mutableListOf<String>()
-                    var currentIndex = 0
-
-                    while (true) {
-                        // Find next occurrence of "nik="
-                        val nikIndex = pemuatNikString.indexOf("nik=", currentIndex)
-                        if (nikIndex == -1) break // No more NIKs found
-
-                        // Move position after "nik="
-                        currentIndex = nikIndex + 4
-
-                        // Find comma after the NIK value
-                        val commaIndex = pemuatNikString.indexOf(",", currentIndex)
-                        if (commaIndex == -1) break // Unexpected format
-
-                        // Extract the NIK value
-                        val nikValue = pemuatNikString.substring(currentIndex, commaIndex)
-                        nikList.add(nikValue)
-
-                        // Move position for next search
-                        currentIndex = commaIndex + 1
-                    }
-
-                    // Join all NIK values with commas
-                    val nikValues = nikList.joinToString(",")
-                    AppLogger.d("modifiedParsedData?.tph1 ${modifiedParsedData?.tph1}")
-                    // Log and store the result
-                    AppLogger.d("Extracted NIK values: $nikValues")
-                    globalPemuatNik = nikValues
+                    AppLogger.d(nikValues.toString())
                     globalRegional = tphData?.regional ?: ""
                     globalWilayah = tphData?.wilayah ?: ""
                     globalCompany = tphData?.company ?: 0
                     globalDept = tphData?.dept ?: 0
                     globalDivisi = tphData?.divisi ?: 0
-                    globalBlokId = concatenatedIds
+                    globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
                     globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: "-"

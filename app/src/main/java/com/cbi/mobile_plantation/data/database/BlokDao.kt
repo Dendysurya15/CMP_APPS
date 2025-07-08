@@ -40,7 +40,7 @@ abstract class BlokDao {
     @Query(
         """
     SELECT * FROM blok
-    WHERE id IN (:idListBlok)
+    WHERE id_ppro IN (:idListBlok)
     
     """
     )

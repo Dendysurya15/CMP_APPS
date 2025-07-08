@@ -1116,8 +1116,8 @@ class AppRepository(context: Context) {
 
             // Group by block and sum janjang values
             tphModels
-                .filter { it.id != null && it.blok != null }
-                .groupBy { it.blok!! }
+                .filter { it.id != null && it.blok_ppro != null }
+                .groupBy { it.blok_ppro!! }
                 .mapValues { (_, tphsInBlock) ->
                     // Sum janjang values for each TPH in this block
                     tphsInBlock

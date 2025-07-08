@@ -2190,6 +2190,10 @@ class HomePageActivity : AppCompatActivity() {
                             // Only include items that are not yet zipped
                             isZipped == 0
                         }
+
+                        globalPanenIds = unzippedPanenData.mapNotNull { item ->
+                            item["id"] as? Int
+                        }
                     }
 
                     if (espbList.isNotEmpty()) {
@@ -2351,27 +2355,31 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                 }
 
-                                // Store as a single entry
+                                unzippedESPBData = mappedESPBData.filter { item ->
+                                    // Get the ID
+                                    val id = item["id"] as? Int ?: 0
+
+                                    // Check if this item has dataIsZipped = 0 in the original data
+                                    val original = espbList.find { it.id == id }
+                                    val isZipped = original?.dataIsZipped ?: 0
+
+                                    // Only include items that are not yet zipped
+                                    isZipped == 0
+                                }
+
+                                globalESPBIds = unzippedESPBData.mapNotNull { item ->
+                                    item["id"] as? Int
+                                }
+
+
                                 combinedUploadData[AppUtils.DatabaseTables.ESPB] =
                                     mapOf(
                                         "data" to espbJson,
                                         "filename" to "espb_data.json",
-                                        "ids" to espbIds
+                                        "ids" to globalESPBIds
                                     )
                             }
 
-
-                            unzippedESPBData = mappedESPBData.filter { item ->
-                                // Get the ID
-                                val id = item["id"] as? Int ?: 0
-
-                                // Check if this item has dataIsZipped = 0 in the original data
-                                val original = espbList.find { it.id == id }
-                                val isZipped = original?.dataIsZipped ?: 0
-
-                                // Only include items that are not yet zipped
-                                isZipped == 0
-                            }
                         } else {
                             AppLogger.d("No ESPB data with status_upload == 0 to upload")
                             // Initialize empty arrays if no data to upload
@@ -3201,15 +3209,6 @@ class HomePageActivity : AppCompatActivity() {
                             // Extract all IDs for tracking
                             val absensiIds = absensiToUpload.map { it.absensi.id }
 
-                            // Store as a single entry
-                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
-                                mapOf(
-                                    "data" to absensiJson,
-                                    "filename" to "absensi_data.json",
-                                    "ids" to absensiIds
-                                )
-
-                            // Keep track of which records have been processed for zipping
                             unzippedAbsensiData = restructuredData.filter { item ->
                                 // Get the kemandoran_id from the current item
                                 val singleKemandoranId =
@@ -3230,7 +3229,18 @@ class HomePageActivity : AppCompatActivity() {
                                 notYetZipped
                             }
 
-                            globalAbsensiIds = absensiIds
+                            // Extract IDs from items that match the unzippedAbsensiData criteria
+                            globalAbsensiIds = absensiList.filter { absensiRelation ->
+                                absensiRelation.absensi.status_upload == 0 &&
+                                        absensiRelation.absensi.dataIsZipped == 0
+                            }.map { it.absensi.id }
+
+                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
+                                mapOf(
+                                    "data" to absensiJson,
+                                    "filename" to "absensi_data.json",
+                                    "ids" to globalAbsensiIds
+                                )
                         } else {
                             globalAbsensiIds = emptyList()
                             unzippedAbsensiData = emptyList()
