@@ -57,6 +57,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import retrofit2.Response
 import java.io.File
+import java.lang.reflect.Parameter
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -94,6 +95,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _jenisTPHStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val jenisTPHStatus: StateFlow<Result<Boolean>> = _jenisTPHStatus.asStateFlow()
+
+    private val _parameterStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
+    val parameterStatus: StateFlow<Result<Boolean>> = _parameterStatus.asStateFlow()
 
     private val _blokStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val blokStatus: StateFlow<Result<Boolean>> = _blokStatus.asStateFlow()
@@ -268,6 +272,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.updateOrInsertJenisTPH(jenisTPH)
+                _jenisTPHStatus.value = Result.success(true)
+            } catch (e: Exception) {
+                _jenisTPHStatus.value = Result.failure(e)
+            }
+        }
+
+    fun updateOrInsertParameter(jenisTPH: List<ParameterModel>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.updateOrInsertParameter(jenisTPH)
                 _jenisTPHStatus.value = Result.success(true)
             } catch (e: Exception) {
                 _jenisTPHStatus.value = Result.failure(e)
@@ -519,6 +533,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             val dataList = try {
                 when (dataset) {
                     AppUtils.DatasetNames.tph -> parseTPHJsonToList(jsonContent) as List<T>
+                    AppUtils.DatasetNames.parameter -> parseParameter(jsonContent) as List<T>
                     else -> parseStructuredJsonToList(jsonContent, modelClass)
                 }
             } catch (e: Exception) {
@@ -585,9 +600,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 prefManager.setEstateLastModified(estateAbbr, lastModifiedTimestamp)
                             }
                         } else {
-                            // For regular downloads, store the global timestamp
-
-                            AppLogger.d("gas bro")
                             prefManager.lastModifiedDatasetTPH = lastModifiedTimestamp
                         }
                     }
@@ -2817,6 +2829,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 AppLogger.d(modifiedRequest.toString())
 
+                AppLogger.d("klasdjfkljaslfk")
                 try {
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
@@ -3028,6 +3041,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 ?: ""
                                                         )
 
+                                                    AppUtils.DatasetNames.parameter -> hasShownError = processDataset(
+                                                        jsonContent = jsonContent,
+                                                        dataset = request.dataset,
+                                                        modelClass = ParameterModel::class.java,
+                                                        results = results,
+                                                        response = response,
+                                                        updateOperation = ::updateOrInsertParameter,
+                                                        statusFlow = parameterStatus, // You'll need to create this or use existing one
+                                                        hasShownError = hasShownError,
+                                                        lastModifiedTimestamp = lastModified ?: ""
+                                                    )
+
                                                     else -> {
 
                                                         results[request.dataset] =
@@ -3072,6 +3097,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             }
                             else if (contentType?.contains("application/json") == true) {
 
+
+                                AppLogger.d("masuk sini gess")
                                 Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =
                                     response.body()?.string() ?: "Empty Response"
@@ -3135,7 +3162,48 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
                                     }
 
-                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                                    try {
+                                        // Use your existing parseParameter function
+                                        val parameterList = parseParameter(responseBodyString)
+
+                                        Log.d("DownloadResponse", "Parsed ${parameterList.size} parameter records")
+
+                                        // Update status to storing
+                                        results[request.dataset] = Resource.Storing(request.dataset)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Store the data using your existing repository method
+                                        updateOrInsertParameter(parameterList).join()
+
+                                        // Check if parameter status flow exists, if not create one or use a generic approach
+                                        // Assuming you have parameterStatus flow, if not you can create it or use a different approach
+                                        if (parameterStatus.value.isSuccess) {
+                                            results[request.dataset] = Resource.Success(response)
+                                            prefManager!!.addDataset(request.dataset)
+
+                                            // Store last modified timestamp if available
+//                                            lastModified?.let {
+//                                                prefManager.lastModifiedDatasetParameter = it
+//                                            }
+                                        } else {
+                                            val error = parameterStatus.value.exceptionOrNull()
+                                            throw error ?: Exception("Unknown database error")
+                                        }
+
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                    } catch (e: Exception) {
+                                        Log.e("DownloadResponse", "Error processing parameter data: ${e.message}")
+                                        if (!hasShownError) {
+                                            results[request.dataset] = Resource.Error("Error processing parameter data: ${e.message}")
+                                            hasShownError = true
+                                        }
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
 

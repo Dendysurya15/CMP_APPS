@@ -5856,6 +5856,8 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.d("masuk klo gess")
                     startDownloadsV2(filteredRequests, previewData, titleDialog)
                 } else {
+
+                    AppLogger.d("masuk gesssssss sdfasdf")
                     dialog.show()
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
                 }
@@ -6002,6 +6004,15 @@ class HomePageActivity : AppCompatActivity() {
                 )
             )
         } else {
+
+            datasets.add(
+                DatasetRequest(
+                    regional = null,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.parameter
+                ),
+            )
+
             datasets.add(
                 DatasetRequest(
                     estate = estateId,
