@@ -5856,8 +5856,6 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.d("masuk klo gess")
                     startDownloadsV2(filteredRequests, previewData, titleDialog)
                 } else {
-
-                    AppLogger.d("masuk gesssssss sdfasdf")
                     dialog.show()
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
                 }
@@ -5904,6 +5902,20 @@ class HomePageActivity : AppCompatActivity() {
         val isMandorPanen =
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true)
 
+        if (isTriggerFeatureInspection && !isKeraniPanen) {
+            AppLogger.d("Inspection triggered - downloading only parameter dataset")
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
+            return datasets
+        }
+
+        // Rest of your existing code continues normally...
         if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
             // Get all estate timestamps directly from prefManager
             val estateTimestamps = prefManager!!.getMasterTPHEstateLastModifiedMap()
@@ -5937,19 +5949,6 @@ class HomePageActivity : AppCompatActivity() {
             } else {
                 AppLogger.d("No estate timestamps found to process")
             }
-        }
-
-
-        if (isTriggerFeatureInspection && !isKeraniPanen) {
-            AppLogger.d(isTriggerFeatureInspection.toString())
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-                )
-            )
         }
 
         // Add sinkronisasiRestan dataset for Mandor1 and Asisten when sync button triggered
@@ -6004,15 +6003,6 @@ class HomePageActivity : AppCompatActivity() {
                 )
             )
         } else {
-
-            datasets.add(
-                DatasetRequest(
-                    regional = null,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.parameter
-                ),
-            )
-
             datasets.add(
                 DatasetRequest(
                     estate = estateId,

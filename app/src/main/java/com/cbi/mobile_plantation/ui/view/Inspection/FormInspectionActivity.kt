@@ -145,6 +145,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     data class SummaryItem(val title: String, val value: String)
     data class Location(val lat: Double = 0.0, val lon: Double = 0.0)
+
     private var afdelingNameUser: String? = null
     private lateinit var alertCardScanRadius: MaterialCardView
     private lateinit var alertTvScannedRadius: TextView
@@ -230,12 +231,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var isTenthTrees = false
     private var isSnackbarShown = false
     private var locationEnable: Boolean = false
-
+    private var isNavigationForced = false
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private var hasInspectionStarted = false
     private var divisiList: List<TPHNewModel> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
-    private var tphList: List<PanenEntityWithRelations> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
 
@@ -615,8 +615,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         })
 
 
-
-
     }
 
     // Helper function to check if any data exists
@@ -633,7 +631,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 komentarInTPH != null || jumBrdTglPath != 0 || jumBuahTglPath != 0 || selectedJalurMasuk != ""
     }
 
-    private fun hideResultScan(){
+    private fun hideResultScan() {
         selectedPemanenAdapter.clearAllWorkers()
         titlePemanenInspeksi.visibility = View.GONE
         descPemanenInspeksi.visibility = View.GONE
@@ -694,7 +692,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         val editTextLayouts = listOf(R.id.lyBaris1Inspect, R.id.lyBaris2Inspect)
         editTextLayouts.forEach { layoutId ->
             findViewById<View>(layoutId)?.findViewById<EditText>(R.id.etHomeMarkerTPH)?.setText("")
-        }    }
+        }
+    }
 
     private fun setupSelectionButtons() {
         btnMulaiDariTPH.setOnClickListener {
@@ -728,12 +727,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
     }
+
     private fun showInfoBlokScreen() {
         clInfoBlokSection.visibility = View.VISIBLE
         fabPhotoInfoBlok.visibility = View.VISIBLE
         clFormInspection.visibility = View.GONE
         clSummaryInspection.visibility = View.GONE
     }
+
     private fun showFormInspectionScreen() {
 
         if (!hasInspectionStarted) {
@@ -1009,7 +1010,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
             val photoValue = pokokData?.photo ?: ""
-            val emptyTreeValue = pokokData?.emptyTree ?: 0
 
             val ripeValue = pokokData?.ripe ?: 0
             val buahM1Value = pokokData?.buahM1 ?: 0
@@ -1055,28 +1055,12 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             pokokData?.let {
-                val shouldTrackIssue =
-                    formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
-                        currentPokok,
-                        lat,
-                        lon
-                    )
-                val issueKey = currentPokok.toString()
-
-//                if (shouldTrackIssue) {
-//                    trackingLocation[issueKey] = Location(lat ?: 0.0, lon ?: 0.0)
-//                    AppLogger.d("Adding issue location for pokok $currentPokok: lat=$lat, lon=$lon")
-//                } else {
-//                    if (trackingLocation.containsKey(issueKey)) {
-//                        trackingLocation.remove(issueKey)
-//                        AppLogger.d("Removing issue location for pokok $currentPokok")
-//                    } else {
-//
-//                    }
-//                }
+                formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                    currentPokok,
+                    lat,
+                    lon
+                )
             }
-
-
 
             if (nextPokok <= totalPokok) {
                 lifecycleScope.launch {
@@ -1112,11 +1096,44 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         fabPrevFormAncak.setOnClickListener {
-            // Force save current page data before navigation
-
+            val currentPokok = formAncakViewModel.currentPage.value ?: 1
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val prevPage = currentPage - 1
+            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+            val pokokData = formData[currentPokok]
+            val ripeValue = pokokData?.ripe ?: 0
+            val buahM1Value = pokokData?.buahM1 ?: 0
+            val buahM2Value = pokokData?.buahM2 ?: 0
+            val brdKtpValue = pokokData?.brdKtp ?: 0
+            val hasFindings = (ripeValue > 0) ||
+                    (buahM1Value > 0) ||
+                    (buahM2Value > 0) ||
+                    (brdKtpValue > 50)
+            pokokData?.let {
+                formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                    currentPokok,
+                    lat,
+                    lon
+                )
+            }
+
+            val photoValue = pokokData?.photo ?: ""
+            val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
+
+            if (hasFindings && !hasValidPhoto) {
+                vibrate(500)
+                showViewPhotoBottomSheet(null, isInTPH)
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
 
             if (prevPage >= 1) {
                 lifecycleScope.launch {
@@ -1372,17 +1389,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun createPageChangeCallback(): ViewPager2.OnPageChangeCallback {
-        return object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageScrollStateChanged(state: Int) {
-                if (state == ViewPager2.SCROLL_STATE_IDLE) {
-                    scrollToTopOfFormAncak()
-                    loadingDialog.dismiss()
-                    vpFormAncak.unregisterOnPageChangeCallback(this)
-                }
-            }
-        }
-    }
 
     // Function to force scroll to top of FormAncakFragment
     private fun scrollToTopOfFormAncak() {
@@ -1397,8 +1403,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("SetTextI18n", "InflateParams")
     private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null) {
-
-        AppLogger.d("a;lskdflkas;dfkl")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -1682,7 +1686,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
             "$limitedKomentar\n$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
         } else {
-            val kondisi = if (selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+            val kondisi =
+                if (selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
             val limitedComment = if ((data.comment?.length ?: 0) > 250) {
                 "${data.comment?.substring(0, 250)}..."
             } else {
@@ -1870,34 +1875,59 @@ open class FormInspectionActivity : AppCompatActivity(),
                 formAncakViewModel.clearValidation()
             }, 200)
 
-            val currentPage = formAncakViewModel.currentPage.value ?: 1
-            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-            val pageData = formData[currentPage]
-            val emptyTreeValue = pageData?.emptyTree ?: 0
-            val photoValue = pageData?.photo ?: ""
-
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
-            // Only validate when clicking Summary
-            if (item.itemId == R.id.navMenuSummaryInspect) {
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
+            if (activeBottomNavId == R.id.navMenuAncakInspect) {
+                val currentPokok = formAncakViewModel.currentPage.value ?: 1
+                val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+                val pokokData = formData[currentPokok]
+                val photoValue = pokokData?.photo ?: ""
 
-                    // Navigate to Info Blok tab when validation fails
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
-                    }, 100)
+                // If we have pokok data, check if photo is required
+                if (pokokData != null) {
+                    val ripeValue = pokokData.ripe ?: 0
+                    val buahM1Value = pokokData.buahM1 ?: 0
+                    val buahM2Value = pokokData.buahM2 ?: 0
+                    val brdKtpValue = pokokData.brdKtp ?: 0
 
-                    return@setOnItemSelectedListener false
+                    // Check if photo is required based on findings
+                    val hasFindings = (ripeValue > 0) || (buahM1Value > 0) || (buahM2Value > 0) || (brdKtpValue > 50)
+                    val hasValidPhoto = photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
+
+                    if (hasFindings && !hasValidPhoto) {
+                        vibrate(500)
+                        showViewPhotoBottomSheet(null, isInTPH)
+                        AlertDialogUtility.withSingleAction(
+                            this,
+                            stringXML(R.string.al_back),
+                            stringXML(R.string.al_data_not_completed),
+                            "Mohon dapat mengambil foto temuan terlebih dahulu sebelum berpindah halaman!",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) {}
+                        return@setOnItemSelectedListener false
+                    }
+
+                    if (hasFindings){
+                        formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                            currentPokok,
+                            lat,
+                            lon
+                        )
+                    }
                 }
+            }
+
+            if (!validateAndShowErrors()) {
+                vibrate(500)
+                return@setOnItemSelectedListener false
             }
 
             loadingDialog.show()
             loadingDialog.setMessage("Loading data...")
 
             lifecycleScope.launch {
-
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
@@ -2433,7 +2463,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         bottomSheetDialog.setContentView(view)
-1
+        1
         // Set bottom sheet height to 80% of screen height and disable drag-to-dismiss
         bottomSheetDialog.setOnShowListener { dialog ->
             val bottomSheet =
@@ -2792,7 +2822,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             )
 
             val categoryMap = when (category) {
-                "priority" -> listRadioItems["HighOrLow"]
                 "harvestTree" -> listRadioItems["YesOrNo"]
                 "neatPelepah" -> listRadioItems["NeatOrNot"]
                 "pelepahSengkleh" -> listRadioItems["PelepahType"]
@@ -2804,16 +2833,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             return result
         }
 
-        // Show radio button fields if they have valid values (> 0)
-        if (pageData.priority > 0) {
-            llDetailsList.addView(
-                createDetailRow(
-                    "Prioritas",
-                    ": ${getRadioText("priority", pageData.priority)}"
-                )
-            )
-            hasData = true
-        }
 
         if (pageData.harvestTree > 0) {
             llDetailsList.addView(
@@ -3287,9 +3306,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                     if (id != null && lat != null && lon != null) {
                                         // Find all panen records that match this TPH ID
-                                        val matchingPanenList = panenTPH.filter { panenWithRelationship ->
-                                            panenWithRelationship.panen.tph_id?.toIntOrNull() == id
-                                        }
+                                        val matchingPanenList =
+                                            panenTPH.filter { panenWithRelationship ->
+                                                panenWithRelationship.panen.tph_id?.toIntOrNull() == id
+                                            }
 
                                         if (matchingPanenList.isNotEmpty()) {
                                             AppLogger.d("TPH ID $id has ${matchingPanenList.size} matching panen records")
@@ -3487,6 +3507,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         selectedIdPanenByScan = firstPanen?.id ?: 0
                         selectedTPHIdByScan = firstPanen?.tph_id?.toIntOrNull() ?: 0
+
+
+                        AppLogger.d("firstPanen $firstPanen")
+                        AppLogger.d("selectedTPHIdByScan $selectedTPHIdByScan")
                         selectedEstateByScan = firstTph?.dept_abbr ?: ""
                         selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
                         selectedBlokByScan = firstTph?.blok_kode ?: ""
@@ -3794,9 +3818,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
-        val requiresPhotos = jumBuahTglPath > 0 || jumBrdTglPath > 50
+        if (photoInTPH == null) {
 
-        if (requiresPhotos && photoInTPH == null) {
             isValid = false
             showViewPhotoBottomSheet(null, isInTPH)
             errorMessages.add("Foto di TPH wajib")
@@ -3839,7 +3862,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     InputType.RADIO -> {
                         when (layout.id) {
-//                            R.id.lyInspectionType -> selectedInspeksiValue.isEmpty()
                             R.id.lyConditionType -> selectedKondisiValue.isEmpty()
                             else -> false
                         }

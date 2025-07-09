@@ -16,7 +16,6 @@ class FormAncakViewModel : ViewModel() {
     data class PageData(
         val pokokNumber: Int = 0,
         val emptyTree: Int = 0,
-        val priority: Int = 0,
         val harvestTree: Int = 0,
         val neatPelepah: Int = 0,
         val pelepahSengkleh: Int = 0,
@@ -166,10 +165,6 @@ class FormAncakViewModel : ViewModel() {
         if (data?.emptyTree == 1) {
             AppLogger.d("emptyTree == 1, validating other fields...")
 
-            if (data?.priority == 0) {
-                errors[R.id.lyPrioritasInspect] = "Prioritas wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: priority == 0")
-            }
 
             if (data?.harvestTree == 0) {
                 errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"

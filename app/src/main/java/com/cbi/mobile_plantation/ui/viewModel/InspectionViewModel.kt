@@ -179,7 +179,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val inspectionDetail = InspectionDetailModel(
                     id_inspeksi = inspectionId,
                     no_pokok = page,
-                    prioritas = pageData?.priority ?: 0,
+                    prioritas =  0,
                     pokok_panen = pageData?.harvestTree ?: 0,
                     susunan_pelepah = pageData?.neatPelepah ?: 0,
                     pelepah_sengkleh = pageData?.pelepahSengkleh ?: 0,

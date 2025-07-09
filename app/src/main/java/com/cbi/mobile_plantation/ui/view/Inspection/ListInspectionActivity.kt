@@ -98,18 +98,11 @@ class ListInspectionActivity : AppCompatActivity() {
     private lateinit var tableHeader: View
     private lateinit var checkBoxHeader: CheckBox
     private lateinit var loadingDialog: LoadingDialog
-    private lateinit var cardTersimpan: MaterialCardView
-    private lateinit var cardTerupload: MaterialCardView
-    private lateinit var counterTersimpan: TextView
-    private lateinit var counterTerupload: TextView
     private lateinit var tvEmptyState: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabDelListInspect: FloatingActionButton
     private var globalFormattedDate: String = ""
     private lateinit var inspectionViewModel: InspectionViewModel
-    private lateinit var filterSection: LinearLayout
-    private lateinit var filterName: TextView
-    private lateinit var removeFilter: ImageView
     private val selectedPathIds = mutableListOf<String>()
     private lateinit var filterAllData: CheckBox
     private var selectedDay: Int = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)

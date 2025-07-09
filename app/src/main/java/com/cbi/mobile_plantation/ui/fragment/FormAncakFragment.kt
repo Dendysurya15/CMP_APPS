@@ -59,14 +59,12 @@ class FormAncakFragment : Fragment() {
             "2" to "Tidak"
         ),
         "NeatOrNot" to mapOf(
-            "1" to "Rapi",
-            "2" to "Tidak Rapi"
+            "1" to "Standar",
+            "2" to "Tidak Standar"
         ),
         "PelepahType" to mapOf(
-            "1" to "Alami",
-            "2" to "Buatan",
-            "3" to "Kering",
-            "4" to "Tidak ada"
+            "1" to "Ada",
+            "2" to "Tidak ada"
         ),
         "PruningType" to mapOf(
             "1" to "Standard",
@@ -148,7 +146,6 @@ class FormAncakFragment : Fragment() {
 
     private fun setupAllInputs() {
         val itemListMapping = mapOf(
-            R.id.lyPrioritasInspect to "HighOrLow",
             R.id.lyExistsTreeInspect to "YesOrNoOrTitikKosong",
             R.id.lyNeatPelepahInspect to "NeatOrNot",
             R.id.lyPelepahSengklehInspect to "PelepahType",
@@ -163,13 +160,7 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(emptyTree = value) },
                 { it.emptyTree }
             ),
-            InputMapping(
-                R.id.lyPrioritasInspect,
-                "Prioritas?",
-                InputType.RADIO,
-                { currentData, value -> currentData.copy(priority = value) },
-                { it.priority }
-            ),
+
             InputMapping(
                 R.id.lyHarvestTreeInspect,
                 "Pokok Dipanen?",

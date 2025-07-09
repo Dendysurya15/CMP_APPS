@@ -79,7 +79,6 @@
         android:layout_height="match_parent"
         android:visibility="gone">
 
-        <!-- Header inside main content wrapper -->
         <include
             android:id="@+id/headerFormInspection"
             layout="@layout/header_feature_layout"
