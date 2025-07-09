@@ -424,10 +424,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang mengupload data ke server, harap tunggu",
                                     true
                                 )
-//                                weightBridgeViewModel.uploadESPBKraniTimbang(
-//                                    itemsToUpload,
-//                                    globalIdEspb
-//                                )
+                                AppLogger.d("test")
+                                weightBridgeViewModel.uploadESPBKraniTimbang(
+                                    itemsToUpload,
+                                    globalIdEspb
+                                )
 
                                 val processedEndpoints = mutableSetOf<String>()
 
