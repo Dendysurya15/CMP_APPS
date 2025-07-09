@@ -20,6 +20,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -166,175 +167,25 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             )
         bottomSheetDialog.setContentView(bottomSheetView)
 
-
         val btnSaveUploadESPB = bottomSheetView.findViewById<Button>(R.id.btnSaveUploadeSPB)
 
         btnSaveUploadESPB.setOnClickListener {
-
-            // Set up observer for duplicate check result FIRST
-            weightBridgeViewModel.tphDuplicateResult.observeOnce(this@ScanWeighBridgeActivity) { duplicateResponse ->
-                if (duplicateResponse?.status == "success" && !duplicateResponse.duplicates.isNullOrEmpty()) {
-                    lifecycleScope.launch {
-                        try {
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Mengambil detail data duplikat...", true)
-
-                            val duplicateDetails = mutableListOf<String>()
-                            val combinationCounts = mutableMapOf<String, Int>()
-
-                            for (duplicate in duplicateResponse.duplicates) {
-                                try {
-                                    val tphBlokInfo =
-                                        panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
-                                    if (tphBlokInfo != null) {
-                                        val combinationKey =
-                                            "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
-                                        combinationCounts[combinationKey] =
-                                            (combinationCounts[combinationKey] ?: 0) + 1
-                                        AppLogger.d("Combination: $combinationKey, Count: ${combinationCounts[combinationKey]}")
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error in first pass: ${e.message}")
-                                }
-                            }
-
-                            AppLogger.d("Final combination counts: $combinationCounts")
-
-// Second pass - format the details
-                            for (duplicate in duplicateResponse.duplicates) {
-                                try {
-                                    val tphBlokInfo =
-                                        panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
-                                    if (tphBlokInfo != null) {
-                                        val combinationKey =
-                                            "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
-                                        val count = combinationCounts[combinationKey] ?: 1
-
-                                        AppLogger.d("Processing: $combinationKey, Count: $count")
-
-                                        // Format the datetime to Indonesian format
-                                        val formattedDate = try {
-                                            val originalDate = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            ).parse(duplicate.datetime)
-                                            val indonesianDateFormat = SimpleDateFormat(
-                                                "d MMMM yyyy HH:mm:ss",
-                                                Locale("id", "ID")
-                                            )
-                                            indonesianDateFormat.format(originalDate!!)
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Date parsing error: ${e.message}")
-                                            duplicate.datetime // Fallback to original if parsing fails
-                                        }
-
-                                        val formattedDetail = if (count > 1) {
-                                            // Same blokKode and nomor appears multiple times - show date
-                                            AppLogger.d("Showing date for $combinationKey")
-                                            "• ${tphBlokInfo.blokKode} - Nomor ${tphBlokInfo.tphNomor} ($formattedDate)"
-                                        } else {
-                                            // Unique blokKode and nomor - don't show date
-                                            AppLogger.d("Not showing date for $combinationKey")
-                                            "• ${tphBlokInfo.blokKode} - Nomor ${tphBlokInfo.tphNomor}"
-                                        }
-
-                                        AppLogger.d("Formatted detail: $formattedDetail")
-                                        duplicateDetails.add(formattedDetail)
-                                    } else {
-                                        AppLogger.d("TPH info is null for ID: ${duplicate.idTph}")
-                                        // Fallback if TPH info not found
-                                        val formattedDetail =
-                                            "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
-                                        duplicateDetails.add(formattedDetail)
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
-                                    val formattedDetail =
-                                        "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
-                                    duplicateDetails.add(formattedDetail)
-                                }
-                            }
-
-                            AppLogger.d("Final duplicate details: $duplicateDetails")
-                            val duplicateListText = duplicateDetails.joinToString("\n")
-                            loadingDialog.dismiss()
-
-                            val duplicateCount = duplicateResponse.duplicates.size
-
-                            val errorMessage =
-                                "Ditemukan $duplicateCount data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
-
-                            AlertDialogUtility.withTwoActions(
-                                this@ScanWeighBridgeActivity,
-                                "Lanjut Simpan & Upload E-SPB",
-                                "Peringatan Data Duplikat",
-                                errorMessage,
-                                "warning.json",
-                                function = {
-                                    saveAndUplaodESPB()
-                                    btnSaveUploadESPB.isEnabled = true
-                                },
-                                cancelFunction = {
-                                    // Re-enable button and resume scanning
-                                    btnSaveUploadESPB.isEnabled = true
-                                    isScanning = true
-                                    resumeScanner()
-                                }
-                            )
-                            AppLogger.d("Duplicates found - blocking save with detailed info")
-
-                        } catch (e: Exception) {
-                            loadingDialog.dismiss()
-                            AppLogger.e("Error processing duplicate details: ${e.message}")
-
-                            // Fallback to simple duplicate message
-                            val duplicateCount = duplicateResponse.duplicates.size
-                            val firstDuplicate = duplicateResponse.duplicates.first()
-
-                            AlertDialogUtility.withSingleAction(
-                                this@ScanWeighBridgeActivity,
-                                "Data Duplikat Ditemukan",
-                                "Peringatan",
-                                "Ditemukan $duplicateCount data duplikat.\n\nDuplikat terakhir: ${firstDuplicate.datetime}\n\nData tidak dapat disimpan karena sudah ada di sistem.",
-                                "warning.json"
-                            ) {
-                                btnSaveUploadESPB.isEnabled = true
-                                isScanning = true
-                                resumeScanner()
-                            }
-                        }
-                    }
-                } else {
-                    // No duplicates - proceed with original save logic
-                    AppLogger.d("No duplicates - allowing save")
-
-                    // Always allow saving to local database regardless of network connection
-                    AlertDialogUtility.withTwoActions(
-                        this,
-                        "Simpan Data",
-                        getString(R.string.confirmation_dialog_title),
-                        getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
-                        "warning.json",
-                        function = {
-                            saveAndUplaodESPB()
-                            btnSaveUploadESPB.isEnabled = true
-                        },
-                        cancelFunction = {
-                            btnSaveUploadESPB.isEnabled = true
-                            isScanning = true
-                            resumeScanner()
-                        }
-                    )
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Simpan Data",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
+                "warning.json",
+                function = {
+                    saveAndUplaodESPB()
+                    btnSaveUploadESPB.isEnabled = true
+                },
+                cancelFunction = {
+                    btnSaveUploadESPB.isEnabled = true
+                    isScanning = true
+                    resumeScanner()
                 }
-            }
-
-            // Disable button and pause scanning
-            btnSaveUploadESPB.isEnabled = false
-            isScanning = false
-            pauseScanner()
-
-            // The observer is already set up above, so the duplicate check result
-            // from earlier scan will trigger the appropriate action
+            )
         }
 
         bottomSheetView.findViewById<Button>(R.id.btnScanAgain)?.setOnClickListener {
@@ -346,8 +197,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 resumeScanner()
             }
         }
-
     }
+
 
     private fun saveAndUplaodESPB() {
         lifecycleScope.launch(Dispatchers.Main) {
@@ -357,6 +208,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 true
             )
             try {
+
                 val result = withContext(Dispatchers.IO) {
                     weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
                         blok_jjg = globalBlokJjg,
@@ -480,8 +332,18 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     AppUtils.DatabaseTables.ESPB to espbDataList
                                 )
 
-                                // Convert the wrapped data to JSON
                                 val espbJson = Gson().toJson(wrappedEspbData)
+
+                                val wrappedEspbDataCheck = mapOf(
+                                    AppUtils.DatabaseTables.ESPB to espbDataList,
+                                    "check_only" to false
+                                )
+
+                                AppLogger.d("testing")
+
+                                val espbJsonCheckDuplicate = Gson().toJson(wrappedEspbDataCheck)
+                                weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJsonCheckDuplicate)
+
 
                                 val uploadDataList =
                                     mutableListOf<Pair<String, List<Map<String, Any>>>>()
@@ -562,10 +424,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang mengupload data ke server, harap tunggu",
                                     true
                                 )
-                                weightBridgeViewModel.uploadESPBKraniTimbang(
-                                    itemsToUpload,
-                                    globalIdEspb
-                                )
+//                                weightBridgeViewModel.uploadESPBKraniTimbang(
+//                                    itemsToUpload,
+//                                    globalIdEspb
+//                                )
 
                                 val processedEndpoints = mutableSetOf<String>()
 
@@ -946,21 +808,187 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
-
-                    // Trigger the check
+                    // First check ESPB exists
                     weightBridgeViewModel.checkEspbExists(parseResult.noEspb)
                     delay(300)
-                    // Observe the result
+
+                    // Observe the ESPB result
                     weightBridgeViewModel.espbExists.observeOnce(this@ScanWeighBridgeActivity) { existingEspb ->
                         if (existingEspb != null) {
-                            // Duplicate found - show error
+                            // ESPB Duplicate found - show error
                             showDuplicateError(parseResult.noEspb, existingEspb.date_scan!!)
                             loadingDialog.dismiss()
                         } else {
-                            // No duplicate - continue with processing
+                            // No ESPB duplicate - check network before TPH duplicate check
+                            if (AppUtils.isNetworkAvailable(this@ScanWeighBridgeActivity)) {
+                                // Network available - proceed with TPH duplicate check
+                                lifecycleScope.launch {
+                                    try {
+                                        loadingDialog.setMessage("Sedang memeriksa duplikat TPH...", true)
 
+                                        // Get the basic data needed for TPH check
+                                        val basicProcessingResult = withContext(Dispatchers.IO) {
+                                            processBasicQRData(parseResult.jsonStr)
+                                        }
 
-                            continueQRProcessing(parseResult.jsonStr)
+                                        // Create TPH duplicate check data
+                                        val espbData = mapOf(
+                                            "num" to 1,
+                                            "ip" to basicProcessingResult.millIP,
+                                            "id" to 0,
+                                            "regional" to basicProcessingResult.regional,
+                                            "wilayah" to basicProcessingResult.wilayah,
+                                            "company" to basicProcessingResult.company,
+                                            "dept" to basicProcessingResult.dept,
+                                            "divisi" to basicProcessingResult.divisi,
+                                            "blok_id" to basicProcessingResult.blokId,
+                                            "blok_jjg" to basicProcessingResult.blokJjg,
+                                            "jjg" to basicProcessingResult.totalJjg,
+                                            "created_by_id" to (prefManager!!.idUserLogin ?: 0),
+                                            "created_at" to basicProcessingResult.createdAt,
+                                            "pemuat_id" to basicProcessingResult.pemuatId,
+                                            "kemandoran_id" to basicProcessingResult.kemandoranId,
+                                            "pemuat_nik" to basicProcessingResult.pemuatNik,
+                                            "nopol" to basicProcessingResult.nopol,
+                                            "driver" to basicProcessingResult.driver,
+                                            "updated_nama" to prefManager!!.nameUserLogin.toString(),
+                                            "transporter_id" to basicProcessingResult.transporterId,
+                                            "mill_id" to basicProcessingResult.millId,
+                                            "creator_info" to basicProcessingResult.creatorInfo,
+                                            "no_espb" to basicProcessingResult.noESPB,
+                                            "tph0" to basicProcessingResult.tph0,
+                                            "tph1" to basicProcessingResult.tph1,
+                                            "update_info_sp" to basicProcessingResult.updateInfoSP,
+                                            "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity).toString(),
+                                            "jabatan" to prefManager!!.jabatanUserLogin
+                                        )
+
+                                        val espbDataList = listOf(espbData)
+                                        val wrappedEspbData = mapOf(
+                                            AppUtils.DatabaseTables.ESPB to espbDataList,
+                                            "check_only" to true
+                                        )
+
+                                        val espbJson = Gson().toJson(wrappedEspbData)
+                                        AppLogger.d(espbJson)
+                                        weightBridgeViewModel.checkTPHDuplicates(basicProcessingResult.millIP, espbJson)
+                                        delay(100)
+
+                                        // Observe TPH duplicate result
+                                        weightBridgeViewModel.tphDuplicateResult.observeOnce(this@ScanWeighBridgeActivity) { duplicateResponse ->
+                                            if (duplicateResponse?.status == "success" && !duplicateResponse.duplicates.isNullOrEmpty()) {
+
+                                                // TPH duplicates found - show detailed error
+                                                lifecycleScope.launch {
+                                                    try {
+                                                        loadingDialog.setMessage("Mengambil detail data duplikat...", true)
+
+                                                        val duplicateDetails = mutableListOf<String>()
+                                                        val combinationCounts = mutableMapOf<String, Int>()
+
+                                                        // First pass - count combinations
+                                                        for (duplicate in duplicateResponse.duplicates) {
+                                                            try {
+                                                                val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+                                                                if (tphBlokInfo != null) {
+                                                                    val combinationKey = "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
+                                                                    combinationCounts[combinationKey] = (combinationCounts[combinationKey] ?: 0) + 1
+                                                                }
+                                                            } catch (e: Exception) {
+                                                                AppLogger.e("Error in first pass: ${e.message}")
+                                                            }
+                                                        }
+
+                                                        // Second pass - format the details
+                                                        for (duplicate in duplicateResponse.duplicates) {
+                                                            try {
+                                                                val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+                                                                if (tphBlokInfo != null) {
+                                                                    val combinationKey = "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
+                                                                    val count = combinationCounts[combinationKey] ?: 1
+
+                                                                    // Format the datetime to Indonesian format
+                                                                    val formattedDate = try {
+                                                                        val originalDate = SimpleDateFormat(
+                                                                            "yyyy-MM-dd HH:mm:ss",
+                                                                            Locale.getDefault()
+                                                                        ).parse(duplicate.datetime)
+                                                                        val indonesianDateFormat = SimpleDateFormat(
+                                                                            "d MMMM yyyy HH:mm:ss",
+                                                                            Locale("id", "ID")
+                                                                        )
+                                                                        indonesianDateFormat.format(originalDate!!)
+                                                                    } catch (e: Exception) {
+                                                                        AppLogger.e("Date parsing error: ${e.message}")
+                                                                        duplicate.datetime
+                                                                    }
+
+                                                                    val formattedDetail = if (count > 1) {
+                                                                        "• ${tphBlokInfo.blokKode} - TPH ${tphBlokInfo.tphNomor} ($formattedDate)"
+                                                                    } else {
+                                                                        "• ${tphBlokInfo.blokKode} - TPH ${tphBlokInfo.tphNomor}"
+                                                                    }
+
+                                                                    duplicateDetails.add(formattedDetail)
+                                                                } else {
+                                                                    val formattedDetail = "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
+                                                                    duplicateDetails.add(formattedDetail)
+                                                                }
+                                                            } catch (e: Exception) {
+                                                                AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
+                                                                val formattedDetail = "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
+                                                                duplicateDetails.add(formattedDetail)
+                                                            }
+                                                        }
+
+                                                        val duplicateListText = duplicateDetails.joinToString("\n")
+                                                        val duplicateCount = duplicateResponse.duplicates.size
+                                                        val errorMessage = "Ditemukan $duplicateCount data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
+
+                                                        loadingDialog.dismiss()
+                                                        showTPHDuplicateError(errorMessage)
+
+                                                    } catch (e: Exception) {
+                                                        loadingDialog.dismiss()
+                                                        AppLogger.e("Error processing duplicate details: ${e.message}")
+
+                                                        // Fallback to simple duplicate message
+                                                        val duplicateCount = duplicateResponse.duplicates.size
+                                                        val firstDuplicate = duplicateResponse.duplicates.first()
+                                                        val errorMessage = "Ditemukan $duplicateCount data duplikat.\n\nDuplikat terakhir: ${firstDuplicate.datetime}\n\nData tidak dapat disimpan karena sudah ada di sistem."
+                                                        showTPHDuplicateError(errorMessage)
+                                                    }
+                                                }
+                                            } else {
+                                                // No TPH duplicates - continue with full processing
+                                                continueQRProcessing(parseResult.jsonStr)
+                                            }
+                                        }
+
+                                    } catch (e: Exception) {
+                                        loadingDialog.dismiss()
+                                        AppLogger.e("Error in TPH duplicate check: ${e.message}")
+                                        val errorMessage = "Terjadi kesalahan saat memeriksa duplikat: ${e.message}"
+                                        showTPHDuplicateError(errorMessage)
+                                    }
+                                }
+                            } else {
+                                // No network available - show network error
+                                loadingDialog.dismiss()
+                                showBottomSheetWithData(
+                                    parsedData = null,
+                                    distinctDeptAbbr = "-",
+                                    distinctDivisiAbbr = "-",
+                                    formattedBlokList = "-",
+                                    pemuat = "-",
+                                    totalJjgSum = 0,
+                                    millAbbr = "-",
+                                    transporterName = "-",
+                                    createAtFormatted = "-",
+                                    hasError = true,
+                                    errorMessage = "Pastikan perangkat sudah terhubung dengan jaringan kantor"
+                                )
+                            }
                         }
                     }
                 }
@@ -983,8 +1011,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             "Gagal memproses data QR code. Silakan coba lagi."
 
                         else ->
-                            e.message
-                                ?: "Terjadi kesalahan yang tidak diketahui. Silakan coba lagi."
+                            e.message ?: "Terjadi kesalahan yang tidak diketahui. Silakan coba lagi."
                     }
 
                     showBottomSheetWithData(
@@ -1015,7 +1042,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         })
     }
 
-    // Separate function for continuing QR processing after duplicate check
     private fun continueQRProcessing(jsonStr: String) {
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
@@ -1079,7 +1105,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     } ?: emptyList()
 
                     val idBlokList = blokJjgList.map { it.first }
-
                     val idBlokString = idBlokList.joinToString(separator = ",")
 
                     val tphData = withContext(Dispatchers.Main) {
@@ -1146,13 +1171,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     try {
                         // Check if first item exists and has dept_ppro and divisi_ppro
                         val firstBlok = blokData.firstOrNull()
-                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
+                            ?: throw Exception("Terjadi kesalahan. Blok tidak ditemukan.")
 
                         val deptPpro = firstBlok.dept_ppro
-                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
+                            ?: throw Exception("Terjadi kesalahan. Estate tidak ditemukan.")
 
                         val divisiPpro = firstBlok.divisi_ppro
-                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
+                            ?: throw Exception("Terjadi kesalahan. Afdeling tidak ditemukan.")
 
                         // Assign only if we didn't throw any exceptions
                         globalDeptPPRO = deptPpro
@@ -1241,55 +1266,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalUpdateInfoSP = modifiedParsedData?.espb?.update_info_sp ?: "-"
                     globalIpMill = millIP
 
-                    val espbData = mapOf(
-                        "num" to 1, // Using 1 as default since we don't have number++ here
-                        "ip" to globalIpMill,
-                        "id" to 0, // Using 0 as default since we don't have savedItemId here
-                        "regional" to globalRegional,
-                        "wilayah" to globalWilayah,
-                        "company" to globalCompany,
-                        "dept" to globalDept,
-                        "divisi" to globalDivisi,
-                        "blok_id" to globalBlokId,
-                        "blok_jjg" to globalBlokJjg,
-                        "jjg" to globalTotalJjg,
-                        "created_by_id" to (globalCreatedById ?: 0),
-                        "created_at" to globalCreatedAt,
-                        "pemuat_id" to globalPemuatId,
-                        "kemandoran_id" to globalKemandoranId,
-                        "pemuat_nik" to globalPemuatNik,
-                        "nopol" to globalNopol,
-                        "driver" to globalDriver,
-                        "updated_nama" to prefManager!!.nameUserLogin.toString(),
-                        "transporter_id" to (globalTransporterId ?: 0),
-                        "mill_id" to globalMillId,
-                        "creator_info" to globalCreatorInfo,
-                        "no_espb" to globalNoESPB,
-                        "tph0" to globalTph0,
-                        "tph1" to globalTph1,
-                        "update_info_sp" to globalUpdateInfoSP,
-                        "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
-                            .toString(),
-                        "jabatan" to prefManager!!.jabatanUserLogin
-                    )
-
-                    val espbDataList = listOf(espbData)
-
-                    // Wrap the data in a structure as requested
-                    val wrappedEspbData = mapOf(
-                        AppUtils.DatabaseTables.ESPB to espbDataList
-                    )
-
-                    val espbJson = Gson().toJson(wrappedEspbData)
-                    weightBridgeViewModel.checkTPHDuplicates(millIP, espbJson)
-
-                    delay(100)
-
-
+                    // REMOVED TPH DUPLICATE CHECK CODE FROM HERE - IT'S NOW IN processQRResult
 
                     withContext(Dispatchers.Main) {
-
-
                         showBottomSheetWithData(
                             parsedData = modifiedParsedData,
                             distinctDeptAbbr = deptAbbr,
@@ -1331,6 +1310,155 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         }
     }
 
+    data class BasicProcessingResult(
+        val millIP: String,
+        val regional: String,
+        val wilayah: String,
+        val company: Int,
+        val dept: Int,
+        val divisi: Int,
+        val blokId: String,
+        val blokJjg: String,
+        val totalJjg: String,
+        val createdAt: String,
+        val pemuatId: String,
+        val kemandoranId: String,
+        val pemuatNik: String,
+        val nopol: String,
+        val driver: String,
+        val transporterId: Int,
+        val millId: Int,
+        val creatorInfo: String,
+        val noESPB: String,
+        val tph0: String,
+        val tph1: String,
+        val updateInfoSP: String
+    )
+
+    private suspend fun processBasicQRData(jsonStr: String): BasicProcessingResult {
+        val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
+
+        // Create modified parsed data with reconstructed dates if needed
+        var modifiedParsedData = parsedData
+
+        // Check if we have the new format with tgl field
+        if (parsedData?.tgl != null && !parsedData.tph1.isNullOrEmpty()) {
+            try {
+                // Split tph1 entries
+                val tph1Entries = parsedData.tph1.split(";")
+                val reconstructedTph1 = tph1Entries.joinToString(";") { entry ->
+                    val parts = entry.split(",")
+                    if (parts.size >= 3) {
+                        val id = parts[0]
+                        val dateIndex = parts[1]
+                        val time = parts[2]
+                        val restValues = parts.subList(3, parts.size).joinToString(",")
+
+                        // Get the corresponding date from tgl using the dateIndex
+                        val date = parsedData.tgl[dateIndex] ?: ""
+
+                        if (date.isNotEmpty()) {
+                            "$id,$date $time,$restValues"
+                        } else {
+                            entry
+                        }
+                    } else {
+                        entry
+                    }
+                }
+
+                modifiedParsedData = wbQRData(
+                    espb = parsedData.espb,
+                    tph0 = parsedData.tph0,
+                    tph1 = reconstructedTph1,
+                    tgl = parsedData.tgl
+                )
+            } catch (e: Exception) {
+                AppLogger.e("Error reconstructing tph1 dates: ${e.message}")
+            }
+        }
+
+        val blokJjgList = modifiedParsedData?.espb?.blokJjg?.split(";")?.mapNotNull {
+            it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
+                id.toIntOrNull()?.let { it to jjg.toIntOrNull() }
+            }
+        } ?: emptyList()
+
+        val idBlokList = blokJjgList.map { it.first }
+        val idBlokString = idBlokList.joinToString(separator = ",")
+
+        val tphData = withContext(Dispatchers.Main) {
+            val tphDeferred = CompletableDeferred<TPHNewModel?>()
+            val firstBlockId = idBlokList.firstOrNull()
+
+            firstBlockId?.let { blockId ->
+                weightBridgeViewModel.fetchTPHByBlockId(blockId)
+                weightBridgeViewModel.tphData.observe(this@ScanWeighBridgeActivity) { tphModel ->
+                    weightBridgeViewModel.tphData.removeObservers(this@ScanWeighBridgeActivity)
+                    tphDeferred.complete(tphModel)
+                }
+            } ?: tphDeferred.complete(null)
+
+            tphDeferred.await()
+        }
+
+        val blokData = weightBridgeViewModel.getDataByIdInBlok(idBlokList) ?: emptyList()
+        val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
+        val millId = modifiedParsedData?.espb?.millId ?: 0
+        val transporterId = modifiedParsedData?.espb?.transporter ?: 0
+
+        val millData = weightBridgeViewModel.getMillName(millId) ?: emptyList()
+        val millIP = millData.firstOrNull()?.ip_address ?: "-"
+
+        val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
+            nikString.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .joinToString(",")
+        } ?: ""
+
+        return BasicProcessingResult(
+            millIP = millIP,
+            regional = tphData?.regional ?: "",
+            wilayah = tphData?.wilayah ?: "",
+            company = tphData?.company ?: 0,
+            dept = tphData?.dept ?: 0,
+            divisi = tphData?.divisi ?: 0,
+            blokId = idBlokString,
+            blokJjg = modifiedParsedData?.espb?.blokJjg ?: "-",
+            totalJjg = totalJjg.toString(),
+            createdAt = modifiedParsedData?.espb?.createdAt.toString() ?: "-",
+            pemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-",
+            kemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-",
+            pemuatNik = nikValues,
+            nopol = modifiedParsedData?.espb?.nopol ?: "-",
+            driver = modifiedParsedData?.espb?.driver ?: "-",
+            transporterId = transporterId,
+            millId = millId,
+            creatorInfo = modifiedParsedData?.espb?.creatorInfo?.toString() ?: "-",
+            noESPB = modifiedParsedData?.espb?.noEspb ?: "-",
+            tph0 = modifiedParsedData?.tph0 ?: "-",
+            tph1 = modifiedParsedData?.tph1 ?: "-",
+            updateInfoSP = modifiedParsedData?.espb?.update_info_sp ?: "-"
+        )
+    }
+
+    private fun showTPHDuplicateError(errorMessage: String) {
+        showBottomSheetWithData(
+            parsedData = null,
+            distinctDeptAbbr = "-",
+            distinctDivisiAbbr = "-",
+            formattedBlokList = "-",
+            pemuat = "-",
+            totalJjgSum = 0,
+            millAbbr = "-",
+            transporterName = "-",
+            createAtFormatted = "-",
+            hasError = true,
+            errorMessage = errorMessage
+        )
+    }
+
     // Add this method to handle duplicate error display
     private fun showDuplicateError(noEspb: String, createdAt: String) {
         // Format the created_at date to Indonesian format
@@ -1350,6 +1478,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             errorMessage = "ESPB dengan nomor $noEspb sudah pernah dipindai sebelumnya ($formattedDate)"
         )
     }
+
 
     private fun initViewModel() {
         val factory = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
