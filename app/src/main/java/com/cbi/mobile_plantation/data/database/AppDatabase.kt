@@ -24,6 +24,7 @@ import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
 /**
@@ -72,7 +73,8 @@ import com.cbi.mobile_plantation.utils.AppUtils
         HektarPanenEntity::class,
         EstateModel::class,
         AfdelingModel::class,
-        JenisTPHModel::class
+        JenisTPHModel::class,
+        ParameterModel::class,
     ],
     version = 50
 )
@@ -95,6 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun afdelingDao(): AfdelingDao
     abstract fun hektarPanenDao(): HektarPanenDao
     abstract fun jenisTPHDao(): JenisTPHDao
+    abstract fun parameterDao(): ParameterDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {

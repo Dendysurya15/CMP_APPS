@@ -111,6 +111,7 @@ class MainActivity : AppCompatActivity() {
             database.millDao()
             database.uploadCMPDao()
             database.absensiDao()
+            database.parameterDao()
             insertDefaultFlags()
 
             Log.d("Database", "Database and tables initialized successfully")

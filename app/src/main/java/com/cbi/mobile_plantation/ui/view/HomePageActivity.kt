@@ -5960,6 +5960,13 @@ class HomePageActivity : AppCompatActivity() {
                     dataset = AppUtils.DatasetNames.sinkronisasiRestan
                 )
             )
+            datasets.add(
+                DatasetRequest(
+                    regional = null,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.parameter
+                ),
+            )
         }
 
         if (isMandorPanen) {

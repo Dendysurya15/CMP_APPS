@@ -30,6 +30,7 @@ import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.data.repository.DataPanenInspectionRepository
 import com.cbi.mobile_plantation.data.repository.RestanRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
@@ -1022,6 +1023,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
                     } else if(request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen){
                         response = dataPanenInspectionRepository.getDataPanen(request.estate!!, request.afdeling!!)
+                    } else if(request.dataset == AppUtils.DatasetNames.parameter){
+                        response = repository.getParameter()
                     }else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else {
@@ -1634,6 +1637,52 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppLogger.e("Error parsing estate data: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error parsing estate data: ${e.message}"
+                }
+            }
+
+            AppUtils.DatasetNames.parameter -> {
+                try {
+                    // Parsing - update to 60%
+                    progressMap[itemId] = 60
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    val parameterList = parseParameter(responseBodyString)
+                    AppLogger.d("Parsed ${parameterList.size} parameter records")
+
+                    // Update to 75% before database operations
+                    progressMap[itemId] = 75
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    withContext(Dispatchers.IO) {
+                        try {
+                            repository.updateOrInsertParameter(parameterList)
+                            AppLogger.d("Successfully stored parameter data")
+
+                            // Final update - 100%
+                            progressMap[itemId] = 100
+                            _itemProgressMap.postValue(progressMap.toMap())
+
+                            statusMap[itemId] = if (isDownloadDataset) {
+                                AppUtils.UploadStatusUtils.DOWNLOADED
+                            } else {
+                                AppUtils.UploadStatusUtils.UPDATED
+                            }
+                        } catch (e: Exception) {
+                            progressMap[itemId] = 100  // Still show 100% even on error
+                            _itemProgressMap.postValue(progressMap.toMap())
+
+                            AppLogger.e("Error storing parameter data: ${e.message}")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "Error storing parameter data: ${e.message}"
+                        }
+                    }
+                } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    AppLogger.e("Error parsing parameter data: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error parsing parameter data: ${e.message}"
                 }
             }
 
@@ -2745,7 +2794,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppUtils.DatasetNames.kemandoran,
                     AppUtils.DatasetNames.tph,
                     AppUtils.DatasetNames.transporter,
-                    AppUtils.DatasetNames.jenisTPH
+                    AppUtils.DatasetNames.jenisTPH,
+                    AppUtils.DatasetNames.parameter
                 )
                 val datasetName = request.dataset
                 var modifiedRequest = request  // Create a mutable copy of the request
@@ -2779,11 +2829,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
                     else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
-                    } else {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                        response = repository.getParameter()
+                    }else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
 
 
+
+                    AppLogger.d(response.toString())
                     // Get headers
                     val contentType = response.headers()["Content-Type"]
                     val lastModified = response.headers()["Last-Modified-Dataset"]
@@ -3275,121 +3330,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
                                     }
                                 }
-//                                else if (request.dataset == AppUtils.DatasetNames.updateSyncLocalData) {
-//                                    results[request.dataset] = Resource.Loading(0)
-//
-//                                    try {
-//                                        val jsonResponse = Gson().fromJson(
-//                                            responseBodyString,
-//                                            FetchStatusCMPResponse::class.java
-//                                        )
-//
-//                                        viewModelScope.launch(Dispatchers.IO) {
-//                                            val panenIdsToUpdate = mutableListOf<Int>()
-//                                            val espbIdsToUpdate = mutableListOf<Int>()
-//                                            val status =
-//                                                mutableMapOf<String, Int>()  // Store status for batch updates
-//
-//                                            try {
-//                                                val deferredUpdates =
-//                                                    jsonResponse.data.map { item ->
-//
-//                                                        AppLogger.d(item.toString())
-//                                                        async {
-//                                                            try {
-//                                                                // Get table_ids JSON from DB
-//                                                                val tableIdsJson =
-//                                                                    uploadCMPDao.getTableIdsByTrackingId(
-//                                                                        item.id
-//                                                                    ) ?: "{}"
-//                                                                val tableIdsObj = Gson().fromJson(
-//                                                                    tableIdsJson,
-//                                                                    JsonObject::class.java
-//                                                                )
-//
-//                                                                AppLogger.d(tableIdsObj.toString())
-//
-//                                                                tableIdsObj?.keySet()
-//                                                                    ?.forEach { tableName ->
-//                                                                        val ids =
-//                                                                            tableIdsObj.getAsJsonArray(
-//                                                                                tableName
-//                                                                            ).map { it.asInt }
-//
-//                                                                        when (tableName) {
-//                                                                            AppUtils.DatabaseTables.PANEN -> panenIdsToUpdate.addAll(
-//                                                                                ids
-//                                                                            )
-//
-//                                                                            AppUtils.DatabaseTables.ESPB -> espbIdsToUpdate.addAll(
-//                                                                                ids
-//                                                                            )
-//                                                                        }
-//
-//                                                                        status[tableName] =
-//                                                                            item.status
-//                                                                    }
-//
-//                                                                uploadCMPDao.updateStatus(
-//                                                                    item.id.toString(),
-//                                                                    item.nama_file,
-//                                                                    item.status
-//                                                                )
-//                                                            } catch (e: Exception) {
-//                                                                AppLogger.e("Error processing item ${item.id}: ${e.localizedMessage}")
-//                                                            }
-//                                                        }
-//                                                    }
-//
-//                                                deferredUpdates.awaitAll()
-//
-//                                                try {
-//                                                    if (panenIdsToUpdate.isNotEmpty()) {
-//                                                        panenDao.updateDataIsZippedPanen(
-//                                                            panenIdsToUpdate,
-//                                                            status[AppUtils.DatabaseTables.PANEN]
-//                                                                ?: 0
-//                                                        )
-//                                                    }
-//                                                    if (espbIdsToUpdate.isNotEmpty()) {
-//                                                        espbDao.updateDataIsZippedESPB(
-//                                                            espbIdsToUpdate,
-//                                                            status[AppUtils.DatabaseTables.ESPB]
-//                                                                ?: 0
-//                                                        )
-//                                                    }
-//                                                } catch (e: Exception) {
-//                                                    AppLogger.e("Error in batch updates: ${e.localizedMessage}")
-//                                                }
-//
-//                                                withContext(Dispatchers.Main) {
-//                                                    val sortedList = jsonResponse.data
-//                                                        .filter { it.status >= 4 }
-//                                                        .sortedByDescending { it.tanggal_upload }
-//                                                    val message = if (sortedList.isNotEmpty()) {
-//                                                        "Terjadi kesalahan insert di server!\n\n" + sortedList.joinToString(
-//                                                            "\n"
-//                                                        ) { item ->
-//                                                            "• ${item.nama_file} (${item.message})"
-//                                                        }
-//                                                    } else {
-//                                                        "Berhasil sinkronisasi data"
-//                                                    }
-//                                                    results[request.dataset] =
-//                                                        Resource.Success(response, message)
-//                                                    _downloadStatuses.postValue(results.toMap())
-//                                                }
-//
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Error in processing dataset updateSyncLocalData: ${e.localizedMessage}")
-//                                            }
-//                                        }
-//                                    } catch (e: Exception) {
-//                                        AppLogger.e("Error parsing JSON response: ${e.localizedMessage}")
-//                                    }
-//                                } else {
-//                                    results[request.dataset] = Resource.Success(response)
-//                                }
                             } else {
                                 Log.d("DownloadResponse", "Unknown response type: $contentType")
                                 results[request.dataset] =
@@ -3457,6 +3397,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _downloadStatuses.postValue(results.toMap())
             }
         }
+    }
+
+
+    private fun parseParameter(jsonContent: String): List<ParameterModel> {
+        val gson = Gson()
+        val jsonObject = gson.fromJson(jsonContent, JsonObject::class.java)
+        val dataArray = jsonObject.getAsJsonArray("data")
+        return gson.fromJson(
+            dataArray,
+            TypeToken.getParameterized(List::class.java, ParameterModel::class.java).type
+        )
     }
 
 

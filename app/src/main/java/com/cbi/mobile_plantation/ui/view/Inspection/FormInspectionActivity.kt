@@ -1063,17 +1063,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                     )
                 val issueKey = currentPokok.toString()
 
-                if (shouldTrackIssue) {
-                    trackingLocation[issueKey] = Location(lat ?: 0.0, lon ?: 0.0)
-                    AppLogger.d("Adding issue location for pokok $currentPokok: lat=$lat, lon=$lon")
-                } else {
-                    if (trackingLocation.containsKey(issueKey)) {
-                        trackingLocation.remove(issueKey)
-                        AppLogger.d("Removing issue location for pokok $currentPokok")
-                    } else {
-
-                    }
-                }
+//                if (shouldTrackIssue) {
+//                    trackingLocation[issueKey] = Location(lat ?: 0.0, lon ?: 0.0)
+//                    AppLogger.d("Adding issue location for pokok $currentPokok: lat=$lat, lon=$lon")
+//                } else {
+//                    if (trackingLocation.containsKey(issueKey)) {
+//                        trackingLocation.remove(issueKey)
+//                        AppLogger.d("Removing issue location for pokok $currentPokok")
+//                    } else {
+//
+//                    }
+//                }
             }
 
 

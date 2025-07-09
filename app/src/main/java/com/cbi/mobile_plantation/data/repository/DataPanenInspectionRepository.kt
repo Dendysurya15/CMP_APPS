@@ -34,6 +34,7 @@ class DataPanenInspectionRepository(
         val sevenDaysAgo = formatter.format(calendar.time)
 
         AppLogger.d("Date range: $sevenDaysAgo to $yesterday (inclusive, excluding today)")
+        AppLogger.d("askdlfjakljsdfkljas")
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
