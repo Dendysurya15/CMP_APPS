@@ -95,6 +95,7 @@ import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
+import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel.InspectionParameterItem
 import com.cbi.mobile_plantation.ui.viewModel.LocationViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -146,6 +147,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     data class SummaryItem(val title: String, val value: String)
     data class Location(val lat: Double = 0.0, val lon: Double = 0.0)
 
+    private var parameterInspeksi: List<InspectionParameterItem> = emptyList()
     private var afdelingNameUser: String? = null
     private lateinit var alertCardScanRadius: MaterialCardView
     private lateinit var alertTvScannedRadius: TextView
@@ -254,7 +256,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var selectedTPHValue: Int? = null
     private var selectedJalurMasuk: String = ""
 
-    //    private var selectedInspeksiValue: String = ""
     private var selectedKondisiValue: String = ""
 
     private var isInTPH: Boolean = true
@@ -301,6 +302,15 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
     private var isStartFromTPH = true // true = TPH first, false = Pokok first
     private var hasSelectedMode = false
+
+    data class KaryawanInfo(
+        val nik: String,
+        val nama: String,
+        val individualId: String
+    )
+
+    // Add this as a class property
+    private var selectedKaryawanList: List<KaryawanInfo> = emptyList()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -407,6 +417,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         initViewModel()
         initUI()
         setupAutoScanSwitch()
+        setKeyboardVisibilityListener()
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
         estateName = prefManager!!.estateUserLogin
@@ -474,6 +485,22 @@ open class FormInspectionActivity : AppCompatActivity(),
                     delay(100)
                     afdelingNameUser = afdelingNameDeferred.await()
 
+                    val parameterInspeksiDeferred = async {
+                        try {
+                            inspectionViewModel.getParameterInspeksiJson()
+                        } catch (e: Exception) {
+                            AppLogger.e("Parameter loading failed: ${e.message}")
+                            emptyList<InspectionParameterItem>()
+                        }
+                    }
+                    delay(100)
+                    parameterInspeksi = parameterInspeksiDeferred.await()
+
+
+                    if (parameterInspeksi.isEmpty()) {
+                        throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
+                    }
+
 
                     val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
 
@@ -505,7 +532,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 withContext(Dispatchers.Main) {
                     setupLayout()
-                    setKeyboardVisibilityListener()
                     loadingDialog.dismiss()
                 }
             } catch (e: Exception) {
@@ -678,8 +704,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         formAncakViewModel.clearAllData()
 
         val counterMappings = listOf(
-            Triple(R.id.lyBrdTglInspect, "Brondolan Tinggal", ::jumBrdTglPath),
-            Triple(R.id.lyBuahTglInspect, "Buah Tinggal", ::jumBuahTglPath),
+            Triple(
+                R.id.lyBrdTglInspect,
+                AppUtils.kodeInspeksi.brondolanTinggalTPH,
+                ::jumBrdTglPath
+            ),
+            Triple(R.id.lyBuahTglInspect, AppUtils.kodeInspeksi.buahTinggalTPH, ::jumBuahTglPath),
         )
         counterMappings.forEach { (layoutId, labelText, counterVar) ->
             setupPanenWithButtons(layoutId, labelText, counterVar)
@@ -1011,16 +1041,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             val pokokData = formData[currentPokok]
             val photoValue = pokokData?.photo ?: ""
 
-            val ripeValue = pokokData?.ripe ?: 0
-            val buahM1Value = pokokData?.buahM1 ?: 0
-            val buahM2Value = pokokData?.buahM2 ?: 0
-            val brdKtpValue = pokokData?.brdKtp ?: 0
+            val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
+            val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
+            val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
+            val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
 
             // Check if photo is required based on findings
-            val hasFindings = (ripeValue > 0) ||
-                    (buahM1Value > 0) ||
-                    (buahM2Value > 0) ||
-                    (brdKtpValue > 50)
+            val hasFindings = (buahMasakTdkDipotong > 0) ||
+                    (btPiringanGawangan > 0) ||
+                    (btPiringanGawangan > 0) ||
+                    ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
 
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
 
@@ -1102,14 +1132,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             val prevPage = currentPage - 1
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
-            val ripeValue = pokokData?.ripe ?: 0
-            val buahM1Value = pokokData?.buahM1 ?: 0
-            val buahM2Value = pokokData?.buahM2 ?: 0
-            val brdKtpValue = pokokData?.brdKtp ?: 0
-            val hasFindings = (ripeValue > 0) ||
-                    (buahM1Value > 0) ||
-                    (buahM2Value > 0) ||
-                    (brdKtpValue > 50)
+            val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
+            val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
+            val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
+            val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
+            val hasFindings = (buahMasakTdkDipotong > 0) ||
+                    (btPiringanGawangan > 0) ||
+                    (btPiringanGawangan > 0) ||
+                    ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
             pokokData?.let {
                 formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                     currentPokok,
@@ -1269,11 +1299,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 id_panen = selectedIdPanenByScan ?: 0,
                                 date_panen = selectedTanggalPanenByScan!!,
                                 jalur_masuk = selectedJalurMasuk,
-                                brd_tinggal = jumBrdTglPath,
-                                buah_tinggal = jumBuahTglPath,
                                 jenis_kondisi = selectedKondisiValue.toInt(),
-                                baris1 = br1Value.toInt(),
-                                baris2 = if (selectedKondisiValue.toInt() == 1) br2Value.toInt() else null,
+                                baris = "$br1Value,$br2Value",
                                 jml_pkk_inspeksi = totalPokokInspection,
                                 tracking_path = trackingJson.toString(),
                                 latTPH = lat ?: 0.0,
@@ -1299,11 +1326,20 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         "SaveInspection",
                                         "=== Calling saveDataInspectionDetails ==="
                                     )
+
+
                                     val detailResult =
                                         inspectionViewModel.saveDataInspectionDetails(
                                             inspectionId = result.inspectionId.toString(),
                                             formData = formData,
                                             totalPages = totalPages,
+                                            currentDateTime = dateEndInspection,
+                                            currentUserName = userName ?: "",
+                                            currentUserId = userId?.toString() ?: "",
+                                            selectedKaryawanList = selectedKaryawanList,
+                                            jumBrdTglPath = jumBrdTglPath,
+                                            jumBuahTglPath = jumBuahTglPath,
+                                            parameterInspeksi = parameterInspeksi
                                         )
 
                                     Log.d(
@@ -1888,14 +1924,16 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 // If we have pokok data, check if photo is required
                 if (pokokData != null) {
-                    val ripeValue = pokokData.ripe ?: 0
-                    val buahM1Value = pokokData.buahM1 ?: 0
-                    val buahM2Value = pokokData.buahM2 ?: 0
-                    val brdKtpValue = pokokData.brdKtp ?: 0
+                    val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
+                    val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
+                    val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
+                    val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
 
                     // Check if photo is required based on findings
-                    val hasFindings =
-                        (ripeValue > 0) || (buahM1Value > 0) || (buahM2Value > 0) || (brdKtpValue > 50)
+                    val hasFindings = (buahMasakTdkDipotong > 0) ||
+                            (btPiringanGawangan > 0) ||
+                            (btPiringanGawangan > 0) ||
+                            ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
                     val hasValidPhoto = photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
 
                     if (hasFindings && !hasValidPhoto) {
@@ -2101,12 +2139,15 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         val counterMappings = listOf(
-            Triple(R.id.lyBrdTglInspect, "Brondolan Tinggal", ::jumBrdTglPath),
-            Triple(R.id.lyBuahTglInspect, "Buah Tinggal", ::jumBuahTglPath),
+            Triple(
+                R.id.lyBrdTglInspect,
+                AppUtils.kodeInspeksi.brondolanTinggalTPH,
+                ::jumBrdTglPath
+            ),
+            Triple(R.id.lyBuahTglInspect, AppUtils.kodeInspeksi.buahTinggalTPH, ::jumBuahTglPath),
         )
-        counterMappings.forEach { (layoutId, labelText, counterVar) ->
 
-            AppLogger.d("counterVar $counterVar")
+        counterMappings.forEach { (layoutId, labelText, counterVar) ->
             setupPanenWithButtons(layoutId, labelText, counterVar)
         }
 
@@ -2229,26 +2270,25 @@ open class FormInspectionActivity : AppCompatActivity(),
         fun getPathTotals(): Map<String, Int> {
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
 
-            var totalRipe = 0
-            var totalM1 = 0
-            var totalM2 = 0
-            var totalBrondolan = 0
+            var totalbuahMasakTdkDipotong = 0
+            var totalbuahTinggalPirGawangan = 0
+            var totalbrdKtpGawangan = 0
+            var totalbrdKtpPiringanPikulKetiak = 0
 
             formData.values.forEach { pageData ->
                 // Only count values where emptyTree = 1
                 if (pageData.emptyTree == 1) {
-                    totalRipe += pageData.ripe
-                    totalM1 += pageData.buahM1
-                    totalM2 += pageData.buahM2
-                    totalBrondolan += pageData.brdKtp
+                    totalbuahMasakTdkDipotong += pageData.buahMasakTdkDipotong
+                    totalbuahTinggalPirGawangan += pageData.btPiringanGawangan
+                    totalbrdKtpGawangan += pageData.brdKtpGawangan
+                    totalbrdKtpPiringanPikulKetiak += pageData.brdKtpPiringanPikulKetiak
                 }
             }
-
             return mapOf(
-                "ripe" to totalRipe,
-                "m1" to totalM1,
-                "m2" to totalM2,
-                "brondolan" to totalBrondolan
+                "buahMasakTdkDipotong" to totalbuahMasakTdkDipotong,
+                "btPiringanGawangan" to totalbuahTinggalPirGawangan,
+                "brdKtpGawangan" to totalbrdKtpGawangan,
+                "brdKtpPiringanPikulKetiak" to totalbrdKtpPiringanPikulKetiak
             )
         }
 
@@ -2310,11 +2350,15 @@ open class FormInspectionActivity : AppCompatActivity(),
         desJenisKondisi.text = "Jenis Kondisi: $kondisiText"
 
         val desBr1 = findViewById<TextView>(R.id.desBr1)
-        desBr1.text = "Baris Pertama: ${br1Value}"
-
         val desBr2 = findViewById<TextView>(R.id.desBr2)
-        desBr2.text = "Baris Kedua: ${br2Value}"
-        desBr2.visibility = if (selectedKondisiValue.toInt() == 2) View.GONE else View.VISIBLE
+
+        desBr1.text = if (selectedKondisiValue.toInt() == 2) {
+            "Baris: $br1Value"
+        } else {
+            "Baris: $br1Value, $br2Value"
+        }
+
+        desBr2.visibility = View.GONE // Hide second TextView
 
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         val formData = formAncakViewModel.formData.value ?: mutableMapOf()
@@ -2332,18 +2376,27 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Dynamic temuan data
         val temuanDataList = listOf(
             "Temuan di TPH" to listOf(
-                SummaryItem("Brondolan Tinggal", jumBrdTglPath.toString()),
-                SummaryItem("Buah Tinggal", jumBuahTglPath.toString())
+                SummaryItem(AppUtils.kodeInspeksi.brondolanTinggalTPH, jumBrdTglPath.toString()),
+                SummaryItem(AppUtils.kodeInspeksi.buahTinggalTPH, jumBuahTglPath.toString())
             ),
             "Path / Pokok" to listOf(
                 SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
-                SummaryItem("Total Buah Masak Tinggal di Pokok", pathTotals["ripe"].toString()),
-                SummaryItem("Total Buah Mentah disembunyikan (M1)", pathTotals["m1"].toString()),
                 SummaryItem(
-                    "Total Buah Matang Tidak dikeluarkan (M2)",
-                    pathTotals["m2"].toString()
+                    AppUtils.kodeInspeksi.buahMasakTidakDipotong,
+                    pathTotals["buahMasakTdkDipotong"].toString()
                 ),
-                SummaryItem("Total Brondolan Tidak dikutip", pathTotals["brondolan"].toString())
+                SummaryItem(
+                    AppUtils.kodeInspeksi.buahTertinggalPiringan,
+                    pathTotals["btPiringanGawangan"].toString()
+                ),
+                SummaryItem(
+                    AppUtils.kodeInspeksi.brondolanDigawangan,
+                    pathTotals["brdKtpGawangan"].toString()
+                ),
+                SummaryItem(
+                    AppUtils.kodeInspeksi.brondolanTidakDikutip,
+                    pathTotals["brdKtpPiringanPikulKetiak"].toString()
+                )
             )
         )
 
@@ -2682,17 +2735,17 @@ open class FormInspectionActivity : AppCompatActivity(),
         tvPokokNumber.text = "Pokok #$pageNumber"
 
         // Determine if photo is required based on findings
-        val ripeValue = pageData.ripe
-        val buahM1Value = pageData.buahM1
-        val buahM2Value = pageData.buahM2
-        val brdKtpValue = pageData.brdKtp
+        val buahMasakTdkDipotong = pageData.buahMasakTdkDipotong
+        val btPiringanGawangan = pageData.btPiringanGawangan
+        val brdKtpGawangan = pageData.brdKtpGawangan
+        val brdKtpPiringanPikulKetiak = pageData.brdKtpPiringanPikulKetiak
         val emptyTreeValue = pageData.emptyTree
 
         val hasFindings = (emptyTreeValue == 1) ||
-                (ripeValue > 0) ||
-                (buahM1Value > 0) ||
-                (buahM2Value > 0) ||
-                (brdKtpValue > 50)
+                (buahMasakTdkDipotong > 0) ||
+                (btPiringanGawangan > 0) ||
+                (brdKtpGawangan > 0) ||
+                (brdKtpPiringanPikulKetiak > 50)
 
         // Handle photo availability and card visibility based on findings
         if (hasFindings) {
@@ -2810,14 +2863,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                     "2" to "Tidak"
                 ),
                 "NeatOrNot" to mapOf(
-                    "1" to "Rapi",
-                    "2" to "Tidak Rapi"
+                    "1" to "Standar",
+                    "2" to "Tidak Standar"
                 ),
                 "PelepahType" to mapOf(
-                    "1" to "Alami",
-                    "2" to "Buatan",
-                    "3" to "Kering",
-                    "4" to "Tidak ada"
+                    "1" to "Ada",
+                    "2" to "Tidak ada"
                 ),
                 "PruningType" to mapOf(
                     "1" to "Standard",
@@ -2879,28 +2930,46 @@ open class FormInspectionActivity : AppCompatActivity(),
             hasData = true
         }
 
-        // Show numeric fields if they have values > 0
-        if (pageData.ripe > 0) {
-            llDetailsList.addView(createDetailRow("Buah Masak Tinggal", pageData.ripe.toString()))
+// Check if any numeric field has data > 0
+        val hasNumericData = (pageData.buahMasakTdkDipotong > 0) ||
+                (pageData.btPiringanGawangan > 0) ||
+                (pageData.brdKtpGawangan > 0) ||
+                (pageData.brdKtpPiringanPikulKetiak > 0)
+
+        if (hasNumericData) {
+            // Show ALL numeric fields if ANY has data > 0
+            llDetailsList.addView(
+                createDetailRow(
+                    AppUtils.kodeInspeksi.buahMasakTidakDipotong,
+                    pageData.buahMasakTdkDipotong.toString()
+                )
+            )
+
+            llDetailsList.addView(
+                createDetailRow(
+                    AppUtils.kodeInspeksi.buahTertinggalPiringan,
+                    pageData.btPiringanGawangan.toString()
+                )
+            )
+
+            llDetailsList.addView(
+                createDetailRow(
+                    AppUtils.kodeInspeksi.brondolanDigawangan,
+                    pageData.brdKtpGawangan.toString()
+                )
+            )
+
+            llDetailsList.addView(
+                createDetailRow(
+                    AppUtils.kodeInspeksi.brondolanTidakDikutip,
+                    pageData.brdKtpPiringanPikulKetiak.toString()
+                )
+            )
+
             hasData = true
         }
 
-        if (pageData.buahM1 > 0) {
-            llDetailsList.addView(createDetailRow("Buah M1", pageData.buahM1.toString()))
-            hasData = true
-        }
 
-        if (pageData.buahM2 > 0) {
-            llDetailsList.addView(createDetailRow("Buah M2", pageData.buahM2.toString()))
-            hasData = true
-        }
-
-        if (pageData.brdKtp > 0) {
-            llDetailsList.addView(createDetailRow("Brondolan", pageData.brdKtp.toString()))
-            hasData = true
-        }
-
-        // Show empty message if no data
         if (!hasData) {
             val emptyText = TextView(this).apply {
                 text = "Tidak ada temuan"
@@ -3492,6 +3561,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             rvSelectedPemanen.visibility = View.VISIBLE
             selectedPemanenAdapter.setDisplayOnly(true)
             selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
+            selectedKaryawanList = emptyList()
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
 
@@ -3522,7 +3592,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
 
                     val karyawanFormattedSet = mutableSetOf<String>()
-
+                    val karyawanInfoList = mutableListOf<KaryawanInfo>()
                     matchingPanenList.forEach { panenWithRelations ->
                         val panenEntity = panenWithRelations.panen
                         val karyawanNama = panenEntity?.karyawan_nama
@@ -3627,12 +3697,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                             val worker = Worker(individualKaryawanId, formattedName)
                             selectedPemanenAdapter.addWorker(worker)
 
+                            karyawanInfoList.add(
+                                KaryawanInfo(
+                                    nik = selectedNik,
+                                    nama = selectedName,
+                                    individualId = individualKaryawanId
+                                )
+                            )
+
                             AppLogger.d("Auto-added worker: $formattedName, Individual Karyawan ID: $individualKaryawanId")
                         } else {
                             AppLogger.e("Could not find employee data for: $formattedName")
                         }
                     }
 
+                    selectedKaryawanList = karyawanInfoList
                     // Set the description text with bold ancak and Indonesian date
                     val ancakText = if (ancakValue.isNotBlank()) ancakValue else "tidak diketahui"
 

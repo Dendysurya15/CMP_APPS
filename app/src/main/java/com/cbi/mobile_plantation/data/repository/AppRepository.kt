@@ -55,6 +55,7 @@ class AppRepository(context: Context) {
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
     private val afdelingDao = database.afdelingDao()
+    private val parameterDao = database.parameterDao()
 
 
     sealed class SaveResultPanen {
@@ -76,6 +77,10 @@ class AppRepository(context: Context) {
 
     suspend fun getAfdelingName(afdelingId: Int): String? {
         return afdelingDao.getAfdelingNameById(afdelingId)
+    }
+
+    suspend fun getParameterInspeksiJson(): String? {
+        return parameterDao.getParameterInspeksiJson()
     }
 
     suspend fun getInspectionData(

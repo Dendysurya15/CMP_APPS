@@ -190,32 +190,32 @@ class FormAncakFragment : Fragment() {
                 { it.pruning }
             ),
             InputMapping(
-                R.id.lyBuahRipeInspect,
-                "Buah Masak Tinggal di Pokok (S)",
+                R.id.lyBMtidakdipotong,
+                "Buah masak tidak dipotong",
                 InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(ripe = value) },
-                { it.ripe }
+                { currentData, value -> currentData.copy(buahMasakTdkDipotong = value) },
+                { it.buahMasakTdkDipotong }
             ),
             InputMapping(
-                R.id.lyBuahM1Inspect,
-                "Buah Mentah Disembunyikan (M1)",
+                R.id.lyBTPiringanGwangan,
+                "Buah tertinggal di piringan dan buah diperam digawangan mati",
                 InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(buahM1 = value) },
-                { it.buahM1 }
+                { currentData, value -> currentData.copy(btPiringanGawangan = value) },
+                { it.btPiringanGawangan }
             ),
             InputMapping(
-                R.id.lyBuahM2Inspect,
-                "Buah Matang Tidak Dikeluarkan (M2)",
+                R.id.lyBrdKtpGawangan,
+                "Brondolan dibuang ke gawangan",
                 InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(buahM2 = value) },
-                { it.buahM2 }
+                { currentData, value -> currentData.copy(brdKtpGawangan = value) },
+                { it.brdKtpGawangan }
             ),
             InputMapping(
-                R.id.lyBrdKtpInspect,
-                "Brondolan Tidak dikutip",
+                R.id.lyBrdKtpPiringan,
+                "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok",
                 InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(brdKtp = value) },
-                { it.brdKtp }
+                { currentData, value -> currentData.copy(brdKtpPiringanPikulKetiak = value) },
+                { it.brdKtpPiringanPikulKetiak }
             ),
         )
 

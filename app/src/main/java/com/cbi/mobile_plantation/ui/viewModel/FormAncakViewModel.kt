@@ -17,13 +17,13 @@ class FormAncakViewModel : ViewModel() {
         val pokokNumber: Int = 0,
         val emptyTree: Int = 0,
         val harvestTree: Int = 0,
-        val neatPelepah: Int = 0,
-        val pelepahSengkleh: Int = 0,
-        val pruning: Int = 0,
-        val ripe: Int = 0,
-        val buahM1: Int = 0,
-        val buahM2: Int = 0,
-        val brdKtp: Int = 0,
+        val neatPelepah: Int = 0, // 7
+        val pelepahSengkleh: Int = 0, // 8
+        val pruning: Int = 0, // 9
+        val buahMasakTdkDipotong: Int = 0, /// 3
+        val btPiringanGawangan: Int = 0, // 4
+        val brdKtpGawangan: Int = 0,   //1
+        val brdKtpPiringanPikulKetiak: Int = 0, //2
         val photo: String? = null,
         val comment: String? = null,
         val latIssue: Double? = null,
@@ -92,25 +92,17 @@ class FormAncakViewModel : ViewModel() {
         _blokName.value = blok
     }
 
-    fun updateTypeInspection(newValue: Boolean) {
-        _isInspection.value = newValue
-    }
-
     fun shouldSetLatLonIssue(pageData: PageData): Boolean {
-        // First condition: emptyTree must be 1
         if (pageData.emptyTree != 1) {
             return false
         }
 
-        // Second condition: Check ripe, buahM1, buahM2
-        val hasRipeFruit = pageData.ripe > 0 || pageData.buahM1 > 0 || pageData.buahM2 > 0
+        val hasRipeFruit = pageData.buahMasakTdkDipotong > 0 || pageData.btPiringanGawangan > 0
 
         if (hasRipeFruit) {
-            // If any of ripe, buahM1, buahM2 is not 0, then set lat/lon
             return true
         } else {
-            // If all are 0, then brdKtp must be > 50
-            return pageData.brdKtp > 50
+            return (pageData.brdKtpGawangan + pageData.brdKtpPiringanPikulKetiak) > 50
         }
     }
 

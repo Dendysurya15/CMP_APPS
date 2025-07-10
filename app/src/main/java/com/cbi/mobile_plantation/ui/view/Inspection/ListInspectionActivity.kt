@@ -439,8 +439,8 @@ class ListInspectionActivity : AppCompatActivity() {
         val jamMulaiSelesai = formatDateRange(inspection.created_date_start, inspection.created_date_end)
         parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = jamMulaiSelesai
         parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
-        val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris1, inspection.baris2)
-        parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
+//        val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris1, inspection.baris2)
+//        parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
         parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formatToIndonesianDate(inspection.date_panen)
 
         parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString()
@@ -523,8 +523,8 @@ class ListInspectionActivity : AppCompatActivity() {
 
         val tphData = listOf(
             SummaryItem("Jumlah Pokok Inspeksi", inspection.jml_pkk_inspeksi.toString()),
-            SummaryItem("Buah Tinggal", inspection.buah_tinggal.toString()),
-            SummaryItem("Brondolan Tinggal", inspection.brd_tinggal.toString()),
+//            SummaryItem("Buah Tinggal", inspection.buah_tinggal.toString()),
+//            SummaryItem("Brondolan Tinggal", inspection.brd_tinggal.toString()),
         )
 
         for (item in tphData) {
@@ -781,7 +781,7 @@ class ListInspectionActivity : AppCompatActivity() {
             }
 
             val rowData = listOf(
-                getPrioritasText(detail.prioritas),
+
                 getPokokPanenText(detail.pokok_panen),
                 getSusunanPelepahText(detail.susunan_pelepah),
                 getPelepahSengklehText(detail.pelepah_sengkleh),
@@ -1217,15 +1217,6 @@ class ListInspectionActivity : AppCompatActivity() {
             1 -> "Normal"
             2 -> "Terasan"
             else -> "Tidak diketahui"
-        }
-    }
-
-    private fun getPrioritasText(prioritas: Int?): String {
-        return when (prioritas) {
-            1 -> "Tinggi"
-            2 -> "Sedang"
-            3 -> "Rendah"
-            else -> "-"
         }
     }
 

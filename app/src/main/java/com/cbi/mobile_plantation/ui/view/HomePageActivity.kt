@@ -2437,7 +2437,6 @@ class HomePageActivity : AppCompatActivity() {
                                         val dibayarList = data.dibayar_arr.split(";")
                                         val dateCreatedPanenList =
                                             data.date_created_panen.split(";")
-                                        AppLogger.d(totalJjgList.toString())
 
                                         // Get kemandoran data (keeping your existing code)
                                         val kemandoranDeferred =
@@ -3503,7 +3502,6 @@ class HomePageActivity : AppCompatActivity() {
                                         "id" to (detail.id ?: 0),
                                         "id_inspeksi" to (detail.id_inspeksi ?: 0),
                                         "no_pokok" to (detail.no_pokok ?: ""),
-                                        "prioritas" to (detail.prioritas ?: ""),
                                         "pokok_panen" to (detail.pokok_panen ?: ""),
                                         "susunan_pelepah" to (detail.susunan_pelepah ?: ""),
                                         "pelepah_sengkleh" to (detail.pelepah_sengkleh ?: ""),
@@ -3565,10 +3563,10 @@ class HomePageActivity : AppCompatActivity() {
                                         ?.split("-")?.firstOrNull()?.trim() ?: ""),
                                     "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
                                         ?: ""),
-                                    "inspeksi_baris1" to (inspeksiWithRelations.inspeksi.baris1
-                                        ?: ""),
-                                    "inspeksi_baris2" to (inspeksiWithRelations.inspeksi.baris2
-                                        ?: ""),
+//                                    "inspeksi_baris1" to (inspeksiWithRelations.inspeksi.baris1
+//                                        ?: ""),
+//                                    "inspeksi_baris2" to (inspeksiWithRelations.inspeksi.baris2
+//                                        ?: ""),
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
                                         ?: 0),
                                     "foto_temuan_tph" to modifiedInspeksiFotoString,
@@ -3578,10 +3576,10 @@ class HomePageActivity : AppCompatActivity() {
                                     "created_name" to prefManager!!.nameUserLogin.toString(),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
                                         ?: ""),
-                                    "buah_tinggal" to (inspeksiWithRelations.inspeksi.buah_tinggal
-                                        ?: ""),
-                                    "brondolan_tinggal" to (inspeksiWithRelations.inspeksi.brd_tinggal
-                                        ?: ""),
+//                                    "buah_tinggal" to (inspeksiWithRelations.inspeksi.buah_tinggal
+//                                        ?: ""),
+//                                    "brondolan_tinggal" to (inspeksiWithRelations.inspeksi.brd_tinggal
+//                                        ?: ""),
                                     "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
                                     "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
                                     "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path

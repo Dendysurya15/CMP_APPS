@@ -11,7 +11,11 @@ import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,6 +29,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _inspectionWithDetails = MutableLiveData<List<InspectionWithDetailRelations>>()
     val inspectionWithDetails: LiveData<List<InspectionWithDetailRelations>> = _inspectionWithDetails
+
+    data class InspectionParameterItem(
+        val id: Int,
+        val nama: String,
+        val status_ppro: Int
+    )
 
     sealed class SaveDataInspectionState {
         data class Success(val inspectionId: Long) : SaveDataInspectionState()
@@ -51,6 +61,21 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
     suspend fun getAfdelingName(afdelingId: Int): String? {
         return repository.getAfdelingName(afdelingId)
+    }
+
+    suspend fun getParameterInspeksiJson(): List<InspectionParameterItem> {
+        val jsonString = repository.getParameterInspeksiJson()
+        AppLogger.d("Repository returned: $jsonString")
+
+        if (jsonString.isNullOrEmpty()) {
+            throw Exception("Parameter inspeksi JSON is null or empty")
+        }
+
+        val gson = Gson()
+        val type = object : TypeToken<List<InspectionParameterItem>>() {}.type
+        val result = gson.fromJson<List<InspectionParameterItem>>(jsonString, type)
+        AppLogger.d("Parsed result: $result")
+        return result ?: throw Exception("Failed to parse parameter inspeksi JSON")
     }
 
     suspend fun loadInspectionCount(datetime: String? = null): Int {
@@ -111,11 +136,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         id_panen:Int,
         date_panen: String,
         jalur_masuk: String,
-        brd_tinggal: Int,
-        buah_tinggal: Int,
         jenis_kondisi: Int,
-        baris1: Int,
-        baris2: Int?,
+        baris: String,
         jml_pkk_inspeksi: Int,
         tracking_path: String,
         foto: String? = null,
@@ -135,11 +157,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 id_panen = id_panen,
                 date_panen = date_panen,
                 jalur_masuk = jalur_masuk,
-                brd_tinggal = brd_tinggal,
-                buah_tinggal = buah_tinggal,
                 jenis_kondisi = jenis_kondisi,
-                baris1 = baris1,
-                baris2 = baris2,
+                baris = baris,
                 jml_pkk_inspeksi = jml_pkk_inspeksi,
                 tracking_path = tracking_path,
                 foto = foto,
@@ -163,40 +182,138 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         inspectionId: String,
         formData: Map<Int, FormAncakViewModel.PageData>,
         totalPages: Int,
+        currentDateTime: String,
+        currentUserName: String,
+        currentUserId: String,
+        selectedKaryawanList: List<FormInspectionActivity.KaryawanInfo>,
+        jumBrdTglPath: Int,
+        jumBuahTglPath: Int,
+        parameterInspeksi: List<InspectionParameterItem>
     ): SaveDataInspectionDetailsState {
         return try {
             val inspectionDetailList = mutableListOf<InspectionDetailModel>()
+
+            // Get karyawan count for division calculations
+            val karyawanCount = selectedKaryawanList.size
+            AppLogger.d("Karyawan count for division: $karyawanCount")
+
+            if (karyawanCount == 0) {
+                AppLogger.w("No karyawan found, cannot save inspection details")
+                return SaveDataInspectionDetailsState.Error("No karyawan data found")
+            }
+
+            if (parameterInspeksi.isEmpty()) {
+                AppLogger.w("No parameter inspeksi found, cannot save inspection details")
+                return SaveDataInspectionDetailsState.Error("No parameter inspeksi data found")
+            }
+
+            // Create mapping dynamically from database parameter
+            data class InspectionMapping(
+                val kodeInspeksi: Int,
+                val getValue: (FormAncakViewModel.PageData, Int, Int) -> Int,
+                val statusPpro: Int,
+                val nama: String
+            )
+
+            val inspectionMappings = listOf(
+                InspectionMapping(1, { pageData, _, _ -> pageData.brdKtpGawangan },
+                    parameterInspeksi.find { it.id == 1 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 1 }?.nama ?: AppUtils.kodeInspeksi.brondolanDigawangan),
+
+                InspectionMapping(2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
+                    parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 2 }?.nama ?: AppUtils.kodeInspeksi.brondolanTidakDikutip),
+
+                InspectionMapping(3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
+                    parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 3 }?.nama ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong),
+
+                InspectionMapping(4, { pageData, _, _ -> pageData.btPiringanGawangan },
+                    parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 4 }?.nama ?: AppUtils.kodeInspeksi.buahTertinggalPiringan),
+
+                InspectionMapping(5, { _, _, jumBuahTglPath -> jumBuahTglPath },
+                    parameterInspeksi.find { it.id == 5 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 5 }?.nama ?: AppUtils.kodeInspeksi.buahTinggalTPH),
+
+                InspectionMapping(6, { _, jumBrdTglPath, _ -> jumBrdTglPath },
+                    parameterInspeksi.find { it.id == 6 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 6 }?.nama ?: AppUtils.kodeInspeksi.brondolanTinggalTPH),
+
+                InspectionMapping(7, { pageData, _, _ -> if (pageData.neatPelepah == 2) 1 else 0 },
+                    parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 7 }?.nama ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai),
+
+                InspectionMapping(8, { pageData, _, _ -> if (pageData.pelepahSengkleh in 1..3) 1 else 0 },
+                    parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 8 }?.nama ?:  AppUtils.kodeInspeksi.terdapatPelepahSengkleh),
+
+                InspectionMapping(9, { pageData, _, _ -> if (pageData.pruning in 2..3) 1 else 0 },
+                    parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.kondisiPruning)
+            )
+
+            AppLogger.d("Created ${inspectionMappings.size} inspection mappings from database parameters")
 
             for (page in 1..totalPages) {
                 val pageData = formData[page]
                 val emptyTreeValue = pageData?.emptyTree ?: 0
 
-                // Skip
-                if (emptyTreeValue == 2 || emptyTreeValue == 3 || emptyTreeValue == 0) {
+                // Only process if emptyTree == 1 (Ada temuan)
+                if (emptyTreeValue != 1) {
                     continue
                 }
 
-                val inspectionDetail = InspectionDetailModel(
-                    id_inspeksi = inspectionId,
-                    no_pokok = page,
-                    prioritas =  0,
-                    pokok_panen = pageData?.harvestTree ?: 0,
-                    susunan_pelepah = pageData?.neatPelepah ?: 0,
-                    pelepah_sengkleh = pageData?.pelepahSengkleh ?: 0,
-                    kondisi_pruning = pageData?.pruning ?: 0,
-                    ripe = pageData?.ripe  ?: 0,
-                    buahm1 = pageData?.buahM1  ?: 0,
-                    buahm2 = pageData?.buahM2  ?: 0,
-                    brd_tidak_dikutip = pageData?.brdKtp ?: 0,
-                    foto = pageData?.photo,
-                    komentar = pageData?.comment,
-                    latIssue = pageData?.latIssue ?: 0.0,
-                    lonIssue = pageData?.lonIssue ?: 0.0,
-                    status_upload = "0",
-                    status_uploaded_image = "0"
-                )
-                inspectionDetailList.add(inspectionDetail)
+                AppLogger.d("Processing page $page with ${selectedKaryawanList.size} karyawan")
+
+                // For each karyawan, create inspection detail records
+                selectedKaryawanList.forEach { karyawan ->
+                    inspectionMappings.forEach { mapping ->
+                        val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
+
+                        // Only create record if there's a value > 0
+                        if (rawValue > 0) {
+                            // Divide value by karyawan count (convert to double for division)
+                            val dividedValue = rawValue.toDouble() / karyawanCount.toDouble()
+
+                            AppLogger.d("Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
+
+                            val inspectionDetail = InspectionDetailModel(
+                                id_inspeksi = inspectionId,
+                                created_date = currentDateTime,
+                                created_name = currentUserName,
+                                created_by = currentUserId,
+                                nik = karyawan.nik,
+                                nama = karyawan.nama,
+                                no_pokok = page,
+                                pokok_panen = pageData.harvestTree,
+                                kode_inspeksi = mapping.kodeInspeksi,
+                                temuan_inspeksi = dividedValue,
+                                status_pemulihan = 0.0, // Default to 0
+                                susunan_pelepah = pageData.neatPelepah,
+                                pelepah_sengkleh = pageData.pelepahSengkleh,
+                                kondisi_pruning = pageData.pruning,
+                                ripe = pageData.buahMasakTdkDipotong,
+                                buahm1 = pageData.btPiringanGawangan,
+                                buahm2 = 0, // Based on your mapping, this seems unused
+                                brd_tidak_dikutip = pageData.brdKtpGawangan + pageData.brdKtpPiringanPikulKetiak,
+                                foto = pageData.photo,
+                                foto_pemulihan = null,
+                                komentar = pageData.comment,
+                                latIssue = pageData.latIssue ?: 0.0,
+                                lonIssue = pageData.lonIssue ?: 0.0,
+                                status_upload = "0",
+                                status_uploaded_image = "0"
+                            )
+
+                            inspectionDetailList.add(inspectionDetail)
+                            AppLogger.d("Added inspection detail: Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+                        }
+                    }
+                }
             }
+
+            AppLogger.d("Total inspection details to save: ${inspectionDetailList.size}")
 
             // Only insert if we have data to insert
             if (inspectionDetailList.isNotEmpty()) {
@@ -207,9 +324,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             }
 
         } catch (e: Exception) {
+            AppLogger.e("Error saving inspection details: ${e.message}")
             SaveDataInspectionDetailsState.Error(e.toString())
         }
     }
+
 
     // ===== STATE CLASS =====
     sealed class SaveDataInspectionDetailsState {

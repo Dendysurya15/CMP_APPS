@@ -258,6 +258,18 @@ object AppUtils {
         const val settingJSON = "setting.json"
     }
 
+    object kodeInspeksi {
+        const val brondolanDigawangan = "Brondolan dibuang ke gawangan"
+        const val brondolanTidakDikutip = "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok"
+        const val buahMasakTidakDipotong = "Buah masak tidak dipotong"
+        const val buahTertinggalPiringan = "Buah tertinggal di piringan dan buah diperam digawangan mati"
+        const val buahTinggalTPH = "Buah tinggal di TPH"
+        const val brondolanTinggalTPH = "Brondolan tinggal di TPH"
+        const val susunanPelepahTidakSesuai = "Susunan pelepah tidak sesuai"
+        const val terdapatPelepahSengkleh = "Terdapat pelepah sengkleh"
+        const val kondisiPruning = "Kondisi Pruning"
+    }
+
     private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
     private var _selectedDate: String? = null
 

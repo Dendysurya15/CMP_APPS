@@ -23,8 +23,8 @@ abstract class ParameterDao {
         insertParameter(parameter)
     }
 
-    @Query("SELECT * FROM parameter")
-    abstract suspend fun getAll(): List<ParameterModel>
+    @Query("SELECT param_val FROM parameter LIMIT 1")
+    abstract suspend fun getParameterInspeksiJson(): String?
 
     @Query("DELETE FROM parameter")
     abstract fun deleteAll()

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- TextView full width at the top -->
+    <TextView
+        android:id="@+id/tvNumberPanen"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Loading..."
+        android:textSize="@dimen/m"
+        android:fontFamily="@font/manrope_semibold"
+        android:ellipsize="end"
+        android:textColor="@color/black"
+        android:maxLines="4"
+        android:singleLine="false"
+        android:lineSpacingExtra="2dp"
+        android:gravity="start"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Horizontal LinearLayout for EditText and Buttons -->
+    <LinearLayout
+        android:id="@+id/linearContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/tvNumberPanen"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Vertical LinearLayout to wrap etNumber and tvPercent -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.4"
+            android:layout_marginRight="8dp"
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/etNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="@dimen/l"
+                android:fontFamily="@font/manrope_regular"
+                android:inputType="number"
+                android:selectAllOnFocus="true"
+                android:hint="0"
+                android:textColorHint="@color/black"
+                android:textColor="@color/black"
+                android:textColorHighlight="@color/greenDarkerLight" />
+
+        </LinearLayout>
+
+        <!-- btDec button -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/btDec"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="0.3"
+            android:layout_marginRight="5dp"
+            app:cardCornerRadius="5dp"
+            android:backgroundTint="@color/white"
+            app:strokeColor="@color/black"
+            android:foreground="?attr/selectableItemBackground"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/baseline_remove_24"
+                android:layout_gravity="center"
+                android:tint="@color/colorRedDark"
+                tools:ignore="UseAppTint" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- btInc button -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/btInc"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="0.3"
+            app:cardCornerRadius="5dp"
+            android:backgroundTint="@color/white"
+            android:foreground="?attr/selectableItemBackground"
+            app:strokeColor="@color/black"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/baseline_add_24"
+                android:layout_gravity="center"
+                android:tint="@color/greenDefault"
+                tools:ignore="UseAppTint" />
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
+
+    <!-- Error message positioned using ConstraintLayout -->
+    <TextView
+        android:id="@+id/tvErrorFormPanenTBS"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textColor="@color/colorRedDark"
+        android:visibility="gone"
+        android:fontFamily="@font/manrope_bold"
+        android:layout_marginTop="5dp"
+        android:paddingBottom="4dp"
+        android:textSize="17sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/linearContainer"
+        tools:ignore="HardcodedText" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
