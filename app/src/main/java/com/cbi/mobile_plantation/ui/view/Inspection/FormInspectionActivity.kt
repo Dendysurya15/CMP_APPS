@@ -1879,6 +1879,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
             if (activeBottomNavId == R.id.navMenuAncakInspect) {
+
+
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()
                 val pokokData = formData[currentPokok]
@@ -1892,7 +1894,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     val brdKtpValue = pokokData.brdKtp ?: 0
 
                     // Check if photo is required based on findings
-                    val hasFindings = (ripeValue > 0) || (buahM1Value > 0) || (buahM2Value > 0) || (brdKtpValue > 50)
+                    val hasFindings =
+                        (ripeValue > 0) || (buahM1Value > 0) || (buahM2Value > 0) || (brdKtpValue > 50)
                     val hasValidPhoto = photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
 
                     if (hasFindings && !hasValidPhoto) {
@@ -1909,7 +1912,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         return@setOnItemSelectedListener false
                     }
 
-                    if (hasFindings){
+                    if (hasFindings) {
                         formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                             currentPokok,
                             lat,
@@ -1919,9 +1922,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
-            if (!validateAndShowErrors()) {
-                vibrate(500)
-                return@setOnItemSelectedListener false
+            if (activeBottomNavId == R.id.navMenuBlokInspect) {
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
+                }
             }
 
             loadingDialog.show()
