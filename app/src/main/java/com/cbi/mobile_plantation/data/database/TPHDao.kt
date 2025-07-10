@@ -77,7 +77,7 @@ abstract class TPHDao {
         }
     }
 
-    @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
+    @Query("SELECT * FROM tph WHERE blok_ppro = :blockId LIMIT 1")
     abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
