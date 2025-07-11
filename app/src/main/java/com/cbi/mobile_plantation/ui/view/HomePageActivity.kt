@@ -3483,6 +3483,39 @@ class HomePageActivity : AppCompatActivity() {
                                     ""
                                 }
 
+                            val nikList = inspeksiWithRelations.detailInspeksi
+                                .mapNotNull { it.nik }
+                                .filter { it.isNotEmpty() }
+                                .distinct()
+
+                            val kemandoranMap = mutableMapOf<String, KemandoranModel>()
+
+                            if (nikList.isNotEmpty()) {
+                                try {
+                                    // Get karyawan data by NIK first
+                                    val karyawanList = inspectionViewModel.getKemandoranByNik(nikList)
+
+                                    // Extract kemandoran IDs from karyawan data and convert to String
+                                    val kemandoranIds = karyawanList
+                                        .mapNotNull { it.kemandoran_id }
+                                        .filter { it != 0 }  // Filter for non-zero integers
+                                        .map { it.toString() }  // Convert Int to String
+                                        .distinct()
+
+                                    if (kemandoranIds.isNotEmpty()) {
+                                        val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
+                                        karyawanList.forEach { karyawan ->
+                                            val kemandoranData = kemandoranList.find { it.id == karyawan.kemandoran_id }
+                                            if (kemandoranData != null && karyawan.nik != null) {
+                                                kemandoranMap[karyawan.nik] = kemandoranData
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching kemandoran data by NIK: ${e.message}")
+                                }
+                            }
+
                             val inspeksiDetailArray =
                                 inspeksiWithRelations.detailInspeksi.map { detail ->
                                     val originalDetailFotoString = detail.foto ?: ""
@@ -3497,57 +3530,42 @@ class HomePageActivity : AppCompatActivity() {
                                             ""
                                         }
 
-                                    // Return as Map, not as string
                                     mapOf<String, Any>(
                                         "id" to (detail.id ?: 0),
-                                        "id_inspeksi" to (detail.id_inspeksi ?: 0),
-                                        "no_pokok" to (detail.no_pokok ?: ""),
-                                        "pokok_panen" to (detail.pokok_panen ?: ""),
-                                        "susunan_pelepah" to (detail.susunan_pelepah ?: ""),
-                                        "pelepah_sengkleh" to (detail.pelepah_sengkleh ?: ""),
-                                        "kondisi_pruning" to (detail.kondisi_pruning ?: ""),
+                                        "id_inspeksi" to (detail.id_inspeksi ?: ""),
+                                        "no_pokok" to (detail.no_pokok ?: 0),
+                                        "pokok_panen" to (detail.pokok_panen ?: 0),
+                                        "kode_inspeksi" to (detail.kode_inspeksi ?: 0),
+                                        "temuan_inspeksi" to (detail.temuan_inspeksi ?: 0.0),
+                                        "status_pemulihan" to (detail.status_pemulihan ?: 0.0),
+                                        "nik" to (detail.nik ?: ""),
+                                        "nama" to (detail.nama ?: ""),
+                                        "kemandoran_ppro" to (kemandoranMap[detail.nik]?.kemandoran_ppro ?: ""),
+                                        "kemandoran_nama" to (kemandoranMap[detail.nik]?.nama ?: ""),
                                         "foto" to modifiedDetailFotoString,
+                                        "foto_pemulihan" to "",
                                         "catatan" to (detail.komentar ?: ""),
-                                        "created_date" to (inspeksiWithRelations.inspeksi.created_date_start
-                                            ?: ""),
-                                        "created_name" to prefManager!!.nameUserLogin.toString(),
-                                        "created_by" to (inspeksiWithRelations.inspeksi.created_by
-                                            ?: ""),
+                                        "created_by" to (detail.created_by ?: ""),
+                                        "created_name" to (detail.created_name ?: ""),
+                                        "created_date" to (detail.created_date ?: ""),
                                         "lat" to (detail.latIssue ?: 0.0),
                                         "lon" to (detail.lonIssue ?: 0.0),
-                                        "status_upload" to (detail.status_upload ?: ""),
-                                        "status_uploaded_image" to (detail.status_uploaded_image
-                                            ?: "")
                                     )
                                 }
 
                             try {
                                 mapOf<String, Any>(
                                     "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
-                                    "created_date_start" to (inspeksiWithRelations.inspeksi.created_date_start ?: ""),
-                                    "created_date_end" to (inspeksiWithRelations.inspeksi.created_date_end ?: ""),
-                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by ?: ""),
-                                    "tph_id" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
                                     "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: 0),
-                                    "date_panen" to (inspeksiWithRelations.inspeksi.date_panen ?: ""),
-                                    "jalur_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk ?: ""),
-                                    "jenis_kondisi" to (inspeksiWithRelations.inspeksi.jenis_kondisi ?: 0),
-                                    "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
-                                    "jml_pkk_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi ?: 0),
-                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path ?: ""),
-                                    "foto" to modifiedInspeksiFotoString,
-                                    "komentar" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
-                                    "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
-                                    "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
-                                    "dataIsZipped" to (inspeksiWithRelations.inspeksi.dataIsZipped ?: 0),
-                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version ?: ""),
-                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload ?: ""),
-                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image ?: ""),
-                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString() ?: ""),
-                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString() ?: ""),
+                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString()
+                                        ?: ""),
+                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString()
+                                        ?: ""),
                                     "company" to (inspeksiWithRelations.tph?.company ?: 0),
-                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr ?: ""),
-                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama ?: ""),
+                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr
+                                        ?: ""),
+                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama
+                                        ?: ""),
                                     "dept" to (inspeksiWithRelations.tph?.dept ?: 0),
                                     "dept_ppro" to (inspeksiWithRelations.tph?.dept_ppro ?: 0),
                                     "dept_abbr" to (inspeksiWithRelations.tph?.dept_abbr ?: ""),
@@ -3563,6 +3581,35 @@ class HomePageActivity : AppCompatActivity() {
                                     "tph" to (inspeksiWithRelations.tph?.id ?: 0),
                                     "tph_nomor" to (inspeksiWithRelations.tph?.nomor ?: ""),
                                     "ancak" to (inspeksiWithRelations.tph?.ancak ?: ""),
+                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date_start
+                                        ?: ""),
+                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
+                                        ?: ""),
+                                    "inspeksi_putaran" to 1,
+                                    "rute_masuk " to (inspeksiWithRelations.inspeksi.jalur_masuk
+                                        ?: ""),
+                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
+                                        ?: 0),
+                                    "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
+                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
+                                        ?: 0),
+                                    "foto_tph" to modifiedInspeksiFotoString,
+                                    "catatan" to "",
+                                    "created_name" to (prefManager!!.nameUserLogin ?: ""),
+                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by
+                                        ?: ""),
+                                    "tph_id" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
+
+                                    "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
+                                    "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
+                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
+                                        ?: ""),
+                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version
+                                        ?: ""),
+                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
+                                        ?: ""),
+                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image
+                                        ?: ""),
                                     "inspeksi_detail" to inspeksiDetailArray
                                 )
                             } catch (e: Exception) {
@@ -3576,7 +3623,7 @@ class HomePageActivity : AppCompatActivity() {
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
                         val inspeksiJson = Gson().toJson(wrappedInspeksiData)
-
+                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
                         try {
                             val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
                                 if (!exists()) mkdirs()
@@ -4983,51 +5030,72 @@ class HomePageActivity : AppCompatActivity() {
                                         tableIdsJson.keys().forEach { tableType ->
                                             when (tableType) {
                                                 AppUtils.DatabaseTables.PANEN -> {
-                                                    val panenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
-                                                    val panenIds = (0 until panenIdsArray.length()).map {
-                                                        panenIdsArray.getInt(it)
-                                                    }
+                                                    val panenIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
+                                                    val panenIds =
+                                                        (0 until panenIdsArray.length()).map {
+                                                            panenIdsArray.getInt(it)
+                                                        }
                                                     globalPanenIdsByPart[keyJsonName] = panenIds
                                                     AppLogger.d("Extracted PANEN IDs from response: $panenIds")
                                                 }
+
                                                 AppUtils.DatabaseTables.ESPB -> {
-                                                    val espbIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
-                                                    val espbIds = (0 until espbIdsArray.length()).map {
-                                                        espbIdsArray.getInt(it)
-                                                    }
+                                                    val espbIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
+                                                    val espbIds =
+                                                        (0 until espbIdsArray.length()).map {
+                                                            espbIdsArray.getInt(it)
+                                                        }
                                                     globalEspbIdsByPart[keyJsonName] = espbIds
                                                     AppLogger.d("Extracted ESPB IDs from response: $espbIds")
                                                 }
+
                                                 AppUtils.DatabaseTables.HEKTAR_PANEN -> {
-                                                    val hektarPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.HEKTAR_PANEN)
-                                                    val hektarPanenIds = (0 until hektarPanenIdsArray.length()).map {
-                                                        hektarPanenIdsArray.getInt(it)
-                                                    }
-                                                    globalHektarPanenIdsByPart[keyJsonName] = hektarPanenIds
+                                                    val hektarPanenIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.HEKTAR_PANEN)
+                                                    val hektarPanenIds =
+                                                        (0 until hektarPanenIdsArray.length()).map {
+                                                            hektarPanenIdsArray.getInt(it)
+                                                        }
+                                                    globalHektarPanenIdsByPart[keyJsonName] =
+                                                        hektarPanenIds
                                                     AppLogger.d("Extracted Hektar Panen IDs from response: $hektarPanenIds")
                                                 }
+
                                                 AppUtils.DatabaseTables.ABSENSI -> {
-                                                    val absensiPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ABSENSI)
-                                                    val absensiPanenIds = (0 until absensiPanenIdsArray.length()).map {
-                                                        absensiPanenIdsArray.getInt(it)
-                                                    }
-                                                    globalAbsensiPanenIdsByPart[keyJsonName] = absensiPanenIds
+                                                    val absensiPanenIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ABSENSI)
+                                                    val absensiPanenIds =
+                                                        (0 until absensiPanenIdsArray.length()).map {
+                                                            absensiPanenIdsArray.getInt(it)
+                                                        }
+                                                    globalAbsensiPanenIdsByPart[keyJsonName] =
+                                                        absensiPanenIds
                                                     AppLogger.d("Extracted Absensi IDs from response: $absensiPanenIds")
                                                 }
+
                                                 AppUtils.DatabaseTables.INSPEKSI -> {
-                                                    val inspeksiPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.INSPEKSI)
-                                                    val inspeksiPanenIds = (0 until inspeksiPanenIdsArray.length()).map {
-                                                        inspeksiPanenIdsArray.getInt(it)
-                                                    }
-                                                    globalInspeksiPanenIdsByPart[keyJsonName] = inspeksiPanenIds
+                                                    val inspeksiPanenIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.INSPEKSI)
+                                                    val inspeksiPanenIds =
+                                                        (0 until inspeksiPanenIdsArray.length()).map {
+                                                            inspeksiPanenIdsArray.getInt(it)
+                                                        }
+                                                    globalInspeksiPanenIdsByPart[keyJsonName] =
+                                                        inspeksiPanenIds
                                                     AppLogger.d("Extracted Inspeksi IDs from response: $inspeksiPanenIds")
                                                 }
+
                                                 AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
-                                                    val inspeksiDetailPanenIdsArray = tableIdsJson.getJSONArray(AppUtils.DatabaseTables.INSPEKSI_DETAIL)
-                                                    val inspeksiDetailPanenIds = (0 until inspeksiDetailPanenIdsArray.length()).map {
-                                                        inspeksiDetailPanenIdsArray.getInt(it)
-                                                    }
-                                                    globalInspeksiDetailPanenIdsByPart[keyJsonName] = inspeksiDetailPanenIds
+                                                    val inspeksiDetailPanenIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.INSPEKSI_DETAIL)
+                                                    val inspeksiDetailPanenIds =
+                                                        (0 until inspeksiDetailPanenIdsArray.length()).map {
+                                                            inspeksiDetailPanenIdsArray.getInt(it)
+                                                        }
+                                                    globalInspeksiDetailPanenIdsByPart[keyJsonName] =
+                                                        inspeksiDetailPanenIds
                                                     AppLogger.d("Extracted Inspeksi Detail IDs from response: $inspeksiDetailPanenIds")
                                                 }
                                             }
@@ -5039,7 +5107,8 @@ class HomePageActivity : AppCompatActivity() {
                                         globalHektarPanenIdsByPart[keyJsonName] = emptyList()
                                         globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                         globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
-                                        globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                        globalInspeksiDetailPanenIdsByPart[keyJsonName] =
+                                            emptyList()
                                     }
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")

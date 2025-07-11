@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -56,6 +58,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
                 }
+        }
+    }
+
+    suspend fun getKemandoranByNik(nikList: List<String>): List<KaryawanModel> {
+        return withContext(Dispatchers.IO) {  // Run on background thread
+            repository.getKemandoranByNik(nikList)
         }
     }
 
@@ -280,16 +288,16 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                             val inspectionDetail = InspectionDetailModel(
                                 id_inspeksi = inspectionId,
-                                created_date = currentDateTime,
-                                created_name = currentUserName,
-                                created_by = currentUserId,
+                                created_date = pageData.createdDate ?: "",
+                                created_name = pageData.createdName ?: "",
+                                created_by = pageData.createdBy.toString(),
                                 nik = karyawan.nik,
                                 nama = karyawan.nama,
                                 no_pokok = page,
                                 pokok_panen = pageData.harvestTree,
                                 kode_inspeksi = mapping.kodeInspeksi,
                                 temuan_inspeksi = dividedValue,
-                                status_pemulihan = 0.0, // Default to 0
+                                status_pemulihan = 0.0,
                                 susunan_pelepah = pageData.neatPelepah,
                                 pelepah_sengkleh = pageData.pelepahSengkleh,
                                 kondisi_pruning = pageData.pruning,

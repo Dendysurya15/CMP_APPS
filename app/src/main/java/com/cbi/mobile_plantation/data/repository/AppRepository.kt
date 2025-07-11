@@ -79,6 +79,10 @@ class AppRepository(context: Context) {
         return afdelingDao.getAfdelingNameById(afdelingId)
     }
 
+    suspend fun getKemandoranByNik(nikList: List<String>): List<KaryawanModel>  {
+        return karyawanDao.getKaryawanByNikList(nikList)
+    }
+
     suspend fun getParameterInspeksiJson(): String? {
         return parameterDao.getParameterInspeksiJson()
     }

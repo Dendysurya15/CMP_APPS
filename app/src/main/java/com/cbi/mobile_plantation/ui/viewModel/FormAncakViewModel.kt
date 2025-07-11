@@ -10,7 +10,11 @@ import androidx.lifecycle.ViewModelProvider
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.gson.Gson
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class FormAncakViewModel : ViewModel() {
     data class PageData(
@@ -27,7 +31,10 @@ class FormAncakViewModel : ViewModel() {
         val photo: String? = null,
         val comment: String? = null,
         val latIssue: Double? = null,
-        val lonIssue: Double? = null
+        val lonIssue: Double? = null,
+        val createdDate: String? = null,
+        val createdBy: Int? = null,
+        val createdName: String? = null
     )
 
     data class ValidationResult(
@@ -111,14 +118,18 @@ class FormAncakViewModel : ViewModel() {
         AppLogger.d("Current page set to: $pageNumber")
     }
 
-    fun updatePokokDataWithLocationAndGetTrackingStatus(pokokNumber: Int, lat: Double?, lon: Double?): Boolean {
+    fun updatePokokDataWithLocationAndGetTrackingStatus(pokokNumber: Int, lat: Double?, lon: Double?, prefManager: PrefManager): Boolean {
         val currentData = getPageData(pokokNumber) ?: PageData()
+        val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
         if (shouldSetLatLonIssue(currentData)) {
             // Conditions are met: Set the lat/lon issue for this pokok
             val updatedData = currentData.copy(
                 latIssue = lat,
-                lonIssue = lon
+                lonIssue = lon,
+                createdDate = currentDate,
+                createdBy = prefManager.idUserLogin,
+                createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
             return true // Should track this location
@@ -126,7 +137,10 @@ class FormAncakViewModel : ViewModel() {
             // Conditions are NOT met: Clear the lat/lon issue (set to null)
             val updatedData = currentData.copy(
                 latIssue = null,
-                lonIssue = null
+                lonIssue = null,
+                createdDate = currentDate,
+                createdBy = prefManager.idUserLogin,
+                createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
             return false // Should remove tracking for this location

@@ -1088,7 +1088,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                     currentPokok,
                     lat,
-                    lon
+                    lon,
+                    prefManager!!
                 )
             }
 
@@ -1144,7 +1145,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                     currentPokok,
                     lat,
-                    lon
+                    lon,
+                    prefManager!!
                 )
             }
 
@@ -1954,7 +1956,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                             currentPokok,
                             lat,
-                            lon
+                            lon,
+                            prefManager!!
                         )
                     }
                 }
