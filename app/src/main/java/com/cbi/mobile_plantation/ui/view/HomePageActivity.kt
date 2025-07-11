@@ -3506,10 +3506,6 @@ class HomePageActivity : AppCompatActivity() {
                                         "susunan_pelepah" to (detail.susunan_pelepah ?: ""),
                                         "pelepah_sengkleh" to (detail.pelepah_sengkleh ?: ""),
                                         "kondisi_pruning" to (detail.kondisi_pruning ?: ""),
-                                        "buah_masak" to (detail.ripe ?: ""),
-                                        "buah_mentah" to (detail.buahm1 ?: ""),
-                                        "buah_matang" to (detail.buahm2 ?: ""),
-                                        "brondolan_tdk_dikutip" to (detail.brd_tidak_dikutip ?: ""),
                                         "foto" to modifiedDetailFotoString,
                                         "catatan" to (detail.komentar ?: ""),
                                         "created_date" to (inspeksiWithRelations.inspeksi.created_date_start
@@ -3528,17 +3524,30 @@ class HomePageActivity : AppCompatActivity() {
                             try {
                                 mapOf<String, Any>(
                                     "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
-                                    "id_panen" to (inspeksiWithRelations.panen?.id ?: 0),
-                                    // Add TPH info with proper null safety
-                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString()
-                                        ?: ""),
-                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString()
-                                        ?: ""),
+                                    "created_date_start" to (inspeksiWithRelations.inspeksi.created_date_start ?: ""),
+                                    "created_date_end" to (inspeksiWithRelations.inspeksi.created_date_end ?: ""),
+                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by ?: ""),
+                                    "tph_id" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
+                                    "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: 0),
+                                    "date_panen" to (inspeksiWithRelations.inspeksi.date_panen ?: ""),
+                                    "jalur_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk ?: ""),
+                                    "jenis_kondisi" to (inspeksiWithRelations.inspeksi.jenis_kondisi ?: 0),
+                                    "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
+                                    "jml_pkk_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi ?: 0),
+                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path ?: ""),
+                                    "foto" to modifiedInspeksiFotoString,
+                                    "komentar" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
+                                    "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
+                                    "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
+                                    "dataIsZipped" to (inspeksiWithRelations.inspeksi.dataIsZipped ?: 0),
+                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version ?: ""),
+                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload ?: ""),
+                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image ?: ""),
+                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString() ?: ""),
+                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString() ?: ""),
                                     "company" to (inspeksiWithRelations.tph?.company ?: 0),
-                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr
-                                        ?: ""),
-                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama
-                                        ?: ""),
+                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr ?: ""),
+                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama ?: ""),
                                     "dept" to (inspeksiWithRelations.tph?.dept ?: 0),
                                     "dept_ppro" to (inspeksiWithRelations.tph?.dept_ppro ?: 0),
                                     "dept_abbr" to (inspeksiWithRelations.tph?.dept_abbr ?: ""),
@@ -3554,42 +3563,6 @@ class HomePageActivity : AppCompatActivity() {
                                     "tph" to (inspeksiWithRelations.tph?.id ?: 0),
                                     "tph_nomor" to (inspeksiWithRelations.tph?.nomor ?: ""),
                                     "ancak" to (inspeksiWithRelations.tph?.ancak ?: ""),
-                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date_start
-                                        ?: ""),
-                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
-                                        ?: ""),
-                                    "inspeksi_putaran" to 1,
-                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
-                                        ?.split("-")?.firstOrNull()?.trim() ?: ""),
-                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
-                                        ?: ""),
-//                                    "inspeksi_baris1" to (inspeksiWithRelations.inspeksi.baris1
-//                                        ?: ""),
-//                                    "inspeksi_baris2" to (inspeksiWithRelations.inspeksi.baris2
-//                                        ?: ""),
-                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
-                                        ?: 0),
-                                    "foto_temuan_tph" to modifiedInspeksiFotoString,
-                                    "catatan" to (inspeksiWithRelations.inspeksi.komentar ?: ""),
-                                    "created_date" to (inspeksiWithRelations.inspeksi.created_date_start
-                                        ?: ""),
-                                    "created_name" to prefManager!!.nameUserLogin.toString(),
-                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by
-                                        ?: ""),
-//                                    "buah_tinggal" to (inspeksiWithRelations.inspeksi.buah_tinggal
-//                                        ?: ""),
-//                                    "brondolan_tinggal" to (inspeksiWithRelations.inspeksi.brd_tinggal
-//                                        ?: ""),
-                                    "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
-                                    "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
-                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
-                                        ?: ""),
-                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version
-                                        ?: ""),
-                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
-                                        ?: ""),
-                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image
-                                        ?: ""),
                                     "inspeksi_detail" to inspeksiDetailArray
                                 )
                             } catch (e: Exception) {

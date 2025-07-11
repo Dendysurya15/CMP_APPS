@@ -87,6 +87,7 @@ class ListInspectionActivity : AppCompatActivity() {
     private var featureName = ""
 
     private var currentState = 0
+    private var parameterInspeksi: List<InspectionViewModel.InspectionParameterItem> = emptyList()
 
     private var userName: String? = null
     private var estateName: String? = null
@@ -133,6 +134,7 @@ class ListInspectionActivity : AppCompatActivity() {
         initializeViews()
         setupRecyclerView()
         setupObservers()
+        loadParameterInspeksi()
 
         filterAllData = findViewById(R.id.calendarCheckbox)
         filterAllData.setOnCheckedChangeListener { _, isChecked ->
@@ -266,6 +268,52 @@ class ListInspectionActivity : AppCompatActivity() {
         datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
     }
 
+    private fun loadParameterInspeksi() {
+        lifecycleScope.launch {
+            try {
+                loadingDialog.show()
+                loadingDialog.setMessage("Loading data...")
+                delay(1000)
+
+                val estateIdStr = estateName?.trim()
+
+                if (!estateIdStr.isNullOrEmpty()) {
+                    // Direct call without async since we're already in coroutine
+                    parameterInspeksi = withContext(Dispatchers.IO) {
+                        try {
+                            inspectionViewModel.getParameterInspeksiJson()
+                        } catch (e: Exception) {
+                            AppLogger.e("Parameter loading failed: ${e.message}")
+                            emptyList<InspectionViewModel.InspectionParameterItem>()
+                        }
+                    }
+
+                    if (parameterInspeksi.isEmpty()) {
+                        throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
+                    }
+                }
+
+                setupObservers() // Move this here after parameter is loaded
+                loadingDialog.dismiss()
+
+            } catch (e: Exception) {
+                val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
+                val fullMessage = errorMessage
+
+                AlertDialogUtility.withSingleAction(
+                    this@ListInspectionActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_failed_fetch_data),
+                    fullMessage,
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {
+                    finish()
+                }
+            }
+        }
+    }
+
     private fun processSelectedDate(selectedDate: String) {
         loadingDialog.show()
         loadingDialog.setMessage("Sedang mengambil data...", true)
@@ -361,7 +409,8 @@ class ListInspectionActivity : AppCompatActivity() {
         val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
 
         // Populate TPH Section
-        populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, inspectionPath.panen,  view)
+        // Populate TPH Section
+        populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, inspectionPath.panen, view, inspectionPath.detailInspeksi)
 
 
         val detailList = inspectionPath.detailInspeksi
@@ -413,34 +462,15 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-    private fun formatBarisText(jenisKondisi: Int, baris1: Int, baris2: Int?): String {
-        return when (jenisKondisi) {
-            1 -> {
-                // Jenis kondisi 1: Show baris range
-                if (baris2 != null) {
-                    "Baris $baris1 - $baris2"
-                } else {
-                    "Baris $baris1" // Fallback if baris2 is null
-                }
-            }
-            2 -> {
-                // Jenis kondisi 2: Show terasan
-                "Terasan (Baris $baris1)"
-            }
-            else -> {
-                // Unknown jenis kondisi - fallback
-                "Baris $baris1"
-            }
-        }
-    }
 
-    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: PanenEntity?, parentView: View) {
+
+    private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: PanenEntity?, parentView: View, detailInspeksi: List<InspectionDetailModel>) {
         parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr!!.takeLast(2)} ${tph.blok_kode}"
         val jamMulaiSelesai = formatDateRange(inspection.created_date_start, inspection.created_date_end)
         parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = jamMulaiSelesai
         parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
-//        val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris1, inspection.baris2)
-//        parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
+        val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris)
+        parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
         parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formatToIndonesianDate(inspection.date_panen)
 
         parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString()
@@ -520,13 +550,26 @@ class ListInspectionActivity : AppCompatActivity() {
         }
 
         container.removeAllViews()
+        val buahTinggalTPHParam = parameterInspeksi.firstOrNull {
+            it.nama == AppUtils.kodeInspeksi.buahTinggalTPH
+        }
+        val brondolanTinggalTPHParam = parameterInspeksi.firstOrNull {
+            it.nama == AppUtils.kodeInspeksi.brondolanTinggalTPH
+        }
+
+        val buahTinggalTPH = buahTinggalTPHParam?.let { param ->
+            detailInspeksi.firstOrNull { it.kode_inspeksi == param.id }?.temuan_inspeksi?.toInt() ?: 0
+        } ?: 0
+
+        val brondolanTinggalTPH = brondolanTinggalTPHParam?.let { param ->
+            detailInspeksi.firstOrNull { it.kode_inspeksi == param.id }?.temuan_inspeksi?.toInt() ?: 0
+        } ?: 0
 
         val tphData = listOf(
             SummaryItem("Jumlah Pokok Inspeksi", inspection.jml_pkk_inspeksi.toString()),
-//            SummaryItem("Buah Tinggal", inspection.buah_tinggal.toString()),
-//            SummaryItem("Brondolan Tinggal", inspection.brd_tinggal.toString()),
+            SummaryItem(AppUtils.kodeInspeksi.buahTinggalTPH, buahTinggalTPH.toString()),
+            SummaryItem(AppUtils.kodeInspeksi.brondolanTinggalTPH, brondolanTinggalTPH.toString()),
         )
-
         for (item in tphData) {
             val rowLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -542,20 +585,79 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
+    data class MergedInspectionDetail(
+        val no_pokok: Int,
+        val workers: List<String>, // List of worker names
+        val pokok_panen: Int?,
+        val susunan_pelepah: Int?,
+        val pelepah_sengkleh: Int?,
+        val kondisi_pruning: Int?,
+        val foto: String?,
+        val komentar: String?,
+        val temuanByKode: Map<Int, Double>, // Combined totals from all workers
+        val latIssue: Double,
+        val lonIssue: Double
+    )
+
+    private fun mergeInspectionDetails(detailList: List<InspectionDetailModel>): List<MergedInspectionDetail> {
+        return detailList
+            .groupBy { it.no_pokok } // Group by pokok only, not by worker
+            .map { (pokok, details) ->
+                val firstDetail = details.first()
+
+                // Get unique workers for this pokok
+                val workers = details.map { "${it.nama} (${it.nik})" }.distinct()
+
+                // Sum up all temuan values by kode_inspeksi from all workers
+                val temuanByKode = details
+                    .groupBy { it.kode_inspeksi }
+                    .mapValues { (_, codeDetails) ->
+                        codeDetails.sumOf { it.temuan_inspeksi }
+                    }
+
+                // Combine comments from all workers (if any)
+                val allComments = details.mapNotNull { it.komentar }.filter { it.isNotEmpty() }.distinct()
+                val combinedComment = if (allComments.isNotEmpty()) allComments.joinToString(" | ") else null
+
+                MergedInspectionDetail(
+                    no_pokok = firstDetail.no_pokok,
+                    workers = workers,
+                    pokok_panen = firstDetail.pokok_panen,
+                    susunan_pelepah = firstDetail.susunan_pelepah,
+                    pelepah_sengkleh = firstDetail.pelepah_sengkleh,
+                    kondisi_pruning = firstDetail.kondisi_pruning,
+                    foto = firstDetail.foto,
+                    komentar = combinedComment,
+                    temuanByKode = temuanByKode,
+                    latIssue = firstDetail.latIssue,
+                    lonIssue = firstDetail.lonIssue
+                )
+            }
+            .sortedBy { it.no_pokok }
+    }
+
+    // Updated populateIssueData function
     private fun populateIssueData(container: LinearLayout, detailInspeksi: List<InspectionDetailModel>, dialogView: View) {
 
         container.removeAllViews()
 
+        val filteredParameters = parameterInspeksi.filter { param ->
+            param.nama != AppUtils.kodeInspeksi.buahTinggalTPH &&
+                    param.nama != AppUtils.kodeInspeksi.brondolanTinggalTPH
+        }.sortedBy { it.id }
+        // Merge the details first
+        val mergedDetails = mergeInspectionDetails(detailInspeksi)
+
         // Update title with count
         val titleIssue = dialogView.findViewById<TextView>(R.id.titleIssue)
-        titleIssue.text = "Temuan (${detailInspeksi.size} Pokok)"
+        titleIssue.text = "Temuan (${mergedDetails.size} Pokok)"
 
-        if (detailInspeksi.isEmpty()) {
+        if (mergedDetails.isEmpty()) {
             val noDataText = TextView(this).apply {
                 text = "Tidak ada temuan pada inspeksi ini"
                 setPadding(32, 32, 32, 32)
                 setTextColor(Color.GRAY)
-                textSize = 16f
+                textSize = resources.getDimension(R.dimen.m) / resources.displayMetrics.scaledDensity // Convert to sp
                 gravity = Gravity.CENTER
                 typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
             }
@@ -564,9 +666,9 @@ class ListInspectionActivity : AppCompatActivity() {
         }
 
         // Constants
-        val headerHeight = 150 // EXACT height - no wrapping allowed
-        val rowHeight = 120     // EXACT height - no wrapping allowed
-        val frozenWidth = 150
+        val headerHeight = 210
+        val rowHeight = 120
+        val frozenWidth = 200
         val columnWidth = 250
 
         // Define comment background color
@@ -589,27 +691,27 @@ class ListInspectionActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                headerHeight // EXACT HEIGHT
+                headerHeight
             )
         }
 
-        // Frozen header cell
+        // Frozen header cell (Pokok + Worker info)
         val frozenHeaderCell = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(frozenWidth, headerHeight).apply {
-                setMargins(0, 0, 4, 0) // Right margin for separation
+                setMargins(0, 0, 4, 0)
             }
             setBackgroundColor(ContextCompat.getColor(this@ListInspectionActivity, R.color.greenDarker))
         }
 
         val frozenHeaderText = TextView(this).apply {
-            text = "Nomor\nPokok"
+            text = "No.\nPokok"
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            textSize = 14f
+            textSize = resources.getDimension(R.dimen.m) / resources.displayMetrics.scaledDensity // Convert to sp
             typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_bold)
             setPadding(8, 8, 8, 8)
         }
@@ -617,11 +719,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
         // Scrollable header container
         val scrollableHeaderContainer = HorizontalScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                headerHeight, // EXACT HEIGHT
-                1f
-            )
+            layoutParams = LinearLayout.LayoutParams(0, headerHeight, 1f)
             isHorizontalScrollBarEnabled = false
             scrollBarStyle = View.SCROLLBARS_OUTSIDE_OVERLAY
         }
@@ -630,23 +728,36 @@ class ListInspectionActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                headerHeight // EXACT HEIGHTP
+                headerHeight
             )
         }
 
-        val columnHeaders = listOf(
-            "Prioritas", "Pokok di\nPanen", "Susunan\nPelepah",
-            "Pelepah\nSengkleh", "Kondisi\nPruning",
-            "Buah Masak\nTinggal","Buah M1", "Buah M2", "Brondolan Kutip",
-            "Foto"
-        )
+        val columnHeaders = mutableListOf<String>()
+
+        filteredParameters.forEach { param ->
+            val shortName = when (param.id) {
+                1 -> AppUtils.kodeInspeksi.brondolanDigawangan
+                2 -> AppUtils.kodeInspeksi.brondolanTidakDikutip
+                3 -> AppUtils.kodeInspeksi.buahMasakTidakDipotong
+                4 -> AppUtils.kodeInspeksi.buahTertinggalPiringan
+                7 -> AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
+                8 -> AppUtils.kodeInspeksi.terdapatPelepahSengkleh
+                9 -> AppUtils.kodeInspeksi.kondisiPruning
+                else -> param.nama.take(20) // Use parameter name if not in AppUtils
+            }
+            columnHeaders.add(shortName)
+        }
+
+        // Add standard columns
+        columnHeaders.add("Pokok\nPanen")
+        columnHeaders.add("Foto")
 
         // Add scrollable header cells
         columnHeaders.forEachIndexed { index, headerText ->
             val headerCell = FrameLayout(this).apply {
                 layoutParams = LinearLayout.LayoutParams(columnWidth, headerHeight).apply {
                     if (index < columnHeaders.size - 1) {
-                        setMargins(0, 0, 4, 0) // Right margin except for last column
+                        setMargins(0, 0, 4, 0)
                     }
                 }
                 setBackgroundColor(ContextCompat.getColor(this@ListInspectionActivity, R.color.greenDarker))
@@ -660,9 +771,9 @@ class ListInspectionActivity : AppCompatActivity() {
                 )
                 gravity = Gravity.CENTER
                 setTextColor(Color.WHITE)
-                textSize = 14f
+                textSize = resources.getDimension(R.dimen.s) / resources.displayMetrics.scaledDensity // Convert to sp
                 typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_bold)
-                setPadding(8, 8, 8, 8)
+                setPadding(4, 4, 4, 4)
             }
 
             headerCell.addView(headerTextView)
@@ -690,11 +801,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
         // Scrollable data container
         val scrollableDataContainer = HorizontalScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             isHorizontalScrollBarEnabled = false
             scrollBarStyle = View.SCROLLBARS_OUTSIDE_OVERLAY
         }
@@ -716,27 +823,25 @@ class ListInspectionActivity : AppCompatActivity() {
             scrollableHeaderContainer.scrollTo(scrollX, scrollableHeaderContainer.scrollY)
         }
 
-        // Add data rows
-        detailInspeksi.forEachIndexed { index, detail ->
-            // Check if this detail has a comment to determine background color and height
-            val hasComment = !detail.komentar.isNullOrEmpty()
-            val frozenCellBackgroundColor = commentBackgroundColor
+        // Add data rows for merged details
+        mergedDetails.forEachIndexed { index, mergedDetail ->
+            val hasComment = !mergedDetail.komentar.isNullOrEmpty()
+            val frozenCellBackgroundColor = if (hasComment) commentBackgroundColor else Color.WHITE
 
-            // Calculate total height for frozen cell (including comment if exists)
+            // Calculate total height for frozen cell
             var totalFrozenHeight = rowHeight
             if (hasComment) {
-                // Calculate comment height
                 val tempTextView = TextView(this).apply {
-                    text = detail.komentar
-                    textSize = 13f
+                    text = mergedDetail.komentar
+                    textSize = resources.getDimension(R.dimen.s) / resources.displayMetrics.scaledDensity // Convert to sp
                     typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
                 }
                 val textPaint = tempTextView.paint
                 val textWidth = columnWidth * columnHeaders.size - 24
                 val staticLayout = android.text.StaticLayout.Builder.obtain(
-                    detail.komentar ?: "",
+                    mergedDetail.komentar ?: "",
                     0,
-                    detail.komentar?.length ?: 0,
+                    mergedDetail.komentar?.length ?: 0,
                     textPaint,
                     textWidth
                 ).build()
@@ -744,27 +849,26 @@ class ListInspectionActivity : AppCompatActivity() {
                 totalFrozenHeight += commentHeight
             }
 
-            // Frozen cell - SPANS BOTH DATA AND COMMENT ROWS
+            // Frozen cell - Pokok + Worker info
             val frozenDataCell = FrameLayout(this).apply {
                 layoutParams = LinearLayout.LayoutParams(frozenWidth, totalFrozenHeight).apply {
-                    setMargins(0, 0, 4, 0) // Right margin for separation
-                    if (index > 0) setMargins(0, 8, 4, 0) // Add top margin between rows
+                    setMargins(0, 0, 4, 0)
+                    if (index > 0) setMargins(0, 8, 4, 0)
                 }
-                setBackgroundColor(frozenCellBackgroundColor) // Dynamic background color
+                setBackgroundColor(frozenCellBackgroundColor)
             }
 
             val frozenDataText = TextView(this).apply {
-                text = detail.no_pokok.toString()
+                text = "${mergedDetail.no_pokok}"
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
-                gravity = Gravity.CENTER // This centers both horizontally and vertically across the entire height
+                gravity = Gravity.CENTER
                 setTextColor(Color.BLACK)
-                textSize = 12f
+                textSize = resources.getDimension(R.dimen.s) / resources.displayMetrics.scaledDensity // Convert to sp
                 typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
-                setPadding(8, 8, 8, 8)
-                setSingleLine(true) // FORCE SINGLE LINE
+                setPadding(4, 4, 4, 4)
             }
             frozenDataCell.addView(frozenDataText)
             frozenDataContainer.addView(frozenDataCell)
@@ -774,42 +878,38 @@ class ListInspectionActivity : AppCompatActivity() {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    rowHeight // EXACT HEIGHT
+                    rowHeight
                 ).apply {
-                    if (index > 0) setMargins(0, 8, 0, 0) // Add top margin between rows
+                    if (index > 0) setMargins(0, 8, 0, 0)
                 }
             }
 
-            val rowData = listOf(
+            // Build row data - inspection codes 1-9 + pokok_panen + foto
+            val rowData = mutableListOf<String>()
 
-                getPokokPanenText(detail.pokok_panen),
-                getSusunanPelepahText(detail.susunan_pelepah),
-                getPelepahSengklehText(detail.pelepah_sengkleh),
-                getKondisiPruningText(detail.kondisi_pruning),
-                detail.ripe?.toString() ?: "0",
-                detail.buahm1?.toString() ?: "0",
-                detail.buahm2?.toString() ?: "0",
-                detail.brd_tidak_dikutip?.toString() ?: "0",
-                "FOTO"
-            )
+            filteredParameters.forEach { param ->
+                val value = mergedDetail.temuanByKode[param.id] ?: 0.0
+                rowData.add(if (value > 0) value.toString() else "0")
+            }
+
+            rowData.add(getPokokPanenText(mergedDetail.pokok_panen))
+            rowData.add("FOTO")
 
             // Add scrollable cells
             rowData.forEachIndexed { cellIndex, cellText ->
                 val dataCell = FrameLayout(this).apply {
                     layoutParams = LinearLayout.LayoutParams(columnWidth, rowHeight).apply {
                         if (cellIndex < rowData.size - 1) {
-                            setMargins(0, 0, 4, 0) // Right margin except for last column
+                            setMargins(0, 0, 4, 0)
                         }
                     }
-                    setBackgroundColor(Color.WHITE) // Scrollable cells remain white
+                    setBackgroundColor(Color.WHITE)
                 }
 
                 // Special handling for the last column (Photo)
                 if (cellIndex == rowData.size - 1) {
-                    // Create photo preview cell
-                    createPhotoCell(dataCell, detail.foto, detail.no_pokok.toString())
+                    createPhotoCell(dataCell, mergedDetail.foto, "Pokok ${mergedDetail.no_pokok}")
                 } else {
-                    // Regular text cell
                     val dataCellText = TextView(this).apply {
                         text = cellText
                         layoutParams = FrameLayout.LayoutParams(
@@ -818,9 +918,9 @@ class ListInspectionActivity : AppCompatActivity() {
                         )
                         gravity = Gravity.CENTER
                         setTextColor(Color.BLACK)
-                        textSize = 13f
+                        textSize = 12f
                         typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
-                        setPadding(8, 8, 8, 8)
+                        setPadding(4, 4, 4, 4)
                     }
                     dataCell.addView(dataCellText)
                 }
@@ -830,11 +930,10 @@ class ListInspectionActivity : AppCompatActivity() {
 
             scrollableDataContent.addView(scrollableDataRow)
 
-            // Add comment row if exists (NO SPACER NEEDED - frozen cell already spans both rows)
-            if (!detail.komentar.isNullOrEmpty()) {
-                // Create the comment text
+            // Add comment row if exists
+            if (!mergedDetail.komentar.isNullOrEmpty()) {
                 val commentText = TextView(this).apply {
-                    text = "Komentar temuan: ${detail.komentar}"
+                    text = "Komentar: ${mergedDetail.komentar}"
                     setPadding(12, 8, 12, 8)
                     setTextColor(Color.DKGRAY)
                     textSize = 13f
@@ -846,32 +945,28 @@ class ListInspectionActivity : AppCompatActivity() {
                     }
                 }
 
-                // Measure the text height dynamically
                 val textPaint = commentText.paint
-                val textWidth = columnWidth * columnHeaders.size - 24 // Subtract padding
+                val textWidth = columnWidth * columnHeaders.size - 24
                 val staticLayout = android.text.StaticLayout.Builder.obtain(
-                    detail.komentar ?: "",
+                    mergedDetail.komentar ?: "",
                     0,
-                    detail.komentar?.length ?: 0,
+                    mergedDetail.komentar?.length ?: 0,
                     textPaint,
                     textWidth
                 ).build()
 
-                // Calculate dynamic height (text height + padding + margin)
-                val dynamicHeight = staticLayout.height + 32 // 16 top + 16 bottom padding
-                val finalHeight = maxOf(dynamicHeight, 60) // Minimum height of 60
+                val dynamicHeight = staticLayout.height + 32
+                val finalHeight = maxOf(dynamicHeight, 60)
 
-                // Add comment to scrollable area with dynamic height
                 val commentRow = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
-                        finalHeight // Use dynamic height
+                        finalHeight
                     )
                     setPadding(8, 4, 8, 4)
                 }
 
-                // Update the comment text layout params
                 commentText.layoutParams = LinearLayout.LayoutParams(
                     columnWidth * columnHeaders.size,
                     LinearLayout.LayoutParams.MATCH_PARENT
@@ -886,7 +981,6 @@ class ListInspectionActivity : AppCompatActivity() {
         dataContainer.addView(frozenDataContainer)
         dataContainer.addView(scrollableDataContainer)
 
-        // Add everything to main container
         mainContainer.addView(headerContainer)
         mainContainer.addView(dataContainer)
         container.addView(mainContainer)
@@ -1211,12 +1305,23 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-    // Keep your existing helper functions
-    private fun getJenisKondisiText(kondisi: Int): String {
-        return when (kondisi) {
-            1 -> "Normal"
-            2 -> "Terasan"
-            else -> "Tidak diketahui"
+    private fun formatBarisText(jenisKondisi: Int, baris: String): String {
+        return when (jenisKondisi) {
+            1 -> {
+                // Datar - should have two values separated by comma
+                val barisList = baris.split(",").map { it.trim() }
+                if (barisList.size >= 2) {
+                    "Baris: ${barisList[0]}, ${barisList[1]}"
+                } else {
+                    "Baris: $baris"
+                }
+            }
+            2 -> {
+                // Teras - should have one value
+                val baris1 = baris.split(",").first().trim()
+                "Baris: $baris1"
+            }
+            else -> "Baris: $baris"
         }
     }
 
@@ -1267,33 +1372,15 @@ class ListInspectionActivity : AppCompatActivity() {
     // Keep your existing createRowTextView, createHeaderTextView, createDataTextView functions
     data class SummaryItem(val title: String, val value: String)
 
-    private fun stopLoadingAnimation(
-        loadingLogo: ImageView,
-        loadingContainer: LinearLayout
-    ) {
-        loadingLogo.animation?.cancel()
-        loadingLogo.clearAnimation()
-        loadingLogo.visibility = View.GONE
-        loadingContainer.visibility = View.GONE
-    }
-
-    private fun resetSelectedIds() {
-        val flCheckBox = tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-        flCheckBox.visibility = if (currentState == 0) View.VISIBLE else View.GONE
-
-        checkBoxHeader.setOnCheckedChangeListener(null)
-        checkBoxHeader.isChecked = false
-        selectedPathIds.clear()
-//        adapter.toggleSelectAll(false)
-//        adapter.updateCurrentState(currentState)
-    }
-
     @SuppressLint("SetTextI18n")
     private fun setupObservers() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
         inspectionViewModel.inspectionWithDetails.observe(this) { inspectionPaths ->
+
+
+            AppLogger.d("inspectionPaths $inspectionPaths")
             adapter.setData(inspectionPaths)
             Handler(Looper.getMainLooper()).postDelayed({
                 loadingDialog.dismiss()
@@ -1312,89 +1399,6 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-//    private fun setupViewListeners() {
-//        cardTersimpan.setOnClickListener {
-//            if (currentState == 0) return@setOnClickListener
-//
-//            currentState = 0
-//            resetSelectedIds()
-//            setActiveCard(cardTersimpan)
-//            loadingDialog.show()
-//            loadingDialog.setMessage("Loading data tersimpan...")
-////            inspectionViewModel.loadInspectionPaths(currentState)
-//        }
-//
-//        cardTerupload.setOnClickListener {
-//            if (currentState == 1) return@setOnClickListener
-//
-//            currentState = 1
-//            resetSelectedIds()
-//            setActiveCard(cardTerupload)
-//            loadingDialog.show()
-//            loadingDialog.setMessage("Loading data terupload...")
-////            inspectionViewModel.loadInspectionPaths(currentState)
-//        }
-//
-//        fabDelListInspect.setOnClickListener {
-//            AlertDialogUtility.withTwoActions(
-//                this,
-//                getString(R.string.al_delete),
-//                getString(R.string.confirmation_dialog_title),
-//                "Apakah anda yakin ingin menghapus data terpilih?",
-//                "warning.json",
-//                function = {
-//                    lifecycleScope.launch(Dispatchers.Main) {
-//                        try {
-//                            loadingDialog.show()
-//                            loadingDialog.setMessage("Menghapus data...")
-//
-////                            val deleteResult =
-////                                inspectionViewModel.deleteInspectionDatas(selectedPathIds)
-////
-////                            if (deleteResult.isSuccess) {
-////                                resetSelectedIds()
-////
-////                                withContext(Dispatchers.IO) {
-////                                    inspectionViewModel.loadInspectionPaths(currentState)
-////                                }
-////                            } else {
-////                                throw Exception("Error delete view model")
-////                            }
-//                        } catch (e: Exception) {
-//                            AppLogger.d("Unexpected error: ${e.message}")
-//                            AlertDialogUtility.withSingleAction(
-//                                this@ListInspectionActivity,
-//                                stringXML(R.string.al_back),
-//                                stringXML(R.string.al_failed_delete),
-//                                "Failed to delete data : ${e.message}",
-//                                "warning.json",
-//                                R.color.colorRedDark
-//                            ) {}
-//                        } finally {
-//                            if (loadingDialog.isShowing) {
-//                                loadingDialog.dismiss()
-//                            }
-//                        }
-//                    }
-//                }
-//            )
-//        }
-//    }
 
-    private fun setActiveCard(activeCard: MaterialCardView) {
-//        cardTersimpan.apply {
-//            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
-//            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
-//        }
-//
-//        cardTerupload.apply {
-//            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
-//            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
-//        }
 
-        activeCard.apply {
-            setCardBackgroundColor(ContextCompat.getColor(context, R.color.bgSelectWorkerGreen))
-            strokeColor = ContextCompat.getColor(context, R.color.strokeSelectWorkerGreen)
-        }
-    }
 }

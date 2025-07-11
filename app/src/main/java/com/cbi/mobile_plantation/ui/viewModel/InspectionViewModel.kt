@@ -293,10 +293,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                                 susunan_pelepah = pageData.neatPelepah,
                                 pelepah_sengkleh = pageData.pelepahSengkleh,
                                 kondisi_pruning = pageData.pruning,
-                                ripe = pageData.buahMasakTdkDipotong,
-                                buahm1 = pageData.btPiringanGawangan,
-                                buahm2 = 0, // Based on your mapping, this seems unused
-                                brd_tidak_dikutip = pageData.brdKtpGawangan + pageData.brdKtpPiringanPikulKetiak,
                                 foto = pageData.photo,
                                 foto_pemulihan = null,
                                 komentar = pageData.comment,
