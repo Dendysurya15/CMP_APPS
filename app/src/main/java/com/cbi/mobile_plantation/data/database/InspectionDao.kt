@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
@@ -19,15 +20,21 @@ abstract class InspectionDao {
     @Insert
     suspend abstract fun insertInspection(inspection: InspectionModel): Long
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend abstract fun insertInspectionDetails(details: List<InspectionDetailModel>)
+
+    @Update
+    abstract suspend fun update(inspections: List<InspectionModel>)
+
+    @Query("SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI} WHERE id = :id")
+    abstract suspend fun getById(id: Int): InspectionModel?
 
     @Query("""
         SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
         WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
         ORDER BY created_date_start DESC
     """)
-    abstract  suspend fun getInspectionData(
+    abstract suspend fun getInspectionData(
         datetime: String? = null
     ): List<InspectionWithDetailRelations>
 
@@ -38,7 +45,7 @@ abstract class InspectionDao {
     abstract suspend fun updateStatusUploadInspeksiDetailPanen(ids: List<Int>, status: Int)
 
     @Query("UPDATE inspeksi SET dataIsZipped = :status WHERE id IN (:ids)")
-    abstract  suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
+    abstract suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
 
     @Query("""
     SELECT COUNT(*) FROM ${AppUtils.DatabaseTables.INSPEKSI}
@@ -57,4 +64,14 @@ abstract class InspectionDao {
     @Transaction
     @Query("SELECT * FROM inspeksi")
     abstract fun getTPHHasBeenInspect(): List<InspectionModel>
+
+    // Helper method for transaction-based insert with result handling
+    suspend fun insertWithTransaction(inspection: InspectionModel): Result<Long> {
+        return try {
+            val id = insertInspection(inspection)
+            Result.success(id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

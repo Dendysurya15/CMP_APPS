@@ -28,6 +28,8 @@ import com.cbi.mobile_plantation.data.database.DepartmentInfo
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.InspectionDetailModel
+import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.ParameterModel
@@ -79,6 +81,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val karyawanDao = database.karyawanDao()
     private val blokDao = database.blokDao()
     private val hektarPanenDao = database.hektarPanenDao()
+    private val inspectionDao = database.inspectionDao()
+    private val inspectionDetailDao = database.inspectionDetailDao()
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
@@ -1035,7 +1039,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
                     } else if(request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen){
                         response = dataPanenInspectionRepository.getDataPanen(request.estate!!, request.afdeling!!)
-                    } else if(request.dataset == AppUtils.DatasetNames.parameter){
+                    }
+                    else if(request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi){
+                        response = dataPanenInspectionRepository.getDataInspeksi(request.estate!!, request.afdeling!!)
+                    }else if(request.dataset == AppUtils.DatasetNames.parameter){
                         response = repository.getParameter()
                     }else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
@@ -1412,12 +1419,39 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun getPreviewDataInspeksiWeek(estate: Int, afdeling: String) {
+        viewModelScope.launch {
+
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    dataPanenInspectionRepository.getDataInspeksi(estate, afdeling, false)
+                }
+
+                AppLogger.d(response.body().toString())
+                if (response.isSuccessful && response.code() == 200) {
+                    val jsonString = response.body()?.string() ?: ""
+
+                    AppLogger.d(jsonString.toString())
+                    // Process the JSON response to create formatted summary
+                    val formattedData = processPreviewDataInspeksi(jsonString)
+
+                    _dataPanenInspeksiPreview.value = formattedData
+                } else {
+                    _dataPanenInspeksiPreview.value = "Gagal memuat data: ${response.message()}"
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error loading Restan preview: ${e.message}")
+                _dataPanenInspeksiPreview.value = "Error: ${e.message}"
+            }
+        }
+    }
+
     fun getPreviewDataPanenInspeksiWeek(estate: Int, afdeling: String) {
         viewModelScope.launch {
 
             try {
                 val response = withContext(Dispatchers.IO) {
-                    dataPanenInspectionRepository.getDataPanen  (estate, afdeling)
+                    dataPanenInspectionRepository.getDataPanen(estate, afdeling)
                 }
 
                 AppLogger.d(response.body().toString())
@@ -1717,14 +1751,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         _itemProgressMap.postValue(progressMap.toMap())
 
                         // Add this debugging code in your processing loop
-// Process each record from the response
+
                         var status0Count = 0
                         var status1Count = 0
                         var status2Count = 0
                         var status0WithNullSpb = 0
                         var status0WithNonNullSpb = 0
 
-// NEW: Check for data inconsistencies
                         var status1WithNullSpb = 0
                         var status2WithNullSpb = 0
                         var status1WithNonNullSpb = 0
@@ -2308,6 +2341,283 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
 
+            AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi -> {
+                try {
+                    // We're already at 50% when this code starts
+                    progressMap[itemId] = 60
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    // Parse the JSON response to extract the inspection data
+                    val jsonObject = JSONObject(responseBodyString)
+
+                    if (jsonObject.optBoolean("success", false)) {
+                        val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+                        val inspectionList = mutableListOf<InspectionModel>()
+                        val inspectionDetailList = mutableListOf<InspectionDetailModel>()
+
+                        // Update to 70% before processing records
+                        progressMap[itemId] = 70
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        AppLogger.d("Processing ${dataArray.length()} inspection records...")
+
+                        for (i in 0 until dataArray.length()) {
+                            val item = dataArray.getJSONObject(i)
+
+                            // Extract main inspection fields
+                            val inspectionId = item.optInt("id", 0)
+                            val idPanen = item.optInt("id_panen", 0)
+                            val tphId = item.optInt("tph", 0)
+                            val tglInspeksi = item.optString("tgl_inspeksi", "")
+                            val tglPanen = item.optString("tgl_panen", "")
+//                            val inspeksiPutaran = item.optInt("inspeksi_putaran", 1)
+                            val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
+                            val baris = item.optString("baris", "")
+                            val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
+//                            val createdName = item.optString("created_name", "")
+                            val createdBy = item.optInt("created_by", 0)
+                            val lat = item.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
+                            val lon = item.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
+                            val trackingPath = item.optString("tracking_path", "")
+
+                            AppLogger.d("Creating inspection entity: inspectionId=$inspectionId, tphId=$tphId, date=$tglInspeksi")
+
+                            // Create InspectionModel
+                            val inspectionEntity = InspectionModel(
+                                id = inspectionId,
+                                created_date_start = tglInspeksi,
+                                created_date_end = tglInspeksi, // Use same date if end date not available
+                                created_by = createdBy.toString(),
+                                tph_id = tphId,
+                                id_panen = idPanen,
+                                date_panen = tglPanen,
+                                jalur_masuk = "", // Not available in API response
+                                jenis_kondisi = jenisInspeksi,
+                                baris = baris,
+                                jml_pkk_inspeksi = jmlPokokInspeksi,
+                                tracking_path = trackingPath,
+                                foto = null, // Not available in API response
+                                komentar = null, // Not available in API response
+                                latTPH = lat,
+                                lonTPH = lon,
+                                dataIsZipped = 0,
+                                app_version = "", // Not available in API response
+                                status_upload = "1", // Assume uploaded since from server
+                                status_uploaded_image = "1" // Assume uploaded since from server
+                            )
+
+                            inspectionList.add(inspectionEntity)
+
+                            // Process inspection details if they exist
+                            val inspectionDetails = item.optJSONArray("InspeksiDetails")
+                            if (inspectionDetails != null) {
+                                for (j in 0 until inspectionDetails.length()) {
+                                    val detail = inspectionDetails.getJSONObject(j)
+
+                                    val detailId = detail.optInt("id", 0)
+                                    val detailIdInspeksi = detail.optString("id_inspeksi", inspectionId.toString())
+                                    val noPokPok = detail.optInt("no_pokok", 0)
+                                    val pokokPanen = detail.optInt("pokok_panen", 0)
+                                    val kodeInspeksi = detail.optInt("kode_inspeksi", 0)
+                                    val temuanInspeksi = detail.optDouble("temuan_inspeksi", 0.0)
+                                    val statusPemulihan = detail.optDouble("status_pemulihan", 0.0)
+                                    val nik = detail.optString("nik", "")
+                                    val nama = detail.optString("nama", "")
+                                    val foto = detail.optString("foto", null)
+                                    val fotoPemulihan = detail.optString("foto_pemulihan", null)
+                                    val catatan = detail.optString("catatan", null)
+                                    val createdDate = detail.optString("created_date", tglInspeksi)
+                                    val createdName = detail.optString("created_name", "")
+                                    val createdBy = detail.optString("created_by", "")
+                                    val latDetail = detail.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
+                                    val lonDetail = detail.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
+
+                                    AppLogger.d("Creating inspection detail: detailId=$detailId, nik=$nik, kode=$kodeInspeksi")
+
+                                    val inspectionDetailEntity = InspectionDetailModel(
+                                        id = detailId,
+                                        id_inspeksi = detailIdInspeksi,
+                                        created_date = createdDate,
+                                        created_name = createdName,
+                                        created_by = createdBy,
+                                        nik = nik,
+                                        nama = nama,
+                                        no_pokok = noPokPok,
+                                        pokok_panen = if (pokokPanen == 0) null else pokokPanen,
+                                        kode_inspeksi = kodeInspeksi,
+                                        temuan_inspeksi = temuanInspeksi,
+                                        status_pemulihan = statusPemulihan,
+                                        foto = foto,
+                                        foto_pemulihan = fotoPemulihan,
+                                        komentar = catatan,
+                                        latIssue = latDetail,
+                                        lonIssue = lonDetail,
+                                        status_upload = "1", // Assume uploaded since from server
+                                        status_uploaded_image = if (foto != null) "1" else "0"
+                                    )
+
+                                    inspectionDetailList.add(inspectionDetailEntity)
+                                }
+                            }
+                        }
+
+                        AppLogger.d("=== INSPECTION PROCESSING SUMMARY ===")
+                        AppLogger.d("Total inspection records processed: ${dataArray.length()}")
+                        AppLogger.d("Inspection records to INSERT/UPDATE: ${inspectionList.size}")
+                        AppLogger.d("Inspection detail records to INSERT/UPDATE: ${inspectionDetailList.size}")
+                        AppLogger.d("=====================================")
+
+                        // Update to 80% when processing is complete
+                        progressMap[itemId] = 80
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        withContext(Dispatchers.IO) {
+                            try {
+                                var successCount = 0
+                                var failCount = 0
+
+                                AppLogger.d("Processing ${inspectionList.size} inspection records for insert/update...")
+
+                                // Process main inspection records
+                                for (inspection in inspectionList) {
+                                    try {
+                                        // Check if record exists by ID
+                                        val existingRecord = inspectionDao.getById(inspection.id)
+
+                                        if (existingRecord == null) {
+                                            // Record doesn't exist -> INSERT
+                                            val result = inspectionDao.insertWithTransaction(inspection)
+                                            if (result.isSuccess) {
+                                                successCount++
+                                                AppLogger.d("Inserted new inspection record: ID=${inspection.id}, TPH=${inspection.tph_id}")
+                                            } else {
+                                                failCount++
+                                                AppLogger.e("Failed to insert inspection record: ID=${inspection.id}")
+                                            }
+                                        } else {
+                                            // Record exists -> UPDATE (preserve local-only fields)
+                                            AppLogger.d("Record exists, updating: ID=${inspection.id}")
+
+                                            val updatedRecord = inspection.copy(
+                                                // Preserve local photos and comments if they exist
+                                                foto = if (existingRecord.foto?.isNotEmpty() == true) existingRecord.foto else inspection.foto,
+                                                komentar = if (existingRecord.komentar?.isNotEmpty() == true) existingRecord.komentar else inspection.komentar,
+                                                // Preserve local coordinates if they exist
+                                                latTPH = if (existingRecord.latTPH != 0.0) existingRecord.latTPH else inspection.latTPH,
+                                                lonTPH = if (existingRecord.lonTPH != 0.0) existingRecord.lonTPH else inspection.lonTPH,
+                                                // Preserve local status
+                                                status_upload = existingRecord.status_upload,
+                                                status_uploaded_image = existingRecord.status_uploaded_image
+                                            )
+
+                                            inspectionDao.update(listOf(updatedRecord))
+                                            successCount++
+                                            AppLogger.d("Updated existing record ID ${inspection.id}")
+                                        }
+                                    } catch (e: Exception) {
+                                        failCount++
+                                        AppLogger.e("Error processing inspection record: ${e.message}")
+                                    }
+                                }
+
+                                // Process inspection detail records
+                                AppLogger.d("Processing ${inspectionDetailList.size} inspection detail records...")
+
+                                for (detail in inspectionDetailList) {
+                                    try {
+                                        // Check if record exists by ID
+                                        val existingDetail = inspectionDetailDao.getById(detail.id)
+
+                                        if (existingDetail == null) {
+                                            // Record doesn't exist -> INSERT
+                                            val result = inspectionDetailDao.insertWithTransaction(detail)
+                                            if (result.isSuccess) {
+                                                successCount++
+                                                AppLogger.d("Inserted new inspection detail: ID=${detail.id}, NIK=${detail.nik}")
+                                            } else {
+                                                failCount++
+                                                AppLogger.e("Failed to insert inspection detail: ID=${detail.id}")
+                                            }
+                                        } else {
+                                            // Record exists -> UPDATE (preserve local-only fields)
+                                            val updatedDetail = detail.copy(
+                                                // Preserve local photos if they exist
+                                                foto = if (existingDetail.foto?.isNotEmpty() == true) existingDetail.foto else detail.foto,
+                                                foto_pemulihan = if (existingDetail.foto_pemulihan?.isNotEmpty() == true) existingDetail.foto_pemulihan else detail.foto_pemulihan,
+                                                komentar = if (existingDetail.komentar?.isNotEmpty() == true) existingDetail.komentar else detail.komentar,
+                                                // Preserve local status
+                                                status_upload = existingDetail.status_upload,
+                                                status_uploaded_image = existingDetail.status_uploaded_image
+                                            )
+
+                                            inspectionDetailDao.update(listOf(updatedDetail))
+                                            successCount++
+                                            AppLogger.d("Updated existing detail ID ${detail.id}")
+                                        }
+                                    } catch (e: Exception) {
+                                        failCount++
+                                        AppLogger.e("Error processing inspection detail: ${e.message}")
+                                    }
+                                }
+
+                                // Final summary
+                                AppLogger.d("=== INSPECTION SYNC COMPLETE ===")
+                                AppLogger.d("Inserted/Updated: $successCount")
+                                AppLogger.d("Failed: $failCount")
+                                AppLogger.d("Total records processed: ${inspectionList.size + inspectionDetailList.size}")
+                                AppLogger.d("==================================")
+
+                                // Final update - 100%
+                                progressMap[itemId] = 100
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                if (inspectionList.isEmpty() && inspectionDetailList.isEmpty()) {
+                                    // No records to process - everything is up to date
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+                                    AppLogger.d("No records to process - dataset is up to date")
+                                } else if (failCount == 0) {
+                                    statusMap[itemId] = if (isDownloadDataset) {
+                                        AppUtils.UploadStatusUtils.DOWNLOADED
+                                    } else {
+                                        AppUtils.UploadStatusUtils.UPDATED
+                                    }
+                                } else if (successCount > 0) {
+                                    // Partial success
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
+                                    errorMap[itemId] = "Partial success: $failCount/${inspectionList.size + inspectionDetailList.size} records failed"
+                                } else {
+                                    // Complete failure
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                    errorMap[itemId] = "Failed to process inspection data: $failCount/${inspectionList.size + inspectionDetailList.size} records failed"
+                                }
+                            } catch (e: Exception) {
+                                progressMap[itemId] = 100  // Still show 100% even on error
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                AppLogger.e("Error processing inspection data: ${e.message}")
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] = "Error processing inspection data: ${e.message}"
+                            }
+                        }
+                    } else {
+                        progressMap[itemId] = 100
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                        val errorMessage = jsonObject.optString("message", "Unknown error")
+                        errorMap[itemId] = "API Error: $errorMessage"
+                        AppLogger.e("Inspection API returned error: $errorMessage")
+                    }
+                } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    AppLogger.e("Error processing inspection data: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error processing inspection data: ${e.message}"
+                }
+            }
+
             else -> {
                 progressMap[itemId] = 100  // Still show 100% even on error
                 _itemProgressMap.postValue(progressMap.toMap())
@@ -2315,6 +2625,115 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                 errorMap[itemId] = "Unsupported JSON dataset: ${request.dataset}"
             }
+        }
+    }
+
+    fun processPreviewDataInspeksi(jsonResponse: String): String {
+        try {
+            // Parse the JSON response
+            val jsonObject = JSONObject(jsonResponse)
+
+            // Check if response is successful and contains data
+            if (jsonObject.optBoolean("success", false)) {
+                val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+
+                // Set up date range
+                val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val calendar = Calendar.getInstance()
+
+                // Today
+                val today = inputFormatter.format(calendar.time)
+                val todayDate = calendar.time
+
+                // 7 days ago
+                calendar.add(Calendar.DAY_OF_YEAR, -6)
+                val sevenDaysAgo = inputFormatter.format(calendar.time)
+                val sevenDaysAgoDate = calendar.time
+
+                // Create a list of all dates in the range
+                val allDates = mutableListOf<String>()
+                val tempCalendar = Calendar.getInstance()
+                tempCalendar.time = sevenDaysAgoDate
+
+                while (!tempCalendar.time.after(todayDate)) {
+                    allDates.add(inputFormatter.format(tempCalendar.time))
+                    tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
+                }
+
+                // Initialize maps for all dates in range with zeros
+                val inspeksiCountByDate = mutableMapOf<String, Int>() // Total inspection count
+                val recordCountByDate = mutableMapOf<String, Int>() // Track record count by date
+
+                for (date in allDates) {
+                    inspeksiCountByDate[date] = 0
+                    recordCountByDate[date] = 0
+                }
+
+                // Process each item in the array
+                for (i in 0 until dataArray.length()) {
+                    val item = dataArray.getJSONObject(i)
+
+                    // Extract tgl_inspeksi and format to get just the date part
+                    val inspeksiDateFull = item.optString("tgl_inspeksi", "")
+                    val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
+                        inspeksiDateFull.split(" ")[0] // Take only the date part (YYYY-MM-DD)
+                    } else {
+                        continue // Skip if no date
+                    }
+
+                    // Skip data outside our date range
+                    if (!allDates.contains(inspeksiDate)) {
+                        continue
+                    }
+
+                    // Increment record count for this date
+                    recordCountByDate[inspeksiDate] = recordCountByDate.getOrDefault(inspeksiDate, 0) + 1
+
+                    // Simply increment the inspection count for this date
+                    // Only count if inspection ID is greater than 0
+                    val inspeksiId = item.optInt("id", 0)
+                    if (inspeksiId > 0) {
+                        inspeksiCountByDate[inspeksiDate] = inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                    }
+                }
+
+                // Build the final string
+                val resultBuilder = StringBuilder()
+                resultBuilder.append("Data Inspeksi dalam 7 hari terakhir\n")
+
+                // Add each date's inspections, but only if they have data
+                var hasValidData = false
+                for (date in allDates.sortedDescending()) {
+                    val inspeksiCount = inspeksiCountByDate[date] ?: 0
+                    val recordCount = recordCountByDate[date] ?: 0
+
+                    // Skip dates with zero records
+                    if (recordCount == 0) {
+                        continue
+                    }
+
+                    hasValidData = true
+
+                    // Format date for display (e.g., "11 Juli")
+                    val dateObj = inputFormatter.parse(date)
+                    val dateDisplay = displayFormatter.format(dateObj!!)
+
+                    resultBuilder.append("$dateDisplay - $inspeksiCount Inspeksi\n")
+                }
+
+                // If no valid data found
+                if (!hasValidData) {
+                    resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
+                }
+
+                return resultBuilder.toString().trim()
+            } else {
+                return "Failed to process data: Success flag is false"
+            }
+        } catch (e: Exception) {
+            Log.e("PreviewDataProcessor", "Error processing data: ${e.message}")
+            return "Error processing data: ${e.message}"
         }
     }
 

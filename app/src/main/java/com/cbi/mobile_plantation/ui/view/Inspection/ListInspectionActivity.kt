@@ -589,9 +589,6 @@ class ListInspectionActivity : AppCompatActivity() {
         val no_pokok: Int,
         val workers: List<String>, // List of worker names
         val pokok_panen: Int?,
-        val susunan_pelepah: Int?,
-        val pelepah_sengkleh: Int?,
-        val kondisi_pruning: Int?,
         val foto: String?,
         val komentar: String?,
         val temuanByKode: Map<Int, Double>, // Combined totals from all workers
@@ -623,9 +620,6 @@ class ListInspectionActivity : AppCompatActivity() {
                     no_pokok = firstDetail.no_pokok,
                     workers = workers,
                     pokok_panen = firstDetail.pokok_panen,
-                    susunan_pelepah = firstDetail.susunan_pelepah,
-                    pelepah_sengkleh = firstDetail.pelepah_sengkleh,
-                    kondisi_pruning = firstDetail.kondisi_pruning,
                     foto = firstDetail.foto,
                     komentar = combinedComment,
                     temuanByKode = temuanByKode,

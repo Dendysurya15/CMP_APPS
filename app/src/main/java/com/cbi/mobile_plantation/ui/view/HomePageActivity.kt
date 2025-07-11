@@ -142,6 +142,7 @@ class HomePageActivity : AppCompatActivity() {
 
     private var isTriggerButtonSinkronisasiData: Boolean = false
     private var isTriggerFeatureInspection: Boolean = false
+    private var isTriggerFollowUp: Boolean = false
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
     private var countPanenTPH: Int = 0  // Global variable for count
@@ -634,6 +635,15 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = AppUtils.ListFeatureNames.FollowUpInspeksi,
+                featureNameBackgroundColor = R.color.greendarkerbutton,
+                iconResource = R.drawable.baseline_travel_explore_24,
+                functionDescription = "Follow Up Inspeksi",
+                displayType = DisplayType.ICON,
+                subTitle = "Follow Up laporan inspeksi panen"
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.ScanESPBTimbanganMill,
                 featureNameBackgroundColor = R.color.yellowBorder,
                 iconResource = R.drawable.timbang_icon,
@@ -778,6 +788,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
@@ -1266,6 +1277,147 @@ class HomePageActivity : AppCompatActivity() {
                     val intent = Intent(this, ListInspectionActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
+                }
+            }
+
+            AppUtils.ListFeatureNames.FollowUpInspeksi -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Unduh/Perbarui Data Inspeksi",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.al_confirm_download_data_inspeksi_case_inspection),
+                        "warning.json",
+                        ContextCompat.getColor(this, R.color.greenDarker),
+                        cancelText = "Lanjutkan Follow Up",
+                        function = {
+                            isTriggerFollowUp = true
+                            loadingDialog.show()
+                            loadingDialog.setMessage("Sedang mempersiapkan data...")
+                            lifecycleScope.launch {
+                                try {
+                                    delay(500)
+
+                                    val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                        AppUtils.ListFeatureByRoleUser.KeraniPanen,
+                                        ignoreCase = true
+                                    )
+
+                                    var previewDataInspeksi = ""
+                                    val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
+                                    val afdelingIdString = prefManager!!.afdelingIdUserLogin
+
+                                    // Validate afdelingId and get valid integer value
+                                    var validAfdelingId: Int? = null
+
+                                    if (!isKeraniPanen) {
+                                        AppLogger.d("Validation triggered for Mandor Panen or Asisten")
+
+                                        // Check if afdelingId is null or empty
+                                        if (afdelingIdString.isNullOrEmpty()) {
+                                            AppLogger.d("afdelingId is null or empty - blocking user")
+                                            withContext(Dispatchers.Main) {
+                                                previewDataInspeksi =
+                                                    "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
+                                            }
+                                        } else {
+                                            // Try to convert afdelingId to integer
+                                            validAfdelingId = try {
+                                                afdelingIdString.toInt()
+                                            } catch (e: NumberFormatException) {
+                                                AppLogger.d("NumberFormatException caught: ${e.message}")
+                                                null
+                                            }
+
+                                            // If conversion failed, set error message
+                                            if (validAfdelingId == null) {
+                                                AppLogger.d("afdelingId is not a valid integer - blocking user")
+                                                withContext(Dispatchers.Main) {
+                                                    previewDataInspeksi =
+                                                        "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
+                                                }
+                                            } else {
+                                                AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
+                                            }
+                                        }
+                                    } else {
+                                        AppLogger.d("Validation skipped - user is Kerani Panen")
+                                    }
+
+                                    // Only call API if user is Mandor1/Asisten AND afdelingId is valid
+                                    if ((!isKeraniPanen) && validAfdelingId != null) {
+                                        // Create a deferred result that will be completed when data is received
+                                        val dataPanenInspeksiDeffered =
+                                            CompletableDeferred<String>()
+
+                                        // Set up the observer for restanPreviewData
+                                        val dataPanenObserver = Observer<String> { data ->
+                                            if (!dataPanenInspeksiDeffered.isCompleted) {
+                                                dataPanenInspeksiDeffered.complete(data)
+                                            }
+                                        }
+
+                                        // Register the observer
+                                        datasetViewModel.dataPanenInspeksiPreview.observe(
+                                            this@HomePageActivity,
+                                            dataPanenObserver
+                                        )
+
+                                        // Start the API request with validated afdelingId
+                                        datasetViewModel.getPreviewDataInspeksiWeek(
+                                            estateIdString,
+                                            validAfdelingId.toString()
+                                        )
+
+                                        try {
+                                            // Wait for the API response with a timeout
+                                            previewDataInspeksi = withTimeout(15000) {
+                                                dataPanenInspeksiDeffered.await()
+                                            }
+
+                                            AppLogger.d("previewDataInspeksi $previewDataInspeksi")
+
+                                            // Remove the observer to prevent memory leaks
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                    dataPanenObserver
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            // Clean up observer in case of timeout or error
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                    dataPanenObserver
+                                                )
+                                            }
+                                            AppLogger.e("Error getting restan data: ${e.message}")
+                                            // Don't throw here, we'll continue with empty previewDataInspeksi
+                                        }
+                                    } else {
+                                        AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
+                                    }
+
+                                    loadingDialog.dismiss()
+                                    withContext(Dispatchers.Main) {
+                                        startDownloads(previewDataInspeksi, "Unduh Data Panen")
+                                    }
+                                } catch (e: Exception) {
+                                    // Handle any errors
+                                    AppLogger.d("Loading estates failed: ${e.message}")
+                                    withContext(Dispatchers.Main) {
+                                        loadingDialog.dismiss()
+                                        showErrorDialog("Error loading estates data: ${e.message}")
+                                    }
+                                }
+                            }
+                        },
+                        cancelFunction = {
+                            val intent = Intent(this, FormInspectionActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
+                        }
+                    )
+
                 }
             }
 
@@ -5679,6 +5831,7 @@ class HomePageActivity : AppCompatActivity() {
             datasetViewModel.resetState()
 
             isTriggerFeatureInspection = false
+            isTriggerFollowUp = false
             dialog.dismiss()
         }
 
@@ -5892,7 +6045,7 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("isTriggerFeatureInspection $isTriggerFeatureInspection")
             AppLogger.d("filteredRequests $filteredRequests")
             if (filteredRequests.isNotEmpty()) {
-                if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection) {
+                if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
                     AppLogger.d("masuk klo gess")
                     startDownloadsV2(filteredRequests, previewData, titleDialog)
                 } else {
@@ -5950,6 +6103,19 @@ class HomePageActivity : AppCompatActivity() {
                     estate = estateId,
                     lastModified = null,
                     dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
+            return datasets
+        }
+
+        if (isTriggerFollowUp && !isKeraniPanen) {
+            AppLogger.d("Inspection triggered - downloading only parameter dataset")
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
                 )
             )
             return datasets

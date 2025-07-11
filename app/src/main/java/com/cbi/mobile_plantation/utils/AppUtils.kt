@@ -210,6 +210,7 @@ object AppUtils {
 
         const val InspeksiPanen = "Inspeksi Panen"
         const val RekapInspeksiPanen = "Rekap Inspeksi Panen"
+        const val FollowUpInspeksi = "Follow Up Inspeksi"
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
         const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
         const val AbsensiPanen = "Absensi panen"
@@ -255,6 +256,7 @@ object AppUtils {
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val sinkronisasiRestan = "Sinkronisasi Data Restan"
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
+        const val sinkronisasiFollowUpInspeksi = "Data Inspeksi (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
     }
 
