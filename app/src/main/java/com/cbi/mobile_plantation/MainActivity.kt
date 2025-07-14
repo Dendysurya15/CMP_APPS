@@ -21,6 +21,8 @@ import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.LoginActivity
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
@@ -132,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         if (!showingSplash) return
         showingSplash = false
 
-        startActivity(Intent(this, LoginActivity::class.java))
+        startActivity(Intent(this, ListFollowUpInspeksi::class.java))
         finish()
     }
 

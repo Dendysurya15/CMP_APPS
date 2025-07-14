@@ -11,7 +11,6 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import android.provider.Settings
-import kotlin.reflect.full.findAnnotation
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
@@ -20,7 +19,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -41,7 +39,6 @@ import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
-import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
@@ -49,7 +46,6 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.databinding.ActivityHomePageBinding
 import com.cbi.mobile_plantation.ui.adapter.DisplayType
@@ -65,11 +61,10 @@ import com.cbi.mobile_plantation.ui.view.Absensi.ListAbsensiActivity
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.view.Absensi.ScanAbsensiActivity
-import com.cbi.mobile_plantation.ui.view.HektarPanen.DaftarHektarMPanen
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
@@ -100,10 +95,7 @@ import com.rajat.pdfviewer.PdfViewerActivity
 import com.rajat.pdfviewer.util.saveTo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -112,7 +104,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
-import java.io.FileReader
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -121,8 +112,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class HomePageActivity : AppCompatActivity() {
 
@@ -1413,7 +1402,7 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         },
                         cancelFunction = {
-                            val intent = Intent(this, FollowUpInspeksi::class.java)
+                            val intent = Intent(this, ListFollowUpInspeksi::class.java)
                             intent.putExtra("FEATURE_NAME", feature.featureName)
                             startActivity(intent)
                         }

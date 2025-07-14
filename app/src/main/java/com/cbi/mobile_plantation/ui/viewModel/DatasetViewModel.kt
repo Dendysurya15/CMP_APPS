@@ -2396,14 +2396,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 baris = baris,
                                 jml_pkk_inspeksi = jmlPokokInspeksi,
                                 tracking_path = trackingPath,
-                                foto = null, // Not available in API response
-                                komentar = null, // Not available in API response
+                                foto = null,
+                                komentar = null,
                                 latTPH = lat,
                                 lonTPH = lon,
                                 dataIsZipped = 0,
-                                app_version = "", // Not available in API response
-                                status_upload = "1", // Assume uploaded since from server
-                                status_uploaded_image = "1" // Assume uploaded since from server
+                                app_version = "",
+                                status_upload = "3",
+                                status_uploaded_image = "200" // Assume uploaded since from server
                             )
 
                             inspectionList.add(inspectionEntity)

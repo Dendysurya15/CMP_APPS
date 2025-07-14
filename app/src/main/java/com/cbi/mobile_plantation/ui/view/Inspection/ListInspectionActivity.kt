@@ -58,8 +58,6 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.formatToIndonesianDate
-import com.cbi.mobile_plantation.utils.AppUtils.hideWithAnimation
-import com.cbi.mobile_plantation.utils.AppUtils.showWithAnimation
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
@@ -339,6 +337,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         adapter = ListInspectionAdapter(
+            "",
             onItemClick = { inspectionPath ->
                 showDetailData(inspectionPath)
             },

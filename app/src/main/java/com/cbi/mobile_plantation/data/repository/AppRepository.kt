@@ -109,6 +109,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getInspectionById(inspectionId: String): List<InspectionWithDetailRelations> {
+        return try {
+            inspectionDao.getInspectionById(inspectionId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection by ID: ${e.message}")
+            emptyList()
+        }
+    }
+
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,

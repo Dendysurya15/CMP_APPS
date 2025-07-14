@@ -24,6 +24,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
@@ -218,6 +219,7 @@ object AppUtils {
         const val ScanAbsensiPanen = "Scan Absensi Panen"
         const val SinkronisasiData = "Sinkronisasi data"
         const val UploadDataCMP = "Upload Data CMP"
+        const val ListFollowUpInspeksi = "List Follow Up Inspeksi"
 
         const val ScanPanenMPanen = "Scan Mandor Panen"
         const val DaftarHektarPanen = "Daftar Hektar Panen"

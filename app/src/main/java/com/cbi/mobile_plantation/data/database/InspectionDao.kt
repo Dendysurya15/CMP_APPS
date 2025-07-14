@@ -38,6 +38,14 @@ abstract class InspectionDao {
         datetime: String? = null
     ): List<InspectionWithDetailRelations>
 
+    @Query("""
+    SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
+    WHERE id = :inspectionId
+""")
+    abstract suspend fun getInspectionById(
+        inspectionId: String
+    ): List<InspectionWithDetailRelations>
+
     @Query("UPDATE inspeksi SET status_upload = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadInspeksiPanen(ids: List<Int>, status: Int)
 

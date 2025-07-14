@@ -49,15 +49,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
 
-    fun getTPHHasBeenInspect() {
+
+    fun loadInspectionById(inspectionId: String) {
         viewModelScope.launch {
-            repository.getTPHHasBeenInspect()
-                .onSuccess { inspecationList ->
-                    _inspectionList.value = inspecationList // ✅ Immediate emission like StateFlow
-                }
-                .onFailure { exception ->
-                    _error.postValue(exception.message ?: "Failed to load data")
-                }
+            _inspectionWithDetails.value = repository.getInspectionById(inspectionId)
         }
     }
 

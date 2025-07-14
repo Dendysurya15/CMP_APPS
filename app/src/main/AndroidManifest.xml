@@ -51,6 +51,11 @@
             android:label="@string/title_activity_follow_up_inspeksi" />
 
         <activity
+            android:name=".ui.view.followUpInspeksi.ListFollowUpInspeksi"
+            android:exported="false"
+            android:label="@string/title_activity_follow_up_inspeksi" />
+
+        <activity
             android:name=".ui.view.Absensi.ScanAbsensiActivity"
             android:exported="false" /> <!-- <activity -->
         <!-- android:name=".ui.view.espb.DetailESPBActivity" -->

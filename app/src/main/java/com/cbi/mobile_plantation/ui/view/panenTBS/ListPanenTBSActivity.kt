@@ -3929,7 +3929,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     private fun takeQRCodeScreenshot(view: View) {
 
-
         lifecycleScope.launch {
             try {
                 val screenshotLayout: View =
