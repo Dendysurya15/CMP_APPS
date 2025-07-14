@@ -1403,7 +1403,7 @@ class HomePageActivity : AppCompatActivity() {
                         },
                         cancelFunction = {
                             val intent = Intent(this, ListFollowUpInspeksi::class.java)
-                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.ListFollowUpInspeksi)
                             startActivity(intent)
                         }
                     )

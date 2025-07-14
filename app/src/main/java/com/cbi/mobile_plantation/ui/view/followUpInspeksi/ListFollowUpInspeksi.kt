@@ -423,9 +423,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     this@ListFollowUpInspeksi,
                     FollowUpInspeksi::class.java
                 )
+                intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.FollowUpInspeksi)
                 intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
-
-                AppLogger.d("${inspectionPath.inspeksi.id}")
                 startActivity(intent)
             },
             cancelFunction = { }

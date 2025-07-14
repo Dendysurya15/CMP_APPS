@@ -32,6 +32,17 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="Detail Tracking Inspeksi"
+                android:fontFamily="@font/manrope_extrabold"
+                android:gravity="center|left"
+                android:textColor="@color/black"
+                android:textSize="@dimen/l"
+                android:visibility="visible"
+                tools:ignore="HardcodedText,RtlHardcoded" />
+
             <!-- Map Container -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"

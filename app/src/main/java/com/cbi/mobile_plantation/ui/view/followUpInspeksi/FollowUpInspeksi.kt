@@ -32,6 +32,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +56,8 @@ class FollowUpInspeksi : AppCompatActivity() {
     private var inspectionId: String? = null
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var inspectionViewModel: InspectionViewModel
+    private var parameterInspeksi: List<InspectionViewModel.InspectionParameterItem> = emptyList()
+
     companion object {
         private const val REQUEST_PERMISSIONS_REQUEST_CODE = 1
     }
@@ -102,9 +105,24 @@ class FollowUpInspeksi : AppCompatActivity() {
 
             try {
                 AppLogger.d("inspectionID $inspectionId")
+                val parameterInspeksiDeferred = async {
+                    try {
+                        inspectionViewModel.getParameterInspeksiJson()
+                    } catch (e: Exception) {
+                        AppLogger.e("Parameter loading failed: ${e.message}")
+                        emptyList<InspectionViewModel.InspectionParameterItem>()
+                    }
+                }
+                delay(100)
+                parameterInspeksi = parameterInspeksiDeferred.await()
+
+                if (parameterInspeksi.isEmpty()) {
+                    throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
+                }
+
+                // Load inspection data after parameters are loaded
                 if (!inspectionId.isNullOrEmpty()) {
                     withContext(Dispatchers.Main) {
-
                         inspectionViewModel.loadInspectionById(inspectionId!!)
                     }
                 } else {
@@ -114,7 +132,21 @@ class FollowUpInspeksi : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     loadingDialog.dismiss()
-//                    showErrorDialog("Error loading inspection data: ${e.message}")
+
+                    // Concatenate error message with proper numbering
+                    val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error occurred"
+                    val fullMessage = errorMessage
+
+                    AlertDialogUtility.withSingleAction(
+                        this@FollowUpInspeksi,
+                        getString(R.string.al_back),
+                        getString(R.string.al_failed_fetch_data),
+                        fullMessage,
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {
+                        finish()
+                    }
                 }
             }
         }
@@ -129,6 +161,7 @@ class FollowUpInspeksi : AppCompatActivity() {
 
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
+        AppLogger.d(featureName.toString())
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
         val titleAppNameAndVersion = findViewById<TextView>(R.id.titleAppNameAndVersionFeature)
@@ -161,6 +194,7 @@ class FollowUpInspeksi : AppCompatActivity() {
 //                showErrorDialog("Inspection data not found")
             }
         }
+
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -343,7 +377,20 @@ class FollowUpInspeksi : AppCompatActivity() {
         map.invalidate()
     }
 
-    // Option 1: Use OSMDroid's built-in InfoWindow
+    data class InspectionParameter(
+        val id: Int,
+        val nama: String,
+        val status_ppro: Int
+    )
+
+    private fun createSimpleDetailSummary(processedDetails: List<ProcessedInspectionDetail>): String {
+        // Option 1: Try system line separator
+        return processedDetails.joinToString(System.lineSeparator()) { detail ->
+            "${detail.kodeInspeksi}. ${detail.nama}: ${detail.temuanTotal}"
+        }
+    }
+
+
     private fun addInspectionDetailMarker(
         latitude: Double,
         longitude: Double,
@@ -353,8 +400,6 @@ class FollowUpInspeksi : AppCompatActivity() {
     ) {
         val marker = Marker(map)
         marker.position = GeoPoint(latitude, longitude)
-        marker.title = title
-        marker.snippet = "${details.size} issues found"
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
 
         // Use ONLY location pin icon
@@ -370,16 +415,13 @@ class FollowUpInspeksi : AppCompatActivity() {
         drawable?.setTint(ContextCompat.getColor(this, colorRes))
         marker.icon = drawable
 
-        // Create custom info window content
-        val totalIssues = details.size
-        val resolvedIssues = details.count { it.status_pemulihan > 0.0 }
-        val unresolvedIssues = totalIssues - resolvedIssues
+        // Process and group the details properly
+        val processedDetails = processInspectionDetails(details, noPokak)
 
-        // Set marker info that will show in built-in popup
-        marker.title = "Tree #$noPokak"
-        marker.snippet = """Issues: $totalIssues | Resolved: $resolvedIssues | Unresolved: $unresolvedIssues"""
+        // Set marker info with simplified data
+        marker.title = "Pokok #$noPokak"
+        marker.snippet = createSimpleDetailSummary(processedDetails)
 
-        // Option 1a: Use default InfoWindow (simple)
         marker.setOnMarkerClickListener { clickedMarker, _ ->
             clickedMarker.showInfoWindow()
             true
@@ -389,144 +431,84 @@ class FollowUpInspeksi : AppCompatActivity() {
         AppLogger.d("Added detail marker: $title at $latitude, $longitude")
     }
 
-    // Option 2: Create custom info window overlay
-    private fun showCustomInfoWindow(latitude: Double, longitude: Double, noPokak: Int, details: List<InspectionDetailModel>) {
-        // Remove any existing info windows first
-        removeInfoWindows()
+    private fun processInspectionDetails(details: List<InspectionDetailModel>, noPokak: Int): List<ProcessedInspectionDetail> {
+        val inspectionParameters = getInspectionParameters()
+        val processedList = mutableListOf<ProcessedInspectionDetail>()
 
-        val totalIssues = details.size
-        val resolvedIssues = details.count { it.status_pemulihan > 0.0 }
-        val unresolvedIssues = totalIssues - resolvedIssues
+        val groupedByCode = details.groupBy { it.kode_inspeksi }
 
-        // Create a text overlay that appears on the map
-        val textOverlay = object : org.osmdroid.views.overlay.Overlay() {
-            override fun draw(canvas: android.graphics.Canvas?, mapView: org.osmdroid.views.MapView?, shadow: Boolean) {
-                if (canvas == null || mapView == null) return
+        groupedByCode.forEach { (kodeInspeksi, detailsForCode) ->
+            val parameter = inspectionParameters.find { it.id == kodeInspeksi }
+            val parameterName = parameter?.nama ?: "Unknown"
 
-                // Convert geo coordinates to screen coordinates
-                val point = mapView.projection.toPixels(GeoPoint(latitude, longitude), null)
+            when (kodeInspeksi) {
+                in 1..4 -> {
+                    val totalTemuan = detailsForCode.sumOf { it.temuan_inspeksi }
 
-                // Create paint for text
-                val paint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.WHITE
-                    textSize = 40f
-                    isAntiAlias = true
-                    textAlign = android.graphics.Paint.Align.CENTER
+                    processedList.add(
+                        ProcessedInspectionDetail(
+                            kodeInspeksi = kodeInspeksi,
+                            nama = parameterName,
+                            temuanTotal = totalTemuan,
+                            statusPemulihan = false, // Remove pemulihan logic
+                            count = detailsForCode.size,
+                            type = "SUMMED"
+                        )
+                    )
                 }
-
-                val backgroundPaint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.BLACK
-                    alpha = 180
+                5, 6 -> {
+                    val firstDetail = detailsForCode.first()
+                    processedList.add(
+                        ProcessedInspectionDetail(
+                            kodeInspeksi = kodeInspeksi,
+                            nama = parameterName,
+                            temuanTotal = firstDetail.temuan_inspeksi,
+                            statusPemulihan = false, // Remove pemulihan logic
+                            count = detailsForCode.size,
+                            type = "SAME_VALUE"
+                        )
+                    )
                 }
-
-                // Info text
-                val infoText = "Tree #$noPokak\nIssues: $totalIssues\nResolved: $resolvedIssues\nUnresolved: $unresolvedIssues"
-                val lines = infoText.split("\n")
-
-                // Calculate text bounds
-                val textHeight = paint.textSize
-                val totalHeight = lines.size * textHeight + 20
-                val maxWidth = lines.maxOfOrNull { paint.measureText(it) } ?: 0f
-
-                // Draw background
-                val rect = android.graphics.RectF(
-                    point.x - maxWidth/2 - 10,
-                    point.y - totalHeight - 60,
-                    point.x + maxWidth/2 + 10,
-                    (point.y - 60).toFloat()
-                )
-                canvas.drawRoundRect(rect, 10f, 10f, backgroundPaint)
-
-                // Draw text lines
-                lines.forEachIndexed { index, line ->
-                    canvas.drawText(
-                        line,
-                        point.x.toFloat(),
-                        point.y - totalHeight + (index + 1) * textHeight - 40,
-                        paint
+                in 7..9 -> {
+                    val firstDetail = detailsForCode.first()
+                    processedList.add(
+                        ProcessedInspectionDetail(
+                            kodeInspeksi = kodeInspeksi,
+                            nama = parameterName,
+                            temuanTotal = firstDetail.temuan_inspeksi,
+                            statusPemulihan = false, // Remove pemulihan logic
+                            count = detailsForCode.size,
+                            type = "TREE_SPECIFIC"
+                        )
                     )
                 }
             }
         }
 
-        map.overlays.add(textOverlay)
-        map.invalidate()
-
-        // Auto-remove after 3 seconds
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            removeInfoWindows()
-        }, 3000)
+        return processedList.sortedBy { it.kodeInspeksi }
     }
 
-    // Option 3: Enhanced marker with better click handling
-    private fun addInspectionDetailMarkerWithPopup(
-        latitude: Double,
-        longitude: Double,
-        title: String,
-        details: List<InspectionDetailModel>,
-        noPokak: Int
-    ) {
-        val marker = Marker(map)
-        marker.position = GeoPoint(latitude, longitude)
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+    // Data class for processed inspection details
+    data class ProcessedInspectionDetail(
+        val kodeInspeksi: Int,
+        val nama: String,
+        val temuanTotal: Double,
+        val statusPemulihan: Boolean,
+        val count: Int,
+        val type: String
+    )
 
-        // Use ONLY location pin icon
-        val drawable = ContextCompat.getDrawable(this, R.drawable.baseline_location_pin_24)
-
-        val hasUnresolvedIssues = details.any { it.status_pemulihan == 0.0 }
-        val colorRes = if (hasUnresolvedIssues) {
-            android.R.color.holo_orange_dark
-        } else {
-            android.R.color.holo_green_light
+    private fun getInspectionParameters(): List<InspectionParameter> {
+        return parameterInspeksi.map { param ->
+            InspectionParameter(
+                id = param.id,
+                nama = param.nama,
+                status_ppro = param.status_ppro
+            )
         }
-
-        drawable?.setTint(ContextCompat.getColor(this, colorRes))
-        marker.icon = drawable
-
-        // Enhanced click handling with map popup
-        marker.setOnMarkerClickListener { _, _ ->
-            showCustomInfoWindow(latitude, longitude, noPokak, details)
-            true
-        }
-
-        map.overlays.add(marker)
-        AppLogger.d("Added detail marker: $title at $latitude, $longitude")
     }
 
-    // Helper method to remove info windows
-    private fun removeInfoWindows() {
-        // Remove any text overlays
-        val overlaysToRemove = map.overlays.filter {
-            it is org.osmdroid.views.overlay.Overlay &&
-                    it !is Marker &&
-                    it !is org.osmdroid.views.overlay.Polyline &&
-                    it !is MyLocationNewOverlay
-        }
-        map.overlays.removeAll(overlaysToRemove)
-        map.invalidate()
-    }
 
-    // Option 4: Simple floating text that follows the marker
-    private fun showFloatingInfo(marker: Marker, noPokak: Int, details: List<InspectionDetailModel>) {
-        val totalIssues = details.size
-        val resolvedIssues = details.count { it.status_pemulihan > 0.0 }
-        val unresolvedIssues = totalIssues - resolvedIssues
-
-        // Update marker title and snippet for built-in popup
-        marker.title = "🌴 Tree #$noPokak"
-        marker.snippet = """
-        📊 Total Issues: $totalIssues
-        ✅ Resolved: $resolvedIssues  
-        ❌ Unresolved: $unresolvedIssues
-        📍 Tap outside to close
-    """.trimIndent()
-
-        // Show the built-in info window
-        marker.showInfoWindow()
-
-        // Center map on marker
-        map.controller.animateTo(marker.position)
-    }
 
     fun moveToLocation(latitude: Double, longitude: Double, zoom: Double = 15.0) {
         val geoPoint = GeoPoint(latitude, longitude)
@@ -745,17 +727,17 @@ class FollowUpInspeksi : AppCompatActivity() {
             "warning.json",
             ContextCompat.getColor(this, R.color.bluedarklight),
             function = {
-                val intent = Intent(this, ListFollowUpInspeksi::class.java)
-                startActivity(intent)
+                val newIntent = Intent(this, ListFollowUpInspeksi::class.java)
+                newIntent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.ListFollowUpInspeksi) // ✅ Adding to NEW intent
+                startActivity(newIntent)
                 finishAffinity()
             },
             cancelFunction = {
 
             }
         )
-
-
     }
+
 
 
     override fun onRequestPermissionsResult(
