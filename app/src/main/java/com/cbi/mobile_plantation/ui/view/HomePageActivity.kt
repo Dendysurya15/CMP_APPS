@@ -69,6 +69,7 @@ import com.cbi.mobile_plantation.ui.view.HektarPanen.DaftarHektarMPanen
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
@@ -1412,7 +1413,7 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         },
                         cancelFunction = {
-                            val intent = Intent(this, FormInspectionActivity::class.java)
+                            val intent = Intent(this, FollowUpInspeksi::class.java)
                             intent.putExtra("FEATURE_NAME", feature.featureName)
                             startActivity(intent)
                         }

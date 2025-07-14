@@ -133,5 +133,6 @@
         <item>12sp</item>
         <item>17sp</item>
     </array>
+    <string name="title_activity_follow_up_inspeksi">FollowUpInspeksi</string>
 
 </resources>
