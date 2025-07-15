@@ -48,6 +48,7 @@ import com.cbi.mobile_plantation.ui.adapter.ListInspectionAdapter
 import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
@@ -421,7 +422,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             function = {
                 val intent = Intent(
                     this@ListFollowUpInspeksi,
-                    FollowUpInspeksi::class.java
+                    FormInspectionActivity::class.java
                 )
                 intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.FollowUpInspeksi)
                 intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)

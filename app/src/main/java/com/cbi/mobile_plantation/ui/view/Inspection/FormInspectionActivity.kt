@@ -82,6 +82,7 @@ import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.utils.SoftKeyboardStateWatcher
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
@@ -92,6 +93,9 @@ import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter.Companion.CAMERA_PERMISSION_REQUEST_CODE
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi.LatLon
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi.TrackingPath
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
@@ -130,6 +134,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.MapTileIndex
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import org.w3c.dom.Text
 import java.io.File
 import java.text.SimpleDateFormat
@@ -197,7 +208,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val autoScanInterval = 5000L
     private lateinit var tvErrorScannedNotSelected: TextView
     private var dateStartInspection: String = ""
-
+    private var inspectionId: String? = null
     private var panenTPH: List<PanenEntityWithRelations> = emptyList()
 
     private data class TPHData(
@@ -229,11 +240,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             "TB" to "Timur - Barat",
         )
     )
-
+    private var currentInspectionData: InspectionWithDetailRelations? = null
     private var isTenthTrees = false
     private var isSnackbarShown = false
     private var locationEnable: Boolean = false
-    private var isNavigationForced = false
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private var hasInspectionStarted = false
     private var divisiList: List<TPHNewModel> = emptyList()
@@ -277,7 +287,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private lateinit var infoBlokView: ScrollView
     private lateinit var formInspectionView: ConstraintLayout
-
+    private lateinit var map: MapView
     private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
@@ -316,11 +326,12 @@ open class FormInspectionActivity : AppCompatActivity(),
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_inspection)
-        //cek tanggal otomatis
         checkDateTimeSettings()
     }
 
     private fun initUI() {
+        fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
+        bottomNavInspect = findViewById(R.id.bottomNavInspect)
         titlePemanenInspeksi = findViewById(R.id.titlePemanenInspeksi)
         descPemanenInspeksi = findViewById(R.id.descPemanenInspeksi)
         clSummaryInspection = findViewById(R.id.clSummaryInspection)
@@ -371,7 +382,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             btnScanTPHRadius.visibility = View.VISIBLE
         }
 
-        // Show auto scan switch when scanning is available
         layoutAutoScan.visibility = View.VISIBLE
 
         val radiusText = "${radiusMinimum.toInt()} m"
@@ -416,6 +426,23 @@ open class FormInspectionActivity : AppCompatActivity(),
         boundaryAccuracy = prefManager!!.boundaryAccuracy
         initViewModel()
         initUI()
+        featureName = intent.getStringExtra("FEATURE_NAME").toString()
+        val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
+        inspectionId = if (inspectionIdInt != -1) {
+            inspectionIdInt.toString()
+        } else {
+            null
+        }
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility = View.VISIBLE
+            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
+            map = findViewById(R.id.map)
+            setupMapTouchHandling()
+            setupMap()
+            setupButtonListeners()
+            updateSatelliteButtonAppearance()
+            updateButtonSelection("default") // Start with default instead of satellite
+        }
         setupAutoScanSwitch()
         setKeyboardVisibilityListener()
         regionalId = prefManager!!.regionalIdUserLogin
@@ -425,11 +452,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
         infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
-        setupSelectionButtons()
+        setupHeader()
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        setupHeader()
 
         lifecycleScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -471,6 +497,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                             panenStoredLocal.putAll(tphDataMap)
 
                             panenDeferred.complete(list ?: emptyList())
+                        }
+                    }
+
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                        if (!inspectionId.isNullOrEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                inspectionViewModel.loadInspectionById(inspectionId!!)
+                            }
+                        } else {
+                            throw Exception("Inspection ID not found!")
                         }
                     }
 
@@ -557,6 +593,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
+        setupSelectionButtons()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
@@ -572,16 +609,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
-                    // NEW: Check if we're in main content - go back to selection screen with data check
                     hasSelectedMode && mainContentWrapper.visibility == View.VISIBLE -> {
-                        // Check if any data exists
-
-                        AppLogger.d(hasExistingData().toString())
                         if (hasExistingData()) {
                             vibrate()
                             AlertDialogUtility.withTwoActions(
                                 this@FormInspectionActivity,
-                                "Kembali ke Pemilihan",
+                                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) "Keluar" else "Kembali ke Pemilihan",
                                 "Data akan hilang",
                                 "Data yang sudah diisi akan hilang. Apakah Anda yakin ingin kembali?",
                                 "warning.json",
@@ -590,16 +623,41 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     R.color.bluedarklight
                                 ),
                                 function = {
-                                    showSelectionScreen()
-                                    headerFormInspection.visibility = View.GONE
-                                    hasSelectedMode = false
+                                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                                        val newIntent = Intent(
+                                            this@FormInspectionActivity,
+                                            ListFollowUpInspeksi::class.java
+                                        )
+                                        newIntent.putExtra(
+                                            "FEATURE_NAME",
+                                            AppUtils.ListFeatureNames.ListFollowUpInspeksi
+                                        )
+                                        startActivity(newIntent)
+                                        finishAffinity()
+                                    } else {
+                                        showSelectionScreen()
+                                        headerFormInspection.visibility = View.GONE
+                                        hasSelectedMode = false
+                                    }
                                 }
                             )
                         } else {
-                            // No data exists, go back directly
-                            showSelectionScreen()
-                            headerFormInspection.visibility = View.GONE
-                            hasSelectedMode = false
+                            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                                val newIntent = Intent(
+                                    this@FormInspectionActivity,
+                                    ListFollowUpInspeksi::class.java
+                                )
+                                newIntent.putExtra(
+                                    "FEATURE_NAME",
+                                    AppUtils.ListFeatureNames.ListFollowUpInspeksi
+                                )
+                                startActivity(newIntent)
+                                finishAffinity()
+                            } else {
+                                showSelectionScreen()
+                                headerFormInspection.visibility = View.GONE
+                                hasSelectedMode = false
+                            }
                         }
                     }
 
@@ -643,7 +701,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     }
 
-    // Helper function to check if any data exists
     private fun hasExistingData(): Boolean {
         return selectedIdPanenByScan != null ||
                 selectedEstateByScan != null ||
@@ -726,18 +783,32 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun setupSelectionButtons() {
-        btnMulaiDariTPH.setOnClickListener {
-            isStartFromTPH = true
-            hasSelectedMode = true
-            setupNavigationForTPHMode()
-            showMainContent()
-        }
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            fabPhotoInfoBlok.visibility = View.GONE
+            selectionScreen.visibility = View.GONE
+            mainContentWrapper.visibility = View.VISIBLE
+            headerFormInspection.visibility = View.VISIBLE
 
-        btnMulaiDariPokok.setOnClickListener {
             isStartFromTPH = false
             hasSelectedMode = true
-            setupNavigationForPokokMode()
-            showMainContent()
+            setupNavigationForTPHMode()
+
+
+        } else {
+            // Original button setup code (only executed if not followUpInspeksi)
+            btnMulaiDariTPH.setOnClickListener {
+                isStartFromTPH = true
+                hasSelectedMode = true
+                setupNavigationForTPHMode()
+                showMainContent()
+            }
+
+            btnMulaiDariPokok.setOnClickListener {
+                isStartFromTPH = false
+                hasSelectedMode = true
+                setupNavigationForPokokMode()
+                showMainContent()
+            }
         }
     }
 
@@ -821,7 +892,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 .setIcon(R.drawable.list_solid)
         } else {
             // Pokok mode: P. Ancak -> Info Blok -> Summary
-            AppLogger.d("masuk sini bro")
             menu.add(0, R.id.navMenuAncakInspect, 0, "P. Ancak")
                 .setIcon(R.drawable.baseline_grain_24)
             menu.add(0, R.id.navMenuBlokInspect, 1, "Info. Blok")
@@ -967,6 +1037,22 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun observeViewModel() {
+
+        inspectionViewModel.inspectionWithDetails.observe(this) { inspectionData ->
+            if (inspectionData.isNotEmpty()) {
+                val inspection = inspectionData.first()
+
+                AppLogger.d("inspection $inspection")
+                currentInspectionData = inspection
+                updateMapWithInspectionData(inspection)
+
+                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    populateFollowUpInspectionUI(inspection)
+
+                }
+            }
+        }
+
         formAncakViewModel.currentPage.observe(this) { page ->
 
             val pageIndex = page - 1
@@ -1790,7 +1876,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun setupHeader() {
-        featureName = intent.getStringExtra("FEATURE_NAME").toString()
+
         val tvFeatureName = findViewById<TextView>(R.id.tvFeatureName)
         val userSection = findViewById<TextView>(R.id.userSection)
         val titleAppNameAndVersion = findViewById<TextView>(R.id.titleAppNameAndVersionFeature)
@@ -1811,17 +1897,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         )
     }
 
-    @SuppressLint("CutPasteId")
+    @SuppressLint("CutPasteId", "SetTextI18n")
     private fun setupLayout() {
         infoBlokView = findViewById(R.id.svInfoBlokInspection)
         formInspectionView = findViewById(R.id.clFormInspection)
         summaryView = findViewById(R.id.clSummaryInspection)
-        bottomNavInspect = findViewById(R.id.bottomNavInspect)
+
         vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
-        fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
 
         fabSaveFormAncak = findViewById(R.id.fabSaveFormInspect)
 
@@ -1964,10 +2049,13 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             if (activeBottomNavId == R.id.navMenuBlokInspect) {
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnItemSelectedListener false
+                if(featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                    if (!validateAndShowErrors()) {
+                        vibrate(500)
+                        return@setOnItemSelectedListener false
+                    }
                 }
+
             }
 
             loadingDialog.show()
@@ -2057,6 +2145,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 else -> false
             }
         }
+        // Check feature name and set visibility accordingly
+        val shouldHideElements = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
+
         inputMappings = listOf(
             Triple(
                 findViewById(R.id.lyEstInspect),
@@ -2073,7 +2164,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "Jalur Masuk",
                 InputType.SPINNER
             ),
-
             Triple(
                 findViewById(R.id.lyMandor2Inspect),
                 "Kemandoran Lain",
@@ -2097,44 +2187,63 @@ open class FormInspectionActivity : AppCompatActivity(),
         )
 
         inputMappings.forEach { (layoutView, key, inputType) ->
-            updateLabelTextView(layoutView, key)
-            when (inputType) {
-                InputType.SPINNER -> {
-                    when (layoutView.id) {
-                        R.id.lyEstInspect -> {
-                            val namaEstate = prefManager!!.estateUserLengkapLogin
-                            setupSpinnerView(layoutView, emptyList())
-                            val pemanenSpinner =
-                                layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                            pemanenSpinner.setHint(namaEstate)
-                        }
+            if (shouldHideElements) {
+                layoutView.visibility = View.GONE
+                findViewById<TextView>(R.id.titleInformasiBlok).text = "Informasi Inspeksi"
+                findViewById<TextView>(R.id.descTitleBlokInspeksi).text =
+                    "Detail informasi inspeksi"
+                findViewById<LinearLayout>(R.id.detailInspeksiForFollowUp).visibility = View.VISIBLE
+                val warningCard = findViewById<View>(R.id.warning_card)
+                warningCard.visibility = View.VISIBLE
 
-                        R.id.lyAfdInspect -> {
-                            val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
-                            setupSpinnerView(layoutView, divisiNames)
-                        }
+                val warningTextView = warningCard.findViewById<TextView>(R.id.warningText)
+                warningTextView.text = "Mohon melakukan update data dibawah ini jika memang tidak ada temuan!"
 
-                        R.id.lyJalurInspect -> setupSpinnerView(
-                            layoutView,
-                            (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
-                        )
-
-                        else -> setupSpinnerView(layoutView, emptyList())
-                    }
+                val btnCloseWarning = warningCard.findViewById<ImageButton>(R.id.btnCloseWarning)
+                btnCloseWarning.setOnClickListener {
+                    warningCard.visibility = View.GONE
                 }
 
-                InputType.EDITTEXT -> setupEditTextView(layoutView)
+            } else {
+                layoutView.visibility = View.VISIBLE
+                updateLabelTextView(layoutView, key)
+                when (inputType) {
+                    InputType.SPINNER -> {
+                        when (layoutView.id) {
+                            R.id.lyEstInspect -> {
+                                val namaEstate = prefManager!!.estateUserLengkapLogin
+                                setupSpinnerView(layoutView, emptyList())
+                                val pemanenSpinner =
+                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                pemanenSpinner.setHint(namaEstate)
+                            }
 
-                InputType.RADIO -> {
-                    when (layoutView.id) {
+                            R.id.lyAfdInspect -> {
+                                val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
+                                setupSpinnerView(layoutView, divisiNames)
+                            }
 
-                        R.id.lyConditionType -> setupRadioView(
-                            layoutView,
-                            listRadioItems["ConditionType"] ?: emptyMap(),
-                            ::selectedKondisiValue
-                        ) { id ->
-                            findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
-                                if (id.toInt() == 2) View.GONE else View.VISIBLE
+                            R.id.lyJalurInspect -> setupSpinnerView(
+                                layoutView,
+                                (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
+                            )
+
+                            else -> setupSpinnerView(layoutView, emptyList())
+                        }
+                    }
+
+                    InputType.EDITTEXT -> setupEditTextView(layoutView)
+
+                    InputType.RADIO -> {
+                        when (layoutView.id) {
+                            R.id.lyConditionType -> setupRadioView(
+                                layoutView,
+                                listRadioItems["ConditionType"] ?: emptyMap(),
+                                ::selectedKondisiValue
+                            ) { id ->
+                                findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
+                                    if (id.toInt() == 2) View.GONE else View.VISIBLE
+                            }
                         }
                     }
                 }
@@ -2150,8 +2259,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             Triple(R.id.lyBuahTglInspect, AppUtils.kodeInspeksi.buahTinggalTPH, ::jumBuahTglPath),
         )
 
-        counterMappings.forEach { (layoutId, labelText, counterVar) ->
-            setupPanenWithButtons(layoutId, labelText, counterVar)
+
+        if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            counterMappings.forEach { (layoutId, labelText, counterVar) ->
+                val layoutView = findViewById<View>(layoutId)
+
+                setupPanenWithButtons(layoutId, labelText, counterVar)
+            }
+
         }
 
         rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
@@ -3899,6 +4014,629 @@ open class FormInspectionActivity : AppCompatActivity(),
         spinner.visibility = View.VISIBLE
     }
 
+    private fun populateFollowUpInspectionUI(inspectionData: InspectionWithDetailRelations) {
+        val inspection = inspectionData.inspeksi
+        val tph = inspectionData.tph
+        val panen = inspectionData.panen
+        val detailInspeksi = inspectionData.detailInspeksi
+
+        // Est/Afd/Blok
+        findViewById<TextView>(R.id.tvEstAfdBlok).text =
+            "${tph?.dept_abbr ?: "-"}/${tph?.divisi_abbr ?: "-"}/${tph?.blok_kode ?: "-"}\nTPH nomor ${tph?.nomor ?: "-"}"
+
+        findViewById<TextView>(R.id.tvTanggalInspeksi).text =
+            inspection.created_date_start ?: "-"
+
+        findViewById<TextView>(R.id.tvJalurMasuk).text =
+            inspection.jalur_masuk ?: "-"
+
+        val jenisKondisiText = when (inspection.jenis_kondisi) {
+            1 -> "Datar"
+            2 -> "Terasan"
+            else -> inspection.jenis_kondisi?.toString() ?: "-"
+        }
+        findViewById<TextView>(R.id.tvBaris).text =
+            "($jenisKondisiText) ${inspection.baris ?: "-"}"
+
+        findViewById<TextView>(R.id.tvTglPanen).text =
+            inspection.date_panen ?: "-"
+
+        findViewById<TextView>(R.id.tvKomentarTPH).text =
+            inspection.komentar ?: "-"
+
+        setupCountersFromInspectionData(detailInspeksi)
+
+        setupPemanenRecyclerView(detailInspeksi)
+    }
+
+    private fun getInspectionValueByKode(
+        detailInspeksi: List<InspectionDetailModel>,
+        kodeInspeksi: Int
+    ): Int {
+        return detailInspeksi
+            .firstOrNull { it.kode_inspeksi == kodeInspeksi }
+            ?.temuan_inspeksi?.toInt() ?: 0
+    }
+
+    private fun setupCountersFromInspectionData(detailInspeksi: List<InspectionDetailModel>) {
+        // Get values from inspection details
+        val brondolanValue =
+            getInspectionValueByKode(detailInspeksi, 6) // kode_inspeksi 6 for brondolan
+        val buahValue = getInspectionValueByKode(detailInspeksi, 5) // kode_inspeksi 5 for buah
+
+        // Update the global counter variables
+        jumBrdTglPath = brondolanValue
+        jumBuahTglPath = buahValue
+
+        // Setup the counter UI components
+        val counterMappings = listOf(
+            Triple(
+                R.id.lyBrdTglInspect,
+                AppUtils.kodeInspeksi.brondolanTinggalTPH,
+                ::jumBrdTglPath
+            ),
+            Triple(R.id.lyBuahTglInspect, AppUtils.kodeInspeksi.buahTinggalTPH, ::jumBuahTglPath),
+        )
+
+        counterMappings.forEach { (layoutId, labelText, counterVar) ->
+            setupPanenWithButtons(layoutId, labelText, counterVar)
+        }
+    }
+
+
+    private fun setupPemanenRecyclerView(detailInspeksi: List<InspectionDetailModel>) {
+        val rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenFollowUp)
+        val pemanenAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanen.adapter = pemanenAdapter
+        rvSelectedPemanen.layoutManager = FlexboxLayoutManager(this).apply {
+            justifyContent = JustifyContent.FLEX_START
+        }
+
+        // Set display mode to show names without remove buttons
+        pemanenAdapter.setDisplayOnly(true)
+
+        AppLogger.d("detailInspeksi size: ${detailInspeksi.size}")
+
+        if (detailInspeksi.isNotEmpty()) {
+            rvSelectedPemanen.visibility = View.VISIBLE
+
+            // Group by NIK and Nama to get unique workers
+            val uniqueWorkers = detailInspeksi
+                .filter { it.nik.isNotEmpty() && it.nama.isNotEmpty() } // Filter out empty nik/nama
+                .groupBy { "${it.nik}-${it.nama}" } // Group by nik-nama combination
+                .map { (_, details) ->
+                    // Take the first detail from each group since they represent the same worker
+                    val detail = details.first()
+                    Pair(detail.nik, detail.nama)
+                }
+                .toSet() // Convert to set to ensure uniqueness
+
+            AppLogger.d("uniqueWorkers found: ${uniqueWorkers.size}")
+
+            // Add workers to adapter
+            uniqueWorkers.forEach { (nik, nama) ->
+                val formattedName = "$nik - $nama"
+                val worker = Worker(nik, formattedName)
+                pemanenAdapter.addWorker(worker)
+            }
+
+            // Style the RecyclerView items
+            rvSelectedPemanen.viewTreeObserver.addOnGlobalLayoutListener(object :
+                ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    rvSelectedPemanen.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                    // Style all visible items to be more compact
+                    for (i in 0 until rvSelectedPemanen.childCount) {
+                        val childView = rvSelectedPemanen.getChildAt(i)
+
+                        // Make text smaller
+                        val textView = childView.findViewById<TextView>(R.id.worker_name)
+                        textView?.textSize = 12f
+
+                        // Reduce container padding
+                        val container = childView.findViewById<LinearLayout>(R.id.worker_container)
+                        val density = resources.displayMetrics.density
+                        container?.setPadding(
+                            (8 * density).toInt(), // 8dp to pixels
+                            (4 * density).toInt(), // 4dp to pixels
+                            (8 * density).toInt(), // 8dp to pixels
+                            (4 * density).toInt()  // 4dp to pixels
+                        )
+                    }
+                }
+            })
+        } else {
+            // No inspection details or no worker data
+            rvSelectedPemanen.visibility = View.GONE
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupMapTouchHandling() {
+        val scPanen = findViewById<ScrollView>(R.id.svInfoBlokInspection)
+
+        // Disable parent scrolling when touching the map
+        map.setOnTouchListener { _, _ ->
+            // Request that the parent (ScrollView) doesn't intercept touch events
+            scPanen.requestDisallowInterceptTouchEvent(true)
+            false // Let the map handle the touch
+        }
+
+        // Alternative approach - you can also try this
+        scPanen.setOnTouchListener { _, _ ->
+            // Allow scrollview to handle touches outside the map
+            scPanen.requestDisallowInterceptTouchEvent(false)
+            false
+        }
+    }
+
+    private fun setupButtonListeners() {
+        val btnDefault = findViewById<MaterialButton>(R.id.btnDefault)
+        val btnSatellite = findViewById<MaterialButton>(R.id.btnSatellite)
+
+        // Map type switcher buttons
+        btnDefault.setOnClickListener {
+            switchToDefault()
+            updateButtonSelection("default")
+        }
+
+        btnSatellite.setOnClickListener {
+            // Check internet connection before switching to satellite
+            if (AppUtils.isNetworkAvailable(this)) {
+                switchToGoogleSatellite()
+                updateButtonSelection("satellite")
+            } else {
+                // Show custom alert for no internet connection
+                showNoInternetAlert()
+            }
+        }
+    }
+
+    private fun switchToGoogleSatellite() {
+        // Alternative: Google Satellite (may require API key for production)
+        val googleSatellite = object : OnlineTileSourceBase(
+            "GoogleSatellite",
+            0, 18, 256, ".png",
+            arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+        ) {
+            override fun getTileURLString(pMapTileIndex: Long): String {
+                val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                val x = MapTileIndex.getX(pMapTileIndex)
+                val y = MapTileIndex.getY(pMapTileIndex)
+                return baseUrl.replace("{x}", x.toString())
+                    .replace("{y}", y.toString())
+                    .replace("{z}", zoom.toString())
+            }
+        }
+        map.setTileSource(googleSatellite)
+        map.invalidate()
+    }
+
+    private fun showNoInternetAlert() {
+        AlertDialogUtility.withSingleAction(
+            this@FormInspectionActivity,
+            "Kembali",
+            "Tidak Ada Koneksi Internet",
+            "Fitur satelit memerlukan koneksi internet untuk memuat peta. Pastikan perangkat terhubung ke internet dan coba lagi.",
+            "warning.json",
+            R.color.colorRedDark
+        ) {
+            // When user dismisses the alert, go back to default button
+            switchToDefault()
+            updateButtonSelection("default")
+        }
+    }
+
+
+    private fun switchToDefault() {
+        // Switch back to default OpenStreetMap
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.invalidate()
+    }
+
+    private fun updateButtonSelection(selectedType: String) {
+        resetButtonStyles()
+        val btnDefault = findViewById<MaterialButton>(R.id.btnDefault)
+        val btnSatellite = findViewById<MaterialButton>(R.id.btnSatellite)
+
+        when (selectedType) {
+            "default" -> highlightButton(btnDefault)
+            "satellite" -> highlightButton(btnSatellite)
+        }
+    }
+
+    private fun resetButtonStyles() {
+        val btnDefault = findViewById<MaterialButton>(R.id.btnDefault)
+        val btnSatellite = findViewById<MaterialButton>(R.id.btnSatellite)
+
+        btnDefault.backgroundTintList =
+            ContextCompat.getColorStateList(this, R.color.grayBorder)
+        btnSatellite.backgroundTintList =
+            ContextCompat.getColorStateList(this, R.color.grayBorder)
+
+        // Reset text colors
+        btnDefault.setTextColor(ContextCompat.getColor(this, R.color.black))
+        btnSatellite.setTextColor(ContextCompat.getColor(this, R.color.black))
+
+        // Reset default button icon tint
+        btnDefault.iconTint = ContextCompat.getColorStateList(this, R.color.black)
+
+        // For satellite button, preserve the warning icon if no internet, otherwise no icon
+        if (!AppUtils.isNetworkAvailable(this)) {
+            // Keep the red warning icon when no internet
+            btnSatellite.iconTint =
+                ContextCompat.getColorStateList(this, android.R.color.holo_red_dark)
+        } else {
+            // No icon when internet is available
+            btnSatellite.iconTint = null
+        }
+    }
+
+    private fun highlightButton(button: com.google.android.material.button.MaterialButton) {
+        button.backgroundTintList = ContextCompat.getColorStateList(this, R.color.greenDarker)
+        button.setTextColor(ContextCompat.getColor(this, R.color.white))
+
+        // Handle icon tint based on which button and internet status
+        when (button.id) {
+            R.id.btnDefault -> {
+                // Default button always has white icon when selected
+                button.iconTint = ContextCompat.getColorStateList(this, R.color.white)
+            }
+
+            R.id.btnSatellite -> {
+                if (!AppUtils.isNetworkAvailable(this)) {
+                    // Keep red warning icon even when selected if no internet
+                    button.iconTint =
+                        ContextCompat.getColorStateList(this, android.R.color.holo_red_dark)
+                } else {
+                    // No icon when internet is available (icon is null)
+                    button.iconTint = null
+                }
+            }
+        }
+    }
+
+    private fun parseTrackingPath(trackingPathJson: String?): TrackingPath? {
+        return try {
+            if (trackingPathJson.isNullOrEmpty()) return null
+
+            val jsonRegex =
+                """"start":\{"lat":(-?\d+\.?\d*),"lon":(-?\d+\.?\d*)\},"end":\{"lat":(-?\d+\.?\d*),"lon":(-?\d+\.?\d*)\}""".toRegex()
+            val matchResult = jsonRegex.find(trackingPathJson)
+
+            matchResult?.let { match ->
+                val (startLat, startLon, endLat, endLon) = match.destructured
+                TrackingPath(
+                    start = LatLon(startLat.toDouble(), startLon.toDouble()),
+                    end = LatLon(endLat.toDouble(), endLon.toDouble())
+                )
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing tracking path: ${e.message}")
+            null
+        }
+    }
+
+    private fun setupMap() {
+        // IMPORTANT: Enable multi-touch controls FIRST before setting tile source
+        map.setMultiTouchControls(true)
+        map.setBuiltInZoomControls(true)
+
+        // Set tile source to OpenStreetMap default (Mapnik)
+        map.setTileSource(TileSourceFactory.MAPNIK) // Default OSM
+
+        // Set initial zoom level and center point
+        val mapController = map.controller
+        mapController.setZoom(15.0)
+
+        // Set default location (Surakarta, Central Java, Indonesia)
+        val startPoint = GeoPoint(-7.5755, 110.8243)
+        mapController.setCenter(startPoint)
+
+        // CRITICAL: Additional touch and zoom settings
+        map.isTilesScaledToDpi = true
+        map.setUseDataConnection(true)
+
+        // Set minimum and maximum zoom levels
+        map.minZoomLevel = 3.0  // Increased range
+        map.maxZoomLevel = 21.0
+
+        // Enable gestures explicitly
+        map.setMultiTouchControls(true) // Set again to ensure it's enabled
+
+        // Check internet connection periodically for button updates
+        checkInternetConnectionPeriodically()
+    }
+
+    private fun addTrackingMarker(
+        latitude: Double,
+        longitude: Double,
+        title: String,
+        type: String
+    ) {
+        val marker = Marker(map)
+        marker.position = GeoPoint(latitude, longitude)
+        marker.title = title
+        marker.snippet = "Tracking point"
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+        // Different icons for start and end
+        val drawable = when (type) {
+            "start" -> ContextCompat.getDrawable(this, R.drawable.baseline_circle_24)
+            "end" -> ContextCompat.getDrawable(this, R.drawable.baseline_flag_24) // Flag for end
+            else -> ContextCompat.getDrawable(this, R.drawable.baseline_location_pin_24)
+        }
+
+        val colorRes = when (type) {
+            "start" -> android.R.color.holo_green_dark
+            "end" -> android.R.color.holo_red_dark
+            else -> android.R.color.holo_blue_dark
+        }
+
+        drawable?.setTint(ContextCompat.getColor(this, colorRes))
+        marker.icon = drawable
+
+        // NO CLICK LISTENER - Remove touch events for start and end
+        // marker.setOnMarkerClickListener { _, _ -> ... }
+
+        map.overlays.add(marker)
+        AppLogger.d("Added tracking marker: $title at $latitude, $longitude")
+    }
+
+
+    private fun updateMapWithInspectionData(inspection: InspectionWithDetailRelations) {
+        AppLogger.d("Updating map with inspection data")
+        clearMarkers()
+
+        // Parse tracking path JSON
+        val trackingPath = parseTrackingPath(inspection.inspeksi.tracking_path)
+
+        // Store all points for drawing lines
+        val allPoints = mutableListOf<GeoPoint>()
+
+        if (trackingPath != null) {
+            AppLogger.d("Adding start marker at: ${trackingPath.start.lat}, ${trackingPath.start.lon}")
+            addTrackingMarker(
+                trackingPath.start.lat,
+                trackingPath.start.lon,
+                "Start Point",
+                "start"
+            )
+            allPoints.add(GeoPoint(trackingPath.start.lat, trackingPath.start.lon))
+
+            // Group inspection details by no_pokok and add markers
+            val groupedDetails = inspection.detailInspeksi.groupBy { it.no_pokok }
+            AppLogger.d("Grouped details: ${groupedDetails.size} trees")
+
+            // Sort by no_pokok to maintain order
+            groupedDetails.toSortedMap().forEach { (noPokak, details) ->
+                val firstDetail = details.first()
+                AppLogger.d("Adding tree marker for pokok $noPokak at: ${firstDetail.latIssue}, ${firstDetail.lonIssue}")
+                addInspectionDetailMarker(
+                    firstDetail.latIssue,
+                    firstDetail.lonIssue,
+                    "Tree #$noPokak",
+                    details,
+                    noPokak
+                )
+                allPoints.add(GeoPoint(firstDetail.latIssue, firstDetail.lonIssue))
+            }
+
+            AppLogger.d("Adding end marker at: ${trackingPath.end.lat}, ${trackingPath.end.lon}")
+            addTrackingMarker(trackingPath.end.lat, trackingPath.end.lon, "End Point", "end")
+            allPoints.add(GeoPoint(trackingPath.end.lat, trackingPath.end.lon))
+
+            // Draw lines connecting all points
+            if (allPoints.size > 1) {
+                addConnectingLines(allPoints)
+            }
+
+            // Move map to start location
+            moveToLocation(trackingPath.start.lat, trackingPath.start.lon, 16.0)
+        } else {
+            AppLogger.e("Could not parse tracking path")
+        }
+
+        map.invalidate()
+    }
+
+    // Add method to draw connecting lines
+    private fun addConnectingLines(points: List<GeoPoint>) {
+        if (points.size < 2) return
+
+        // Create polyline connecting all points
+        val polyline = org.osmdroid.views.overlay.Polyline()
+        polyline.setPoints(points)
+        polyline.color = ContextCompat.getColor(this, android.R.color.holo_blue_dark)
+        polyline.width = 5.0f
+
+        // Add the polyline to map
+        map.overlays.add(polyline)
+
+        AppLogger.d("Added connecting line with ${points.size} points")
+    }
+
+    // Update clearMarkers to also remove polylines
+    private fun clearMarkers() {
+        AppLogger.d("Clearing all markers and lines")
+        val overlaysToRemove = map.overlays.filter {
+            it !is MyLocationNewOverlay
+        }
+        map.overlays.removeAll(overlaysToRemove)
+        map.invalidate()
+    }
+
+    data class InspectionParameter(
+        val id: Int,
+        val nama: String,
+        val status_ppro: Int
+    )
+
+    private fun createSimpleDetailSummary(processedDetails: List<ProcessedInspectionDetail>): String {
+        // Option 1: Try system line separator
+        return processedDetails.joinToString(System.lineSeparator()) { detail ->
+            "${detail.kodeInspeksi}. ${detail.nama}: ${detail.temuanTotal}"
+        }
+    }
+
+
+    private fun addInspectionDetailMarker(
+        latitude: Double,
+        longitude: Double,
+        title: String,
+        details: List<InspectionDetailModel>,
+        noPokak: Int
+    ) {
+        val marker = Marker(map)
+        marker.position = GeoPoint(latitude, longitude)
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+        // Use ONLY location pin icon
+        val drawable = ContextCompat.getDrawable(this, R.drawable.baseline_location_pin_24)
+
+        val hasUnresolvedIssues = details.any { it.status_pemulihan == 0.0 }
+        val colorRes = if (hasUnresolvedIssues) {
+            android.R.color.holo_orange_dark
+        } else {
+            android.R.color.holo_green_light
+        }
+
+        drawable?.setTint(ContextCompat.getColor(this, colorRes))
+        marker.icon = drawable
+
+        // Process and group the details properly
+        val processedDetails = processInspectionDetails(details, noPokak)
+
+        // Set marker info with simplified data
+        marker.title = "Pokok #$noPokak"
+        marker.snippet = createSimpleDetailSummary(processedDetails)
+
+        marker.setOnMarkerClickListener { clickedMarker, _ ->
+            clickedMarker.showInfoWindow()
+            true
+        }
+
+        map.overlays.add(marker)
+        AppLogger.d("Added detail marker: $title at $latitude, $longitude")
+    }
+
+    private fun processInspectionDetails(
+        details: List<InspectionDetailModel>,
+        noPokak: Int
+    ): List<ProcessedInspectionDetail> {
+        val inspectionParameters = getInspectionParameters()
+        val processedList = mutableListOf<ProcessedInspectionDetail>()
+
+        val groupedByCode = details.groupBy { it.kode_inspeksi }
+
+        groupedByCode.forEach { (kodeInspeksi, detailsForCode) ->
+            val parameter = inspectionParameters.find { it.id == kodeInspeksi }
+            val parameterName = parameter?.nama ?: "Unknown"
+
+            when (kodeInspeksi) {
+                in 1..4 -> {
+                    val totalTemuan = detailsForCode.sumOf { it.temuan_inspeksi }
+
+                    processedList.add(
+                        ProcessedInspectionDetail(
+                            kodeInspeksi = kodeInspeksi,
+                            nama = parameterName,
+                            temuanTotal = totalTemuan,
+                            statusPemulihan = false, // Remove pemulihan logic
+                            count = detailsForCode.size,
+                            type = "SUMMED"
+                        )
+                    )
+                }
+
+                5, 6 -> {
+                    val firstDetail = detailsForCode.first()
+                    processedList.add(
+                        ProcessedInspectionDetail(
+                            kodeInspeksi = kodeInspeksi,
+                            nama = parameterName,
+                            temuanTotal = firstDetail.temuan_inspeksi,
+                            statusPemulihan = false, // Remove pemulihan logic
+                            count = detailsForCode.size,
+                            type = "SAME_VALUE"
+                        )
+                    )
+                }
+
+                in 7..9 -> {
+                    val firstDetail = detailsForCode.first()
+                    processedList.add(
+                        ProcessedInspectionDetail(
+                            kodeInspeksi = kodeInspeksi,
+                            nama = parameterName,
+                            temuanTotal = firstDetail.temuan_inspeksi,
+                            statusPemulihan = false, // Remove pemulihan logic
+                            count = detailsForCode.size,
+                            type = "TREE_SPECIFIC"
+                        )
+                    )
+                }
+            }
+        }
+
+        return processedList.sortedBy { it.kodeInspeksi }
+    }
+
+    // Data class for processed inspection details
+    data class ProcessedInspectionDetail(
+        val kodeInspeksi: Int,
+        val nama: String,
+        val temuanTotal: Double,
+        val statusPemulihan: Boolean,
+        val count: Int,
+        val type: String
+    )
+
+    private fun getInspectionParameters(): List<InspectionParameter> {
+        return parameterInspeksi.map { param ->
+            InspectionParameter(
+                id = param.id,
+                nama = param.nama,
+                status_ppro = param.status_ppro
+            )
+        }
+    }
+
+    fun moveToLocation(latitude: Double, longitude: Double, zoom: Double = 15.0) {
+        val geoPoint = GeoPoint(latitude, longitude)
+        map.controller.animateTo(geoPoint)
+        map.controller.setZoom(zoom)
+    }
+
+
+    private fun checkInternetConnectionPeriodically() {
+        // Update button appearance every 5 seconds
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                updateSatelliteButtonAppearance()
+                handler.postDelayed(this, 5000) // Check every 5 seconds
+            }
+        }
+        handler.post(runnable)
+    }
+
+    private fun updateSatelliteButtonAppearance() {
+        val btnSatellite = findViewById<MaterialButton>(R.id.btnSatellite)
+
+        if (AppUtils.isNetworkAvailable(this)) {
+            btnSatellite.text = "Satelit"
+            btnSatellite.icon = null // Remove icon completely
+            btnSatellite.iconTint = null
+        } else {
+            // No internet - show warning icon with red color
+            btnSatellite.text = "Satelit"
+            btnSatellite.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_dialog_alert)
+            btnSatellite.iconTint =
+                ContextCompat.getColorStateList(this, android.R.color.holo_red_dark)
+        }
+    }
 
     private fun validateAndShowErrors(): Boolean {
         var isValid = true

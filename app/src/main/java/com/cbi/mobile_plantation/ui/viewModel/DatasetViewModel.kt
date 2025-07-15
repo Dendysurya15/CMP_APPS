@@ -2370,6 +2370,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val tphId = item.optInt("tph", 0)
                             val tglInspeksi = item.optString("tgl_inspeksi", "")
                             val tglPanen = item.optString("tgl_panen", "")
+                            val jalurMasuk = item.optString("rute_masuk", "")
 //                            val inspeksiPutaran = item.optInt("inspeksi_putaran", 1)
                             val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
                             val baris = item.optString("baris", "")
@@ -2379,6 +2380,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val lat = item.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
                             val lon = item.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
                             val trackingPath = item.optString("tracking_path", "")
+                            val catatan = item.optString("catatan", "")
 
                             AppLogger.d("Creating inspection entity: inspectionId=$inspectionId, tphId=$tphId, date=$tglInspeksi")
 
@@ -2391,13 +2393,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tph_id = tphId,
                                 id_panen = idPanen,
                                 date_panen = tglPanen,
-                                jalur_masuk = "", // Not available in API response
+                                jalur_masuk = jalurMasuk,
                                 jenis_kondisi = jenisInspeksi,
                                 baris = baris,
                                 jml_pkk_inspeksi = jmlPokokInspeksi,
                                 tracking_path = trackingPath,
                                 foto = null,
-                                komentar = null,
+                                komentar = catatan,
                                 latTPH = lat,
                                 lonTPH = lon,
                                 dataIsZipped = 0,

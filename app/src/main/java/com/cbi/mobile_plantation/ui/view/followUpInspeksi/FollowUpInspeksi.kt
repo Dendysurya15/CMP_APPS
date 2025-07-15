@@ -342,31 +342,6 @@ class FollowUpInspeksi : AppCompatActivity() {
         AppLogger.d("Added connecting line with ${points.size} points")
     }
 
-    // Alternative: Add individual lines between consecutive points
-    private fun addIndividualLines(points: List<GeoPoint>) {
-        for (i in 0 until points.size - 1) {
-            val startPoint = points[i]
-            val endPoint = points[i + 1]
-
-            val polyline = org.osmdroid.views.overlay.Polyline()
-            polyline.setPoints(listOf(startPoint, endPoint))
-
-            // Different colors for different segments
-            val color = when (i) {
-                0 -> android.R.color.holo_green_dark // Start to first tree
-                points.size - 2 -> android.R.color.holo_red_dark // Last tree to end
-                else -> android.R.color.holo_orange_dark // Between trees
-            }
-
-            polyline.color = ContextCompat.getColor(this, color)
-            polyline.width = 4.0f
-
-            map.overlays.add(polyline)
-        }
-
-        AppLogger.d("Added ${points.size - 1} individual line segments")
-    }
-
     // Update clearMarkers to also remove polylines
     private fun clearMarkers() {
         AppLogger.d("Clearing all markers and lines")
