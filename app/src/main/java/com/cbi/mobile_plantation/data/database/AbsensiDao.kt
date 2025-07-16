@@ -78,7 +78,8 @@ abstract class AbsensiDao {
         karyawan_msk_nik = :mskNik,
         karyawan_tdk_msk_id = :tdkMskId,
         karyawan_tdk_msk_nama = :tdkMskNama,
-        karyawan_tdk_msk_nik = :tdkMskNik
+        karyawan_tdk_msk_nik = :tdkMskNik,
+        status_upload = :statusUpload
     WHERE id = :id
 """)
     abstract suspend fun updateAbsensiFields(
@@ -88,9 +89,9 @@ abstract class AbsensiDao {
         mskNik: String,
         tdkMskId: String,
         tdkMskNama: String,
-        tdkMskNik: String
+        tdkMskNik: String,
+        statusUpload: Int
     )
-
 
     @Transaction
     @Query("SELECT * FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")

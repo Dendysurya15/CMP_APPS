@@ -47,6 +47,7 @@ data class AbsensiDataRekap(
     val karyawan_tdk_msk_nama: String,
     val karyawan_msk_nik: String,
     val karyawan_tdk_msk_nik: String,
+    val status_upload: Int
 )
 
 class ListAbsensiAdapter(private val context: Context,
@@ -508,7 +509,11 @@ class ListAbsensiAdapter(private val context: Context,
 
         val database = AppDatabase.getDatabase(context)
         val absensiDao = database.absensiDao()
+        val uploadCmpDao = database.uploadCMPDao() // Assuming you have this DAO
+
         try {
+            // ... (previous code for creating JSON structures remains the same)
+
             // Status mapping - reverse mapping for JSON keys
             val statusToKeyMap = mapOf(
                 "Hadir" to "h",
@@ -532,7 +537,6 @@ class ListAbsensiAdapter(private val context: Context,
                 val hNamaObj = JSONObject()
                 val hNikObj = JSONObject()
 
-                // Group present employees by kemandoran
                 val presentByKemandoran = presentEmployees.groupBy { it.kemandoranKey ?: "314" }
 
                 presentByKemandoran.forEach { (kemandoran, employees) ->
@@ -556,7 +560,6 @@ class ListAbsensiAdapter(private val context: Context,
             val tdkMskNikJson = JSONObject()
 
             if (absentEmployees.isNotEmpty()) {
-                // Group absent employees by status
                 val absentByStatus = absentEmployees.groupBy { it.status }
 
                 absentByStatus.forEach { (status, employees) ->
@@ -566,7 +569,6 @@ class ListAbsensiAdapter(private val context: Context,
                     val statusNamaObj = JSONObject()
                     val statusNikObj = JSONObject()
 
-                    // Group by kemandoran within each status
                     val employeesByKemandoran = employees.groupBy { it.kemandoranKey ?: "314" }
 
                     employeesByKemandoran.forEach { (kemandoran, kemandoranEmployees) ->
@@ -585,6 +587,9 @@ class ListAbsensiAdapter(private val context: Context,
                 }
             }
 
+            // Determine the new status_upload value
+            val newStatusUpload = if (originalItem.status_upload != 0) 0 else originalItem.status_upload
+
             // Create updated item with new JSON data
             val updatedItem = originalItem.copy(
                 karyawan_msk_id = if (mskIdJson.length() > 0) mskIdJson.toString() else "{}",
@@ -592,41 +597,49 @@ class ListAbsensiAdapter(private val context: Context,
                 karyawan_msk_nik = if (mskNikJson.length() > 0) mskNikJson.toString() else "{}",
                 karyawan_tdk_msk_id = if (tdkMskIdJson.length() > 0) tdkMskIdJson.toString() else "{}",
                 karyawan_tdk_msk_nama = if (tdkMskNamaJson.length() > 0) tdkMskNamaJson.toString() else "{}",
-                karyawan_tdk_msk_nik = if (tdkMskNikJson.length() > 0) tdkMskNikJson.toString() else "{}"
+                karyawan_tdk_msk_nik = if (tdkMskNikJson.length() > 0) tdkMskNikJson.toString() else "{}",
+                status_upload = newStatusUpload
             )
 
-            AppLogger.d(originalItem.toString())
-
-            // Log the updated data for debugging
-            AppLogger.d("Updated MSK ID: ${updatedItem.karyawan_msk_id}")
-            AppLogger.d("Updated MSK Nama: ${updatedItem.karyawan_msk_nama}")
-            AppLogger.d("Updated MSK NIK: ${updatedItem.karyawan_msk_nik}")
-            AppLogger.d("Updated TDK_MSK ID: ${updatedItem.karyawan_tdk_msk_id}")
-            AppLogger.d("Updated TDK_MSK Nama: ${updatedItem.karyawan_tdk_msk_nama}")
-            AppLogger.d("Updated TDK_MSK NIK: ${updatedItem.karyawan_tdk_msk_nik}")
+            AppLogger.d("Original item: ${originalItem.toString()}")
+            AppLogger.d("Original status_upload: ${originalItem.status_upload}")
+            AppLogger.d("New status_upload: $newStatusUpload")
 
             CoroutineScope(Dispatchers.IO).launch {
-                absensiDao.updateAbsensiFields(
-                    id = originalItem.id,
-                    mskId = updatedItem.karyawan_msk_id,
-                    mskNama = updatedItem.karyawan_msk_nama,
-                    mskNik = updatedItem.karyawan_msk_nik,
-                    tdkMskId = updatedItem.karyawan_tdk_msk_id,
-                    tdkMskNama = updatedItem.karyawan_tdk_msk_nama,
-                    tdkMskNik = updatedItem.karyawan_tdk_msk_nik
-                )
-                withContext(Dispatchers.Main) {
-                    callback(true)
+                try {
+
+                    // Before deletion
+                    val recordsToDelete = uploadCmpDao.deleteUploadCmpByAbsensiId(originalItem.id)
+                    AppLogger.d("Records to delete: ${recordsToDelete}")
+
+                    // Update attendance record
+                    absensiDao.updateAbsensiFields(
+                        id = originalItem.id,
+                        mskId = updatedItem.karyawan_msk_id,
+                        mskNama = updatedItem.karyawan_msk_nama,
+                        mskNik = updatedItem.karyawan_msk_nik,
+                        tdkMskId = updatedItem.karyawan_tdk_msk_id,
+                        tdkMskNama = updatedItem.karyawan_tdk_msk_nama,
+                        tdkMskNik = updatedItem.karyawan_tdk_msk_nik,
+                        statusUpload = newStatusUpload
+                    )
+
+                    withContext(Dispatchers.Main) {
+                        callback(true)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error in database operations: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        callback(false)
+                    }
                 }
             }
-
 
         } catch (e: Exception) {
             AppLogger.e("Error saving attendance data: ${e.message}")
             callback(false)
         }
     }
-
 
     private fun calculateAttendanceCounts(jsonString: String): Int {
         return try {

@@ -335,37 +335,47 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            AlertDialogUtility.withTwoActions(
+            // First dialog: Check if employee status has been filled
+            AlertDialogUtility.withSingleAction(
                 this,
-                "Generate QR",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_confirm_generate_qr),
+                "OKE",
+                "Peringatan",
+                "Pastikan sudah mengisi status karyawan yang tidak hadir",
                 "warning.json",
-                ContextCompat.getColor(this, R.color.bluedarklight),
+                R.color.colorRedDark,
                 function = {
-                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                    val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-                    val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+                    // After confirming the status check, show the QR generation dialog
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Generate QR",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.al_confirm_generate_qr),
+                        "warning.json",
+                        ContextCompat.getColor(this, R.color.bluedarklight),
+                        function = {
+                            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
+                            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
-                    // Log tanggal
-                    AppLogger.d("Generated Date: '$generatedDate'")
-                    AppLogger.d("Today Date: '$todayDate'")
+                            // Log tanggal
+                            AppLogger.d("Generated Date: '$generatedDate'")
+                            AppLogger.d("Today Date: '$todayDate'")
 
-                    if (generatedDate.isEmpty() || generatedDate != todayDate) {
-                        // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
-                        // Berarti ini adalah generate baru untuk hari ini
-                        playSound(R.raw.berhasil_generate_qr)
-                        saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
-                        generateData()  // Generate data baru
-                    } else {
-                        // Jika sudah pernah generate di hari yang sama
-                        // Tampilkan QR yang sudah ada
-                        showBottomSheetQR()
-                    }
+                            if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                                // Berarti ini adalah generate baru untuk hari ini
+                                playSound(R.raw.berhasil_generate_qr)
+                                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                                generateData()  // Generate data baru
+                            } else {
+                                // Jika sudah pernah generate di hari yang sama
+                                // Tampilkan QR yang sudah ada
+                                showBottomSheetQR()
+                            }
+                        }
+                    )
                 }
             )
-
-
         }
     }
 
@@ -1968,7 +1978,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                     ?: "",
                                                 karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
-                                                    ?: ""
+                                                    ?: "",
+                                                status_upload = absensiWithRelations.absensi.status_upload
                                             )
                                         } catch (e: Exception) {
                                             AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
@@ -1986,7 +1997,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_nama = "",
                                                 karyawan_tdk_msk_nama = "",
                                                 karyawan_msk_nik = "",
-                                                karyawan_tdk_msk_nik = ""
+                                                karyawan_tdk_msk_nik = "",
+                                                status_upload = 0
                                             )
                                         }
                                     }
@@ -2135,7 +2147,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                 ?: "",
                                             karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
-                                                ?: ""
+                                                ?: "",
+                                            status_upload = absensiWithRelations.absensi.status_upload
                                         )
                                     } catch (e: Exception) {
                                         AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
@@ -2152,7 +2165,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_nama = "",
                                             karyawan_tdk_msk_nama = "",
                                             karyawan_msk_nik = "",
-                                            karyawan_tdk_msk_nik = ""
+                                            karyawan_tdk_msk_nik = "",
+                                            status_upload = 0
                                         )
                                     }
                                 }
