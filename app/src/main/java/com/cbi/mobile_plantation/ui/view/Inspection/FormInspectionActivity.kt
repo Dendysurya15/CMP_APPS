@@ -784,7 +784,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupSelectionButtons() {
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-            fabPhotoInfoBlok.visibility = View.GONE
+            fabPhotoInfoBlok.visibility = View.VISIBLE
             selectionScreen.visibility = View.GONE
             mainContentWrapper.visibility = View.VISIBLE
             headerFormInspection.visibility = View.VISIBLE
@@ -1235,7 +1235,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
             // Show/hide photo FAB based on conditions
-            fabPhotoFormAncak.visibility = if (emptyTreeValue == 1 && featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            fabPhotoFormAncak.visibility = if (emptyTreeValue == 1) {
                 View.VISIBLE
             } else {
                 View.GONE
@@ -1287,7 +1287,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     this,
                     stringXML(R.string.al_back),
                     stringXML(R.string.al_data_not_completed),
-                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
+                        "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
+                    else
+                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
                     "warning.json",
                     R.color.colorRedDark
                 ) {}
@@ -1386,7 +1389,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     this,
                     stringXML(R.string.al_back),
                     stringXML(R.string.al_data_not_completed),
-                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
+                        "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
+                    else
+                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
                     "warning.json",
                     R.color.colorRedDark
                 ) {}
@@ -1528,13 +1534,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 date_panen = selectedTanggalPanenByScan!!,
                                 jalur_masuk = selectedJalurMasuk,
                                 jenis_kondisi = selectedKondisiValue.toInt(),
-                                baris = "$br1Value,$br2Value",
+                                baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
                                 jml_pkk_inspeksi = totalPokokInspection,
                                 tracking_path = trackingJson.toString(),
                                 latTPH = lat ?: 0.0,
                                 lonTPH = lon ?: 0.0,
                                 foto = photoInTPH,
-                                komentar = komentarInTPH,
+                                komentar = komentarInTPH ?: "",
                                 app_version = infoApp,
                                 status_upload = "0",
                                 status_uploaded_image = "0"
@@ -1733,7 +1739,19 @@ open class FormInspectionActivity : AppCompatActivity(),
             updatePhotoBadgeVisibility()
         } else {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
-            titlePhotoTemuan.text = "Lampiran Foto Temuan"
+            if(featureName == AppUtils.ListFeatureNames.FollowUpInspeksi){
+                titlePhotoTemuan.text = "Lampiran Foto Pemulihan"
+            }else{
+                titlePhotoTemuan.text = "Lampiran Foto Temuan"
+            }
+
+            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
+            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
+            if(featureName == AppUtils.ListFeatureNames.FollowUpInspeksi){
+                titleComment.text = "Komentar Temuan Inspeksi"
+            }else{
+                titleComment.text = "Komentar"
+            }
         }
 
         val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
@@ -2170,7 +2188,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             this,
                             stringXML(R.string.al_back),
                             stringXML(R.string.al_data_not_completed),
-                            "Mohon dapat mengambil foto temuan terlebih dahulu sebelum berpindah halaman!",
+                            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
+                                "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
+                            else
+                                "Mohon dapat mengambil foto temuan terlebih dahulu!",
                             "warning.json",
                             R.color.colorRedDark
                         ) {}
@@ -2302,11 +2323,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             Triple(
                 findViewById(R.id.lyJalurInspect),
                 "Jalur Masuk",
-                InputType.SPINNER
-            ),
-            Triple(
-                findViewById(R.id.lyMandor2Inspect),
-                "Kemandoran Lain",
                 InputType.SPINNER
             ),
             Triple(
@@ -4231,6 +4247,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         counterMappings.forEach { (layoutId, labelText, counterVar) ->
             setupPanenWithButtons(layoutId, labelText, counterVar)
+        }
+
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            val lyBuahTglInspect = findViewById<View>(R.id.lyBuahTglInspect)
+            val layoutParams = lyBuahTglInspect.layoutParams as ViewGroup.MarginLayoutParams
+            layoutParams.bottomMargin = (50 * resources.displayMetrics.density).toInt() // Convert dp to px
+            lyBuahTglInspect.layoutParams = layoutParams
         }
     }
 

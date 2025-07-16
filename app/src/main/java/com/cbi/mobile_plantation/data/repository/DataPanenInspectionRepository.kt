@@ -170,7 +170,6 @@ class DataPanenInspectionRepository(
                             put("status_pemulihan")
                             put("nik")
                             put("nama")
-                            put("foto")
                             put("foto_pemulihan")
                             put("catatan")
                             put("created_by")

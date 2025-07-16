@@ -3518,7 +3518,7 @@ class HomePageActivity : AppCompatActivity() {
                                             if (detail.status_uploaded_image == "0") {
                                                 shouldAdd = true
                                                 AppLogger.d("Detail photo $trimmedName hasn't been uploaded (status 0)")
-                                            } else if (detail.status_uploaded_image.startsWith("{")) {
+                                            } else if (detail.status_uploaded_image!!.startsWith("{")) {
                                                 try {
                                                     val errorJson = Gson().fromJson(
                                                         detail.status_uploaded_image,
@@ -3727,8 +3727,9 @@ class HomePageActivity : AppCompatActivity() {
                                         ?: ""),
                                     "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
                                         ?: ""),
-                                    "inspeksi_putaran" to 1,
-                                    "rute_masuk " to (inspeksiWithRelations.inspeksi.jalur_masuk
+                                    "inspeksi_putaran" to (inspeksiWithRelations.inspeksi.inspeksi_putaran
+                                        ?: 0),
+                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
                                         ?: ""),
                                     "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
                                         ?: 0),
@@ -3736,7 +3737,8 @@ class HomePageActivity : AppCompatActivity() {
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
                                         ?: 0),
                                     "foto_tph" to modifiedInspeksiFotoString,
-                                    "catatan" to "",
+                                    "catatan" to (inspeksiWithRelations.inspeksi.komentar
+                                        ?: ""),
                                     "created_name" to (prefManager!!.nameUserLogin ?: ""),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
                                         ?: ""),

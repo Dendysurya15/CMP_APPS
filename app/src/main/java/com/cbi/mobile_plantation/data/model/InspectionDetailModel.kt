@@ -21,8 +21,13 @@ data class InspectionDetailModel(
     val foto: String? = null,
     val foto_pemulihan: String? = null,
     val komentar: String? = null,
+    val komentar_pemulihan: String? = null,
     val latIssue: Double,
     val lonIssue: Double,
+    val latPemulihan: Double? = null,
+    val lonPemulihan: Double? = null,
     val status_upload: String,
+    val status_upload_pemulihan: String? = null,
     val status_uploaded_image: String,
+    val status_uploaded_image_pemulihan: String? = null,
 )

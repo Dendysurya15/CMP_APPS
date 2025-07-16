@@ -2405,7 +2405,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 dataIsZipped = 0,
                                 app_version = "",
                                 status_upload = "3",
-                                status_uploaded_image = "200" // Assume uploaded since from server
+                                status_uploaded_image = "200"
                             )
 
                             inspectionList.add(inspectionEntity)
@@ -2425,8 +2425,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     val statusPemulihan = detail.optDouble("status_pemulihan", 0.0)
                                     val nik = detail.optString("nik", "")
                                     val nama = detail.optString("nama", "")
-                                    val foto = detail.optString("foto", null)
-                                    val fotoPemulihan = detail.optString("foto_pemulihan", null)
                                     val catatan = detail.optString("catatan", null)
                                     val createdDate = detail.optString("created_date", tglInspeksi)
                                     val createdName = detail.optString("created_name", "")
@@ -2449,13 +2447,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         kode_inspeksi = kodeInspeksi,
                                         temuan_inspeksi = temuanInspeksi,
                                         status_pemulihan = statusPemulihan,
-                                        foto = foto,
-                                        foto_pemulihan = fotoPemulihan,
+                                        foto = null,
+                                        foto_pemulihan = null,
                                         komentar = catatan,
                                         latIssue = latDetail,
                                         lonIssue = lonDetail,
-                                        status_upload = "1", // Assume uploaded since from server
-                                        status_uploaded_image = if (foto != null) "1" else "0"
+                                        status_upload = "3",
+                                        status_uploaded_image = "200"
                                     )
 
                                     inspectionDetailList.add(inspectionDetailEntity)
