@@ -735,8 +735,9 @@ class ListInspectionActivity : AppCompatActivity() {
                 4 -> AppUtils.kodeInspeksi.buahTertinggalPiringan
                 7 -> AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
                 8 -> AppUtils.kodeInspeksi.terdapatPelepahSengkleh
-                9 -> AppUtils.kodeInspeksi.kondisiPruning
-                else -> param.nama.take(20) // Use parameter name if not in AppUtils
+                9 -> AppUtils.kodeInspeksi.overPruning
+                10 -> AppUtils.kodeInspeksi.underPruning
+                else -> param.nama.take(20)
             }
             columnHeaders.add(shortName)
         }

@@ -54,7 +54,7 @@ import java.util.zip.ZipInputStream
 
 object AppUtils {
 
-    const val TOTAL_MAX_TREES_INSPECTION: Int = 50
+    const val TOTAL_MAX_TREES_INSPECTION: Int = 100
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
     const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
         UPDATE_INTERVAL_IN_MILLISECONDS / 2
@@ -271,7 +271,8 @@ object AppUtils {
         const val brondolanTinggalTPH = "Brondolan tinggal di TPH"
         const val susunanPelepahTidakSesuai = "Susunan pelepah tidak sesuai"
         const val terdapatPelepahSengkleh = "Terdapat pelepah sengkleh"
-        const val kondisiPruning = "Kondisi Pruning"
+        const val overPruning = "Overpruning"
+        const val underPruning = "Underpruning"
     }
 
     private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))

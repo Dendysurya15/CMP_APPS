@@ -1036,19 +1036,159 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    private fun loadInspectionDataToViewModel(inspectionData: InspectionWithDetailRelations) {
+        val detailInspeksi = inspectionData.detailInspeksi
+
+        // Group details by no_pokok (page number)
+        val groupedByPokok = detailInspeksi.groupBy { it.no_pokok }
+
+        AppLogger.d("Loading inspection data for ${groupedByPokok.size} pokok pages")
+
+        // Load each page data
+        groupedByPokok.forEach { (noPokak, details) ->
+            val pageData = convertInspectionDetailsToPageData(noPokak, details)
+
+            // Save to ViewModel
+            formAncakViewModel.savePageData(noPokak, pageData)
+
+            AppLogger.d("Loaded page $noPokak with data: $pageData")
+        }
+
+        // Update total pages based on actual data
+        val maxPokok = groupedByPokok.keys.maxOrNull() ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+        formAncakViewModel.updateTotalPages(maxPokok)
+
+        AppLogger.d("Updated total pages to: $maxPokok")
+    }
+
+    private fun convertInspectionDetailsToPageData(
+        noPokak: Int,
+        details: List<InspectionDetailModel>
+    ): FormAncakViewModel.PageData {
+
+        // Initialize with default values - changed to Double
+        var emptyTree = 0
+        var harvestTree = 0
+        var neatPelepah = 0.0
+        var pelepahSengkleh = 0.0
+        var underPruning = 0.0
+        var overPruning = 0.0
+        var buahMasakTdkDipotong = 0.0
+        var btPiringanGawangan = 0.0
+        var brdKtpGawangan = 0.0
+        var brdKtpPiringanPikulKetiak = 0.0
+        var photo: String? = null
+        var comment: String? = null
+        var latIssue: Double? = null
+        var lonIssue: Double? = null
+        var createdDate: String? = null
+        var createdBy: Int? = null
+        var createdName: String? = null
+
+        // Get common data from first detail (they should be same for same pokok)
+        val firstDetail = details.firstOrNull()
+        if (firstDetail != null) {
+            photo = firstDetail.foto
+            comment = firstDetail.komentar
+            latIssue = firstDetail.latIssue
+            lonIssue = firstDetail.lonIssue
+            createdDate = firstDetail.created_date
+            createdBy = firstDetail.created_by.toIntOrNull()
+            createdName = firstDetail.created_name
+        }
+
+        // Get inspection configuration from parameterInspeksi
+        val inspectionConfig = parameterInspeksi.associate { param ->
+            param.id to (param.undivided == "True")
+        }
+
+        // Group by kode_inspeksi
+        val groupedByKode = details.groupBy { it.kode_inspeksi }
+
+        // Process each kode_inspeksi based on undivided status
+        groupedByKode.forEach { (kodeInspeksi, detailsForKode) ->
+            val isUndivided = inspectionConfig[kodeInspeksi] ?: true
+
+            val finalValue = if (isUndivided) {
+                // Sum all temuan_inspeksi values (preserve decimal values)
+                detailsForKode.sumOf { it.temuan_inspeksi.toDouble() }
+            } else {
+                // Check if kode_inspeksi is between 7-10 for special handling
+                if (kodeInspeksi in 7..10) {
+                    val value = detailsForKode.firstOrNull()?.temuan_inspeksi?.toDouble() ?: 0.0
+                    if (value == 0.0) 2.0 else value
+                } else {
+                    // For other codes, just use the raw value
+                    detailsForKode.firstOrNull()?.temuan_inspeksi?.toDouble() ?: 0.0
+                }
+            }
+
+            when (kodeInspeksi) {
+                1 -> brdKtpGawangan = finalValue
+                2 -> brdKtpPiringanPikulKetiak = finalValue
+                3 -> buahMasakTdkDipotong = finalValue
+                4 -> btPiringanGawangan = finalValue
+                5 -> { /* This might be TPH level data, not pokok level */ }
+                6 -> { /* This might be TPH level data, not pokok level */ }
+                7 -> neatPelepah = finalValue
+                8 -> pelepahSengkleh = finalValue
+                9 -> overPruning = finalValue
+                10 -> underPruning = finalValue
+            }
+        }
+
+        // Determine emptyTree based on findings
+        emptyTree = if (details.isNotEmpty()) {
+            // If there are any findings, set to 1 (Ya/Ada Temuan)
+            if (buahMasakTdkDipotong > 0.0 || btPiringanGawangan > 0.0 ||
+                brdKtpGawangan > 0.0 || brdKtpPiringanPikulKetiak > 0.0 ||
+                neatPelepah > 0.0 || pelepahSengkleh > 0.0 || underPruning > 0.0 || overPruning > 0.0) {
+                1 // Ada temuan
+            } else {
+                2 // Tidak ada temuan
+            }
+        } else {
+            3 // Titik kosong (no data)
+        }
+
+        harvestTree = firstDetail?.pokok_panen ?: 2 // Default to "Tidak" if not specified
+
+        return FormAncakViewModel.PageData(
+            pokokNumber = noPokak,
+            emptyTree = emptyTree,
+            harvestTree = harvestTree,
+            neatPelepah = neatPelepah.toInt(),
+            pelepahSengkleh = pelepahSengkleh.toInt(),
+            overPruning = overPruning.toInt(),
+            underPruning = underPruning.toInt(),
+            buahMasakTdkDipotong = buahMasakTdkDipotong.toInt(),
+            btPiringanGawangan = btPiringanGawangan.toInt(),
+            brdKtpGawangan = brdKtpGawangan.toInt(),
+            brdKtpPiringanPikulKetiak = brdKtpPiringanPikulKetiak.toInt(),
+            photo = photo,
+            comment = comment,
+            latIssue = latIssue,
+            lonIssue = lonIssue,
+            createdDate = createdDate,
+            createdBy = createdBy,
+            createdName = createdName
+        )
+    }
+
     private fun observeViewModel() {
 
         inspectionViewModel.inspectionWithDetails.observe(this) { inspectionData ->
             if (inspectionData.isNotEmpty()) {
                 val inspection = inspectionData.first()
 
-                AppLogger.d("inspection $inspection")
+                AppLogger.d("inspection ${inspection.detailInspeksi}")
                 currentInspectionData = inspection
                 updateMapWithInspectionData(inspection)
 
                 if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                     populateFollowUpInspectionUI(inspection)
 
+                    loadInspectionDataToViewModel(inspection)
                 }
             }
         }
@@ -1095,7 +1235,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
             // Show/hide photo FAB based on conditions
-            fabPhotoFormAncak.visibility = if (emptyTreeValue == 1) {
+            fabPhotoFormAncak.visibility = if (emptyTreeValue == 1 && featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
                 View.VISIBLE
             } else {
                 View.GONE
@@ -2639,7 +2779,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         bottomSheetDialog.setContentView(view)
-        1
+
         // Set bottom sheet height to 80% of screen height and disable drag-to-dismiss
         bottomSheetDialog.setOnShowListener { dialog ->
             val bottomSheet =
@@ -2999,7 +3139,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "harvestTree" -> listRadioItems["YesOrNo"]
                 "neatPelepah" -> listRadioItems["NeatOrNot"]
                 "pelepahSengkleh" -> listRadioItems["PelepahType"]
-                "pruning" -> listRadioItems["PruningType"]
+                "overPruning" -> listRadioItems["PelepahType"]
+                "underPruning" -> listRadioItems["PelepahType"]
                 else -> null
             }
 
@@ -3038,11 +3179,21 @@ open class FormInspectionActivity : AppCompatActivity(),
             hasData = true
         }
 
-        if (pageData.pruning > 0) {
+        if (pageData.overPruning > 0) {
             llDetailsList.addView(
                 createDetailRow(
-                    "Kondisi Pruning",
-                    ": ${getRadioText("pruning", pageData.pruning)}"
+                    "Over Pruning",
+                    ": ${getRadioText("overPruning", pageData.overPruning)}"
+                )
+            )
+            hasData = true
+        }
+
+        if (pageData.underPruning > 0) {
+            llDetailsList.addView(
+                createDetailRow(
+                    "Under Pruning",
+                    ": ${getRadioText("underPruning", pageData.underPruning)}"
                 )
             )
             hasData = true
@@ -4470,9 +4621,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     data class InspectionParameter(
         val id: Int,
         val nama: String,
-        val status_ppro: Int
+        val status_ppro: Int,
+        val undivided: String // Add this field
     )
-
     private fun createSimpleDetailSummary(processedDetails: List<ProcessedInspectionDetail>): String {
         // Option 1: Try system line separator
         return processedDetails.joinToString(System.lineSeparator()) { detail ->
@@ -4598,7 +4749,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             InspectionParameter(
                 id = param.id,
                 nama = param.nama,
-                status_ppro = param.status_ppro
+                status_ppro = param.status_ppro,
+                undivided = param.undivided // Include undivided field
             )
         }
     }

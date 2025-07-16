@@ -149,7 +149,8 @@ class FormAncakFragment : Fragment() {
             R.id.lyExistsTreeInspect to "YesOrNoOrTitikKosong",
             R.id.lyNeatPelepahInspect to "NeatOrNot",
             R.id.lyPelepahSengklehInspect to "PelepahType",
-            R.id.lyPruningInspect to "PruningType",
+            R.id.lyOverPruningInspect to "PelepahType",
+            R.id.lyUnderPruningInspect to "PelepahType",
         )
 
         val inputMappings: List<InputMapping> = listOf(
@@ -183,11 +184,18 @@ class FormAncakFragment : Fragment() {
                 { it.pelepahSengkleh }
             ),
             InputMapping(
-                R.id.lyPruningInspect,
-                "Kondisi Pruning?",
+                R.id.lyOverPruningInspect,
+                "Over Pruning?",
                 InputType.RADIO,
-                { currentData, value -> currentData.copy(pruning = value) },
-                { it.pruning }
+                { currentData, value -> currentData.copy(overPruning = value) },
+                { it.overPruning }
+            ),
+            InputMapping(
+                R.id.lyUnderPruningInspect,
+                "Under Pruning?",
+                InputType.RADIO,
+                { currentData, value -> currentData.copy(underPruning = value) },
+                { it.underPruning }
             ),
             InputMapping(
                 R.id.lyBMtidakdipotong,

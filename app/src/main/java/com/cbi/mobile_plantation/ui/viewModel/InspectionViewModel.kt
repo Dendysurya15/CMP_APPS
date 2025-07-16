@@ -30,12 +30,14 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
     val inspectionList: LiveData<List<InspectionModel>> get() = _inspectionList
 
     private val _inspectionWithDetails = MutableLiveData<List<InspectionWithDetailRelations>>()
-    val inspectionWithDetails: LiveData<List<InspectionWithDetailRelations>> = _inspectionWithDetails
+    val inspectionWithDetails: LiveData<List<InspectionWithDetailRelations>> =
+        _inspectionWithDetails
 
     data class InspectionParameterItem(
         val id: Int,
         val nama: String,
-        val status_ppro: Int
+        val status_ppro: Int,
+        val undivided: String
     )
 
     sealed class SaveDataInspectionState {
@@ -86,13 +88,13 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         return count
     }
 
-    fun updateDataIsZippedHP(ids: List<Int>, status:Int) {
+    fun updateDataIsZippedHP(ids: List<Int>, status: Int) {
 
         AppLogger.d(ids.toString())
         AppLogger.d("masuk gak sih ")
         viewModelScope.launch {
             try {
-                repository.updateDataInspeksiIsZippedHP(ids,status)
+                repository.updateDataInspeksiIsZippedHP(ids, status)
                 _updateStatus.postValue(true)
             } catch (e: Exception) {
                 _updateStatus.postValue(false)
@@ -136,7 +138,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         created_date_end: String,
         created_by: String,
         tph_id: Int,
-        id_panen:Int,
+        id_panen: Int,
         date_panen: String,
         jalur_masuk: String,
         jenis_kondisi: Int,
@@ -170,7 +172,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 lonTPH = lonTPH,
                 app_version = app_version,
                 status_upload = status_upload,
-                status_uploaded_image =  status_uploaded_image
+                status_uploaded_image = status_uploaded_image
             )
 
             val inspectionId = repository.insertInspectionData(inspectionData)
@@ -219,41 +221,74 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             )
 
             val inspectionMappings = listOf(
-                InspectionMapping(1, { pageData, _, _ -> pageData.brdKtpGawangan },
+                InspectionMapping(
+                    1, { pageData, _, _ -> pageData.brdKtpGawangan },
                     parameterInspeksi.find { it.id == 1 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 1 }?.nama ?: AppUtils.kodeInspeksi.brondolanDigawangan),
+                    parameterInspeksi.find { it.id == 1 }?.nama
+                        ?: AppUtils.kodeInspeksi.brondolanDigawangan
+                ),
 
-                InspectionMapping(2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
+                InspectionMapping(
+                    2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
                     parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 2 }?.nama ?: AppUtils.kodeInspeksi.brondolanTidakDikutip),
+                    parameterInspeksi.find { it.id == 2 }?.nama
+                        ?: AppUtils.kodeInspeksi.brondolanTidakDikutip
+                ),
 
-                InspectionMapping(3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
+                InspectionMapping(
+                    3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
                     parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 3 }?.nama ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong),
+                    parameterInspeksi.find { it.id == 3 }?.nama
+                        ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong
+                ),
 
-                InspectionMapping(4, { pageData, _, _ -> pageData.btPiringanGawangan },
+                InspectionMapping(
+                    4, { pageData, _, _ -> pageData.btPiringanGawangan },
                     parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 4 }?.nama ?: AppUtils.kodeInspeksi.buahTertinggalPiringan),
+                    parameterInspeksi.find { it.id == 4 }?.nama
+                        ?: AppUtils.kodeInspeksi.buahTertinggalPiringan
+                ),
 
-                InspectionMapping(5, { _, _, jumBuahTglPath -> jumBuahTglPath },
+                InspectionMapping(
+                    5, { _, _, jumBuahTglPath -> jumBuahTglPath },
                     parameterInspeksi.find { it.id == 5 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 5 }?.nama ?: AppUtils.kodeInspeksi.buahTinggalTPH),
+                    parameterInspeksi.find { it.id == 5 }?.nama
+                        ?: AppUtils.kodeInspeksi.buahTinggalTPH
+                ),
 
-                InspectionMapping(6, { _, jumBrdTglPath, _ -> jumBrdTglPath },
+                InspectionMapping(
+                    6, { _, jumBrdTglPath, _ -> jumBrdTglPath },
                     parameterInspeksi.find { it.id == 6 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 6 }?.nama ?: AppUtils.kodeInspeksi.brondolanTinggalTPH),
+                    parameterInspeksi.find { it.id == 6 }?.nama
+                        ?: AppUtils.kodeInspeksi.brondolanTinggalTPH
+                ),
 
-                InspectionMapping(7, { pageData, _, _ -> if (pageData.neatPelepah == 2) 1 else 0 },
+                InspectionMapping(
+                    7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 7 }?.nama ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai),
+                    parameterInspeksi.find { it.id == 7 }?.nama
+                        ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
+                ),
 
-                InspectionMapping(8, { pageData, _, _ -> if (pageData.pelepahSengkleh in 1..3) 1 else 0 },
+                InspectionMapping(
+                    8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 8 }?.nama ?:  AppUtils.kodeInspeksi.terdapatPelepahSengkleh),
+                    parameterInspeksi.find { it.id == 8 }?.nama
+                        ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh
+                ),
 
-                InspectionMapping(9, { pageData, _, _ -> if (pageData.pruning in 2..3) 1 else 0 },
+                InspectionMapping(
+                    9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.kondisiPruning)
+                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning
+                ),
+
+                InspectionMapping(
+                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
+                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 10 }?.nama
+                        ?: AppUtils.kodeInspeksi.underPruning
+                )
             )
 
             AppLogger.d("Created ${inspectionMappings.size} inspection mappings from database parameters")
@@ -262,49 +297,54 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val pageData = formData[page]
                 val emptyTreeValue = pageData?.emptyTree ?: 0
 
-                // Only process if emptyTree == 1 (Ada temuan)
                 if (emptyTreeValue != 1) {
+                    AppLogger.d("Skipping page $page - emptyTree is not 1 (value: $emptyTreeValue)")
                     continue
                 }
 
                 AppLogger.d("Processing page $page with ${selectedKaryawanList.size} karyawan")
 
-                // For each karyawan, create inspection detail records
                 selectedKaryawanList.forEach { karyawan ->
                     inspectionMappings.forEach { mapping ->
                         val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
 
-                        // Only create record if there's a value > 0
-                        if (rawValue > 0) {
-                            // Divide value by karyawan count (convert to double for division)
-                            val dividedValue = rawValue.toDouble() / karyawanCount.toDouble()
+                        AppLogger.d("DEBUG: Page $page, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
 
-                            AppLogger.d("Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
-
-                            val inspectionDetail = InspectionDetailModel(
-                                id_inspeksi = inspectionId,
-                                created_date = pageData.createdDate ?: "",
-                                created_name = pageData.createdName ?: "",
-                                created_by = pageData.createdBy.toString(),
-                                nik = karyawan.nik,
-                                nama = karyawan.nama,
-                                no_pokok = page,
-                                pokok_panen = pageData.harvestTree,
-                                kode_inspeksi = mapping.kodeInspeksi,
-                                temuan_inspeksi = dividedValue,
-                                status_pemulihan = 0.0,
-                                foto = pageData.photo,
-                                foto_pemulihan = null,
-                                komentar = pageData.comment,
-                                latIssue = pageData.latIssue ?: 0.0,
-                                lonIssue = pageData.lonIssue ?: 0.0,
-                                status_upload = "0",
-                                status_uploaded_image = "0"
-                            )
-
-                            inspectionDetailList.add(inspectionDetail)
-                            AppLogger.d("Added inspection detail: Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+                        val undivided =
+                            parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided
+                                ?: "True"
+                        val dividedValue = if (undivided == "False") {
+                            rawValue.toDouble()
+                        } else {
+                            rawValue.toDouble() / karyawanCount.toDouble()
                         }
+
+                        AppLogger.d("Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
+
+                        val inspectionDetail = InspectionDetailModel(
+                            id_inspeksi = inspectionId,
+                            created_date = pageData.createdDate ?: "",
+                            created_name = pageData.createdName ?: "",
+                            created_by = pageData.createdBy.toString(),
+                            nik = karyawan.nik,
+                            nama = karyawan.nama,
+                            no_pokok = page,
+                            pokok_panen = pageData.harvestTree,
+                            kode_inspeksi = mapping.kodeInspeksi,
+                            temuan_inspeksi = dividedValue,
+                            status_pemulihan = 0.0,
+                            foto = pageData.photo,
+                            foto_pemulihan = null,
+                            komentar = pageData.comment,
+                            latIssue = pageData.latIssue ?: 0.0,
+                            lonIssue = pageData.lonIssue ?: 0.0,
+                            status_upload = "0",
+                            status_uploaded_image = "0"
+                        )
+
+                        inspectionDetailList.add(inspectionDetail)
+                        AppLogger.d("Added inspection detail: Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+
                     }
                 }
             }

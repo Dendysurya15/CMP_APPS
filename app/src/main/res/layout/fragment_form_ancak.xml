@@ -193,7 +193,11 @@
                 layout="@layout/pertanyaan_spinner_layout" />
 
             <include
-                android:id="@+id/lyPruningInspect"
+                android:id="@+id/lyOverPruningInspect"
+                layout="@layout/pertanyaan_spinner_layout" />
+
+            <include
+                android:id="@+id/lyUnderPruningInspect"
                 layout="@layout/pertanyaan_spinner_layout" />
 
 <!--            <include-->

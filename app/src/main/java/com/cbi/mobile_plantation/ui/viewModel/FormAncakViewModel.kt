@@ -23,7 +23,8 @@ class FormAncakViewModel : ViewModel() {
         val harvestTree: Int = 0,
         val neatPelepah: Int = 0, // 7
         val pelepahSengkleh: Int = 0, // 8
-        val pruning: Int = 0, // 9
+        val overPruning: Int = 0, // 9
+        val underPruning: Int = 0, // 10
         val buahMasakTdkDipotong: Int = 0, /// 3
         val btPiringanGawangan: Int = 0, // 4
         val brdKtpGawangan: Int = 0,   //1
@@ -73,6 +74,11 @@ class FormAncakViewModel : ViewModel() {
 
     fun previousPage() {
         _currentPage.value = (_currentPage.value ?: 1) - 1
+    }
+
+    fun updateTotalPages(totalPages: Int) {
+        _totalPages.value = totalPages
+        AppLogger.d("Total pages updated to: $totalPages")
     }
 
     fun getPageData(pageNumber: Int): PageData? {
@@ -187,8 +193,13 @@ class FormAncakViewModel : ViewModel() {
                 AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
             }
 
-            if (data?.pruning == 0) {
-                errors[R.id.lyPruningInspect] = "Kondisi pruning wajib diisi!"
+            if (data?.overPruning == 0) {
+                errors[R.id.lyOverPruningInspect] = "Kondisi OverPruning wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: pruning == 0")
+            }
+
+            if (data?.underPruning == 0) {
+                errors[R.id.lyUnderPruningInspect] = "Kondisi UnderPruning wajib diisi!"
                 AppLogger.d("VALIDATION FAILED: pruning == 0")
             }
 
