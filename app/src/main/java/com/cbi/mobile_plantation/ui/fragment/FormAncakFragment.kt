@@ -1,12 +1,17 @@
 package com.cbi.mobile_plantation.ui.fragment
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -17,6 +22,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.cbi.mobile_plantation.R
@@ -357,25 +363,52 @@ class FormAncakFragment : Fragment() {
                 isChecked = idValue == fieldValue
                 if (isChecked) {
                     lastSelectedRadioButton = this
-
                 }
 
                 setOnClickListener {
                     clearValidationErrors()
 
-                    lastSelectedRadioButton?.isChecked = false
-                    isChecked = true
-                    lastSelectedRadioButton = this
+                    Log.d("PruningDebug", "=== SIMPLE CLICK START ===")
+                    val layoutName = when(layoutId) {
+                        R.id.lyOverPruningInspect -> "OverPruning"
+                        R.id.lyUnderPruningInspect -> "UnderPruning"
+                        else -> "Other"
+                    }
+                    Log.d("PruningDebug", "Clicked: $layoutName -> ${if (idValue == 1) "Ada" else "Tidak ada"}")
 
-                    val currentData =
-                        viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
-                    val updatedData = dataField(currentData, idValue)
-                    viewModel.savePageData(pageNumber, updatedData)
+                    // Handle pruning mutual exclusion with simple approach
+                    if (layoutId == R.id.lyOverPruningInspect || layoutId == R.id.lyUnderPruningInspect) {
+                        val success = handlePruningSelection(layoutId, idValue)
+                        if (!success) {
+                            // Selection was blocked, restore the correct UI state
+                            Log.d("PruningDebug", "Selection blocked, restoring UI state")
+                            val currentData = viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
+                            val correctValue = if (layoutId == R.id.lyOverPruningInspect) {
+                                currentData.overPruning
+                            } else {
+                                currentData.underPruning
+                            }
+                            // Restore the correct checked state
+                            isChecked = (correctValue == idValue)
+                            return@setOnClickListener
+                        }
+                        // If successful, the handlePruningSelection already updated the UI via refreshPruningRadioGroups()
+                    } else {
+                        // Normal handling for non-pruning fields
+                        lastSelectedRadioButton?.isChecked = false
+                        isChecked = true
+                        lastSelectedRadioButton = this
 
+                        val currentData = viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
+                        val updatedData = dataField(currentData, idValue)
+                        viewModel.savePageData(pageNumber, updatedData)
+                    }
 
                     if (layoutId == R.id.lyExistsTreeInspect) {
                         updateDependentLayoutVisibility(idValue)
                     }
+
+                    Log.d("PruningDebug", "=== SIMPLE CLICK END ===")
                 }
             }
 
@@ -386,6 +419,88 @@ class FormAncakFragment : Fragment() {
         if (layoutId == R.id.lyExistsTreeInspect) {
             updateDependentLayoutVisibility(fieldValue)
         }
+    }
+
+    // Separate function to handle pruning logic completely
+    private fun handlePruningSelection(clickedLayoutId: Int, selectedValue: Int): Boolean {
+        Log.d("PruningDebug", "handlePruningSelection: layout=${if(clickedLayoutId == R.id.lyOverPruningInspect) "Over" else "Under"}, value=$selectedValue")
+
+        val currentData = viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
+        Log.d("PruningDebug", "Current data: Over=${currentData.overPruning}, Under=${currentData.underPruning}")
+
+        // If trying to set "Ada" (1) when the other is already "Ada" (1), block it
+        if (selectedValue == 1) {
+            val otherValue = if (clickedLayoutId == R.id.lyOverPruningInspect) {
+                currentData.underPruning
+            } else {
+                currentData.overPruning
+            }
+
+            if (otherValue == 1) {
+                Log.d("PruningDebug", "BLOCKED: Other is already Ada")
+                vibrate()
+                return false // Return false to indicate selection was blocked
+            }
+        }
+
+        // Update the data
+        var updatedData = if (clickedLayoutId == R.id.lyOverPruningInspect) {
+            currentData.copy(overPruning = selectedValue)
+        } else {
+            currentData.copy(underPruning = selectedValue)
+        }
+
+        // If setting one to "Ada", automatically set the other to "Tidak ada"
+        if (selectedValue == 1) {
+            updatedData = if (clickedLayoutId == R.id.lyOverPruningInspect) {
+                updatedData.copy(underPruning = 2)
+            } else {
+                updatedData.copy(overPruning = 2)
+            }
+        }
+
+        Log.d("PruningDebug", "Final data: Over=${updatedData.overPruning}, Under=${updatedData.underPruning}")
+
+        // Save the data
+        viewModel.savePageData(pageNumber, updatedData)
+
+        // Update BOTH radio groups to match the data
+        refreshPruningRadioGroups()
+
+        return true // Return true to indicate selection was successful
+    }
+
+    // Refresh both pruning radio groups from data
+    private fun refreshPruningRadioGroups() {
+        Log.d("PruningDebug", "Refreshing both radio groups")
+        val currentData = viewModel.getPageData(pageNumber) ?: return
+
+        // Update Over Pruning radio group
+        updateSingleRadioGroup(R.id.lyOverPruningInspect, currentData.overPruning)
+
+        // Update Under Pruning radio group
+        updateSingleRadioGroup(R.id.lyUnderPruningInspect, currentData.underPruning)
+    }
+
+    // Update a single radio group to match the data value
+    private fun updateSingleRadioGroup(layoutId: Int, dataValue: Int) {
+        val layoutView = view?.findViewById<View>(layoutId) ?: return
+        val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
+
+        val layoutName = if (layoutId == R.id.lyOverPruningInspect) "Over" else "Under"
+        Log.d("PruningDebug", "Updating $layoutName radio group to value: $dataValue")
+
+        for (i in 0 until fblRadioComponents.childCount) {
+            val radioButton = fblRadioComponents.getChildAt(i) as? RadioButton ?: continue
+            val buttonValue = radioButton.tag as? Int ?: continue
+
+            radioButton.isChecked = (buttonValue == dataValue)
+            Log.d("PruningDebug", "$layoutName button $buttonValue checked: ${radioButton.isChecked}")
+        }
+    }
+
+    private fun vibrate() {
+        // Your existing vibrate implementation
     }
 
     fun updatePageData() {
