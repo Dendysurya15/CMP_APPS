@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.ui.viewModel
 
 import android.app.Application
 import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -12,6 +13,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.gson.Gson
+import es.dmoral.toasty.Toasty
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -124,8 +126,31 @@ class FormAncakViewModel : ViewModel() {
         AppLogger.d("Current page set to: $pageNumber")
     }
 
-    fun updatePokokDataWithLocationAndGetTrackingStatus(pokokNumber: Int, lat: Double?, lon: Double?, prefManager: PrefManager): Boolean {
+    fun updatePokokDataWithLocationAndGetTrackingStatus(
+        pokokNumber: Int,
+        lat: Double?,
+        lon: Double?,
+        prefManager: PrefManager,
+        context: Context
+    ): Boolean {
         val currentData = getPageData(pokokNumber) ?: PageData()
+
+        // Check if this pokok data is already saved (has location data)
+        val isAlreadySaved = currentData.latIssue != null &&
+                currentData.lonIssue != null &&
+                !currentData.createdDate.isNullOrEmpty() &&
+                currentData.createdBy != null &&
+                !currentData.createdName.isNullOrEmpty()
+
+        if (isAlreadySaved) {
+            // Data is already saved, don't overwrite it - just return the tracking status
+            AppLogger.d("Pokok $pokokNumber data already saved, skipping location update")
+
+            // Return tracking status based on existing data WITHOUT saving again
+            return shouldSetLatLonIssue(currentData)
+        }
+
+        // Data is not saved yet, proceed with normal save logic
         val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
         if (shouldSetLatLonIssue(currentData)) {
@@ -138,9 +163,14 @@ class FormAncakViewModel : ViewModel() {
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
+            AppLogger.d("Saved new location data for pokok $pokokNumber")
+
+            // Show success toast with saved location
+            Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
+
             return true // Should track this location
         } else {
-            // Conditions are NOT met: Clear the lat/lon issue (set to null)
+            // Conditions are NOT met: Save metadata but clear location
             val updatedData = currentData.copy(
                 latIssue = null,
                 lonIssue = null,
@@ -149,10 +179,11 @@ class FormAncakViewModel : ViewModel() {
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
+            AppLogger.d("Saved metadata for pokok $pokokNumber without location (no issues)")
+
             return false // Should remove tracking for this location
         }
     }
-
     fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
         val data = getPageData(pageNumber)

@@ -1317,7 +1317,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     currentPokok,
                     lat,
                     lon,
-                    prefManager!!
+                    prefManager!!,
+                    this@FormInspectionActivity
                 )
             }
 
@@ -1369,14 +1370,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     (btPiringanGawangan > 0) ||
                     (btPiringanGawangan > 0) ||
                     ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
-            pokokData?.let {
-                formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
-                    currentPokok,
-                    lat,
-                    lon,
-                    prefManager!!
-                )
-            }
+
 
             val photoValue = pokokData?.photo ?: ""
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
@@ -1396,6 +1390,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                     R.color.colorRedDark
                 ) {}
                 return@setOnClickListener
+            }
+
+            pokokData?.let {
+                formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                    currentPokok,
+                    lat,
+                    lon,
+                    prefManager!!,
+                    this@FormInspectionActivity  // Pass context here
+                )
             }
 
             if (prevPage >= 1) {
@@ -2201,7 +2205,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             currentPokok,
                             lat,
                             lon,
-                            prefManager!!
+                            prefManager!!,
+                            this@FormInspectionActivity
                         )
                     }
                 }
