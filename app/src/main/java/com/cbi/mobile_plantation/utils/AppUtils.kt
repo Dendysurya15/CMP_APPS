@@ -231,6 +231,8 @@ object AppUtils {
         const val WMPanenTPH = "PANEN TPH"
         const val WMInspeksiTPH = "INSPEKSI_TPH"
         const val WMInspeksiPokok = "INSPEKSI_POKOK"
+        const val WMFUInspeksiTPH = "FU_INSPEKSI_TPH"
+        const val WMFUInspeksiPokok = "FU_INSPEKSI_POKOK"
         const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
     }

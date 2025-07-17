@@ -51,6 +51,7 @@ class AppRepository(context: Context) {
     private val kemandoranDao = database.kemandoranDao()
     private val transporterDao = database.transporterDao()
     private val inspectionDao = database.inspectionDao()
+    private val inspectionDetailDao = database.inspectionDetailDao()
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
@@ -71,6 +72,68 @@ class AppRepository(context: Context) {
         return inspectionDao.insertInspection(inspectionData)
     }
 
+    suspend fun updateInspectionForFollowUp(
+        inspectionId: Int,
+        komentar_pemulihan: String?,
+        latTPHPemulihan: Double?,
+        lonTPHPemulihan: Double?,
+        foto_pemulihan: String?,
+        tracking_path_pemulihan: String?,
+        inspeksi_putaran: Int,
+        updated_date_start: String,
+        updated_date_end: String,
+        updated_by: String,
+        app_version_pemulihan: String,
+    ): Boolean {
+        return try {
+            inspectionDao.updateInspectionForFollowUp(
+                inspectionId = inspectionId,
+                komentar_pemulihan = komentar_pemulihan,
+                latTPHPemulihan = latTPHPemulihan,
+                lonTPHPemulihan = lonTPHPemulihan,
+                foto_pemulihan = foto_pemulihan,
+                tracking_path_pemulihan = tracking_path_pemulihan,
+                inspeksi_putaran = inspeksi_putaran,
+                updated_date_start = updated_date_start,
+                updated_date_end = updated_date_end,
+                updated_by = updated_by,
+                app_version_pemulihan = app_version_pemulihan,
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun updateInspectionDetailForFollowUpById(
+        inspectionDetailId: Int,
+        temuanInspeksi: Double,
+        fotoPemulihan: String?,
+        komentarPemulihan: String?,
+        latPemulihan: Double,
+        lonPemulihan: Double,
+        updatedDate: String,
+        updatedName: String,
+        updatedBy: String
+    ): Boolean {
+        return try {
+            inspectionDetailDao.updateInspectionDetailForFollowUpById(
+                inspectionDetailId = inspectionDetailId,
+                temuanInspeksi = temuanInspeksi,
+                fotoPemulihan = fotoPemulihan,
+                komentarPemulihan = komentarPemulihan,
+                latPemulihan = latPemulihan,
+                lonPemulihan = lonPemulihan,
+                updatedDate = updatedDate,
+                updatedName = updatedName,
+                updatedBy = updatedBy
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     suspend fun insertInspectionDetails(inspectionDetailList: List<InspectionDetailModel>) {
         inspectionDao.insertInspectionDetails(inspectionDetailList)
     }
@@ -79,7 +142,7 @@ class AppRepository(context: Context) {
         return afdelingDao.getAfdelingNameById(afdelingId)
     }
 
-    suspend fun getKemandoranByNik(nikList: List<String>): List<KaryawanModel>  {
+    suspend fun getKemandoranByNik(nikList: List<String>): List<KaryawanModel> {
         return karyawanDao.getKaryawanByNikList(nikList)
     }
 

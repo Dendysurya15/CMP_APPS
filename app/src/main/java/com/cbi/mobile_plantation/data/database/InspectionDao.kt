@@ -82,4 +82,34 @@ abstract class InspectionDao {
             Result.failure(e)
         }
     }
+
+
+    @Query("""
+    UPDATE inspeksi SET 
+    komentar_pemulihan = :komentar_pemulihan,
+    latTPHPemulihan = :latTPHPemulihan,
+    lonTPHPemulihan = :lonTPHPemulihan,
+    foto_pemulihan = :foto_pemulihan,
+    tracking_path_pemulihan = :tracking_path_pemulihan,
+    inspeksi_putaran = :inspeksi_putaran,
+    updated_date_start = :updated_date_start,
+    updated_date_end = :updated_date_end,
+    updated_by = :updated_by,
+    app_version_pemulihan = :app_version_pemulihan
+    WHERE id = :inspectionId
+""")
+    abstract suspend fun updateInspectionForFollowUp(
+        inspectionId: Int,
+        komentar_pemulihan: String?,
+        latTPHPemulihan: Double?,
+        lonTPHPemulihan: Double?,
+        foto_pemulihan: String?,
+        tracking_path_pemulihan: String?,
+        inspeksi_putaran: Int,
+        updated_date_start: String,
+        updated_date_end: String,
+        updated_by: String,
+        app_version_pemulihan:String
+    )
+
 }

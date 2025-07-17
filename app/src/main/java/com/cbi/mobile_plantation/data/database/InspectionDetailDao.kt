@@ -32,6 +32,30 @@ abstract class InspectionDetailDao {
     @Query("DELETE FROM ${AppUtils.DatabaseTables.INSPEKSI_DETAIL} WHERE id_inspeksi = :inspectionId")
     abstract suspend fun deleteByInspectionId(inspectionId: String)
 
+
+    @Query("""
+    UPDATE inspeksi_detail SET 
+    temuan_inspeksi = :temuanInspeksi,
+    foto_pemulihan = :fotoPemulihan,
+    komentar_pemulihan = :komentarPemulihan,
+    latPemulihan = :latPemulihan,
+    lonPemulihan = :lonPemulihan,
+    updated_date = :updatedDate,
+    updated_name = :updatedName,
+    updated_by = :updatedBy
+    WHERE id = :inspectionDetailId
+""")
+    abstract suspend fun updateInspectionDetailForFollowUpById(
+        inspectionDetailId: Int,
+        temuanInspeksi: Double,
+        fotoPemulihan: String?,
+        komentarPemulihan: String?,
+        latPemulihan: Double,
+        lonPemulihan: Double,
+        updatedDate: String,
+        updatedName: String,
+        updatedBy: String
+    )
     // Helper method for transaction-based insert with result handling
     suspend fun insertWithTransaction(detail: InspectionDetailModel): Result<Long> {
         return try {

@@ -143,43 +143,217 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         jalur_masuk: String,
         jenis_kondisi: Int,
         baris: String,
+        inspeksi_putaran: Int? = 1,
         jml_pkk_inspeksi: Int,
         tracking_path: String,
         foto: String? = null,
-        komentar: String? = null,
+        komentar: String,
         latTPH: Double,
         lonTPH: Double,
         app_version: String,
         status_upload: String,
         status_uploaded_image: String,
+        // New parameters for follow-up
+        isFollowUp: Boolean = false,
+        existingInspectionId: Int? = null,
+        komentar_pemulihan: String? = null,
+        latTPHPemulihan: Double? = null,
+        lonTPHPemulihan: Double? = null,
+        foto_pemulihan: String? = null,
+        tracking_path_pemulihan: String? = null,
+        updated_date_start: String? = null,
+        updated_date_end: String? = null,
+        updated_by: String? = null,
+        app_version_pemulihan: String? = null
     ): SaveDataInspectionState {
         return try {
-            val inspectionData = InspectionModel(
-                created_date_start = created_date_start,
-                created_date_end = created_date_end,
-                created_by = created_by,
-                tph_id = tph_id,
-                id_panen = id_panen,
-                date_panen = date_panen,
-                jalur_masuk = jalur_masuk,
-                jenis_kondisi = jenis_kondisi,
-                baris = baris,
-                jml_pkk_inspeksi = jml_pkk_inspeksi,
-                tracking_path = tracking_path,
-                foto = foto,
-                komentar = komentar,
-                latTPH = latTPH,
-                lonTPH = lonTPH,
-                app_version = app_version,
-                status_upload = status_upload,
-                status_uploaded_image = status_uploaded_image
-            )
+            if (isFollowUp && existingInspectionId != null) {
+                // Update existing inspection for follow-up
+                val success = repository.updateInspectionForFollowUp(
+                    inspectionId = existingInspectionId,
+                    komentar_pemulihan = komentar_pemulihan,
+                    latTPHPemulihan = latTPHPemulihan,
+                    lonTPHPemulihan = lonTPHPemulihan,
+                    foto_pemulihan = foto_pemulihan,
+                    tracking_path_pemulihan = tracking_path_pemulihan,
+                    inspeksi_putaran = 2,
+                    updated_date_start = updated_date_start ?: created_date_start,
+                    updated_date_end = updated_date_end ?: created_date_end,
+                    updated_by = updated_by ?: created_by,
+                    app_version_pemulihan = app_version_pemulihan ?: ""
+                )
 
-            val inspectionId = repository.insertInspectionData(inspectionData)
-            SaveDataInspectionState.Success(inspectionId)
+                if (success) {
+                    SaveDataInspectionState.Success(existingInspectionId.toLong())
+                } else {
+                    SaveDataInspectionState.Error("Failed to update inspection")
+                }
+            } else {
+                // Create new inspection
+                val inspectionData = InspectionModel(
+                    created_date_start = created_date_start,
+                    created_date_end = created_date_end,
+                    created_by = created_by,
+                    updated_date_start = created_date_start,
+                    updated_date_end = created_date_end,
+                    updated_by = created_by,
+                    tph_id = tph_id,
+                    id_panen = id_panen,
+                    date_panen = date_panen,
+                    jalur_masuk = jalur_masuk,
+                    jenis_kondisi = jenis_kondisi,
+                    baris = baris,
+                    inspeksi_putaran = inspeksi_putaran,
+                    jml_pkk_inspeksi = jml_pkk_inspeksi,
+                    tracking_path = tracking_path,
+                    foto = foto,
+                    komentar = komentar,
+                    latTPH = latTPH,
+                    lonTPH = lonTPH,
+                    app_version = app_version,
+                    status_upload = status_upload,
+                    status_uploaded_image = status_uploaded_image
+                )
 
+                val inspectionId = repository.insertInspectionData(inspectionData)
+                SaveDataInspectionState.Success(inspectionId)
+            }
         } catch (e: Exception) {
             SaveDataInspectionState.Error(e.toString())
+        }
+    }
+
+    suspend fun updateDataInspectionDetailsForFollowUp(
+        detailInspeksiList: List<InspectionDetailModel>,
+        formData: Map<Int, FormAncakViewModel.PageData>,
+        totalPages: Int,
+        jumBrdTglPath: Int,
+        jumBuahTglPath: Int,
+        parameterInspeksi: List<InspectionParameterItem>
+    ): SaveDataInspectionDetailsState {
+        return try {
+            if (parameterInspeksi.isEmpty()) {
+                AppLogger.w("No parameter inspeksi found, cannot update inspection details")
+                return SaveDataInspectionDetailsState.Error("No parameter inspeksi data found")
+            }
+
+            // Create mapping dynamically from database parameter
+            data class InspectionMapping(
+                val kodeInspeksi: Int,
+                val getValue: (FormAncakViewModel.PageData, Int, Int) -> Int,
+                val statusPpro: Int,
+                val nama: String
+            )
+
+            val inspectionMappings = listOf(
+                InspectionMapping(
+                    1, { pageData, _, _ -> pageData.brdKtpGawangan },
+                    parameterInspeksi.find { it.id == 1 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 1 }?.nama ?: AppUtils.kodeInspeksi.brondolanDigawangan
+                ),
+                InspectionMapping(
+                    2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
+                    parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 2 }?.nama ?: AppUtils.kodeInspeksi.brondolanTidakDikutip
+                ),
+                InspectionMapping(
+                    3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
+                    parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 3 }?.nama ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong
+                ),
+                InspectionMapping(
+                    4, { pageData, _, _ -> pageData.btPiringanGawangan },
+                    parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
+                    parameterInspeksi.find { it.id == 4 }?.nama ?: AppUtils.kodeInspeksi.buahTertinggalPiringan
+                ),
+                InspectionMapping(
+                    5, { _, _, jumBuahTglPath -> jumBuahTglPath },
+                    parameterInspeksi.find { it.id == 5 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 5 }?.nama ?: AppUtils.kodeInspeksi.buahTinggalTPH
+                ),
+                InspectionMapping(
+                    6, { _, jumBrdTglPath, _ -> jumBrdTglPath },
+                    parameterInspeksi.find { it.id == 6 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 6 }?.nama ?: AppUtils.kodeInspeksi.brondolanTinggalTPH
+                ),
+                InspectionMapping(
+                    7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
+                    parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 7 }?.nama ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
+                ),
+                InspectionMapping(
+                    8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
+                    parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 8 }?.nama ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh
+                ),
+                InspectionMapping(
+                    9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
+                    parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning
+                ),
+                InspectionMapping(
+                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
+                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning
+                )
+            )
+
+            var updatedCount = 0
+
+            for (page in 1..totalPages) {
+                val pageData = formData[page]
+                val emptyTreeValue = pageData?.emptyTree ?: 0
+
+                if (emptyTreeValue != 1) {
+                    AppLogger.d("Skipping page $page - emptyTree is not 1 (value: $emptyTreeValue)")
+                    continue
+                }
+
+                AppLogger.d("Processing follow-up update for page $page")
+
+                inspectionMappings.forEach { mapping ->
+                    val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
+
+                    val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
+                    val dividedValue = if (undivided == "False") {
+                        rawValue.toDouble()
+                    } else {
+                        rawValue.toDouble()
+                    }
+
+                    // Find the existing inspection detail record by no_pokok and kode_inspeksi
+                    val existingDetail = detailInspeksiList.find {
+                        it.no_pokok == page && it.kode_inspeksi == mapping.kodeInspeksi
+                    }
+
+                    existingDetail?.let { detail ->
+                        // Update the inspection detail record using its ID
+                        val updateSuccess = repository.updateInspectionDetailForFollowUpById(
+                            inspectionDetailId = detail.id,
+                            temuanInspeksi = dividedValue,
+                            fotoPemulihan = pageData.photo,
+                            komentarPemulihan = pageData.comment,
+                            latPemulihan = pageData.latIssue ?: 0.0,
+                            lonPemulihan = pageData.lonIssue ?: 0.0,
+                            updatedDate = pageData.createdDate ?: "",
+                            updatedName = pageData.createdName ?: "",
+                            updatedBy = pageData.createdBy.toString()
+                        )
+
+                        if (updateSuccess) {
+                            updatedCount++
+                            AppLogger.d("Updated inspection detail ID: ${detail.id}, Page $page, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+                        }
+                    }
+                }
+            }
+
+            AppLogger.d("Total inspection details updated: $updatedCount")
+            SaveDataInspectionDetailsState.Success(updatedCount)
+
+        } catch (e: Exception) {
+            AppLogger.e("Error updating inspection details for follow-up: ${e.message}")
+            SaveDataInspectionDetailsState.Error(e.toString())
         }
     }
 
@@ -187,9 +361,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         inspectionId: String,
         formData: Map<Int, FormAncakViewModel.PageData>,
         totalPages: Int,
-        currentDateTime: String,
-        currentUserName: String,
-        currentUserId: String,
         selectedKaryawanList: List<FormInspectionActivity.KaryawanInfo>,
         jumBrdTglPath: Int,
         jumBuahTglPath: Int,
