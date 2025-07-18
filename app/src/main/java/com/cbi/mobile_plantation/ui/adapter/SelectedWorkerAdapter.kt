@@ -15,19 +15,23 @@ data class Worker(val id: String, val name: String)  // Define a Worker model
 
 class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHolder>() {
     private val selectedWorkers = mutableListOf<Worker>()
-    private val allWorkers = mutableListOf<Worker>()  // Keep track of all workers
-    private var isEnabled = true  // Track if the adapter is enabled or disabled
-    private var displayMode = DisplayMode.EDITABLE  // Default is EDITABLE - no changes needed in other activities
+    private val allWorkers = mutableListOf<Worker>()
+    private var isEnabled = true
+    private var displayMode = DisplayMode.EDITABLE
+
+    // Add callback for when worker is removed
+    private var onWorkerRemovedListener: ((List<Worker>) -> Unit)? = null
+    private var onWorkerActuallyRemovedListener: ((Worker) -> Unit)? = null
 
     enum class DisplayMode {
-        EDITABLE,    // Show remove buttons (DEFAULT)
-        DISPLAY_ONLY // Hide remove buttons
+        EDITABLE,
+        DISPLAY_ONLY
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val workerName: TextView = view.findViewById(R.id.worker_name)
         val removeButton: ImageView = view.findViewById(R.id.remove_worker)
-        val context: Context = view.context // Store the context
+        val context: Context = view.context
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -38,32 +42,26 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val worker = selectedWorkers[position]
-        holder.workerName.text = worker.name.uppercase() // Display name
+        holder.workerName.text = worker.name.uppercase()
 
-        // Handle display mode
         when (displayMode) {
             DisplayMode.DISPLAY_ONLY -> {
-                // Hide remove button completely
                 holder.removeButton.visibility = View.GONE
-                // Adjust text view margins to fill the space
                 val layoutParams = holder.workerName.layoutParams as ViewGroup.MarginLayoutParams
                 layoutParams.marginEnd = 0
                 holder.workerName.layoutParams = layoutParams
             }
             DisplayMode.EDITABLE -> {
-                // Show remove button (DEFAULT BEHAVIOR)
                 holder.removeButton.visibility = View.VISIBLE
-                // Restore original margins
                 val layoutParams = holder.workerName.layoutParams as ViewGroup.MarginLayoutParams
-                layoutParams.marginEnd = holder.context.resources.getDimensionPixelSize(R.dimen.m) // or your original margin
+                layoutParams.marginEnd = holder.context.resources.getDimensionPixelSize(R.dimen.m)
                 holder.workerName.layoutParams = layoutParams
 
-                // Apply disabled state to the remove button if needed
                 holder.removeButton.isEnabled = isEnabled
                 holder.removeButton.alpha = if (isEnabled) 1.0f else 0.5f
 
                 holder.removeButton.setOnClickListener {
-                    if (isEnabled) {  // Only allow removal if enabled
+                    if (isEnabled) {
                         removeWorker(position, holder.context)
                     }
                 }
@@ -74,21 +72,28 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     override fun getItemCount() = selectedWorkers.size
 
     fun addWorker(worker: Worker) {
-        if (!selectedWorkers.any { it.id == worker.id }) {  // Prevent duplicates by ID
+        if (!selectedWorkers.any { it.id == worker.id }) {
             selectedWorkers.add(worker)
             notifyDataSetChanged()
+            // Notify that available workers changed
+            onWorkerRemovedListener?.invoke(getAvailableWorkers())
         }
     }
 
     private fun removeWorker(position: Int, context: Context) {
-        selectedWorkers.removeAt(position)
-        context.vibrate() // Use the extension function
+        val removedWorker = selectedWorkers.removeAt(position)
+        context.vibrate()
         notifyDataSetChanged()
+        // Notify that available workers changed AND pass the removed worker info
+        onWorkerRemovedListener?.invoke(getAvailableWorkers())
+        onWorkerActuallyRemovedListener?.invoke(removedWorker)
     }
 
     fun setAvailableWorkers(workers: List<Worker>) {
         allWorkers.clear()
         allWorkers.addAll(workers)
+        // Notify that available workers changed
+        onWorkerRemovedListener?.invoke(getAvailableWorkers())
     }
 
     fun getAvailableWorkers(): List<Worker> {
@@ -101,37 +106,36 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
         selectedWorkers.clear()
         allWorkers.clear()
         notifyDataSetChanged()
+        // Notify that available workers changed
+        onWorkerRemovedListener?.invoke(getAvailableWorkers())
     }
 
-    /**
-     * Set the enabled state of the adapter.
-     * When disabled, remove buttons will be disabled and visually greyed out.
-     */
     fun setEnabled(enabled: Boolean) {
         if (this.isEnabled != enabled) {
             this.isEnabled = enabled
-            notifyDataSetChanged() // Refresh all items to update their visual state
+            notifyDataSetChanged()
         }
     }
 
-    /**
-     * Set display mode for the adapter
-     * EDITABLE: Shows remove buttons (DEFAULT - no changes needed in existing activities)
-     * DISPLAY_ONLY: Hides remove buttons, shows names only
-     */
     fun setDisplayMode(mode: DisplayMode) {
         if (this.displayMode != mode) {
             this.displayMode = mode
-            notifyDataSetChanged() // Refresh all items to update their visual state
+            notifyDataSetChanged()
         }
     }
 
-    /**
-     * Convenience function to set display-only mode
-     * Only call this in activities where you want to hide remove buttons
-     */
     fun setDisplayOnly(displayOnly: Boolean) {
         setDisplayMode(if (displayOnly) DisplayMode.DISPLAY_ONLY else DisplayMode.EDITABLE)
+    }
+
+    // New method to set callback for when workers change
+    fun setOnWorkerRemovedListener(listener: (List<Worker>) -> Unit) {
+        this.onWorkerRemovedListener = listener
+    }
+
+    // New method to set callback for when worker is actually removed
+    fun setOnWorkerActuallyRemovedListener(listener: (Worker) -> Unit) {
+        this.onWorkerActuallyRemovedListener = listener
     }
 }
 

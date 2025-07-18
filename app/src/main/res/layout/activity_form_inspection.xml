@@ -647,6 +647,10 @@
                         app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
                         tools:ignore="MissingConstraints" />
 
+                    <include
+                        android:id="@+id/lyPemanen"
+                        layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
+
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvSelectedPemanenInspection"
                         android:layout_width="match_parent"

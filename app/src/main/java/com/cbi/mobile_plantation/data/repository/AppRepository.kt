@@ -1097,6 +1097,16 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun getAllTPHinWeek(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllTPHinWeek()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun getTPHHasBeenInspect(): Result<List<InspectionModel>> =
         withContext(Dispatchers.IO) {
             try {

@@ -264,9 +264,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllPanenForInspection() {
+    fun getAllTPHinWeek() {
         viewModelScope.launch {
-            repository.getAllPanenForInspection()
+            repository.getAllTPHinWeek()
                 .onSuccess { panenList ->
                     _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
                 }
@@ -275,7 +275,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 }
         }
     }
-
 
 
     fun getAllJenisTPH() {
@@ -289,19 +288,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 }
         }
     }
-
-
-//    fun getAllScanMPanenByDate(status_mpanen: Int, date: String) {
-//        viewModelScope.launch {
-//            repository.getAllScanMPanenByDate(status_mpanen, date)
-//                .onSuccess { panenList ->
-//                    _activePanenList.value = panenList
-//                }
-//                .onFailure { exception ->
-//                    _error.postValue(exception.message ?: "Failed to load data")
-//                }
-//        }
-//    }
 
     fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch {
         try {

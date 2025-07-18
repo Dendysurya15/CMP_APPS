@@ -2752,9 +2752,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val calendar = Calendar.getInstance()
 
                 // Yesterday
-                calendar.add(Calendar.DAY_OF_YEAR, -1)
-                val yesterday = inputFormatter.format(calendar.time)
-                val yesterdayDate = calendar.time
+                calendar.set(Calendar.HOUR_OF_DAY, 23)
+                calendar.set(Calendar.MINUTE, 59)
+                calendar.set(Calendar.SECOND, 59)
+                val todayDate = calendar.time // Store the Date object
+                val today = inputFormatter.format(todayDate) // Store the formatted string
 
                 // 7 days ago
                 calendar.add(Calendar.DAY_OF_YEAR, -6)
@@ -2766,7 +2768,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val tempCalendar = Calendar.getInstance()
                 tempCalendar.time = sevenDaysAgoDate
 
-                while (!tempCalendar.time.after(yesterdayDate)) {
+                while (!tempCalendar.time.after(todayDate)) { // Use todayDate instead of today
                     allDates.add(inputFormatter.format(tempCalendar.time))
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }

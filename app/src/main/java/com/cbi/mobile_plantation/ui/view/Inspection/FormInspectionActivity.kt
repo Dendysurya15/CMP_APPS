@@ -472,30 +472,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    panenViewModel.getAllTPHHasBeenSelected()
+                    panenViewModel.getAllTPHinWeek()
                     delay(100)
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
                             panenTPH = list ?: emptyList()
-                            val tphDataMap = mutableMapOf<Int, TPHData>()
-                            list?.forEach { panen ->
-                                val tphId = panen.tph?.id
-                                val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                val limitTPH = panen.tph?.limit_tph
-
-                                if (tphId != null && jenisTPHId != null) {
-                                    tphDataMap[tphId] = FormInspectionActivity.TPHData(
-                                        count = 0,
-                                        jenisTPHId = jenisTPHId,
-                                        limitTPH = limitTPH!!
-                                    )
-                                }
-                            }
-
-                            panenStoredLocal.clear()
-                            panenStoredLocal.putAll(tphDataMap)
-
                             panenDeferred.complete(list ?: emptyList())
                         }
                     }
@@ -2437,6 +2419,116 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    private fun setupPemanenSpinner() {
+        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanen)
+
+        // Initially hide the spinner
+        lyPemanen.visibility = View.GONE
+
+        // Set up the spinner callback in your adapter
+        selectedPemanenAdapter.setOnWorkerRemovedListener { availableWorkers ->
+            if (availableWorkers.isNotEmpty()) {
+                // Show spinner when there are available workers to add
+                lyPemanen.visibility = View.VISIBLE
+                updatePemanenSpinner(availableWorkers)
+            } else {
+                // Hide spinner when no available workers
+                lyPemanen.visibility = View.GONE
+            }
+        }
+
+        // Set up callback for when worker is actually removed to update selectedKaryawanList
+        selectedPemanenAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
+            // Remove from selectedKaryawanList
+            val dashIndex = removedWorker.name.indexOf(" - ")
+            val removedNik = if (dashIndex != -1) {
+                removedWorker.name.substring(0, dashIndex).trim()
+            } else {
+                ""
+            }
+            val removedName = if (dashIndex != -1) {
+                removedWorker.name.substring(dashIndex + 3).trim()
+            } else {
+                removedWorker.name.trim()
+            }
+
+            // Update selectedKaryawanList by removing the worker
+            selectedKaryawanList = selectedKaryawanList.filter { karyawan ->
+                !(karyawan.nik == removedNik && karyawan.nama == removedName)
+            }
+
+            // Also remove from maps
+            karyawanIdMap.remove(removedWorker.name)
+            kemandoranIdMap.remove(removedWorker.name)
+            karyawanIdMap.remove(removedNik)
+            kemandoranIdMap.remove(removedNik)
+            karyawanIdMap.remove(removedName)
+            kemandoranIdMap.remove(removedName)
+
+            AppLogger.d("Removed worker from selectedKaryawanList: $removedName (NIK: $removedNik)")
+            AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
+        }
+
+        setupSpinnerView(
+            lyPemanen,
+            emptyList() // Start with empty list
+        )
+    }
+
+    private fun updatePemanenSpinner(availableWorkers: List<Worker>) {
+        val workerNames = availableWorkers.map { it.name }
+
+        val spinner = findViewById<LinearLayout>(R.id.lyPemanen)
+            .findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val tvError = findViewById<LinearLayout>(R.id.lyPemanen)
+            .findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+
+        spinner.setItems(workerNames)
+
+        spinner.setOnItemSelectedListener { _, position, _, item ->
+            tvError.visibility = View.GONE
+
+            // Find the selected worker and add it back
+            val selectedWorkerName = item.toString()
+            val selectedWorker = availableWorkers.find { it.name == selectedWorkerName }
+
+            selectedWorker?.let { worker ->
+                selectedPemanenAdapter.addWorker(worker)
+
+                // Update the karyawan maps
+                val dashIndex = worker.name.indexOf(" - ")
+                val selectedNik = if (dashIndex != -1) {
+                    worker.name.substring(0, dashIndex).trim()
+                } else {
+                    ""
+                }
+                val selectedName = if (dashIndex != -1) {
+                    worker.name.substring(dashIndex + 3).trim()
+                } else {
+                    worker.name.trim()
+                }
+
+                // Re-add to maps (you might need to store this data when removing)
+                // karyawanIdMap[worker.name] = worker.id.toIntOrNull() ?: 0
+                // kemandoranIdMap[worker.name] = ... // You'll need to store kemandoran_id
+
+                // Update selectedKaryawanList
+                val updatedKaryawanList = selectedKaryawanList.toMutableList()
+                updatedKaryawanList.add(
+                    KaryawanInfo(
+                        nik = selectedNik,
+                        nama = selectedName,
+                        individualId = worker.id
+                    )
+                )
+                selectedKaryawanList = updatedKaryawanList
+
+                AppLogger.d("Re-added worker: ${worker.name}")
+            }
+        }
+    }
+
+
     private fun updateLabelTextView(linearLayout: LinearLayout, text: String) {
         val textView = linearLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
 
@@ -3681,74 +3773,62 @@ open class FormInspectionActivity : AppCompatActivity(),
                             try {
                                 val estateIdToUse = estateId!!.toInt()
 
-                                val selectedTPHIds = panenTPH.mapNotNull { panenWithRelationship ->
+                                // Group panen records by TPH ID
+                                val panenGroupedByTPH = panenTPH.groupBy { panenWithRelationship ->
                                     panenWithRelationship.panen.tph_id?.toIntOrNull()
-                                }
+                                }.filterKeys { it != null }
+
+                                val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
                                 AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
 
-                                AppLogger.d(selectedTPHIds.size.toString())
-
-                                AppLogger.d("panenTPH size: ${panenTPH.size}")
                                 val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
                                     estateIdToUse,
                                     selectedDivisiId,
                                     selectedTPHIds.distinct()
                                 )
 
-                                AppLogger.d("Database returned ${tphList.size} TPH records")
-
                                 val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
 
                                 tphList.forEach { tph ->
-                                    val id = tph.id
+                                    val tphId = tph.id
                                     val lat = tph.lat?.toDoubleOrNull()
                                     val lon = tph.lon?.toDoubleOrNull()
                                     val nomor = tph.nomor ?: ""
                                     val baseBlokKode = tph.blok_kode ?: ""
                                     val jenisTPHId = tph.jenis_tph_id ?: "1"
 
-                                    if (id != null && lat != null && lon != null) {
-                                        // Find all panen records that match this TPH ID
-                                        val matchingPanenList =
-                                            panenTPH.filter { panenWithRelationship ->
-                                                panenWithRelationship.panen.tph_id?.toIntOrNull() == id
-                                            }
+                                    if (tphId != null && lat != null && lon != null) {
+                                        // Get all panen records for this TPH ID
+                                        val matchingPanenList = panenGroupedByTPH[tphId] ?: emptyList()
 
                                         if (matchingPanenList.isNotEmpty()) {
-                                            AppLogger.d("TPH ID $id has ${matchingPanenList.size} matching panen records")
+                                            AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
 
-                                            // Create entries for each panen record
-                                            matchingPanenList.forEachIndexed { index, panenWithRelationship ->
-                                                val increment = index + 1
-                                                val blokKode = if (matchingPanenList.size > 1) {
-                                                    "$baseBlokKode Transaksi ke-$increment"
-                                                } else {
-                                                    baseBlokKode
-                                                }
+                                            // Merge all data from this TPH
+                                            val mergedData = mergePanenRecordsForTPH(matchingPanenList)
 
-                                                // Use panen ID as the unique key
-                                                val uniqueKey = panenWithRelationship.panen.id
-
-                                                AppLogger.d("Processing Panen: ID=$uniqueKey, TPH_ID=$id, occurrence=$increment, blokKode=$blokKode")
-
-                                                resultMap[uniqueKey] = ScannedTPHLocation(
-                                                    lat,
-                                                    lon,
-                                                    nomor,
-                                                    blokKode,
-                                                    jenisTPHId
-                                                )
+                                            // Create description with merged info
+                                            val blokKode = if (mergedData.dateList.size > 1) {
+                                                "$baseBlokKode (${mergedData.dateList.size} transaksi)"
+                                            } else {
+                                                baseBlokKode
                                             }
-                                        } else {
-                                            // This shouldn't happen, but handle it just in case
-                                            AppLogger.w("No matching panen records found for TPH ID: $id")
-                                            AppLogger.w("This is unexpected - TPH was in selectedTPHIds but no panen match found")
 
-                                            // Optionally, you could still add it with a default key
-                                            // resultMap[id] = ScannedTPHLocation(lat, lon, nomor, baseBlokKode, jenisTPHId)
+                                            // Use TPH ID as key since we're merging all records for this TPH
+                                            resultMap[tphId] = ScannedTPHLocation(
+                                                lat,
+                                                lon,
+                                                nomor,
+                                                blokKode,
+                                                jenisTPHId
+                                            )
+
+                                            AppLogger.d("Merged TPH $tphId: ${mergedData.workerCount} workers, ${mergedData.dateList.size} transactions")
+                                        } else {
+                                            AppLogger.w("No matching panen records found for TPH ID: $tphId")
                                         }
                                     } else {
-                                        AppLogger.w("Skipping invalid TPH: ID=$id, lat=$lat, lon=$lon")
+                                        AppLogger.w("Skipping invalid TPH: ID=$tphId, lat=$lat, lon=$lon")
                                     }
                                 }
 
@@ -3760,6 +3840,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 throw e
                             }
                         }
+
+                        // Data class to hold merged information
+
 
                         try {
 
@@ -3858,7 +3941,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         if (photoInTPH != null) {
             AlertDialogUtility.withTwoActions(
-                this@FormInspectionActivity, // Replace with your actual Activity name
+                this@FormInspectionActivity,
                 "Lanjutkan Hapus Foto",
                 getString(R.string.confirmation_dialog_title),
                 "Foto di TPH sudah terpilih, jika anda melanjutkan maka foto akan terhapus di TPH lama",
@@ -3888,96 +3971,64 @@ open class FormInspectionActivity : AppCompatActivity(),
             karyawanIdMap.clear()
             kemandoranIdMap.clear()
             rvSelectedPemanen.visibility = View.VISIBLE
-            selectedPemanenAdapter.setDisplayOnly(true)
+            if(featureName == AppUtils.ListFeatureNames.FollowUpInspeksi){
+                selectedPemanenAdapter.setDisplayOnly(true)
+            }
+
             selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
             selectedKaryawanList = emptyList()
+
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-
+                    // Find all panen records with matching TPH ID
                     val matchingPanenList = panenTPH.filter { panenWithRelations ->
-                        val tphId = panenWithRelations.panen?.id
+                        val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()
                         tphId == selectedTPHInLIst.id
                     }
 
-                    // Get date_created and ancak from the first matching record for description
-                    var dateCreated = ""
-                    var ancakValue = ""
-
-                    if (matchingPanenList.isNotEmpty()) {
-                        val firstPanen = matchingPanenList.first().panen
-                        val firstTph = matchingPanenList.first().tph
-                        dateCreated = firstPanen?.date_created ?: ""
-                        ancakValue = firstTph?.ancak ?: ""
-
-                        selectedIdPanenByScan = firstPanen?.id ?: 0
-                        selectedTPHIdByScan = firstPanen?.tph_id?.toIntOrNull() ?: 0
-
-
-                        AppLogger.d("firstPanen $firstPanen")
-                        AppLogger.d("selectedTPHIdByScan $selectedTPHIdByScan")
-                        selectedEstateByScan = firstTph?.dept_abbr ?: ""
-                        selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
-                        selectedBlokByScan = firstTph?.blok_kode ?: ""
+                    if (matchingPanenList.isEmpty()) {
+                        AppLogger.e("No matching panen records found for TPH ID: ${selectedTPHInLIst.id}")
+                        return@postDelayed
                     }
 
-                    val karyawanFormattedSet = mutableSetOf<String>()
+                    // Merge all panen records for this TPH
+                    val mergedData = mergePanenRecordsForTPH(matchingPanenList)
+
+                    AppLogger.d("Merged data for TPH ${selectedTPHInLIst.id}:")
+                    AppLogger.d("- Workers: ${mergedData.workerCount}")
+                    AppLogger.d("- Dates: ${mergedData.dateList}")
+                    AppLogger.d("- Ancaks: ${mergedData.ancakList}")
+
+                    // Get info from first record for basic data
+                    val firstPanen = matchingPanenList.first().panen
+                    val firstTph = matchingPanenList.first().tph
+
+                    selectedIdPanenByScan = firstPanen?.id ?: 0
+                    selectedTPHIdByScan = selectedTPHInLIst.id
+                    selectedEstateByScan = firstTph?.dept_abbr ?: ""
+                    selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
+                    selectedBlokByScan = firstTph?.blok_kode ?: ""
+
                     val karyawanInfoList = mutableListOf<KaryawanInfo>()
-                    matchingPanenList.forEach { panenWithRelations ->
-                        val panenEntity = panenWithRelations.panen
-                        val karyawanNama = panenEntity?.karyawan_nama
-                        val karyawanNik = panenEntity?.karyawan_nik
 
-                        if (!karyawanNama.isNullOrBlank() && !karyawanNik.isNullOrBlank()) {
-                            // Split both names and NIKs by comma and trim whitespace
-                            val names = karyawanNama.split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() }
-
-                            val niks = karyawanNik.split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() }
-
-                            AppLogger.d("Split names: $names")
-                            AppLogger.d("Split NIKs: $niks")
-
-                            val minSize = minOf(names.size, niks.size)
-                            for (i in 0 until minSize) {
-                                val formattedName = "${niks[i]} - ${names[i]}"
-                                karyawanFormattedSet.add(formattedName)
-                                AppLogger.d("Added formatted name: '$formattedName'")
-                            }
-
-                            if (names.size != niks.size) {
-                                AppLogger.w("Mismatch between names count (${names.size}) and NIKs count (${niks.size})")
-                            }
-                        } else {
-                            AppLogger.w("Missing karyawan_nama or karyawan_nik for record")
-                        }
-                    }
-
-                    val karyawanNames = karyawanFormattedSet.toList().sorted()
-                    AppLogger.d("Total unique karyawan found: ${karyawanNames.size}")
-
-                    // Automatically add all karyawan to the adapter
-                    karyawanNames.forEach { formattedName ->
-                        // Extract NIK and Name from formatted string
-                        val dashIndex = formattedName.indexOf(" - ")
+                    // Process merged workers
+                    mergedData.workerSet.forEach { formattedWorker ->
+                        val dashIndex = formattedWorker.indexOf(" - ")
                         val selectedNik = if (dashIndex != -1) {
-                            formattedName.substring(0, dashIndex).trim()
+                            formattedWorker.substring(0, dashIndex).trim()
                         } else {
                             ""
                         }
                         val selectedName = if (dashIndex != -1) {
-                            formattedName.substring(dashIndex + 3).trim()
+                            formattedWorker.substring(dashIndex + 3).trim()
                         } else {
-                            formattedName.trim()
+                            formattedWorker.trim()
                         }
 
-                        // Find the corresponding employee data
+                        // Find the corresponding employee data from any of the panen records
                         var selectedEmployee: PanenEntity? = null
                         var individualKaryawanId: String? = null
 
-                        // Find by matching NIK and name combination
                         for (panenWithRelations in matchingPanenList) {
                             val panenEntity = panenWithRelations.panen ?: continue
                             val karyawanNik = panenEntity.karyawan_nik
@@ -3989,41 +4040,32 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 val names = karyawanNama.split(",").map { it.trim() }
                                 val ids = karyawanId.split(",").map { it.trim() }
 
-                                // Check if this employee record contains our selected NIK and name
                                 val nikIndex = niks.indexOf(selectedNik)
                                 val nameIndex = names.indexOf(selectedName)
 
                                 if (nikIndex != -1 && nameIndex != -1 && nikIndex < ids.size) {
                                     selectedEmployee = panenEntity
-                                    individualKaryawanId =
-                                        ids[nikIndex] // Get the specific ID for this worker
-                                    AppLogger.d("Found matching employee: NIK='$selectedNik', Name='$selectedName', Individual ID='$individualKaryawanId'")
+                                    individualKaryawanId = ids[nikIndex]
                                     break
                                 }
                             }
                         }
 
                         if (selectedEmployee != null && individualKaryawanId != null) {
-                            // Add to maps using individual ID
-                            karyawanIdMap[formattedName] = individualKaryawanId.toIntOrNull() ?: 0
-                            kemandoranIdMap[formattedName] =
-                                selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            // Add to maps
+                            karyawanIdMap[formattedWorker] = individualKaryawanId.toIntOrNull() ?: 0
+                            kemandoranIdMap[formattedWorker] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
 
-                            // Also add by NIK and name as keys
                             if (selectedNik.isNotEmpty()) {
                                 karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[selectedNik] =
-                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedNik] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
                             if (selectedName.isNotEmpty()) {
-                                karyawanIdMap[selectedName] =
-                                    individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[selectedName] =
-                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                                karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedName] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
 
-                            // Create Worker with individual ID
-                            val worker = Worker(individualKaryawanId, formattedName)
+                            val worker = Worker(individualKaryawanId, formattedWorker)
                             selectedPemanenAdapter.addWorker(worker)
 
                             karyawanInfoList.add(
@@ -4034,41 +4076,89 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 )
                             )
 
-                            AppLogger.d("Auto-added worker: $formattedName, Individual Karyawan ID: $individualKaryawanId")
-                        } else {
-                            AppLogger.e("Could not find employee data for: $formattedName")
+                            AppLogger.d("Added merged worker: $formattedWorker, ID: $individualKaryawanId")
                         }
                     }
 
                     selectedKaryawanList = karyawanInfoList
-                    // Set the description text with bold ancak and Indonesian date
-                    val ancakText = if (ancakValue.isNotBlank()) ancakValue else "tidak diketahui"
+
+                    // Create description with merged information
+                    val ancakText = if (mergedData.ancakList.isNotEmpty()) {
+                        mergedData.ancakList.joinToString(", ")
+                    } else {
+                        "tidak diketahui"
+                    }
+
+                    val dateText = if (mergedData.dateList.isNotEmpty()) {
+                        if (mergedData.dateList.size == 1) {
+                            mergedData.dateList.first()
+                        } else {
+                            "${mergedData.dateList.joinToString(", ")} (${mergedData.dateList.size} transaksi)"
+                        }
+                    } else {
+                        "tidak diketahui"
+                    }
 
                     selectedAncakByScan = ancakText
-                    selectedTanggalPanenByScan = dateCreated
-                    val descriptionText =
-                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateCreated</b> oleh :"
-                    descPemanenInspeksi.text =
-                        Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+                    selectedTanggalPanenByScan = dateText
 
-                    AppLogger.d("Total workers added to adapter: ${selectedPemanenAdapter.getSelectedWorkers().size}")
+                    val descriptionText = if (mergedData.dateList.size > 1) {
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${mergedData.workerCount} pekerja</b> :"
+                    } else {
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
+                    }
+
+                    descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+
+                    AppLogger.d("Total merged workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
+
+                    selectedPemanenAdapter.setAvailableWorkers(
+                        mergedData.workerSet.map { formattedWorker ->
+                            val dashIndex = formattedWorker.indexOf(" - ")
+                            val selectedNik = if (dashIndex != -1) {
+                                formattedWorker.substring(0, dashIndex).trim()
+                            } else {
+                                ""
+                            }
+
+                            // Find the worker ID
+                            var workerId = ""
+                            for (panenWithRelations in matchingPanenList) {
+                                val panenEntity = panenWithRelations.panen ?: continue
+                                val karyawanNik = panenEntity.karyawan_nik
+                                val karyawanNama = panenEntity.karyawan_nama
+                                val karyawanId = panenEntity.karyawan_id
+
+                                if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
+                                    val niks = karyawanNik.split(",").map { it.trim() }
+                                    val ids = karyawanId.split(",").map { it.trim() }
+                                    val nikIndex = niks.indexOf(selectedNik)
+                                    if (nikIndex != -1 && nikIndex < ids.size) {
+                                        workerId = ids[nikIndex]
+                                        break
+                                    }
+                                }
+                            }
+
+                            Worker(workerId, formattedWorker)
+                        }
+                    )
+
+                    // Set up the pemanen spinner
+                    setupPemanenSpinner()
 
                 } catch (e: Exception) {
-                    AppLogger.e("Error processing TPH selection: ${e.message}")
+                    AppLogger.e("Error processing merged TPH selection: ${e.message}")
                 } finally {
-                    // Re-enable TPH selection after processing is complete
                     isProcessingTPHSelection = false
                 }
             }, 200)
         }
-
-
     }
 
     override fun getCurrentlySelectedTPHId(): Int? {
         return selectedTPHIdByScan
     }
-
 
     private fun checkScannedTPHInsideRadius() {
         if (lat != null && lon != null) {
@@ -4855,6 +4945,55 @@ open class FormInspectionActivity : AppCompatActivity(),
             btnSatellite.iconTint =
                 ContextCompat.getColorStateList(this, android.R.color.holo_red_dark)
         }
+    }
+
+    data class MergedPanenData(
+        val workerSet: Set<String>, // Unique workers (NIK - Name format)
+        val workerCount: Int,
+        val dateList: List<String>, // All unique dates
+        val ancakList: List<String>, // All ancak values
+        val allPanenRecords: List<PanenEntityWithRelations> // Keep reference to original records
+    )
+
+    // Helper function to merge panen records for a single TPH
+    fun mergePanenRecordsForTPH(panenList: List<PanenEntityWithRelations>): MergedPanenData {
+        val workerSet = mutableSetOf<String>()
+        val dateSet = mutableSetOf<String>()
+        val ancakSet = mutableSetOf<String>()
+
+        panenList.forEach { panenWithRelations ->
+            val panenEntity = panenWithRelations.panen
+            val tphEntity = panenWithRelations.tph
+
+            // Add date
+            panenEntity?.date_created?.let { dateSet.add(it) }
+
+            // Add ancak
+            tphEntity?.ancak?.let { ancakSet.add(it) }
+
+            // Process workers
+            val karyawanNama = panenEntity?.karyawan_nama
+            val karyawanNik = panenEntity?.karyawan_nik
+
+            if (!karyawanNama.isNullOrBlank() && !karyawanNik.isNullOrBlank()) {
+                val names = karyawanNama.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                val niks = karyawanNik.split(",").map { it.trim() }.filter { it.isNotBlank() }
+
+                val minSize = minOf(names.size, niks.size)
+                for (i in 0 until minSize) {
+                    val formattedWorker = "${niks[i]} - ${names[i]}"
+                    workerSet.add(formattedWorker)
+                }
+            }
+        }
+
+        return MergedPanenData(
+            workerSet = workerSet,
+            workerCount = workerSet.size,
+            dateList = dateSet.sorted(),
+            ancakList = ancakSet.toList(),
+            allPanenRecords = panenList
+        )
     }
 
     private fun validateAndShowErrors(): Boolean {

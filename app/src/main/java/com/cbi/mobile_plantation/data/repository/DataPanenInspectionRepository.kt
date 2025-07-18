@@ -26,15 +26,16 @@ class DataPanenInspectionRepository(
         val calendar = Calendar.getInstance()
 
         // Yesterday (1 day ago)
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        val yesterday = formatter.format(calendar.time)
+        calendar.set(Calendar.HOUR_OF_DAY, 23)
+        calendar.set(Calendar.MINUTE, 59)
+        calendar.set(Calendar.SECOND, 59)
+        val today = formatter.format(calendar.time)
 
         // 7 days ago from today (which is 6 days from yesterday)
         calendar.add(Calendar.DAY_OF_YEAR, -6)
         val sevenDaysAgo = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $sevenDaysAgo to $yesterday (inclusive, excluding today)")
-        AppLogger.d("askdlfjakljsdfkljas")
+        AppLogger.d("Date range: $sevenDaysAgo to $today (inclusive, excluding today)")
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -75,7 +76,7 @@ class DataPanenInspectionRepository(
                 put("tanggal", JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(sevenDaysAgo)
-                        put(yesterday)
+                        put(today)
                     })
                 })
             })
