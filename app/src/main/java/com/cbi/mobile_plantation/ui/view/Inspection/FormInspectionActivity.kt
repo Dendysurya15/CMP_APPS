@@ -2181,8 +2181,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
                     if (hasFindings) {
-                        AppLogger.d("fasdjfalsdjflkajsdfa")
-                        AppLogger.d("testing bro ")
                         formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                             currentPokok,
                             lat,
@@ -2421,6 +2419,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupPemanenSpinner() {
         val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanen)
+        lyPemanen.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text = "Pilih Pemanen"
 
         // Initially hide the spinner
         lyPemanen.visibility = View.GONE
@@ -4315,6 +4314,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         spinner.visibility = View.VISIBLE
     }
 
+    @SuppressLint("SetTextI18n")
     private fun populateFollowUpInspectionUI(inspectionData: InspectionWithDetailRelations) {
         val inspection = inspectionData.inspeksi
         val tph = inspectionData.tph
@@ -5007,6 +5007,19 @@ open class FormInspectionActivity : AppCompatActivity(),
             showViewPhotoBottomSheet(null, isInTPH)
             errorMessages.add("Foto di TPH wajib")
             missingFields.add("Foto TPH")
+        }
+
+        if(selectedKaryawanList.isEmpty()){
+            AppLogger.d("selectedKaryawanList $selectedKaryawanList")
+            errorMessages.add("Minimal 1 pemanen yang dipilih!")
+            missingFields.add("Pilih Pemanen")
+
+            val layoutBaris2 = findViewById<LinearLayout>(R.id.lyPemanen)
+            val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+            tvErrorBaris2.text = "Minimal 1 pemanen yang dipilih!"
+            tvErrorBaris2.visibility = View.VISIBLE
         }
 
         if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
