@@ -1072,11 +1072,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (firstDetail != null) {
             photo = firstDetail.foto
             comment = firstDetail.komentar
-            latIssue = firstDetail.latIssue
-            lonIssue = firstDetail.lonIssue
-            createdDate = firstDetail.created_date
-            createdBy = firstDetail.created_by.toIntOrNull()
-            createdName = firstDetail.created_name
+            latIssue = null
+            lonIssue = null
+            createdDate =  null
+            createdBy = null
+            createdName = null
         }
 
         // Get inspection configuration from parameterInspeksi
@@ -1472,10 +1472,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     baris = currentInspectionData?.inspeksi?.baris ?: "",
                                     jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path ?: "",
-                                    latTPH = currentInspectionData?.inspeksi?.latTPH ?: 0.0,
-                                    lonTPH = currentInspectionData?.inspeksi?.lonTPH ?: 0.0,
-                                    foto = currentInspectionData?.inspeksi?.foto,
-                                    komentar = currentInspectionData?.inspeksi?.komentar ?: "",
                                     app_version = currentInspectionData?.inspeksi?.app_version ?: "",
                                     app_version_pemulihan = infoApp,
                                     status_upload = "0",
@@ -1483,10 +1479,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     // Follow-up specific parameters
                                     isFollowUp = true,
                                     existingInspectionId = currentInspectionData?.inspeksi?.id,
-                                    komentar_pemulihan = komentarInTPH,
-                                    latTPHPemulihan = lat,
-                                    lonTPHPemulihan = lon,
-                                    foto_pemulihan = photoInTPH,
                                     tracking_path_pemulihan = trackingJson.toString(),
                                     updated_date_start = dateStartInspection,
                                     updated_date_end = dateEndInspection,
@@ -1510,10 +1502,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
                                     jml_pkk_inspeksi = totalPokokInspection,
                                     tracking_path = trackingJson.toString(),
-                                    latTPH = lat ?: 0.0,
-                                    lonTPH = lon ?: 0.0,
-                                    foto = photoInTPH,
-                                    komentar = komentarInTPH ?: "",
                                     app_version = infoApp,
                                     status_upload = "0",
                                     status_uploaded_image = "0"
@@ -1522,13 +1510,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             when (result) {
                                 is InspectionViewModel.SaveDataInspectionState.Success -> {
-                                    // Skip detail saving for follow-up as requested
                                     if (!isFollowUp) {
                                         val formData = formAncakViewModel.formData.value ?: mutableMapOf()
                                         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
-
-                                        AppLogger.d("formData $formData")
                                         val detailResult = inspectionViewModel.saveDataInspectionDetails(
                                             inspectionId = result.inspectionId.toString(),
                                             formData = formData,
@@ -1536,7 +1521,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             selectedKaryawanList = selectedKaryawanList,
                                             jumBrdTglPath = jumBrdTglPath,
                                             jumBuahTglPath = jumBuahTglPath,
-                                            parameterInspeksi = parameterInspeksi
+                                            parameterInspeksi = parameterInspeksi,
+                                            createdDate = dateStartInspection,
+                                            createdName = prefManager?.nameUserLogin ?: "",
+                                            createdBy = userId.toString(),
+                                            latTPH = lat ?: 0.0,
+                                            lonTPH = lon ?: 0.0,
+                                            foto = photoInTPH,
+                                            komentar = komentarInTPH ?: "",
                                         )
 
                                         when (detailResult) {
@@ -1557,7 +1549,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             totalPages = totalPages,
                                             jumBrdTglPath = jumBrdTglPath,
                                             jumBuahTglPath = jumBuahTglPath,
-                                            parameterInspeksi = parameterInspeksi
+                                            parameterInspeksi = parameterInspeksi,
+                                            createdDateStart = dateStartInspection,
+                                            createdName  = prefManager?.nameUserLogin ?: "",
+                                            createdBy = userId.toString()
                                         )
 
                                         when (detailResult) {
@@ -4342,8 +4337,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         findViewById<TextView>(R.id.tvTglPanen).text =
             inspection.date_panen ?: "-"
 
-        findViewById<TextView>(R.id.tvKomentarTPH).text =
-            inspection.komentar ?: "-"
+//        findViewById<TextView>(R.id.tvKomentarTPH).text =
+//            inspection.komentar ?: "-"
 
         setupCountersFromInspectionData(detailInspeksi)
 
@@ -4779,7 +4774,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         val id: Int,
         val nama: String,
         val status_ppro: Int,
-        val undivided: String // Add this field
+        val undivided: String,
+        val temuan_pokok : Int,
     )
     private fun createSimpleDetailSummary(processedDetails: List<ProcessedInspectionDetail>): String {
         // Option 1: Try system line separator
@@ -4907,7 +4903,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 id = param.id,
                 nama = param.nama,
                 status_ppro = param.status_ppro,
-                undivided = param.undivided // Include undivided field
+                undivided = param.undivided,
+                temuan_pokok = param.temuan_pokok
             )
         }
     }

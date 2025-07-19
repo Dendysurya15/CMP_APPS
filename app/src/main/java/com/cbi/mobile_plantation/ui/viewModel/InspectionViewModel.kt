@@ -37,7 +37,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         val id: Int,
         val nama: String,
         val status_ppro: Int,
-        val undivided: String
+        val undivided: String,
+        val temuan_pokok: Int
     )
 
     sealed class SaveDataInspectionState {
@@ -146,20 +147,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         inspeksi_putaran: Int? = 1,
         jml_pkk_inspeksi: Int,
         tracking_path: String,
-        foto: String? = null,
-        komentar: String,
-        latTPH: Double,
-        lonTPH: Double,
         app_version: String,
         status_upload: String,
         status_uploaded_image: String,
         // New parameters for follow-up
         isFollowUp: Boolean = false,
         existingInspectionId: Int? = null,
-        komentar_pemulihan: String? = null,
-        latTPHPemulihan: Double? = null,
-        lonTPHPemulihan: Double? = null,
-        foto_pemulihan: String? = null,
         tracking_path_pemulihan: String? = null,
         updated_date_start: String? = null,
         updated_date_end: String? = null,
@@ -171,10 +164,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 // Update existing inspection for follow-up
                 val success = repository.updateInspectionForFollowUp(
                     inspectionId = existingInspectionId,
-                    komentar_pemulihan = komentar_pemulihan,
-                    latTPHPemulihan = latTPHPemulihan,
-                    lonTPHPemulihan = lonTPHPemulihan,
-                    foto_pemulihan = foto_pemulihan,
                     tracking_path_pemulihan = tracking_path_pemulihan,
                     inspeksi_putaran = 2,
                     updated_date_start = updated_date_start ?: created_date_start,
@@ -194,9 +183,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     created_date_start = created_date_start,
                     created_date_end = created_date_end,
                     created_by = created_by,
-                    updated_date_start = created_date_start,
-                    updated_date_end = created_date_end,
-                    updated_by = created_by,
                     tph_id = tph_id,
                     id_panen = id_panen,
                     date_panen = date_panen,
@@ -206,10 +192,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     inspeksi_putaran = inspeksi_putaran,
                     jml_pkk_inspeksi = jml_pkk_inspeksi,
                     tracking_path = tracking_path,
-                    foto = foto,
-                    komentar = komentar,
-                    latTPH = latTPH,
-                    lonTPH = lonTPH,
                     app_version = app_version,
                     status_upload = status_upload,
                     status_uploaded_image = status_uploaded_image
@@ -229,7 +211,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         totalPages: Int,
         jumBrdTglPath: Int,
         jumBuahTglPath: Int,
-        parameterInspeksi: List<InspectionParameterItem>
+        parameterInspeksi: List<InspectionParameterItem>,
+        createdDateStart: String,
+        createdName: String,
+        createdBy: String
     ): SaveDataInspectionDetailsState {
         return try {
             if (parameterInspeksi.isEmpty()) {
@@ -242,64 +227,65 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val kodeInspeksi: Int,
                 val getValue: (FormAncakViewModel.PageData, Int, Int) -> Int,
                 val statusPpro: Int,
-                val nama: String
+                val nama: String,
+                val temuanPokok: Int
             )
 
-            val inspectionMappings = listOf(
+            // Regular pokok mappings (exclude 5 and 6)
+            val regularPokokMappings = listOf(
                 InspectionMapping(
                     1, { pageData, _, _ -> pageData.brdKtpGawangan },
                     parameterInspeksi.find { it.id == 1 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 1 }?.nama ?: AppUtils.kodeInspeksi.brondolanDigawangan
+                    parameterInspeksi.find { it.id == 1 }?.nama ?: AppUtils.kodeInspeksi.brondolanDigawangan,
+                    parameterInspeksi.find { it.id == 1 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
                     parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 2 }?.nama ?: AppUtils.kodeInspeksi.brondolanTidakDikutip
+                    parameterInspeksi.find { it.id == 2 }?.nama ?: AppUtils.kodeInspeksi.brondolanTidakDikutip,
+                    parameterInspeksi.find { it.id == 2 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
                     parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 3 }?.nama ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong
+                    parameterInspeksi.find { it.id == 3 }?.nama ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong,
+                    parameterInspeksi.find { it.id == 3 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     4, { pageData, _, _ -> pageData.btPiringanGawangan },
                     parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
-                    parameterInspeksi.find { it.id == 4 }?.nama ?: AppUtils.kodeInspeksi.buahTertinggalPiringan
-                ),
-                InspectionMapping(
-                    5, { _, _, jumBuahTglPath -> jumBuahTglPath },
-                    parameterInspeksi.find { it.id == 5 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 5 }?.nama ?: AppUtils.kodeInspeksi.buahTinggalTPH
-                ),
-                InspectionMapping(
-                    6, { _, jumBrdTglPath, _ -> jumBrdTglPath },
-                    parameterInspeksi.find { it.id == 6 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 6 }?.nama ?: AppUtils.kodeInspeksi.brondolanTinggalTPH
+                    parameterInspeksi.find { it.id == 4 }?.nama ?: AppUtils.kodeInspeksi.buahTertinggalPiringan,
+                    parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 7 }?.nama ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
+                    parameterInspeksi.find { it.id == 7 }?.nama ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai,
+                    parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 8 }?.nama ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh
+                    parameterInspeksi.find { it.id == 8 }?.nama ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,
+                    parameterInspeksi.find { it.id == 8 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning
+                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
+                    parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
                     10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning
+                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning,
+                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
                 )
             )
 
             var updatedCount = 0
 
+            // Handle regular pokok (no_pokok 1 to totalPages)
             for (page in 1..totalPages) {
                 val pageData = formData[page]
                 val emptyTreeValue = pageData?.emptyTree ?: 0
@@ -311,7 +297,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                 AppLogger.d("Processing follow-up update for page $page")
 
-                inspectionMappings.forEach { mapping ->
+                regularPokokMappings.forEach { mapping ->
                     val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
 
                     val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
@@ -319,6 +305,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         rawValue.toDouble()
                     } else {
                         rawValue.toDouble()
+                    }
+
+                    // Skip if temuan_inspeksi value is 0
+                    if (dividedValue == 0.0) {
+                        AppLogger.d("Skipping update for page $page, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
+                        return@forEach
                     }
 
                     // Find the existing inspection detail record by no_pokok and kode_inspeksi
@@ -348,6 +340,57 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
 
+            // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6)
+            if (jumBuahTglPath != 0) {
+                val existingDetail = detailInspeksiList.find {
+                    it.no_pokok == 0 && it.kode_inspeksi == 5
+                }
+
+                existingDetail?.let { detail ->
+                    val updateSuccess = repository.updateInspectionDetailForFollowUpById(
+                        inspectionDetailId = detail.id,
+                        temuanInspeksi = jumBuahTglPath.toDouble(),
+                        fotoPemulihan = null,
+                        komentarPemulihan = null,
+                        latPemulihan = 0.0,
+                        lonPemulihan = 0.0,
+                        updatedDate = "",
+                        updatedName = "",
+                        updatedBy = ""
+                    )
+
+                    if (updateSuccess) {
+                        updatedCount++
+                        AppLogger.d("Updated inspection detail ID: ${detail.id}, no_pokok 0, Code 5, Value ${jumBuahTglPath.toDouble()}")
+                    }
+                }
+            }
+
+            if (jumBrdTglPath != 0) {
+                val existingDetail = detailInspeksiList.find {
+                    it.no_pokok == 0 && it.kode_inspeksi == 6
+                }
+
+                existingDetail?.let { detail ->
+                    val updateSuccess = repository.updateInspectionDetailForFollowUpById(
+                        inspectionDetailId = detail.id,
+                        temuanInspeksi = jumBrdTglPath.toDouble(),
+                        fotoPemulihan = null,
+                        komentarPemulihan = null,
+                        latPemulihan = 0.0,
+                        lonPemulihan = 0.0,
+                        updatedDate = createdDateStart,
+                        updatedName = createdName,
+                        updatedBy = createdBy
+                    )
+
+                    if (updateSuccess) {
+                        updatedCount++
+                        AppLogger.d("Updated inspection detail ID: ${detail.id}, no_pokok 0, Code 6, Value ${jumBrdTglPath.toDouble()}")
+                    }
+                }
+            }
+
             AppLogger.d("Total inspection details updated: $updatedCount")
             SaveDataInspectionDetailsState.Success(updatedCount)
 
@@ -357,6 +400,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+
     suspend fun saveDataInspectionDetails(
         inspectionId: String,
         formData: Map<Int, FormAncakViewModel.PageData>,
@@ -364,7 +408,14 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         selectedKaryawanList: List<FormInspectionActivity.KaryawanInfo>,
         jumBrdTglPath: Int,
         jumBuahTglPath: Int,
-        parameterInspeksi: List<InspectionParameterItem>
+        parameterInspeksi: List<InspectionParameterItem>,
+        createdDate: String,
+        createdName: String,
+        createdBy: String,
+        latTPH: Double,
+        lonTPH: Double,
+        foto: String? = null,
+        komentar: String,
     ): SaveDataInspectionDetailsState {
         return try {
             val inspectionDetailList = mutableListOf<InspectionDetailModel>()
@@ -388,82 +439,79 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val kodeInspeksi: Int,
                 val getValue: (FormAncakViewModel.PageData, Int, Int) -> Int,
                 val statusPpro: Int,
-                val nama: String
+                val nama: String,
+                val temuanPokok: Int
             )
 
-            val inspectionMappings = listOf(
+            // Regular pokok mappings (exclude 5 and 6)
+            val regularPokokMappings = listOf(
                 InspectionMapping(
                     1, { pageData, _, _ -> pageData.brdKtpGawangan },
                     parameterInspeksi.find { it.id == 1 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 1 }?.nama
-                        ?: AppUtils.kodeInspeksi.brondolanDigawangan
+                        ?: AppUtils.kodeInspeksi.brondolanDigawangan,
+                    parameterInspeksi.find { it.id == 1 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
                     parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 2 }?.nama
-                        ?: AppUtils.kodeInspeksi.brondolanTidakDikutip
+                        ?: AppUtils.kodeInspeksi.brondolanTidakDikutip,
+                    parameterInspeksi.find { it.id == 2 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
                     parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 3 }?.nama
-                        ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong
+                        ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong,
+                    parameterInspeksi.find { it.id == 3 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     4, { pageData, _, _ -> pageData.btPiringanGawangan },
                     parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 4 }?.nama
-                        ?: AppUtils.kodeInspeksi.buahTertinggalPiringan
-                ),
-
-                InspectionMapping(
-                    5, { _, _, jumBuahTglPath -> jumBuahTglPath },
-                    parameterInspeksi.find { it.id == 5 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 5 }?.nama
-                        ?: AppUtils.kodeInspeksi.buahTinggalTPH
-                ),
-
-                InspectionMapping(
-                    6, { _, jumBrdTglPath, _ -> jumBrdTglPath },
-                    parameterInspeksi.find { it.id == 6 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 6 }?.nama
-                        ?: AppUtils.kodeInspeksi.brondolanTinggalTPH
+                        ?: AppUtils.kodeInspeksi.buahTertinggalPiringan,
+                    parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 7 }?.nama
-                        ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
+                        ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai,
+                    parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 8 }?.nama
-                        ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh
+                        ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,
+                    parameterInspeksi.find { it.id == 8 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning
+                    parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
+                    parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1
                 ),
 
                 InspectionMapping(
                     10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 10 }?.nama
-                        ?: AppUtils.kodeInspeksi.underPruning
+                        ?: AppUtils.kodeInspeksi.underPruning,
+                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
                 )
             )
 
-            AppLogger.d("Created ${inspectionMappings.size} inspection mappings from database parameters")
+            AppLogger.d("Created ${regularPokokMappings.size} regular pokok inspection mappings from database parameters")
 
+            // Handle regular pokok (no_pokok 1 to totalPages)
             for (page in 1..totalPages) {
                 val pageData = formData[page]
                 val emptyTreeValue = pageData?.emptyTree ?: 0
@@ -476,7 +524,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 AppLogger.d("Processing page $page with ${selectedKaryawanList.size} karyawan")
 
                 selectedKaryawanList.forEach { karyawan ->
-                    inspectionMappings.forEach { mapping ->
+                    regularPokokMappings.forEach { mapping ->
                         val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
 
                         AppLogger.d("DEBUG: Page $page, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
@@ -488,6 +536,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             rawValue.toDouble()
                         } else {
                             rawValue.toDouble() / karyawanCount.toDouble()
+                        }
+
+                        // Skip if temuan_inspeksi value is 0
+                        if (dividedValue == 0.0) {
+                            AppLogger.d("Skipping save for page $page, karyawan ${karyawan.nama}, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
+                            return@forEach
                         }
 
                         AppLogger.d("Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
@@ -515,9 +569,57 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                         inspectionDetailList.add(inspectionDetail)
                         AppLogger.d("Added inspection detail: Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
-
                     }
                 }
+            }
+
+            // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6 only)
+            if (jumBuahTglPath != 0) {
+                val inspectionDetail = InspectionDetailModel(
+                    id_inspeksi = inspectionId,
+                    created_date = createdDate,
+                    created_name = createdName,
+                    created_by = createdBy,
+                    nik = "",
+                    nama = "",
+                    no_pokok = 0,
+                    pokok_panen = null,
+                    kode_inspeksi = 5,
+                    temuan_inspeksi = jumBuahTglPath.toDouble(),
+                    status_pemulihan = 0.0,
+                    foto = foto,
+                    komentar = komentar,
+                    latIssue = latTPH,
+                    lonIssue = lonTPH,
+                    status_upload = "0",
+                    status_uploaded_image = "0"
+                )
+                inspectionDetailList.add(inspectionDetail)
+                AppLogger.d("Added inspection detail: no_pokok 0, Code 5, Value ${jumBuahTglPath.toDouble()}")
+            }
+
+            if (jumBrdTglPath != 0) {
+                val inspectionDetail = InspectionDetailModel(
+                    id_inspeksi = inspectionId,
+                    created_date = createdDate,
+                    created_name = createdName,
+                    created_by = createdBy,
+                    nik = "",
+                    nama = "",
+                    no_pokok = 0,
+                    pokok_panen = null,
+                    kode_inspeksi = 6,
+                    temuan_inspeksi = jumBrdTglPath.toDouble(),
+                    status_pemulihan = 0.0,
+                    foto = foto,
+                    komentar = komentar,
+                    latIssue = latTPH,
+                    lonIssue = lonTPH,
+                    status_upload = "0",
+                    status_uploaded_image = "0"
+                )
+                inspectionDetailList.add(inspectionDetail)
+                AppLogger.d("Added inspection detail: no_pokok 0, Code 6, Value ${jumBrdTglPath.toDouble()}")
             }
 
             AppLogger.d("Total inspection details to save: ${inspectionDetailList.size}")

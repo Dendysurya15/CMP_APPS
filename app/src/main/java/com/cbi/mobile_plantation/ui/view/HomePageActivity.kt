@@ -3382,108 +3382,108 @@ class HomePageActivity : AppCompatActivity() {
                         mappedInspeksiData = inspeksiList.mapNotNull { inspeksiWithRelations ->
 
                             // Handle photos from main inspeksi
-                            val inspeksiPhotoNames =
-                                inspeksiWithRelations.inspeksi.foto?.split(";") ?: listOf()
-
-                            // Process main inspeksi photos
-                            for (photoName in inspeksiPhotoNames) {
-                                val trimmedName = photoName.trim()
-                                if (trimmedName.isEmpty()) continue
-
-                                if (trimmedName in uniquePhotos) continue
-
-                                // Check main inspeksi status
-                                var shouldSkip = false
-                                if (inspeksiWithRelations.inspeksi.status_uploaded_image == "200") {
-                                    shouldSkip = true
-                                }
-
-                                if (shouldSkip) {
-                                    AppLogger.d("Skipping main inspeksi photo $trimmedName - fully uploaded (status 200)")
-                                    continue
-                                }
-
-                                var photoFound = false
-
-                                for (cmpDir in cmpDirectories) {
-                                    val photoFile = File(cmpDir, trimmedName)
-
-                                    if (photoFile.exists() && photoFile.isFile) {
-                                        var shouldAdd = false
-
-                                        // Check if photo needs upload based on status
-                                        if (inspeksiWithRelations.inspeksi.status_uploaded_image == "0") {
-                                            shouldAdd = true
-                                            AppLogger.d("Photo $trimmedName hasn't been uploaded (status 0)")
-                                        } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith(
-                                                "{"
-                                            )
-                                        ) {
-                                            try {
-                                                val errorJson = Gson().fromJson(
-                                                    inspeksiWithRelations.inspeksi.status_uploaded_image,
-                                                    JsonObject::class.java
-                                                )
-                                                val errorArray =
-                                                    errorJson?.get("error")?.asJsonArray
-
-                                                errorArray?.forEach { errorItem ->
-                                                    if (errorItem.asString == trimmedName) {
-                                                        shouldAdd = true
-                                                        AppLogger.d("Photo $trimmedName is marked as error in inspeksi ${inspeksiWithRelations.inspeksi.id}")
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
-                                            }
-                                        }
-
-                                        val createdDate =
-                                            inspeksiWithRelations.inspeksi.created_date_start ?: ""
-                                        val formattedDate = try {
-                                            val dateFormat = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            )
-                                            val date = dateFormat.parse(createdDate)
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(date ?: Date())
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error formatting date: ${e.message}")
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(Date())
-                                        }
-
-                                        val basePathImage =
-                                            formattedDate + prefManager!!.estateUserLogin
-
-                                        if (shouldAdd) {
-                                            uniquePhotos[trimmedName] = mapOf(
-                                                "name" to trimmedName,
-                                                "path" to photoFile.absolutePath,
-                                                "size" to photoFile.length().toString(),
-                                                "table_ids" to inspeksiWithRelations.inspeksi.id.toString(),
-                                                "base_path" to basePathImage,
-                                                "database" to AppUtils.DatabaseTables.INSPEKSI
-                                            )
-                                            AppLogger.d("Added main inspeksi photo for upload: $trimmedName at ${photoFile.absolutePath}")
-                                        }
-
-                                        photoFound = true
-                                        break
-                                    }
-                                }
-
-                                if (!photoFound) {
-                                    AppLogger.w("Main inspeksi photo not found: $trimmedName")
-                                }
-                            }
+//                            val inspeksiPhotoNames =
+//                                inspeksiWithRelations.inspeksi.foto?.split(";") ?: listOf()
+//
+//                            // Process main inspeksi photos
+//                            for (photoName in inspeksiPhotoNames) {
+//                                val trimmedName = photoName.trim()
+//                                if (trimmedName.isEmpty()) continue
+//
+//                                if (trimmedName in uniquePhotos) continue
+//
+//                                // Check main inspeksi status
+//                                var shouldSkip = false
+//                                if (inspeksiWithRelations.inspeksi.status_uploaded_image == "200") {
+//                                    shouldSkip = true
+//                                }
+//
+//                                if (shouldSkip) {
+//                                    AppLogger.d("Skipping main inspeksi photo $trimmedName - fully uploaded (status 200)")
+//                                    continue
+//                                }
+//
+//                                var photoFound = false
+//
+//                                for (cmpDir in cmpDirectories) {
+//                                    val photoFile = File(cmpDir, trimmedName)
+//
+//                                    if (photoFile.exists() && photoFile.isFile) {
+//                                        var shouldAdd = false
+//
+//                                        // Check if photo needs upload based on status
+//                                        if (inspeksiWithRelations.inspeksi.status_uploaded_image == "0") {
+//                                            shouldAdd = true
+//                                            AppLogger.d("Photo $trimmedName hasn't been uploaded (status 0)")
+//                                        } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith(
+//                                                "{"
+//                                            )
+//                                        ) {
+//                                            try {
+//                                                val errorJson = Gson().fromJson(
+//                                                    inspeksiWithRelations.inspeksi.status_uploaded_image,
+//                                                    JsonObject::class.java
+//                                                )
+//                                                val errorArray =
+//                                                    errorJson?.get("error")?.asJsonArray
+//
+//                                                errorArray?.forEach { errorItem ->
+//                                                    if (errorItem.asString == trimmedName) {
+//                                                        shouldAdd = true
+//                                                        AppLogger.d("Photo $trimmedName is marked as error in inspeksi ${inspeksiWithRelations.inspeksi.id}")
+//                                                    }
+//                                                }
+//                                            } catch (e: Exception) {
+//                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
+//                                            }
+//                                        }
+//
+//                                        val createdDate =
+//                                            inspeksiWithRelations.inspeksi.created_date_start ?: ""
+//                                        val formattedDate = try {
+//                                            val dateFormat = SimpleDateFormat(
+//                                                "yyyy-MM-dd HH:mm:ss",
+//                                                Locale.getDefault()
+//                                            )
+//                                            val date = dateFormat.parse(createdDate)
+//                                            val outputFormat = SimpleDateFormat(
+//                                                "yyyy/MM/dd/",
+//                                                Locale.getDefault()
+//                                            )
+//                                            outputFormat.format(date ?: Date())
+//                                        } catch (e: Exception) {
+//                                            AppLogger.e("Error formatting date: ${e.message}")
+//                                            val outputFormat = SimpleDateFormat(
+//                                                "yyyy/MM/dd/",
+//                                                Locale.getDefault()
+//                                            )
+//                                            outputFormat.format(Date())
+//                                        }
+//
+//                                        val basePathImage =
+//                                            formattedDate + prefManager!!.estateUserLogin
+//
+//                                        if (shouldAdd) {
+//                                            uniquePhotos[trimmedName] = mapOf(
+//                                                "name" to trimmedName,
+//                                                "path" to photoFile.absolutePath,
+//                                                "size" to photoFile.length().toString(),
+//                                                "table_ids" to inspeksiWithRelations.inspeksi.id.toString(),
+//                                                "base_path" to basePathImage,
+//                                                "database" to AppUtils.DatabaseTables.INSPEKSI
+//                                            )
+//                                            AppLogger.d("Added main inspeksi photo for upload: $trimmedName at ${photoFile.absolutePath}")
+//                                        }
+//
+//                                        photoFound = true
+//                                        break
+//                                    }
+//                                }
+//
+//                                if (!photoFound) {
+//                                    AppLogger.w("Main inspeksi photo not found: $trimmedName")
+//                                }
+//                            }
 
                             // Handle photos from inspeksi detail
                             inspeksiWithRelations.detailInspeksi.forEach { detail ->
@@ -3612,18 +3612,18 @@ class HomePageActivity : AppCompatActivity() {
                             val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
 
                             // Process inspeksi photos
-                            val originalInspeksiFotoString =
-                                inspeksiWithRelations.inspeksi.foto ?: ""
-                            val modifiedInspeksiFotoString =
-                                if (originalInspeksiFotoString.contains(";")) {
-                                    originalInspeksiFotoString.split(";")
-                                        .map { photoName -> "$basePath${photoName.trim()}" }
-                                        .joinToString(";")
-                                } else if (originalInspeksiFotoString.isNotEmpty()) {
-                                    "$basePath$originalInspeksiFotoString"
-                                } else {
-                                    ""
-                                }
+//                            val originalInspeksiFotoString =
+//                                inspeksiWithRelations.inspeksi.foto ?: ""
+//                            val modifiedInspeksiFotoString =
+//                                if (originalInspeksiFotoString.contains(";")) {
+//                                    originalInspeksiFotoString.split(";")
+//                                        .map { photoName -> "$basePath${photoName.trim()}" }
+//                                        .joinToString(";")
+//                                } else if (originalInspeksiFotoString.isNotEmpty()) {
+//                                    "$basePath$originalInspeksiFotoString"
+//                                } else {
+//                                    ""
+//                                }
 
                             val nikList = inspeksiWithRelations.detailInspeksi
                                 .mapNotNull { it.nik }
@@ -3736,16 +3736,15 @@ class HomePageActivity : AppCompatActivity() {
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
                                         ?: 0),
-                                    "foto_tph" to modifiedInspeksiFotoString,
-                                    "catatan" to (inspeksiWithRelations.inspeksi.komentar
-                                        ?: ""),
+//                                    "foto_tph" to modifiedInspeksiFotoString,
+//                                    "catatan" to (inspeksiWithRelations.inspeksi.komentar
+//                                        ?: ""),
                                     "created_name" to (prefManager!!.nameUserLogin ?: ""),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
                                         ?: ""),
                                     "tph_id" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
 
-                                    "lat" to (inspeksiWithRelations.inspeksi.latTPH ?: 0.0),
-                                    "lon" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
+//                                    "lat" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
                                     "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
                                         ?: ""),
                                     "app_version" to (inspeksiWithRelations.inspeksi.app_version

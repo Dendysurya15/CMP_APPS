@@ -135,22 +135,7 @@ class FormAncakViewModel : ViewModel() {
     ): Boolean {
         val currentData = getPageData(pokokNumber) ?: PageData()
 
-        // Check if this pokok data is already saved (has location data)
-        val isAlreadySaved = currentData.latIssue != null &&
-                currentData.lonIssue != null &&
-                !currentData.createdDate.isNullOrEmpty() &&
-                currentData.createdBy != null &&
-                !currentData.createdName.isNullOrEmpty()
-
-        if (isAlreadySaved) {
-            // Data is already saved, don't overwrite it - just return the tracking status
-            AppLogger.d("Pokok $pokokNumber data already saved, skipping location update")
-
-            // Return tracking status based on existing data WITHOUT saving again
-            return shouldSetLatLonIssue(currentData)
-        }
-
-        // Data is not saved yet, proceed with normal save logic
+        // Always allow user to save/update data when this function is called
         val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
         if (shouldSetLatLonIssue(currentData)) {
@@ -163,7 +148,7 @@ class FormAncakViewModel : ViewModel() {
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
-            AppLogger.d("Saved new location data for pokok $pokokNumber")
+            AppLogger.d("Saved/Updated location data for pokok $pokokNumber")
 
             // Show success toast with saved location
             Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
@@ -179,7 +164,7 @@ class FormAncakViewModel : ViewModel() {
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
-            AppLogger.d("Saved metadata for pokok $pokokNumber without location (no issues)")
+            AppLogger.d("Saved/Updated metadata for pokok $pokokNumber without location (no issues)")
 
             return false // Should remove tracking for this location
         }

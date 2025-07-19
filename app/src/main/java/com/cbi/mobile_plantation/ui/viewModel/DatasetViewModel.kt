@@ -2377,10 +2377,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
 //                            val createdName = item.optString("created_name", "")
                             val createdBy = item.optInt("created_by", 0)
-                            val lat = item.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
-                            val lon = item.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
                             val trackingPath = item.optString("tracking_path", "")
-                            val catatan = item.optString("catatan", "")
 
                             AppLogger.d("Creating inspection entity: inspectionId=$inspectionId, tphId=$tphId, date=$tglInspeksi")
 
@@ -2398,10 +2395,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 baris = baris,
                                 jml_pkk_inspeksi = jmlPokokInspeksi,
                                 tracking_path = trackingPath,
-                                foto = null,
-                                komentar = catatan,
-                                latTPH = lat,
-                                lonTPH = lon,
                                 dataIsZipped = 0,
                                 app_version = "",
                                 status_upload = "3",
@@ -2499,13 +2492,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             AppLogger.d("Record exists, updating: ID=${inspection.id}")
 
                                             val updatedRecord = inspection.copy(
-                                                // Preserve local photos and comments if they exist
-                                                foto = if (existingRecord.foto?.isNotEmpty() == true) existingRecord.foto else inspection.foto,
-                                                komentar = if (existingRecord.komentar?.isNotEmpty() == true) existingRecord.komentar else inspection.komentar,
-                                                // Preserve local coordinates if they exist
-                                                latTPH = if (existingRecord.latTPH != 0.0) existingRecord.latTPH else inspection.latTPH,
-                                                lonTPH = if (existingRecord.lonTPH != 0.0) existingRecord.lonTPH else inspection.lonTPH,
-                                                // Preserve local status
+
                                                 status_upload = existingRecord.status_upload,
                                                 status_uploaded_image = existingRecord.status_uploaded_image
                                             )

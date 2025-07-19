@@ -74,10 +74,6 @@ class AppRepository(context: Context) {
 
     suspend fun updateInspectionForFollowUp(
         inspectionId: Int,
-        komentar_pemulihan: String?,
-        latTPHPemulihan: Double?,
-        lonTPHPemulihan: Double?,
-        foto_pemulihan: String?,
         tracking_path_pemulihan: String?,
         inspeksi_putaran: Int,
         updated_date_start: String,
@@ -88,10 +84,6 @@ class AppRepository(context: Context) {
         return try {
             inspectionDao.updateInspectionForFollowUp(
                 inspectionId = inspectionId,
-                komentar_pemulihan = komentar_pemulihan,
-                latTPHPemulihan = latTPHPemulihan,
-                lonTPHPemulihan = lonTPHPemulihan,
-                foto_pemulihan = foto_pemulihan,
                 tracking_path_pemulihan = tracking_path_pemulihan,
                 inspeksi_putaran = inspeksi_putaran,
                 updated_date_start = updated_date_start,

@@ -85,11 +85,7 @@ abstract class InspectionDao {
 
 
     @Query("""
-    UPDATE inspeksi SET 
-    komentar_pemulihan = :komentar_pemulihan,
-    latTPHPemulihan = :latTPHPemulihan,
-    lonTPHPemulihan = :lonTPHPemulihan,
-    foto_pemulihan = :foto_pemulihan,
+    UPDATE inspeksi SET
     tracking_path_pemulihan = :tracking_path_pemulihan,
     inspeksi_putaran = :inspeksi_putaran,
     updated_date_start = :updated_date_start,
@@ -100,10 +96,6 @@ abstract class InspectionDao {
 """)
     abstract suspend fun updateInspectionForFollowUp(
         inspectionId: Int,
-        komentar_pemulihan: String?,
-        latTPHPemulihan: Double?,
-        lonTPHPemulihan: Double?,
-        foto_pemulihan: String?,
         tracking_path_pemulihan: String?,
         inspeksi_putaran: Int,
         updated_date_start: String,

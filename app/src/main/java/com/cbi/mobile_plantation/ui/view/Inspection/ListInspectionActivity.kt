@@ -472,11 +472,11 @@ class ListInspectionActivity : AppCompatActivity() {
         parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
         parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formatToIndonesianDate(inspection.date_panen)
 
-        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString()
+//        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString()
         val frameLayoutFoto = parentView.findViewById<FrameLayout>(R.id.frameLayoutFoto)
         val imageView = parentView.findViewById<ImageView>(R.id.ivFoto)
 
-        loadInspectionPhoto(frameLayoutFoto, imageView, inspection.foto)
+//        loadInspectionPhoto(frameLayoutFoto, imageView, inspection.foto)
 
         // Setup RecyclerView for pemanen
         val rvSelectedPemanen = parentView.findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
@@ -1246,59 +1246,6 @@ class ListInspectionActivity : AppCompatActivity() {
         }
     }
 
-    // Keep your existing helper functions
-    private fun getSusunanPelepahText(susunan: Int?): String {
-        return when (susunan) {
-            1 -> "Baik"
-            2 -> "Sedang"
-            3 -> "Buruk"
-            else -> "-"
-        }
-    }
-
-    private fun getPelepahSengklehText(sengkleh: Int?): String {
-        return when (sengkleh) {
-            1 -> "Ada"
-            0 -> "Tidak Ada"
-            else -> "-"
-        }
-    }
-
-    private fun getKondisiPruningText(pruning: Int?): String {
-        return when (pruning) {
-            1 -> "Baik"
-            2 -> "Sedang"
-            3 -> "Buruk"
-            else -> "-"
-        }
-    }
-
-
-    private fun populateGPSData(container: LinearLayout, inspection: InspectionModel) {
-        container.removeAllViews()
-
-        val gpsData = listOf(
-            SummaryItem("Latitude TPH", String.format("%.6f", inspection.latTPH)),
-            SummaryItem("Longitude TPH", String.format("%.6f", inspection.lonTPH)),
-            SummaryItem("Koordinat TPH", "${String.format("%.6f", inspection.latTPH)}, ${String.format("%.6f", inspection.lonTPH)}"),
-            SummaryItem("Tracking Path", if (inspection.tracking_path.isNotEmpty()) "✓ Tersedia" else "✗ Tidak ada")
-        )
-
-        for (item in gpsData) {
-            val rowLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-
-                addView(createRowTextView(item.title, Gravity.START, 2f, true))
-                addView(createRowTextView(item.value, Gravity.CENTER, 1f, false))
-            }
-            container.addView(rowLayout)
-        }
-    }
-
     private fun formatBarisText(jenisKondisi: Int, baris: String): String {
         return when (jenisKondisi) {
             1 -> {
@@ -1372,9 +1319,6 @@ class ListInspectionActivity : AppCompatActivity() {
         loadingDialog.setMessage("Loading data...")
 
         inspectionViewModel.inspectionWithDetails.observe(this) { inspectionPaths ->
-
-
-            AppLogger.d("inspectionPaths $inspectionPaths")
             adapter.setData(inspectionPaths)
             Handler(Looper.getMainLooper()).postDelayed({
                 loadingDialog.dismiss()
