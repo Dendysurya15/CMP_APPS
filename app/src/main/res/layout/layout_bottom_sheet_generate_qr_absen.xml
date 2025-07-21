@@ -171,7 +171,7 @@
         android:fontFamily="@font/manrope_medium"
         android:gravity="left"
         android:textColor="@color/black"
-        android:text="Jika sudah melakukan scan QR harap konfirmasi dengan tombol berikut!"
+        android:text="Konfirmasi dengan tombol berikut!"
         android:textSize="17sp"
         android:textStyle="italic"
         android:visibility="gone"

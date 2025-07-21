@@ -272,7 +272,10 @@
                 android:fontFamily="@font/manrope_bold"
                 android:text="Info Update"
                 android:textColor="@color/anotherYellow"
-                android:textSize="@dimen/m" />
+                android:textSize="@dimen/m"
+                android:maxWidth="120dp"
+                android:maxLines="1"
+                android:ellipsize="end" />
 
 <!--            <ImageView-->
 

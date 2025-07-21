@@ -54,6 +54,7 @@ import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.playSound
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -163,61 +164,61 @@ class ListAbsensiActivity : AppCompatActivity() {
         dateButton = findViewById(R.id.calendarPickerAbsensi)
         dateButton.text = AppUtils.getTodaysDate()
 
-        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
-
-        filterAllData.setOnCheckedChangeListener { _, isChecked ->
-            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
-            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
-            if (isChecked) {
-                filterDateContainer.visibility = View.VISIBLE
-                nameFilterDate.text = "Semua Data"
-
-                dateButton.isEnabled = false
-                dateButton.alpha = 0.5f
-
-                if (currentState == 0) {
-                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
-                } else if (currentState == 1) {
-                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
-                }
-            } else {
-                // For line 136 (use date from date picker)
-                val displayDate = formatGlobalDate(globalFormattedDate)
-
-                nameFilterDate.text = displayDate
-                dateButton.isEnabled = true
-                dateButton.alpha = 1f // Make the button appear darker
-                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
-                if (currentState == 0) {
-                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
-                } else if (currentState == 1) {
-                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
-                }
-            }
-
-            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
-
-            removeFilterDate.setOnClickListener {
-                if (filterAllData.isChecked) {
-                    filterAllData.isChecked = false
-                }
-
-                filterDateContainer.visibility = View.GONE
-
-                val todayBackendDate = AppUtils.formatDateForBackend(
-                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
-                    Calendar.getInstance().get(Calendar.MONTH) + 1,
-                    Calendar.getInstance().get(Calendar.YEAR)
-                )
-                // Reset the selected date in your utils
-                AppUtils.setSelectedDate(todayBackendDate)
-
-                // Update the dateButton to show today's date
-                val todayDisplayDate = AppUtils.getTodaysDate()
-                dateButton.text = todayDisplayDate
-
-            }
-        }
+//        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
+//
+//        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+//            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+//            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+//            if (isChecked) {
+//                filterDateContainer.visibility = View.VISIBLE
+//                nameFilterDate.text = "Semua Data"
+//
+//                dateButton.isEnabled = false
+//                dateButton.alpha = 0.5f
+//
+//                if (currentState == 0) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
+//                } else if (currentState == 1) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
+//                }
+//            } else {
+//                // For line 136 (use date from date picker)
+//                val displayDate = formatGlobalDate(globalFormattedDate)
+//
+//                nameFilterDate.text = displayDate
+//                dateButton.isEnabled = true
+//                dateButton.alpha = 1f // Make the button appear darker
+//                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+//                if (currentState == 0) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
+//                } else if (currentState == 1) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
+//                }
+//            }
+//
+//            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+//
+//            removeFilterDate.setOnClickListener {
+//                if (filterAllData.isChecked) {
+//                    filterAllData.isChecked = false
+//                }
+//
+//                filterDateContainer.visibility = View.GONE
+//
+//                val todayBackendDate = AppUtils.formatDateForBackend(
+//                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+//                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+//                    Calendar.getInstance().get(Calendar.YEAR)
+//                )
+//                // Reset the selected date in your utils
+//                AppUtils.setSelectedDate(todayBackendDate)
+//
+//                // Update the dateButton to show today's date
+//                val todayDisplayDate = AppUtils.getTodaysDate()
+//                dateButton.text = todayDisplayDate
+//
+//            }
+//        }
 
         setupHeader()
         initViewModel()
@@ -392,14 +393,21 @@ class ListAbsensiActivity : AppCompatActivity() {
         // Get references to views
         val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
         val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-        val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
+        val tvTitleQRGenerate: TextView =
+            view.findViewById(R.id.textTitleQRGenerate)
+        tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
         val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
-        tvTitleQRGenerate.text = "Generate QR $capitalizedFeatureName"
+        tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
         val dashedLine: View = view.findViewById(R.id.dashedLine)
         val loadingContainer: LinearLayout =
             view.findViewById(R.id.loadingDotsContainerBottomSheet)
+        val titleQRConfirm: TextView = view.findViewById(R.id.titleAfterScanQR)
+        val descQRConfirm: TextView = view.findViewById(R.id.descAfterScanQR)
+        // Initial setup for text elements
+        titleQRConfirm.setResponsiveTextSizeWithConstraints(21F, 17F, 25F)
+        descQRConfirm.setResponsiveTextSizeWithConstraints(19F, 15F, 23F)
 
         val btnPreviewFullQR: MaterialButton =
             view.findViewById(R.id.btnPreviewFullQR)

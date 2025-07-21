@@ -270,10 +270,18 @@ class ListAbsensiAdapter(private val context: Context,
             bottomSheetDialog.dismiss()
         }
 
-        // Edit button click listener
-        view.findViewById<android.widget.Button>(R.id.btnEditAbsensi).setOnClickListener {
-            bottomSheetDialog.dismiss()
-            showEditAttendanceBottomSheetNew(context, item)
+        // Edit button setup with visibility control
+        val editButton = view.findViewById<android.widget.Button>(R.id.btnEditAbsensi)
+        if (currentArchiveState == 0) {
+            // Show edit button for active state
+            editButton.visibility = View.VISIBLE
+            editButton.setOnClickListener {
+                bottomSheetDialog.dismiss()
+                showEditAttendanceBottomSheetNew(context, item)
+            }
+        } else {
+            // Hide edit button for archived state
+            editButton.visibility = View.GONE
         }
 
         bottomSheetDialog.setContentView(view)
