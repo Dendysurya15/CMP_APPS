@@ -322,6 +322,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:orientation="horizontal"
+        android:baselineAligned="false"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -330,7 +331,7 @@
         <Button
             android:id="@+id/btnCloseDetailTable"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
@@ -340,17 +341,16 @@
             android:textSize="16sp" />
 
         <Button
-            android:id="@+id/btnSaveUploadeSPB"
+            android:id="@+id/btnStartPasarTengah"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:backgroundTint="@color/greenDarker"
+            android:backgroundTint="@color/bluedarklight"
             android:fontFamily="@font/manrope_bold"
-            android:text="Simpan &amp; Upload e-SPB"
+            android:text="Lanjut Inspeksi dari Pasar Tengah"
             android:textColor="@color/white"
-            android:textSize="@dimen/m"
-            android:visibility="gone" />
+            android:textSize="@dimen/m" />
 
     </LinearLayout>
 

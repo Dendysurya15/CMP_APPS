@@ -2394,6 +2394,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 jenis_kondisi = jenisInspeksi,
                                 baris = baris,
                                 jml_pkk_inspeksi = jmlPokokInspeksi,
+                                jml_pkk_diperiksa =  0,
                                 tracking_path = trackingPath,
                                 dataIsZipped = 0,
                                 app_version = "",
@@ -2453,12 +2454,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
                         }
-
-                        AppLogger.d("=== INSPECTION PROCESSING SUMMARY ===")
-                        AppLogger.d("Total inspection records processed: ${dataArray.length()}")
-                        AppLogger.d("Inspection records to INSERT/UPDATE: ${inspectionList.size}")
-                        AppLogger.d("Inspection detail records to INSERT/UPDATE: ${inspectionDetailList.size}")
-                        AppLogger.d("=====================================")
 
                         // Update to 80% when processing is complete
                         progressMap[itemId] = 80

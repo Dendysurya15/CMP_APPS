@@ -407,10 +407,36 @@ class ListInspectionActivity : AppCompatActivity() {
         val tphContainer = view.findViewById<LinearLayout>(R.id.tblLytTPH)
         val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
 
-        // Populate TPH Section
+        val btnStartPasarTengah = view.findViewById<TextView>(R.id.btnStartPasarTengah)
+
+        btnStartPasarTengah.setOnClickListener{
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Lanjutkan",
+                getString(R.string.confirmation_dialog_title),
+                "Inspeksi akan dilanjutkan dari Pasar Tengah dengan Nomor TPH ini. Anda masih dapat melakukan perubahan nomor TPH jika diperlukan.",
+                "warning.json",
+                ContextCompat.getColor(this, R.color.bluedarklight),
+                function = {
+                    val intent = Intent(
+                        this@ListInspectionActivity,
+                        FormInspectionActivity::class.java
+                    )
+                    intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.InspeksiPanen)
+                    intent.putExtra("IS_FROM_PASAR_TENGAH",true)
+                    intent.putExtra("DIVISI_ABBR",inspectionPath.tph.divisi_abbr)
+                    intent.putExtra("DEPT_ABBR",inspectionPath.tph.dept_abbr)
+                    intent.putExtra("BLOK_KODE",inspectionPath.tph.blok_kode)
+                    intent.putExtra("LAST_NUMBER_POKOK",inspectionPath.inspeksi.jml_pkk_diperiksa)
+                    intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
+                    startActivity(intent)
+                },
+                cancelFunction = { }
+            )
+        }
+
         // Populate TPH Section
         populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, inspectionPath.panen, view, inspectionPath.detailInspeksi)
-
 
         val detailList = inspectionPath.detailInspeksi
         populateIssueData(issueContainer, detailList, view)
@@ -472,13 +498,22 @@ class ListInspectionActivity : AppCompatActivity() {
         parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
         parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formatToIndonesianDate(inspection.date_panen)
 
-//        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = inspection.komentar.toString()
+        val tphKomentar = detailInspeksi
+            .filter { it.no_pokok == 0 }
+            .firstOrNull()
+            ?.komentar
+
+        val fotoTPH = detailInspeksi
+            .filter { it.no_pokok == 0 }
+            .firstOrNull()
+            ?.foto
+
+        parentView.findViewById<TextView>(R.id.tvKomentarTPH)?.text = tphKomentar ?: ""
         val frameLayoutFoto = parentView.findViewById<FrameLayout>(R.id.frameLayoutFoto)
         val imageView = parentView.findViewById<ImageView>(R.id.ivFoto)
 
-//        loadInspectionPhoto(frameLayoutFoto, imageView, inspection.foto)
+        loadInspectionPhoto(frameLayoutFoto, imageView,fotoTPH)
 
-        // Setup RecyclerView for pemanen
         val rvSelectedPemanen = parentView.findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
         val pemanenAdapter = SelectedWorkerAdapter()
         rvSelectedPemanen.adapter = pemanenAdapter
@@ -634,12 +669,15 @@ class ListInspectionActivity : AppCompatActivity() {
 
         container.removeAllViews()
 
+        val filteredDetailInspeksi = detailInspeksi.filter { it.no_pokok != 0 }
+
         val filteredParameters = parameterInspeksi.filter { param ->
             param.nama != AppUtils.kodeInspeksi.buahTinggalTPH &&
                     param.nama != AppUtils.kodeInspeksi.brondolanTinggalTPH
         }.sortedBy { it.id }
-        // Merge the details first
-        val mergedDetails = mergeInspectionDetails(detailInspeksi)
+
+        // Merge the filtered details
+        val mergedDetails = mergeInspectionDetails(filteredDetailInspeksi)
 
         // Update title with count
         val titleIssue = dialogView.findViewById<TextView>(R.id.titleIssue)
@@ -1008,9 +1046,8 @@ class ListInspectionActivity : AppCompatActivity() {
         val file = File(fullImagePath)
 
         if (!file.exists()) {
-            // Photo file doesn't exist - show error
             val errorText = TextView(this).apply {
-                text = "Photo\nNot Found"
+                text = "Foto tidak ditemukan"
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT

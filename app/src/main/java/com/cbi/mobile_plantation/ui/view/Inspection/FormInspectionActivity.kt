@@ -173,6 +173,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var featureName: String? = null
+    private var is_from_pasar_tengah: Boolean = false
+    private var dept_abbr_pasar_tengah: String? = null
+    private var divisi_abbr_pasar_tengah: String? = null
+    private var blok_kode_pasar_tengah: String? = null
+    private var last_pokok_before_pasar_tengah: Int? = 1
     private var regionalId: String? = null
     private var estateId: String? = null
     private var estateName: String? = null
@@ -218,14 +223,14 @@ open class FormInspectionActivity : AppCompatActivity(),
     )
 
     private val trackingLocation: MutableMap<String, Location> = mutableMapOf()
-    private val listRadioItems: Map<String, Map<String, String>> = mapOf(
-        "InspectionType" to mapOf(
-            "1" to "Inspeksi",
-        ),
-        "ConditionType" to mapOf(
-            "1" to "Datar",
-            "2" to "Teras"
-        ),
+        private val listRadioItems: Map<String, Map<String, String>> = mapOf(
+            "InspectionType" to mapOf(
+                "1" to "Inspeksi",
+            ),
+            "ConditionType" to mapOf(
+                "1" to "Datar",
+                "2" to "Teras"
+            ),
         "StatusPanen" to mapOf(
             "1" to "H+1",
             "2" to "H+2",
@@ -255,6 +260,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var totalPokokInspection = 0
+    private var totalPokokDiperiksa = 0
     private var jumBrdTglPath = 0
     private var jumBuahTglPath = 0
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
@@ -291,7 +297,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
-    private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
     private lateinit var titlePemanenInspeksi: TextView
     private lateinit var descPemanenInspeksi: TextView
     private lateinit var fabPrevFormAncak: FloatingActionButton
@@ -330,6 +335,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun initUI() {
+        vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
         bottomNavInspect = findViewById(R.id.bottomNavInspect)
         titlePemanenInspeksi = findViewById(R.id.titlePemanenInspeksi)
@@ -426,6 +432,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         boundaryAccuracy = prefManager!!.boundaryAccuracy
         initViewModel()
         initUI()
+        dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
+        divisi_abbr_pasar_tengah = intent.getStringExtra("DIVISI_ABBR").toString()
+        blok_kode_pasar_tengah = intent.getStringExtra("BLOK_KODE").toString()
+        last_pokok_before_pasar_tengah = intent.getIntExtra("LAST_NUMBER_POKOK",1)
+        is_from_pasar_tengah = intent.getBooleanExtra("IS_FROM_PASAR_TENGAH", false)
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
         inspectionId = if (inspectionIdInt != -1) {
@@ -441,7 +452,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             setupMap()
             setupButtonListeners()
             updateSatelliteButtonAppearance()
-            updateButtonSelection("default") // Start with default instead of satellite
+            updateButtonSelection("default")
         }
         setupAutoScanSwitch()
         setKeyboardVisibilityListener()
@@ -482,7 +493,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
-                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi || is_from_pasar_tengah) {
+
+                        AppLogger.d("masuk kan gessss")
                         if (!inspectionId.isNullOrEmpty()) {
                             withContext(Dispatchers.Main) {
                                 inspectionViewModel.loadInspectionById(inspectionId!!)
@@ -501,6 +514,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
                     delay(100)
+
+                    AppLogger.d("afdelingNameDeferred $afdelingNameDeferred")
                     afdelingNameUser = afdelingNameDeferred.await()
 
                     val parameterInspeksiDeferred = async {
@@ -591,12 +606,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
-                    hasSelectedMode && mainContentWrapper.visibility == View.VISIBLE -> {
+                    else -> {
                         if (hasExistingData()) {
                             vibrate()
                             AlertDialogUtility.withTwoActions(
                                 this@FormInspectionActivity,
-                                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) "Keluar" else "Kembali ke Pemilihan",
+                                 "Keluar",
                                 "Data akan hilang",
                                 "Data yang sudah diisi akan hilang. Apakah Anda yakin ingin kembali?",
                                 "warning.json",
@@ -617,9 +632,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         startActivity(newIntent)
                                         finishAffinity()
                                     } else {
-                                        showSelectionScreen()
-                                        headerFormInspection.visibility = View.GONE
-                                        hasSelectedMode = false
+                                        val intent = Intent(
+                                            this@FormInspectionActivity,
+                                            HomePageActivity::class.java
+                                        )
+                                        startActivity(intent)
+                                        finishAffinity()
                                     }
                                 }
                             )
@@ -636,37 +654,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 startActivity(newIntent)
                                 finishAffinity()
                             } else {
-                                showSelectionScreen()
-                                headerFormInspection.visibility = View.GONE
-                                hasSelectedMode = false
-                            }
-                        }
-                    }
-
-                    // When in selection screen - exit to homepage without alert
-                    selectionScreen.visibility == View.VISIBLE -> {
-                        val intent = Intent(
-                            this@FormInspectionActivity,
-                            HomePageActivity::class.java
-                        )
-                        startActivity(intent)
-                        finishAffinity()
-                    }
-
-                    // Any other case - exit to homepage with alert
-                    else -> {
-                        vibrate()
-                        AlertDialogUtility.withTwoActions(
-                            this@FormInspectionActivity,
-                            "Keluar",
-                            getString(R.string.confirmation_dialog_title),
-                            getString(R.string.al_confirm_feature),
-                            "warning.json",
-                            ContextCompat.getColor(
-                                this@FormInspectionActivity,
-                                R.color.bluedarklight
-                            ),
-                            function = {
                                 val intent = Intent(
                                     this@FormInspectionActivity,
                                     HomePageActivity::class.java
@@ -674,7 +661,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 startActivity(intent)
                                 finishAffinity()
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -692,10 +679,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedAncakByScan != null ||
                 selectedTanggalPanenByScan != null ||
                 selectedTPHValue != null ||
-                photoInTPH != null || br1Value != null || br2Value != null ||
-                komentarInTPH != null || jumBrdTglPath != 0 || jumBuahTglPath != 0 || selectedJalurMasuk != ""
+                photoInTPH != null ||
+                (br1Value != null && br1Value.isNotEmpty()) ||
+                (br2Value != null && br2Value.isNotEmpty()) ||
+                komentarInTPH != null ||
+                jumBrdTglPath != 0 ||
+                jumBuahTglPath != 0 ||
+                selectedJalurMasuk.isNotEmpty()
     }
-
     private fun hideResultScan() {
         selectedPemanenAdapter.clearAllWorkers()
         titlePemanenInspeksi.visibility = View.GONE
@@ -765,32 +756,22 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun setupSelectionButtons() {
-        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi || is_from_pasar_tengah) {
+            // Direct flow for FollowUpInspeksi or when coming from Pasar Tengah
+
             fabPhotoInfoBlok.visibility = View.VISIBLE
-            selectionScreen.visibility = View.GONE
-            mainContentWrapper.visibility = View.VISIBLE
-            headerFormInspection.visibility = View.VISIBLE
 
-            isStartFromTPH = false
-            hasSelectedMode = true
-            setupNavigationForTPHMode()
-
-
-        } else {
-            // Original button setup code (only executed if not followUpInspeksi)
-            btnMulaiDariTPH.setOnClickListener {
-                isStartFromTPH = true
-                hasSelectedMode = true
-                setupNavigationForTPHMode()
-                showMainContent()
-            }
-
-            btnMulaiDariPokok.setOnClickListener {
+            if (is_from_pasar_tengah) {
+                // For Pasar Tengah flow - go to Pokok mode (P. Ancak first)
                 isStartFromTPH = false
                 hasSelectedMode = true
                 setupNavigationForPokokMode()
-                showMainContent()
             }
+            showMainContent()
+        } else {
+
+                showMainContent()
+
         }
     }
 
@@ -799,27 +780,17 @@ open class FormInspectionActivity : AppCompatActivity(),
         mainContentWrapper.visibility = View.VISIBLE
         headerFormInspection.visibility = View.VISIBLE
 
-        if (isStartFromTPH) {
-            showInfoBlokScreen()
-            isInTPH = true
-            bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
-        } else {
+        if (is_from_pasar_tengah) {
             isInTPH = false
             showFormInspectionScreen()
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
+        } else {
+            // For other flows, show info blok screen first
+            showInfoBlokScreen()
         }
-
-    }
-
-    private fun showInfoBlokScreen() {
-        clInfoBlokSection.visibility = View.VISIBLE
-        fabPhotoInfoBlok.visibility = View.VISIBLE
-        clFormInspection.visibility = View.GONE
-        clSummaryInspection.visibility = View.GONE
     }
 
     private fun showFormInspectionScreen() {
-
         if (!hasInspectionStarted) {
             if (!trackingLocation.containsKey("start")) {
                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
@@ -831,15 +802,27 @@ open class FormInspectionActivity : AppCompatActivity(),
             ).format(Date())
 
             hasInspectionStarted = true
-            AppLogger.d("Inspection started immediately in Pokok mode at: $dateStartInspection")
+            AppLogger.d("Inspection started immediately in ${if (is_from_pasar_tengah) "Pasar Tengah" else "Pokok"} mode at: $dateStartInspection")
         }
 
-        val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
-        formAncakViewModel.updateInfoFormAncak(
-            estateName ?: "",
-            afdResult ?: "",
-            selectedBlokByScan ?: ""
-        )
+        if(is_from_pasar_tengah){
+            formAncakViewModel.updateInfoFormAncak(
+                dept_abbr_pasar_tengah ?: "",
+                divisi_abbr_pasar_tengah ?: "",
+                blok_kode_pasar_tengah ?: ""
+            )
+            val startPage = (last_pokok_before_pasar_tengah ?: 1) + 1
+            formAncakViewModel.setCurrentPage(startPage)
+            formAncakViewModel.setStartingPage(startPage)
+        }else{
+            val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
+            formAncakViewModel.updateInfoFormAncak(
+                estateName ?: "",
+                afdResult ?: "",
+                selectedBlokByScan ?: ""
+            )
+        }
+
 
         fabPhotoInfoBlok.visibility = View.GONE
         clInfoBlokSection.visibility = View.GONE
@@ -850,7 +833,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
     }
-
 
     private fun setupNavigationForTPHMode() {
         updateBottomNavigationOrder(true)
@@ -864,7 +846,15 @@ open class FormInspectionActivity : AppCompatActivity(),
         val menu = bottomNavInspect.menu
         menu.clear()
 
-        if (isTPHFirst) {
+        if (is_from_pasar_tengah) {
+            // Pasar Tengah mode: P. Ancak -> Info Blok -> Summary (Pokok mode order)
+            menu.add(0, R.id.navMenuAncakInspect, 0, "P. Ancak")
+                .setIcon(R.drawable.baseline_grain_24)
+            menu.add(0, R.id.navMenuBlokInspect, 1, "Info. Blok")
+                .setIcon(R.drawable.ic_home_black_24dp)
+            menu.add(0, R.id.navMenuSummaryInspect, 2, "Summary")
+                .setIcon(R.drawable.list_solid)
+        } else if (isTPHFirst) {
             // TPH mode: Info Blok -> P. Ancak -> Summary
             menu.add(0, R.id.navMenuBlokInspect, 0, "Info. Blok")
                 .setIcon(R.drawable.ic_home_black_24dp)
@@ -883,6 +873,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    private fun showInfoBlokScreen() {
+        clInfoBlokSection.visibility = View.VISIBLE
+        fabPhotoInfoBlok.visibility = View.VISIBLE
+        clFormInspection.visibility = View.GONE
+        clSummaryInspection.visibility = View.GONE
+    }
 
     @SuppressLint("DefaultLocale")
     override fun onResume() {
@@ -1018,7 +1014,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun loadInspectionDataToViewModel(inspectionData: InspectionWithDetailRelations) {
+    private fun loadInspectionDataToViewModelSecondForm(inspectionData: InspectionWithDetailRelations) {
         val detailInspeksi = inspectionData.detailInspeksi
 
         // Group details by no_pokok (page number)
@@ -1164,12 +1160,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val inspection = inspectionData.first()
 
                 currentInspectionData = inspection
-                updateMapWithInspectionData(inspection)
-
                 if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    populateFollowUpInspectionUI(inspection)
+                    updateMapWithInspectionData(inspection)
+                    populateFollowUpInspectionFirstFormUI(inspection)
+                    setupCountersFromInspectionData(inspection.detailInspeksi)
+                    setupPemanenRecyclerView(inspection.detailInspeksi)
+                    loadInspectionDataToViewModelSecondForm(inspection)
+                }
 
-                    loadInspectionDataToViewModel(inspection)
+                if(is_from_pasar_tengah){
+                    preselectSpinnerValues(inspection)
+                    preselectRadioValues(inspection)
+                    preselectEditTextValues(inspection)
                 }
             }
         }
@@ -1190,20 +1192,24 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
             Handler(Looper.getMainLooper()).postDelayed({
-                fabPrevFormAncak.isEnabled = if (currentPage <= 1) false else true
+                val startingPage = formAncakViewModel.startingPage.value ?: 1
+                fabPrevFormAncak.isEnabled = currentPage > startingPage
                 fabPrevFormAncak.backgroundTintList = ColorStateList.valueOf(
                     ContextCompat.getColor(
                         this,
-                        if (currentPage <= 1) R.color.greytext else androidx.biometric.R.color.biometric_error_color
+                        if (currentPage <= startingPage) R.color.greytext else androidx.biometric.R.color.biometric_error_color
                     )
                 )
-                fabNextFormAncak.isEnabled = if (currentPage >= totalPages) false else true
+
+                // Next button - disabled if at total pages
+                fabNextFormAncak.isEnabled = currentPage < totalPages
                 fabNextFormAncak.backgroundTintList = ColorStateList.valueOf(
                     ContextCompat.getColor(
                         this,
                         if (currentPage >= totalPages) R.color.greytext else R.color.greenDefault
                     )
                 )
+
                 updateFragmentIfExists(page)
             }, 300)
         }
@@ -1240,6 +1246,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupPressedFAB() {
         fabNextFormAncak.setOnClickListener {
+            AppLogger.d("kaljds")
             val currentPokok = formAncakViewModel.currentPage.value ?: 1
             val nextPokok = currentPokok + 1
             val totalPokok =
@@ -1260,7 +1267,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
 
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
-
+            AppLogger.d("klasdjfkljasdf")
             if (hasFindings && !hasValidPhoto) {
                 vibrate(500)
                 showViewPhotoBottomSheet(null, isInTPH)
@@ -1278,8 +1285,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
+
+            AppLogger.d("klasdjfkljasdf")
             val validationResult =
                 formAncakViewModel.validateCurrentPage(1)
+
+            AppLogger.d("df")
 
             if (!validationResult.isValid) {
                 vibrate(500)
@@ -1471,6 +1482,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi ?: 1,
                                     baris = currentInspectionData?.inspeksi?.baris ?: "",
                                     jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi ?: 0,
+                                    jml_pkk_diperiksa = currentInspectionData?.inspeksi?.jml_pkk_diperiksa ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path ?: "",
                                     app_version = currentInspectionData?.inspeksi?.app_version ?: "",
                                     app_version_pemulihan = infoApp,
@@ -1501,6 +1513,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     jenis_kondisi = selectedKondisiValue.toInt(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
                                     jml_pkk_inspeksi = totalPokokInspection,
+                                    jml_pkk_diperiksa = totalPokokDiperiksa,
                                     tracking_path = trackingJson.toString(),
                                     app_version = infoApp,
                                     status_upload = "0",
@@ -1623,6 +1636,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("SetTextI18n", "InflateParams")
     private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null) {
+
+        AppLogger.d("isInTPH $isInTPH")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -2037,8 +2052,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         infoBlokView = findViewById(R.id.svInfoBlokInspection)
         formInspectionView = findViewById(R.id.clFormInspection)
         summaryView = findViewById(R.id.clSummaryInspection)
-
-        vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
@@ -2129,15 +2142,29 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         bottomNavInspect.setOnItemSelectedListener { item ->
-            Handler(Looper.getMainLooper()).postDelayed({
-                formAncakViewModel.clearValidation()
-            }, 200)
+
 
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
             if (activeBottomNavId == R.id.navMenuAncakInspect) {
 
+                val validationResult = formAncakViewModel.validateCurrentPage(
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) 1 else null
+                )
+
+                if (!validationResult.isValid) {
+                    vibrate(500)
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        validationResult.errorMessage ?: "Data tidak lengkap!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnItemSelectedListener false
+                }
 
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()
@@ -2173,7 +2200,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                         ) {}
                         return@setOnItemSelectedListener false
                     }
-
 
                     if (hasFindings) {
                         formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
@@ -2396,11 +2422,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
             counterMappings.forEach { (layoutId, labelText, counterVar) ->
-                val layoutView = findViewById<View>(layoutId)
-
                 setupPanenWithButtons(layoutId, labelText, counterVar)
             }
-
         }
 
         rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
@@ -2767,11 +2790,18 @@ open class FormInspectionActivity : AppCompatActivity(),
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         val formData = formAncakViewModel.formData.value ?: mutableMapOf()
 
-        AppLogger.d("formData $formData")
         totalPokokInspection = (1..totalPages).count { pageNumber ->
             val emptyTreeValue = formData[pageNumber]?.emptyTree ?: 0
             emptyTreeValue == 1 || emptyTreeValue == 2
         }
+
+        totalPokokDiperiksa = (1..totalPages).count { pageNumber ->
+            val emptyTreeValue = formData[pageNumber]?.emptyTree ?: 0
+            emptyTreeValue != 0
+        }
+
+        AppLogger.d("totalPokokInspection $totalPokokInspection")
+        AppLogger.d("totalPokokDiperiksa $totalPokokDiperiksa")
 
         // Get container for dynamic cards
         val containerTemuanCards = findViewById<LinearLayout>(R.id.containerTemuanCards)
@@ -4310,7 +4340,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n")
-    private fun populateFollowUpInspectionUI(inspectionData: InspectionWithDetailRelations) {
+    private fun populateFollowUpInspectionFirstFormUI(inspectionData: InspectionWithDetailRelations) {
         val inspection = inspectionData.inspeksi
         val tph = inspectionData.tph
         val panen = inspectionData.panen
@@ -4337,12 +4367,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         findViewById<TextView>(R.id.tvTglPanen).text =
             inspection.date_panen ?: "-"
 
-//        findViewById<TextView>(R.id.tvKomentarTPH).text =
-//            inspection.komentar ?: "-"
+        val tphKomentar = detailInspeksi
+            .filter { it.no_pokok == 0 }
+            .firstOrNull()
+            ?.komentar
 
-        setupCountersFromInspectionData(detailInspeksi)
+        findViewById<TextView>(R.id.tvKomentarTPH).text = tphKomentar
 
-        setupPemanenRecyclerView(detailInspeksi)
     }
 
     private fun getInspectionValueByKode(
@@ -4760,6 +4791,94 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.d("Added connecting line with ${points.size} points")
     }
 
+
+    // First, add this function to handle radio selection
+    private fun selectedKondisiValue(selectedId: Int) {
+        val kondisiLayout = findViewById<LinearLayout>(R.id.lyConditionType)
+        val fblRadioComponents = kondisiLayout?.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
+        val kondisiMap = listRadioItems["ConditionType"] ?: emptyMap()
+        val targetValue = kondisiMap[selectedId.toString()]
+
+        AppLogger.d("Looking for radio button with value: $targetValue")
+
+        fblRadioComponents?.let { flexLayout ->
+            // Uncheck all radio buttons first
+            for (i in 0 until flexLayout.childCount) {
+                val radioButton = flexLayout.getChildAt(i) as? RadioButton
+                radioButton?.isChecked = false
+            }
+
+            // Find and select the correct radio button
+            for (i in 0 until flexLayout.childCount) {
+                val radioButton = flexLayout.getChildAt(i) as? RadioButton
+                radioButton?.let { rb ->
+                    if (rb.text.toString() == targetValue) {
+                        rb.performClick() // This will trigger all the click logic
+                        AppLogger.d("Successfully selected radio button: ${rb.text}")
+                        return // Exit the function once we found and selected the right button
+                    }
+                }
+            }
+            AppLogger.d("Radio button not found for value: $targetValue")
+        }
+    }
+
+    private fun preselectRadioValues(inspection: InspectionWithDetailRelations) {
+        inspection.inspeksi.jenis_kondisi?.let { jenisKondisi ->
+            AppLogger.d("jenis_kondisi: $jenisKondisi")
+
+            val kondisiLayout = findViewById<LinearLayout>(R.id.lyConditionType)
+            kondisiLayout?.let { layout ->
+                val kondisiMap = listRadioItems["ConditionType"] ?: emptyMap()
+                val kondisiValue = kondisiMap[jenisKondisi.toString()]
+
+                if (kondisiValue != null) {
+                    // Simply call the selection function
+                    selectedKondisiValue(jenisKondisi)
+
+                    // Set visibility logic for Baris2
+                    findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
+                        if (jenisKondisi == 2) View.GONE else View.VISIBLE
+
+                    AppLogger.d("Pre-selected Jenis Kondisi: $kondisiValue (ID: $jenisKondisi)")
+                    AppLogger.d("Baris 2 visibility: ${if (jenisKondisi == 2) "GONE" else "VISIBLE"}")
+                } else {
+                    AppLogger.d("Jenis Kondisi not found in list: $jenisKondisi")
+                    AppLogger.d("Available kondisi items: $kondisiMap")
+                }
+            }
+        }
+    }
+
+    private fun preselectEditTextValues(inspection: InspectionWithDetailRelations){
+        inspection.inspeksi.baris?.let { baris ->
+            val barisValues = baris.split(",").map { it.trim() }
+
+            if (barisValues.isNotEmpty() && barisValues[0].isNotEmpty()) {
+                val baris1Layout = findViewById<LinearLayout>(R.id.lyBaris1Inspect)
+                val baris1EditText = baris1Layout?.findViewById<EditText>(R.id.etHomeMarkerTPH)
+
+                baris1EditText?.let { editText ->
+                    editText.setText(barisValues[0])
+                    br1Value = barisValues[0]
+                }
+            }
+
+            if (barisValues.size > 1 && barisValues[1].isNotEmpty()) {
+                val baris2Layout = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
+                val baris2EditText = baris2Layout?.findViewById<EditText>(R.id.etHomeMarkerTPH)
+
+                baris2EditText?.let { editText ->
+                    editText.setText(barisValues[1])
+                    // Also update the global variable
+                    br2Value = barisValues[1]
+                }
+            } else {
+                AppLogger.d("No Baris 2 value found or empty")
+            }
+        }
+    }
+
     // Update clearMarkers to also remove polylines
     private fun clearMarkers() {
         AppLogger.d("Clearing all markers and lines")
@@ -4823,6 +4942,57 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         map.overlays.add(marker)
         AppLogger.d("Added detail marker: $title at $latitude, $longitude")
+    }
+
+    private fun preselectSpinnerValues(inspection: InspectionWithDetailRelations) {
+        inspection.tph?.let { tph ->
+            AppLogger.d("tph ${tph.divisi_abbr}")
+            tph.divisi_abbr?.let { divisiAbbr ->
+                // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
+                val afdLayout = findViewById<LinearLayout>(R.id.lyAfdInspect)
+                val afdSpinner = afdLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+                afdSpinner?.let { spinner ->
+                    val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
+                    val position = divisiNames.indexOf(divisiAbbr)
+                    if (position >= 0) {
+                        spinner.selectedIndex = position
+                        afdLayout?.let { layout ->
+                            handleItemSelection(layout, position, divisiAbbr)
+                        }
+                    } else {
+                        AppLogger.d("Divisi not found in list: $divisiAbbr")
+                    }
+                }
+            }
+        }
+
+        inspection.inspeksi.jalur_masuk?.let { jalurMasuk ->
+            AppLogger.d("jalur_masuk ${jalurMasuk}")
+
+            // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
+            val jalurLayout = findViewById<LinearLayout>(R.id.lyJalurInspect)
+            val jalurSpinner = jalurLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+            jalurSpinner?.let { spinner ->
+                val jalurItems = (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
+                val position = jalurItems.indexOf(jalurMasuk)
+                if (position >= 0) {
+                    // Set the selected index
+                    spinner.selectedIndex = position
+                    AppLogger.d("Selected jalur at position: $position, value: $jalurMasuk")
+
+                    // Manually trigger the selection handler to execute the logic
+                    jalurLayout?.let { layout ->
+                        handleItemSelection(layout, position, jalurMasuk)
+                    }
+                } else {
+                    AppLogger.d("Jalur Masuk not found in list: $jalurMasuk")
+                    AppLogger.d("Available jalur items: $jalurItems")
+                }
+            }
+        }
+
     }
 
     private fun processInspectionDetails(
@@ -5236,6 +5406,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentData =
                 formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
+
+            AppLogger.d("currentData $currentData")
             if (isInTPH) {
                 photoInTPH = fname
             } else {

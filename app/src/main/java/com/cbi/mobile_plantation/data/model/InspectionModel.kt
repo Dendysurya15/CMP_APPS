@@ -27,6 +27,7 @@ data class InspectionModel(
     val inspeksi_putaran: Int? = 1,
     val baris: String,
     val jml_pkk_inspeksi: Int,
+    val jml_pkk_diperiksa: Int,
     val tracking_path: String,
     val tracking_path_pemulihan: String? = null,
     val dataIsZipped: Int = 0,

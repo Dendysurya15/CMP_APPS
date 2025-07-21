@@ -49,6 +49,9 @@ class FormAncakViewModel : ViewModel() {
     private val _currentPage = MutableLiveData<Int>(1)
     val currentPage: LiveData<Int> = _currentPage
 
+    private val _startingPage = MutableLiveData<Int>(1)
+    val startingPage: LiveData<Int> = _startingPage
+
     private val _totalPages = MutableLiveData<Int>(AppUtils.TOTAL_MAX_TREES_INSPECTION)
     val totalPages: LiveData<Int> = _totalPages
 
@@ -81,6 +84,12 @@ class FormAncakViewModel : ViewModel() {
     fun updateTotalPages(totalPages: Int) {
         _totalPages.value = totalPages
         AppLogger.d("Total pages updated to: $totalPages")
+    }
+
+    fun setStartingPage(pageNumber: Int) {
+        _startingPage.value = pageNumber
+        _currentPage.value = pageNumber
+        AppLogger.d("Starting page set to: $pageNumber")
     }
 
     fun getPageData(pageNumber: Int): PageData? {
