@@ -1172,6 +1172,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     preselectSpinnerValues(inspection)
                     preselectRadioValues(inspection)
                     preselectEditTextValues(inspection)
+
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        safePreloadTPH(inspection)
+                    }, 200)
                 }
             }
         }
@@ -1620,6 +1624,126 @@ open class FormInspectionActivity : AppCompatActivity(),
             "warning.json",
             R.color.colorRedDark
         ) {}
+    }
+
+
+    private fun safePreloadTPH(inspection: InspectionWithDetailRelations, attempt: Int = 1) {
+        if (latLonMap.isNotEmpty()) {
+            // Data is ready, preload now
+            preloadTPH(inspection)
+            AppLogger.d("Preloaded TPH on attempt: $attempt")
+        } else if (attempt < 5) { // Max 5 attempts
+            // Data not ready, try again in 100ms
+            Handler(Looper.getMainLooper()).postDelayed({
+                safePreloadTPH(inspection, attempt + 1)
+            }, 100)
+            AppLogger.d("Waiting for latLonMap, attempt: $attempt")
+        } else {
+            AppLogger.d("Failed to preload TPH after 5 attempts - latLonMap still empty")
+        }
+    }
+
+    private fun preloadTPH(inspection: InspectionWithDetailRelations) {
+        // Get the TPH ID from inspection data
+        val tphId = inspection.inspeksi.tph_id ?: inspection.tph?.id
+
+        if (tphId != null && lat != null && lon != null) {
+            AppLogger.d("Preloading TPH with ID: $tphId")
+
+            // Get TPHs inside radius using the existing latLonMap
+            val tphLocationList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
+
+            // Convert ScannedTPHLocation to ScannedTPHSelectionItem for the adapter
+            val tphList = tphLocationList.map { tphLocation ->
+                ScannedTPHSelectionItem(
+                    id = tphLocation.id!!,
+                    number = tphLocation.number ?: "",
+                    blockCode = tphLocation.blockCode ?: "",
+                    distance = tphLocation.distance,
+                    isAlreadySelected = false,
+                    selectionCount = 0,
+                    canBeSelectedAgain = true,
+                    isWithinRange = tphLocation.isWithinRange,
+                    jenisTPHId = tphLocation.jenisTPHId ?: "1",
+                    customLimit = null,
+                    newFeature = ""
+                )
+            }
+
+            if (tphList.isNotEmpty()) {
+                // Pre-select the specific TPH from inspection data BEFORE creating adapter
+                selectedTPHIdByScan = tphId
+
+                // Show the recycler view and related UI elements
+                isEmptyScannedTPH = false
+                tphScannedResultRecyclerView.visibility = View.VISIBLE
+                titleScannedTPHInsideRadius.visibility = View.VISIBLE
+                descScannedTPHInsideRadius.visibility = View.VISIBLE
+                emptyScannedTPHInsideRadius.visibility = View.GONE
+
+                // Set up the adapter (now it will know which TPH is selected)
+                tphScannedResultRecyclerView.adapter =
+                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal, false)
+
+                // Set up recycler view height
+                val itemHeight = 50
+                val maxHeight = 250
+                val density = tphScannedResultRecyclerView.resources.displayMetrics.density
+                val maxHeightPx = (maxHeight * density).toInt()
+                val recyclerViewHeightPx = (tphList.size * itemHeight * density).toInt()
+
+                tphScannedResultRecyclerView.layoutParams.height =
+                    if (recyclerViewHeightPx > maxHeightPx) maxHeightPx else ViewGroup.LayoutParams.WRAP_CONTENT
+
+                tphScannedResultRecyclerView.requestLayout()
+
+                if (recyclerViewHeightPx > maxHeightPx) {
+                    tphScannedResultRecyclerView.isNestedScrollingEnabled = true
+                    tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_ALWAYS
+                } else {
+                    tphScannedResultRecyclerView.isNestedScrollingEnabled = false
+                    tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_NEVER
+                }
+
+                tphScannedResultRecyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+                tphScannedResultRecyclerView.isVerticalScrollBarEnabled = true
+
+                // Pre-select the specific TPH from inspection data
+                selectedTPHIdByScan = tphId
+
+                // Find the TPH in the list and trigger selection
+                for (i in tphList.indices) {
+                    if (tphList[i].id == tphId) {
+                        tphScannedResultRecyclerView.scrollToPosition(i)
+
+                        // Create ScannedTPHSelectionItem from the TPH data (already converted above)
+                        val scannedTPHItem = tphList[i]
+
+                        // Automatically trigger TPH selection
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            onTPHSelected(scannedTPHItem)
+                        }, 500) // Wait a bit for the recycler view to be ready
+
+                        AppLogger.d("Pre-selected and auto-triggered TPH: ${tphList[i].number} at position $i")
+                        break
+                    }
+                }
+
+                // Set the triggered flag to true since we're simulating the scan
+                isTriggeredBtnScanned = true
+
+                AppLogger.d("Successfully preloaded TPH list with ${tphList.size} items")
+            } else {
+                AppLogger.d("No TPHs found inside radius for preloading")
+                tphScannedResultRecyclerView.visibility = View.GONE
+                titleScannedTPHInsideRadius.visibility = View.VISIBLE
+                descScannedTPHInsideRadius.visibility = View.VISIBLE
+                emptyScannedTPHInsideRadius.visibility = View.VISIBLE
+                isEmptyScannedTPH = true
+            }
+        } else {
+            AppLogger.d("Cannot preload TPH - tphId: $tphId, lat: $lat, lon: $lon")
+        }
     }
 
 
@@ -3796,49 +3920,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val latLonResult = async {
                             try {
                                 val estateIdToUse = estateId!!.toInt()
-
-                                // Group panen records by TPH ID
-                                val panenGroupedByTPH = panenTPH.groupBy { panenWithRelationship ->
-                                    panenWithRelationship.panen.tph_id?.toIntOrNull()
-                                }.filterKeys { it != null }
-
-                                val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
-                                AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
-
-                                val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
-                                    estateIdToUse,
-                                    selectedDivisiId,
-                                    selectedTPHIds.distinct()
-                                )
-
                                 val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
 
-                                tphList.forEach { tph ->
-                                    val tphId = tph.id
-                                    val lat = tph.lat?.toDoubleOrNull()
-                                    val lon = tph.lon?.toDoubleOrNull()
-                                    val nomor = tph.nomor ?: ""
-                                    val baseBlokKode = tph.blok_kode ?: ""
-                                    val jenisTPHId = tph.jenis_tph_id ?: "1"
+                                if (is_from_pasar_tengah && currentInspectionData != null) {
+                                    // Load only the single TPH from currentInspectionData
+                                    AppLogger.d("Loading TPH from pasar tengah - using currentInspectionData")
 
-                                    if (tphId != null && lat != null && lon != null) {
-                                        // Get all panen records for this TPH ID
-                                        val matchingPanenList = panenGroupedByTPH[tphId] ?: emptyList()
+                                    currentInspectionData?.tph?.let { tph ->
+                                        val tphId = tph.id
+                                        val lat = tph.lat?.toDoubleOrNull()
+                                        val lon = tph.lon?.toDoubleOrNull()
+                                        val nomor = tph.nomor ?: ""
+                                        val blokKode = tph.blok_kode ?: ""
+                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
 
-                                        if (matchingPanenList.isNotEmpty()) {
-                                            AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
-
-                                            // Merge all data from this TPH
-                                            val mergedData = mergePanenRecordsForTPH(matchingPanenList)
-
-                                            // Create description with merged info
-                                            val blokKode = if (mergedData.dateList.size > 1) {
-                                                "$baseBlokKode (${mergedData.dateList.size} transaksi)"
-                                            } else {
-                                                baseBlokKode
-                                            }
-
-                                            // Use TPH ID as key since we're merging all records for this TPH
+                                        if (tphId != null && lat != null && lon != null) {
                                             resultMap[tphId] = ScannedTPHLocation(
                                                 lat,
                                                 lon,
@@ -3846,13 +3942,73 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 blokKode,
                                                 jenisTPHId
                                             )
-
-                                            AppLogger.d("Merged TPH $tphId: ${mergedData.workerCount} workers, ${mergedData.dateList.size} transactions")
+                                            AppLogger.d("Loaded single TPH from pasar tengah: ID=$tphId, nomor=$nomor")
                                         } else {
-                                            AppLogger.w("No matching panen records found for TPH ID: $tphId")
+                                            AppLogger.w("Invalid TPH data from pasar tengah: ID=$tphId, lat=$lat, lon=$lon")
                                         }
-                                    } else {
-                                        AppLogger.w("Skipping invalid TPH: ID=$tphId, lat=$lat, lon=$lon")
+                                    } ?: run {
+                                        AppLogger.w("No TPH data found in currentInspectionData")
+                                    }
+
+                                } else {
+                                    // Original logic for normal case
+                                    AppLogger.d("Loading TPHs from database - normal flow")
+
+                                    // Group panen records by TPH ID
+                                    val panenGroupedByTPH = panenTPH.groupBy { panenWithRelationship ->
+                                        panenWithRelationship.panen.tph_id?.toIntOrNull()
+                                    }.filterKeys { it != null }
+
+                                    val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
+                                    AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
+
+                                    val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
+                                        estateIdToUse,
+                                        selectedDivisiId,
+                                        selectedTPHIds.distinct()
+                                    )
+
+                                    tphList.forEach { tph ->
+                                        val tphId = tph.id
+                                        val lat = tph.lat?.toDoubleOrNull()
+                                        val lon = tph.lon?.toDoubleOrNull()
+                                        val nomor = tph.nomor ?: ""
+                                        val baseBlokKode = tph.blok_kode ?: ""
+                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
+
+                                        if (tphId != null && lat != null && lon != null) {
+                                            // Get all panen records for this TPH ID
+                                            val matchingPanenList = panenGroupedByTPH[tphId] ?: emptyList()
+
+                                            if (matchingPanenList.isNotEmpty()) {
+                                                AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
+
+                                                // Merge all data from this TPH
+                                                val mergedData = mergePanenRecordsForTPH(matchingPanenList)
+
+                                                // Create description with merged info
+                                                val blokKode = if (mergedData.dateList.size > 1) {
+                                                    "$baseBlokKode (${mergedData.dateList.size} transaksi)"
+                                                } else {
+                                                    baseBlokKode
+                                                }
+
+                                                // Use TPH ID as key since we're merging all records for this TPH
+                                                resultMap[tphId] = ScannedTPHLocation(
+                                                    lat,
+                                                    lon,
+                                                    nomor,
+                                                    blokKode,
+                                                    jenisTPHId
+                                                )
+
+                                                AppLogger.d("Merged TPH $tphId: ${mergedData.workerCount} workers, ${mergedData.dateList.size} transactions")
+                                            } else {
+                                                AppLogger.w("No matching panen records found for TPH ID: $tphId")
+                                            }
+                                        } else {
+                                            AppLogger.w("Skipping invalid TPH: ID=$tphId, lat=$lat, lon=$lon")
+                                        }
                                     }
                                 }
 
