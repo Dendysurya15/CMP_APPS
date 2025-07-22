@@ -2306,23 +2306,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             if (activeBottomNavId == R.id.navMenuAncakInspect) {
 
-                val validationResult = formAncakViewModel.validateCurrentPage(
-                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) 1 else null
-                )
-
-                if (!validationResult.isValid) {
-                    vibrate(500)
-                    AlertDialogUtility.withSingleAction(
-                        this,
-                        stringXML(R.string.al_back),
-                        stringXML(R.string.al_data_not_completed),
-                        validationResult.errorMessage ?: "Data tidak lengkap!",
-                        "warning.json",
-                        R.color.colorRedDark
-                    ) {}
-                    return@setOnItemSelectedListener false
-                }
-
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()
                 val pokokData = formData[currentPokok]
