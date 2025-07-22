@@ -1495,7 +1495,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                             ).format(Date())
 
 
-
                             val result = if (isFollowUp) {
                                 // Follow-up: only update specific fields
                                 inspectionViewModel.saveDataInspection(
@@ -1558,6 +1557,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             when (result) {
                                 is InspectionViewModel.SaveDataInspectionState.Success -> {
+                                    inspectionId = result.inspectionId.toString()
+                                    AppLogger.d("globalInspectionId $inspectionId")
                                     if (!isFollowUp) {
                                         val formData =
                                             formAncakViewModel.formData.value ?: mutableMapOf()
@@ -1649,9 +1650,46 @@ open class FormInspectionActivity : AppCompatActivity(),
             "success.json",
             R.color.greenDefault
         ) {
-            val intent = Intent(this@FormInspectionActivity, HomePageActivity::class.java)
-            startActivity(intent)
-            finishAffinity()
+
+            if (!is_from_pasar_tengah) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Lanjutkan",
+                    getString(R.string.confirmation_dialog_title),
+                    "Apakah anda ingin melanjutkan pengisian Inspeksi dari Pasar Tengah dengan Nomor TPH ini. Anda masih dapat melakukan perubahan nomor TPH jika diperlukan.",
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        val intent = Intent(
+                            this@FormInspectionActivity,
+                            FormInspectionActivity::class.java
+                        )
+
+                        AppLogger.d("globalInspectionId $inspectionId")
+                        intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.InspeksiPanen)
+                        intent.putExtra("IS_FROM_PASAR_TENGAH", true)
+                        intent.putExtra("DIVISI_ABBR", selectedAfdeling)
+                        intent.putExtra("DEPT_ABBR", prefManager!!.estateUserLogin)
+                        intent.putExtra("BLOK_KODE", selectedBlokByScan)
+                        intent.putExtra("LAST_NUMBER_POKOK", totalPokokDiperiksa)
+
+                        inspectionId?.let { id ->
+                            intent.putExtra("id_inspeksi", id.toInt())
+                        }
+                        startActivity(intent)
+                    },
+                    cancelFunction = {
+                        val intent =
+                            Intent(this@FormInspectionActivity, HomePageActivity::class.java)
+                        startActivity(intent)
+                        finishAffinity()
+                    }
+                )
+            } else {
+                val intent = Intent(this@FormInspectionActivity, HomePageActivity::class.java)
+                startActivity(intent)
+                finishAffinity()
+            }
         }
     }
 
@@ -4248,11 +4286,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                         // Add to maps
                                         karyawanIdMap[formattedWorker] = ids[i].toIntOrNull() ?: 0
-                                        kemandoranIdMap[formattedWorker] = panen.kemandoran_id.toIntOrNull() ?: 0
+                                        kemandoranIdMap[formattedWorker] =
+                                            panen.kemandoran_id.toIntOrNull() ?: 0
                                         karyawanIdMap[nik] = ids[i].toIntOrNull() ?: 0
-                                        kemandoranIdMap[nik] = panen.kemandoran_id.toIntOrNull() ?: 0
+                                        kemandoranIdMap[nik] =
+                                            panen.kemandoran_id.toIntOrNull() ?: 0
                                         karyawanIdMap[nama] = ids[i].toIntOrNull() ?: 0
-                                        kemandoranIdMap[nama] = panen.kemandoran_id.toIntOrNull() ?: 0
+                                        kemandoranIdMap[nama] =
+                                            panen.kemandoran_id.toIntOrNull() ?: 0
                                     }
                                 }
                             }
@@ -4281,14 +4322,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val karyawanInfoList = mutableListOf<KaryawanInfo>()
 
                         uniqueInspectedWorkers.forEach { formattedWorker ->
-                            val parts = formattedWorker.split(" - ", limit = 2) // Split only on first " - "
+                            val parts =
+                                formattedWorker.split(" - ", limit = 2) // Split only on first " - "
                             if (parts.size >= 2) {
                                 val nik = parts[0].trim()
                                 val nama = parts[1].trim()
 
                                 AppLogger.d("Processing worker: nik=$nik, nama=$nama")
                                 AppLogger.d("Formatted worker: $formattedWorker")
-                                AppLogger.d("Exists in panen: ${allPanenWorkers.contains(formattedWorker)}")
+                                AppLogger.d(
+                                    "Exists in panen: ${
+                                        allPanenWorkers.contains(
+                                            formattedWorker
+                                        )
+                                    }"
+                                )
 
                                 if (allPanenWorkers.contains(formattedWorker)) {
                                     // Worker exists in panen data
@@ -4359,19 +4407,22 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
 
                         // Set description from panen data
-                        val ancakText = currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
-                        val dateText = currentInspectionData?.panen?.date_created ?: "tidak diketahui"
+                        val ancakText =
+                            currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
+                        val dateText =
+                            currentInspectionData?.panen?.date_created ?: "tidak diketahui"
 
                         selectedAncakByScan = ancakText
                         selectedTanggalPanenByScan = dateText
 
-                        val descriptionText = "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
-                        descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+                        val descriptionText =
+                            "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
+                        descPemanenInspeksi.text =
+                            Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
                         AppLogger.d("Pasar tengah - Total selected workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
                         AppLogger.d("Pasar tengah - Available workers: ${availableWorkers.size}")
-                    }
-                    else {
+                    } else {
                         val matchingPanenList = panenTPH.filter { panenWithRelations ->
                             val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()
                             tphId == selectedTPHInLIst.id
@@ -4444,12 +4495,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             if (selectedEmployee != null && individualKaryawanId != null) {
                                 // Add to maps
-                                karyawanIdMap[formattedWorker] = individualKaryawanId.toIntOrNull() ?: 0
+                                karyawanIdMap[formattedWorker] =
+                                    individualKaryawanId.toIntOrNull() ?: 0
                                 kemandoranIdMap[formattedWorker] =
                                     selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
 
                                 if (selectedNik.isNotEmpty()) {
-                                    karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
+                                    karyawanIdMap[selectedNik] =
+                                        individualKaryawanId.toIntOrNull() ?: 0
                                     kemandoranIdMap[selectedNik] =
                                         selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                                 }
@@ -4671,7 +4724,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             // Check if this is a pasar tengah TPH by looking at blockCode marker
             val isPasarTengahTPH = location.blokKode.contains("###PASAR_TENGAH")
-            val cleanBlockCode = location.blokKode.replace("###PASAR_TENGAH", "").replace("###REGULAR", "")
+            val cleanBlockCode =
+                location.blokKode.replace("###PASAR_TENGAH", "").replace("###REGULAR", "")
 
             AppLogger.d("TPH $id: distance=${distance}m, isPasarTengah=$isPasarTengahTPH, blockCode=$cleanBlockCode")
 
@@ -4961,7 +5015,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 // Also ensure the worker is in the maps for later use
                                 val workerId = ids[i].toIntOrNull() ?: 0
                                 karyawanIdMap[formattedWorker] = workerId
-                                kemandoranIdMap[formattedWorker] = panen.kemandoran_id.toIntOrNull() ?: 0
+                                kemandoranIdMap[formattedWorker] =
+                                    panen.kemandoran_id.toIntOrNull() ?: 0
                                 karyawanIdMap[nik] = workerId
                                 kemandoranIdMap[nik] = panen.kemandoran_id.toIntOrNull() ?: 0
                                 karyawanIdMap[nama] = workerId
