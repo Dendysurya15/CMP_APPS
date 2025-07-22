@@ -3638,7 +3638,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Create detail items for each page with temuan
         formData.forEach { (pageNumber, pageData) ->
-            if (pageData.emptyTree == 1 || pageData.emptyTree == 2) {
+            if (pageNumber != 0 && (pageData.emptyTree == 1 || pageData.emptyTree == 2)) {
                 val detailCard = createPathDetailCard(pageNumber, pageData, bottomSheetDialog)
                 container.addView(detailCard)
             }
@@ -4878,7 +4878,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             "${tph?.dept_abbr ?: "-"}/${tph?.divisi_abbr ?: "-"}/${tph?.blok_kode ?: "-"}\nTPH nomor ${tph?.nomor ?: "-"}"
 
         findViewById<TextView>(R.id.tvTanggalInspeksi).text =
-            inspection.created_date_start ?: "-"
+            AppUtils.formatToIndonesianDate(inspection.created_date_start)
 
         findViewById<TextView>(R.id.tvJalurMasuk).text =
             inspection.jalur_masuk ?: "-"
@@ -4891,8 +4891,35 @@ open class FormInspectionActivity : AppCompatActivity(),
         findViewById<TextView>(R.id.tvBaris).text =
             "($jenisKondisiText) ${inspection.baris ?: "-"}"
 
-        findViewById<TextView>(R.id.tvTglPanen).text =
-            inspection.date_panen ?: "-"
+        findViewById<TextView>(R.id.tvTglPanen).text = try {
+            val datePanenJson = inspection.date_panen ?: "-"
+
+            if (datePanenJson == "-") {
+                "-"
+            } else {
+                val datesJson = JSONArray(datePanenJson)
+                when {
+                    datesJson.length() == 0 -> "-"
+                    datesJson.length() == 1 -> {
+                        val singleDate = datesJson.getString(0)
+                        AppUtils.formatToIndonesianDate(singleDate)
+                    }
+                    else -> {
+                        val datesList = mutableListOf<String>()
+                        for (i in 0 until datesJson.length()) {
+                            val dateStr = datesJson.getString(i)
+                            val formattedDate = AppUtils.formatToIndonesianDate(dateStr)
+                            datesList.add("- $formattedDate")
+                        }
+                        val joinedDates = datesList.joinToString("\n")
+                        "Total ${datesJson.length()} Transaksi\n$joinedDates"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Fallback: treat as single date string for backward compatibility
+            inspection.date_panen?.let { AppUtils.formatToIndonesianDate(it) } ?: "-"
+        }
 
         val tphKomentar = detailInspeksi
             .filter { it.no_pokok == 0 }

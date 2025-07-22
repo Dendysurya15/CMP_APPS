@@ -2399,7 +2399,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 dataIsZipped = 0,
                                 app_version = "",
                                 status_upload = "3",
-                                status_uploaded_image = "200"
+                                status_uploaded_image = "200",
+                                isPushedToServer = 1
                             )
 
                             inspectionList.add(inspectionEntity)

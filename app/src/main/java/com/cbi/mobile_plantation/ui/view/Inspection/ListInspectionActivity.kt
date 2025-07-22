@@ -146,13 +146,13 @@ class ListInspectionActivity : AppCompatActivity() {
                 nameFilterDate.text = "Semua Data"
                 dateButton.isEnabled = false
                 dateButton.alpha = 0.5f
-                inspectionViewModel.loadInspectionPaths()
+                inspectionViewModel.loadInspectionPaths(null, 0)
             } else {
                 loadingDialog.show()
                 loadingDialog.setMessage("Sedang mengambil data...", true)
                 val displayDate = ListPanenTBSActivity().formatGlobalDate(globalFormattedDate)
                 dateButton.text = displayDate
-                inspectionViewModel.loadInspectionPaths(globalFormattedDate)
+                inspectionViewModel.loadInspectionPaths(globalFormattedDate, 0)
                 nameFilterDate.text = displayDate
                 dateButton.isEnabled = true
                 dateButton.alpha = 1f // Make the button appear darker
@@ -171,7 +171,7 @@ class ListInspectionActivity : AppCompatActivity() {
                     Calendar.getInstance().get(Calendar.YEAR)
                 )
                 AppUtils.setSelectedDate(todayBackendDate)
-                inspectionViewModel.loadInspectionPaths(todayBackendDate)
+                inspectionViewModel.loadInspectionPaths(todayBackendDate, 0)
                 val todayDisplayDate = AppUtils.getTodaysDate()
                 dateButton.text = todayDisplayDate
             }
@@ -181,7 +181,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
         currentState = 0
         lifecycleScope.launch {
-            inspectionViewModel.loadInspectionPaths(globalFormattedDate)
+            inspectionViewModel.loadInspectionPaths(globalFormattedDate, 0)
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -327,7 +327,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
 
         AppLogger.d(selectedDate)
-        inspectionViewModel.loadInspectionPaths(selectedDate)
+        inspectionViewModel.loadInspectionPaths(selectedDate,0)
 
         removeFilterDate.setOnClickListener {
 
@@ -1015,7 +1015,7 @@ class ListInspectionActivity : AppCompatActivity() {
                 }
 
                 commentText.layoutParams = LinearLayout.LayoutParams(
-                    columnWidth * columnHeaders.size,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
                 )
 

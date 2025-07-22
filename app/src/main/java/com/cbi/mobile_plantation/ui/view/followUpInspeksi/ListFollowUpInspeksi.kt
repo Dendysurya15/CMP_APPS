@@ -150,13 +150,13 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 nameFilterDate.text = "Semua Data"
                 dateButton.isEnabled = false
                 dateButton.alpha = 0.5f
-                inspectionViewModel.loadInspectionPaths()
+                inspectionViewModel.loadInspectionPaths(null, 1)
             } else {
                 loadingDialog.show()
                 loadingDialog.setMessage("Sedang mengambil data...", true)
                 val displayDate = ListPanenTBSActivity().formatGlobalDate(globalFormattedDate)
                 dateButton.text = displayDate
-                inspectionViewModel.loadInspectionPaths(globalFormattedDate)
+                inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
                 nameFilterDate.text = displayDate
                 dateButton.isEnabled = true
                 dateButton.alpha = 1f // Make the button appear darker
@@ -175,7 +175,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     Calendar.getInstance().get(Calendar.YEAR)
                 )
                 AppUtils.setSelectedDate(todayBackendDate)
-                inspectionViewModel.loadInspectionPaths(todayBackendDate)
+                inspectionViewModel.loadInspectionPaths(todayBackendDate, 1)
                 val todayDisplayDate = AppUtils.getTodaysDate()
                 dateButton.text = todayDisplayDate
             }
@@ -185,7 +185,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
         currentState = 0
         lifecycleScope.launch {
-            inspectionViewModel.loadInspectionPaths(globalFormattedDate)
+            inspectionViewModel.loadInspectionPaths(globalFormattedDate,1 )
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -331,7 +331,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
 
         AppLogger.d(selectedDate)
-        inspectionViewModel.loadInspectionPaths(selectedDate)
+        inspectionViewModel.loadInspectionPaths(selectedDate, 1)
 
         removeFilterDate.setOnClickListener {
 

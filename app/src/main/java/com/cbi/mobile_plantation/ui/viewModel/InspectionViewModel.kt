@@ -103,9 +103,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun loadInspectionPaths(datetime: String? = null) {
+    fun loadInspectionPaths(
+        datetime: String? = null,
+        isPushedToServer: Int? = null
+    ) {
         viewModelScope.launch {
-            _inspectionWithDetails.value = repository.getInspectionData(datetime)
+            _inspectionWithDetails.value = repository.getInspectionData(datetime, isPushedToServer)
         }
     }
 

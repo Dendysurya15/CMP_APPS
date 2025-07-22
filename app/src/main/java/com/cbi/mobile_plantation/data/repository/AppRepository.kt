@@ -143,10 +143,11 @@ class AppRepository(context: Context) {
     }
 
     suspend fun getInspectionData(
-        datetime: String? = null
+        datetime: String? = null,
+        isPushedToServer: Int? = null
     ): List<InspectionWithDetailRelations> {
         return try {
-            inspectionDao.getInspectionData(datetime)
+            inspectionDao.getInspectionData(datetime, isPushedToServer)
         } catch (e: Exception) {
             AppLogger.e("Error loading inspection paths: ${e.message}")
             emptyList()  // Return empty list if there's an error

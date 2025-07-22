@@ -37,4 +37,5 @@ data class InspectionModel(
     val status_upload_pemulihan: String? = "0",
     val status_uploaded_image: String,
     val status_uploaded_image_pemulihan: String? = "0",
+    val isPushedToServer: Int = 0
 )

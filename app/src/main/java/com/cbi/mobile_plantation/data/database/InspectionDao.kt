@@ -30,12 +30,14 @@ abstract class InspectionDao {
     abstract suspend fun getById(id: Int): InspectionModel?
 
     @Query("""
-        SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
-        WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
-        ORDER BY created_date_start DESC
-    """)
+    SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
+    WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
+    AND (:isPushedToServer IS NULL OR isPushedToServer = :isPushedToServer)
+    ORDER BY created_date_start DESC
+""")
     abstract suspend fun getInspectionData(
-        datetime: String? = null
+        datetime: String? = null,
+        isPushedToServer: Int? = null
     ): List<InspectionWithDetailRelations>
 
     @Query("""
