@@ -133,6 +133,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -192,7 +193,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var lon: Double? = null
     private var currentAccuracy: Float = 0F
     private var selectedTPHIdByScan: Int? = null
-    private var selectedIdPanenByScan: Int? = null
+    private var selectedIdPanenByScan: String? = null
     private var selectedEstateByScan: String? = null
     private var selectedBlokByScan: String? = null
     private var selectedAfdelingByScan: String? = null
@@ -1462,20 +1463,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 true
                             )
 
-                            AppLogger.d("=== SAVE DEBUG START ===")
-                            AppLogger.d("isFollowUp: $isFollowUp")
-                            AppLogger.d("selectedTPHIdByScan: $selectedTPHIdByScan")
-                            AppLogger.d("selectedIdPanenByScan: $selectedIdPanenByScan")
-                            AppLogger.d("selectedTanggalPanenByScan: $selectedTanggalPanenByScan")
-                            AppLogger.d("selectedJalurMasuk: $selectedJalurMasuk")
-                            AppLogger.d("selectedKondisiValue: $selectedKondisiValue")
-                            AppLogger.d("br1Value: $br1Value")
-                            AppLogger.d("br2Value: $br2Value")
-                            AppLogger.d("totalPokokInspection: $totalPokokInspection")
-                            AppLogger.d("totalPokokDiperiksa: $totalPokokDiperiksa")
-                            AppLogger.d("userId: $userId")
-                            AppLogger.d("lat: $lat")
-                            AppLogger.d("lon: $lon")
                             if (!isTenthTrees) {
                                 trackingLocation["end"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
@@ -1504,7 +1491,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         ?: "",
                                     created_by = currentInspectionData?.inspeksi?.created_by ?: "",
                                     tph_id = currentInspectionData?.inspeksi?.tph_id ?: 0,
-                                    id_panen = currentInspectionData?.inspeksi?.id_panen ?: 0,
+                                    id_panen = currentInspectionData?.inspeksi?.id_panen ?: "0",
                                     date_panen = currentInspectionData?.inspeksi?.date_panen ?: "",
                                     jalur_masuk = currentInspectionData?.inspeksi?.jalur_masuk
                                         ?: "",
@@ -1541,7 +1528,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     created_date_end = dateEndInspection,
                                     created_by = userId.toString(),
                                     tph_id = selectedTPHIdByScan ?: 0,
-                                    id_panen = selectedIdPanenByScan ?: 0,
+                                    id_panen = selectedIdPanenByScan ?: "0",
                                     date_panen = selectedTanggalPanenByScan!!,
                                     jalur_masuk = selectedJalurMasuk,
                                     jenis_kondisi = selectedKondisiValue.toInt(),
@@ -2849,12 +2836,56 @@ open class FormInspectionActivity : AppCompatActivity(),
         val tanggalStart = spannable.length
 
         val formattedDate = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-            currentInspectionData?.inspeksi?.date_panen?.let {
-                AppUtils.formatToIndonesianDate(it)
+            currentInspectionData?.inspeksi?.date_panen?.let { datePanenJson ->
+                try {
+                    val datesJson = JSONArray(datePanenJson)
+                    when {
+                        datesJson.length() == 0 -> "Tidak tersedia"
+                        datesJson.length() == 1 -> {
+                            val singleDate = datesJson.getString(0)
+                            AppUtils.formatToIndonesianDate(singleDate) // Just the formatted date
+                        }
+                        else -> {
+                            val datesList = mutableListOf<String>()
+                            for (i in 0 until datesJson.length()) {
+                                val dateStr = datesJson.getString(i)
+                                val formattedDate = AppUtils.formatToIndonesianDate(dateStr)
+                                datesList.add("• $formattedDate") // Use bullet point instead of dash
+                            }
+                            val joinedDates = datesList.joinToString("\n")
+                            "Total ${datesJson.length()} Transaksi\n$joinedDates"
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fallback: treat as single date string for backward compatibility
+                    AppUtils.formatToIndonesianDate(datePanenJson)
+                }
             } ?: "Tidak tersedia"
         } else {
-            selectedTanggalPanenByScan?.let {
-                AppUtils.formatToIndonesianDate(it)
+            selectedTanggalPanenByScan?.let { datePanenJson ->
+                try {
+                    val datesJson = JSONArray(datePanenJson)
+                    when {
+                        datesJson.length() == 0 -> "Tidak tersedia"
+                        datesJson.length() == 1 -> {
+                            val singleDate = datesJson.getString(0)
+                            AppUtils.formatToIndonesianDate(singleDate) // Just the formatted date
+                        }
+                        else -> {
+                            val datesList = mutableListOf<String>()
+                            for (i in 0 until datesJson.length()) {
+                                val dateStr = datesJson.getString(i)
+                                val formattedDate = AppUtils.formatToIndonesianDate(dateStr)
+                                datesList.add("• $formattedDate") // Use bullet point instead of dash
+                            }
+                            val joinedDates = datesList.joinToString("\n")
+                            "Total ${datesJson.length()} Transaksi\n$joinedDates"
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fallback: treat as single date string for backward compatibility
+                    AppUtils.formatToIndonesianDate(datePanenJson)
+                }
             } ?: "Tidak tersedia"
         }
         spannable.append(formattedDate)
@@ -4239,13 +4270,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
 
-
-                    AppLogger.d("isTriggeredBtnScanned $isTriggeredBtnScanned")
                     if (is_from_pasar_tengah && currentInspectionData != null && !isTriggeredBtnScanned) {
-                        // Load from currentInspectionData instead of panenTPH
-                        AppLogger.d("Loading workers from pasar tengah inspection data")
 
-                        selectedIdPanenByScan = currentInspectionData?.panen?.id ?: 0
+                        selectedIdPanenByScan = currentInspectionData?.panen?.id.toString() ?: "0"
                         selectedTPHIdByScan = selectedTPHInLIst.id
                         selectedEstateByScan = currentInspectionData?.tph?.dept_abbr ?: ""
                         selectedAfdelingByScan = currentInspectionData?.tph?.divisi_abbr ?: ""
@@ -4445,7 +4472,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val firstPanen = matchingPanenList.first().panen
                         val firstTph = matchingPanenList.first().tph
 
-                        selectedIdPanenByScan = firstPanen?.id ?: 0
+
                         selectedTPHIdByScan = selectedTPHInLIst.id
                         selectedEstateByScan = firstTph?.dept_abbr ?: ""
                         selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
@@ -4547,8 +4574,23 @@ open class FormInspectionActivity : AppCompatActivity(),
                             "tidak diketahui"
                         }
 
+                        val panenIdsJson = JSONArray()
+                        matchingPanenList.forEach { panenWithRelations ->
+                            panenWithRelations.panen?.id?.let { panenId ->
+                                panenIdsJson.put(panenId)
+                            }
+                        }
+
+                        selectedIdPanenByScan = panenIdsJson.toString() // Store as JSON array of IDs
+
                         selectedAncakByScan = ancakText
-                        selectedTanggalPanenByScan = dateText
+                        val datesJson = JSONArray()
+                        mergedData.dateList.forEach { date ->
+                            datesJson.put(date)
+                        }
+
+                        selectedTanggalPanenByScan = datesJson.toString() // Store as JSON array of dates
+
 
                         val descriptionText = if (mergedData.dateList.size > 1) {
                             "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${mergedData.workerCount} pekerja</b> :"

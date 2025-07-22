@@ -139,7 +139,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         created_date_end: String,
         created_by: String,
         tph_id: Int,
-        id_panen: Int,
+        id_panen: String,
         date_panen: String,
         jalur_masuk: String,
         jenis_kondisi: Int,

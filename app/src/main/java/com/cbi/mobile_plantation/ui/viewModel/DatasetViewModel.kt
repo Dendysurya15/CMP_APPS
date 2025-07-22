@@ -2366,7 +2366,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // Extract main inspection fields
                             val inspectionId = item.optInt("id", 0)
-                            val idPanen = item.optInt("id_panen", 0)
+                            val idPanen = item.optString("id_panen", "0")
                             val tphId = item.optInt("tph", 0)
                             val tglInspeksi = item.optString("tgl_inspeksi", "")
                             val tglPanen = item.optString("tgl_panen", "")

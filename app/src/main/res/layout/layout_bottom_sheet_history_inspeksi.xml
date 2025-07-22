@@ -166,34 +166,6 @@
                         android:layout_marginBottom="12dp" />
 
                     <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/manrope_bold"
-                        android:background="@color/graylight"
-                        android:text="Pemanen"
-                        android:textColor="@color/black"
-                        android:textStyle="italic"
-                        android:textSize="@dimen/m"
-                        android:layout_marginBottom="2dp" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvSelectedPemanenInspection"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:overScrollMode="never"
-                        android:visibility="gone"/>
-
-                </LinearLayout>
-
-                <!-- RIGHT COLUMN -->
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:layout_marginStart="8dp">
-
-                    <TextView
                         android:id="@+id/tvTitleLeft2"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -214,6 +186,36 @@
                         android:textColor="@color/black"
                         android:textSize="@dimen/m"
                         android:layout_marginBottom="12dp" />
+
+
+
+                </LinearLayout>
+
+                <!-- RIGHT COLUMN -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:background="@color/graylight"
+                        android:text="Pemanen"
+                        android:textColor="@color/black"
+                        android:textStyle="italic"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="2dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSelectedPemanenInspection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:overScrollMode="never"
+                        android:visibility="gone"/>
 
                     <!-- Item 2 Right -->
                     <TextView

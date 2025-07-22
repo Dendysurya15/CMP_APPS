@@ -20,7 +20,7 @@ data class InspectionModel(
     val updated_date_end: String? = null,
     val updated_by: String? = null,
     val tph_id:Int,
-    val id_panen:Int,
+    val id_panen:String,
     val date_panen:String,
     val jalur_masuk: String,
     val jenis_kondisi: Int,

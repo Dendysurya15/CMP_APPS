@@ -76,6 +76,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -496,7 +497,31 @@ class ListInspectionActivity : AppCompatActivity() {
         parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
         val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris)
         parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText
-        parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formatToIndonesianDate(inspection.date_panen)
+        val formattedDateText = try {
+            val datesJson = JSONArray(inspection.date_panen)
+            val datesList = mutableListOf<String>()
+
+            for (i in 0 until datesJson.length()) {
+                val dateStr = datesJson.getString(i)
+                val formattedDate = formatToIndonesianDate(dateStr)
+                datesList.add(formattedDate)
+            }
+
+            when {
+                datesList.isEmpty() -> "Tidak ada data tanggal"
+                datesList.size == 1 -> datesList.first()
+                else -> {
+                    val joinedDates = datesList.joinToString("\n")
+                    "Total ${datesList.size} Transaksi :\n$joinedDates"
+                }
+            }
+        } catch (e: Exception) {
+            // Fallback: treat as single date string (for backward compatibility)
+            AppLogger.w("Failed to parse date_panen as JSON, treating as single date: ${e.message}")
+            formatToIndonesianDate(inspection.date_panen)
+        }
+
+        parentView.findViewById<TextView>(R.id.tvTglPanen)?.text = formattedDateText
 
         val tphKomentar = detailInspeksi
             .filter { it.no_pokok == 0 }
@@ -524,33 +549,24 @@ class ListInspectionActivity : AppCompatActivity() {
         // Set display mode to show names without remove buttons
         pemanenAdapter.setDisplayOnly(true)
 
-        AppLogger.d("panen $panen")
-        // Check if panen exists and has worker data
-        if (panen != null && (panen.karyawan_nik.isNotEmpty() || panen.karyawan_nama.isNotEmpty())) {
+        val uniqueWorkers = detailInspeksi
+            .filter { it.no_pokok != 0 && it.nik.isNotEmpty() && it.nama.isNotEmpty() } // Exclude TPH-level records (no_pokok = 0)
+            .map { "${it.nik} - ${it.nama}" } // Format as "NIK - NAMA"
+            .distinct() // Remove duplicates
+            .toSet()
+
+        uniqueWorkers.forEach { worker ->
+            AppLogger.d("- Worker: $worker")
+        }
+
+        if (uniqueWorkers.isNotEmpty()) {
             rvSelectedPemanen.visibility = View.VISIBLE
 
-            AppLogger.d("panen.karyawan_nik ${panen.karyawan_nik}")
-            AppLogger.d("panen.karyawan_nama ${panen.karyawan_nama}")
-
-            val allWorkers = mutableSetOf<Pair<String, String>>()
-
-            val niks = panen.karyawan_nik.split(",").map { it.trim() }
-            val names = panen.karyawan_nama.split(",").map { it.trim() }
-
-            // Match each NIK with corresponding name by index position
-            val maxIndex = minOf(niks.size, names.size)
-            for (i in 0 until maxIndex) {
-                val nik = niks[i]
-                val name = names[i]
-                if (nik.isNotEmpty() && name.isNotEmpty()) {
-                    allWorkers.add(Pair(nik, name))
-                }
-            }
-
             // Add workers to adapter
-            allWorkers.forEach { (nik, name) ->
-                val formattedName = "$nik - $name"
-                val worker = Worker(nik, formattedName)
+            uniqueWorkers.forEach { formattedWorker ->
+                // Extract NIK from the formatted string for the worker ID
+                val nik = formattedWorker.split(" - ").firstOrNull() ?: ""
+                val worker = Worker(nik, formattedWorker)
                 pemanenAdapter.addWorker(worker)
             }
 
@@ -579,7 +595,7 @@ class ListInspectionActivity : AppCompatActivity() {
                 }
             })
         } else {
-            // No panen data or no worker data
+            // No inspection details with worker data
             rvSelectedPemanen.visibility = View.GONE
         }
 
@@ -860,7 +876,6 @@ class ListInspectionActivity : AppCompatActivity() {
             val hasComment = !mergedDetail.komentar.isNullOrEmpty()
             val frozenCellBackgroundColor = if (hasComment) commentBackgroundColor else Color.WHITE
 
-            // Calculate total height for frozen cell
             var totalFrozenHeight = rowHeight
             if (hasComment) {
                 val tempTextView = TextView(this).apply {
