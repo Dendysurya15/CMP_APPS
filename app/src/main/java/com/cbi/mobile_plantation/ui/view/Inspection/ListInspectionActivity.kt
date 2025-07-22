@@ -1022,14 +1022,14 @@ class ListInspectionActivity : AppCompatActivity() {
         if (photoFileName.isNullOrEmpty()) {
             // No photo available - show placeholder
             val noPhotoText = TextView(this).apply {
-                text = "No Photo"
+                text = "Tidak ada foto"
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
                 gravity = Gravity.CENTER
                 setTextColor(Color.GRAY)
-                textSize = 10f
+                textSize = 13f
                 typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
             }
             dataCell.addView(noPhotoText)
@@ -1114,14 +1114,14 @@ class ListInspectionActivity : AppCompatActivity() {
         if (photoFileName.isNullOrEmpty()) {
             // No photo available - show placeholder
             val noPhotoText = TextView(this).apply {
-                text = "No Photo"
+                text = "Tidak ada Foto"
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
                 gravity = Gravity.CENTER
                 setTextColor(Color.GRAY)
-                textSize = 10f
+                textSize = 13f
                 typeface = ResourcesCompat.getFont(this@ListInspectionActivity, R.font.manrope_medium)
             }
             frameContainer.addView(noPhotoText)
