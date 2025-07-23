@@ -24,12 +24,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
-import org.json.JSONObject
-import retrofit2.Response
 import java.io.File
-import java.io.FileInputStream
 import java.io.IOException
-import java.net.SocketTimeoutException
 
 
 sealed class SaveResultNewUploadDataCMP {

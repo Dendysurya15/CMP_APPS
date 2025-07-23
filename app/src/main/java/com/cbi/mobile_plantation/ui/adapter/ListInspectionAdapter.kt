@@ -71,7 +71,7 @@ class ListInspectionAdapter(
                     AppUtils.ListFeatureNames.ListFollowUpInspeksi -> {
                         td1.text = "${item.tph?.blok_kode ?: ""}-${item.tph?.nomor ?: ""}"
 
-                        td2.text = item.inspeksi.created_date_start
+                        td2.text = item.inspeksi.created_date
                         td3.text = item.inspeksi.jml_pkk_inspeksi.toString()
 
                         val statusIcon = if (item.inspeksi.status_upload == "0") {
@@ -97,9 +97,8 @@ class ListInspectionAdapter(
 
                         td2.text = item.inspeksi.jml_pkk_inspeksi.toString()
 
-                        val startTime = formatTime(item.inspeksi.created_date_start)
-                        val endTime = formatTime(item.inspeksi.created_date_end)
-                        td3.text = "$startTime\n$endTime"
+                        val startTime = formatTime(item.inspeksi.created_date)
+                        td3.text = "$startTime"
 
                         val statusIcon = if (item.inspeksi.status_upload == "0") {
                             R.drawable.baseline_close_24

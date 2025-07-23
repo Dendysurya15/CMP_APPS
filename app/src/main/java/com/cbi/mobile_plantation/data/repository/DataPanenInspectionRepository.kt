@@ -130,6 +130,7 @@ class DataPanenInspectionRepository(
                 put("jml_pokok_inspeksi")
                 put("created_name")
                 put("created_by")
+                put("app_version")
                 put("tracking_path")
             })
 

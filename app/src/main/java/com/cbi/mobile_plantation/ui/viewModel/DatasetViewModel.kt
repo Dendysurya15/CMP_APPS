@@ -2371,11 +2371,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val tglInspeksi = item.optString("tgl_inspeksi", "")
                             val tglPanen = item.optString("tgl_panen", "")
                             val jalurMasuk = item.optString("rute_masuk", "")
-//                            val inspeksiPutaran = item.optInt("inspeksi_putaran", 1)
                             val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
                             val baris = item.optString("baris", "")
                             val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
-//                            val createdName = item.optString("created_name", "")
+                            val createdName = item.optString("created_name", "")
+                            val app_version = item.optString("app_version", "")
                             val createdBy = item.optInt("created_by", 0)
                             val trackingPath = item.optString("tracking_path", "")
 
@@ -2384,9 +2384,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             // Create InspectionModel
                             val inspectionEntity = InspectionModel(
                                 id = inspectionId,
-                                created_date_start = tglInspeksi,
-                                created_date_end = tglInspeksi, // Use same date if end date not available
+                                created_date = tglInspeksi,
                                 created_by = createdBy.toString(),
+                                created_name = createdName,
                                 tph_id = tphId,
                                 id_panen = idPanen,
                                 date_panen = tglPanen,
@@ -2397,7 +2397,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 jml_pkk_diperiksa =  0,
                                 tracking_path = trackingPath,
                                 dataIsZipped = 0,
-                                app_version = "",
+                                app_version = app_version,
                                 status_upload = "3",
                                 status_uploaded_image = "200",
                                 isPushedToServer = 1

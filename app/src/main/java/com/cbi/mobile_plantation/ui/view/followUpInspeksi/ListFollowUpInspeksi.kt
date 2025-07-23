@@ -416,7 +416,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             this,
             "Telusuri",
             getString(R.string.confirmation_dialog_title),
-            "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date_start}",
+            "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date}",
             "warning.json",
             ContextCompat.getColor(this, R.color.bluedarklight),
             function = {

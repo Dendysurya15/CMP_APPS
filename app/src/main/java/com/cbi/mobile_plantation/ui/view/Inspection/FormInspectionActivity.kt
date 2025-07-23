@@ -1485,11 +1485,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             val result = if (isFollowUp) {
                                 // Follow-up: only update specific fields
                                 inspectionViewModel.saveDataInspection(
-                                    created_date_start = currentInspectionData?.inspeksi?.created_date_start
-                                        ?: "",
-                                    created_date_end = currentInspectionData?.inspeksi?.created_date_end
+                                    created_date_start = currentInspectionData?.inspeksi?.created_date
                                         ?: "",
                                     created_by = currentInspectionData?.inspeksi?.created_by ?: "",
+                                    created_name = currentInspectionData?.inspeksi?.created_name ?: "",
                                     tph_id = currentInspectionData?.inspeksi?.tph_id ?: 0,
                                     id_panen = currentInspectionData?.inspeksi?.id_panen ?: "0",
                                     date_panen = currentInspectionData?.inspeksi?.date_panen ?: "",
@@ -1515,7 +1514,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     tracking_path_pemulihan = trackingJson.toString(),
                                     updated_date_start = dateStartInspection,
                                     updated_date_end = dateEndInspection,
-                                    updated_by = userId.toString()
+                                    updated_by = userId.toString(),
+                                    updated_name = prefManager!!.nameUserLogin
                                 )
                             } else {
 
@@ -1525,8 +1525,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                 inspectionViewModel.saveDataInspection(
                                     created_date_start = dateStartInspection,
-                                    created_date_end = dateEndInspection,
                                     created_by = userId.toString(),
+                                    created_name = prefManager!!.nameUserLogin ?: "",
                                     tph_id = selectedTPHIdByScan ?: 0,
                                     id_panen = selectedIdPanenByScan ?: "0",
                                     date_panen = selectedTanggalPanenByScan!!,
@@ -4878,7 +4878,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             "${tph?.dept_abbr ?: "-"}/${tph?.divisi_abbr ?: "-"}/${tph?.blok_kode ?: "-"}\nTPH nomor ${tph?.nomor ?: "-"}"
 
         findViewById<TextView>(R.id.tvTanggalInspeksi).text =
-            AppUtils.formatToIndonesianDate(inspection.created_date_start)
+            AppUtils.formatToIndonesianDate(inspection.created_date)
 
         findViewById<TextView>(R.id.tvJalurMasuk).text =
             inspection.jalur_masuk ?: "-"

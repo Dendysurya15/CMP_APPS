@@ -13,12 +13,13 @@ import com.cbi.mobile_plantation.utils.AppUtils
 )
 data class InspectionModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val created_date_start: String,
-    val created_date_end: String,
+    val created_date: String,
     val created_by: String,
+    val created_name: String,
     val updated_date_start: String? = null,
     val updated_date_end: String? = null,
     val updated_by: String? = null,
+    val updated_name: String? = null,
     val tph_id:Int,
     val id_panen:String,
     val date_panen:String,

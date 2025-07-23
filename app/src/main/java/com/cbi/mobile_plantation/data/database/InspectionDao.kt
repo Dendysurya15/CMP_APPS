@@ -31,9 +31,9 @@ abstract class InspectionDao {
 
     @Query("""
     SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
-    WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
+    WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date) = :datetime)
     AND (:isPushedToServer IS NULL OR isPushedToServer = :isPushedToServer)
-    ORDER BY created_date_start DESC
+    ORDER BY created_date DESC
 """)
     abstract suspend fun getInspectionData(
         datetime: String? = null,
@@ -59,7 +59,7 @@ abstract class InspectionDao {
 
     @Query("""
     SELECT COUNT(*) FROM ${AppUtils.DatabaseTables.INSPEKSI}
-    WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date_start) = :datetime)
+    WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date) = :datetime)
 """)
     abstract suspend fun getInspectionCount(
         datetime: String? = null
@@ -93,6 +93,7 @@ abstract class InspectionDao {
     updated_date_start = :updated_date_start,
     updated_date_end = :updated_date_end,
     updated_by = :updated_by,
+    updated_name = :updated_name,
     app_version_pemulihan = :app_version_pemulihan
     WHERE id = :inspectionId
 """)
@@ -103,6 +104,7 @@ abstract class InspectionDao {
         updated_date_start: String,
         updated_date_end: String,
         updated_by: String,
+        updated_name: String,
         app_version_pemulihan:String
     )
 

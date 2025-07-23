@@ -2773,7 +2773,7 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
-                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+
                     if (absensiList.isNotEmpty()) {
                         // First, process photos/images regardless of status_upload
                         val absensiWithPendingImages = absensiList.filter { data ->
@@ -3341,7 +3341,7 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
-
+                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
                     if (inspeksiList.isNotEmpty()) {
 
                         val uniquePhotos = mutableMapOf<String, Map<String, String>>()
@@ -3381,111 +3381,6 @@ class HomePageActivity : AppCompatActivity() {
 
                         mappedInspeksiData = inspeksiList.mapNotNull { inspeksiWithRelations ->
 
-                            // Handle photos from main inspeksi
-//                            val inspeksiPhotoNames =
-//                                inspeksiWithRelations.inspeksi.foto?.split(";") ?: listOf()
-//
-//                            // Process main inspeksi photos
-//                            for (photoName in inspeksiPhotoNames) {
-//                                val trimmedName = photoName.trim()
-//                                if (trimmedName.isEmpty()) continue
-//
-//                                if (trimmedName in uniquePhotos) continue
-//
-//                                // Check main inspeksi status
-//                                var shouldSkip = false
-//                                if (inspeksiWithRelations.inspeksi.status_uploaded_image == "200") {
-//                                    shouldSkip = true
-//                                }
-//
-//                                if (shouldSkip) {
-//                                    AppLogger.d("Skipping main inspeksi photo $trimmedName - fully uploaded (status 200)")
-//                                    continue
-//                                }
-//
-//                                var photoFound = false
-//
-//                                for (cmpDir in cmpDirectories) {
-//                                    val photoFile = File(cmpDir, trimmedName)
-//
-//                                    if (photoFile.exists() && photoFile.isFile) {
-//                                        var shouldAdd = false
-//
-//                                        // Check if photo needs upload based on status
-//                                        if (inspeksiWithRelations.inspeksi.status_uploaded_image == "0") {
-//                                            shouldAdd = true
-//                                            AppLogger.d("Photo $trimmedName hasn't been uploaded (status 0)")
-//                                        } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith(
-//                                                "{"
-//                                            )
-//                                        ) {
-//                                            try {
-//                                                val errorJson = Gson().fromJson(
-//                                                    inspeksiWithRelations.inspeksi.status_uploaded_image,
-//                                                    JsonObject::class.java
-//                                                )
-//                                                val errorArray =
-//                                                    errorJson?.get("error")?.asJsonArray
-//
-//                                                errorArray?.forEach { errorItem ->
-//                                                    if (errorItem.asString == trimmedName) {
-//                                                        shouldAdd = true
-//                                                        AppLogger.d("Photo $trimmedName is marked as error in inspeksi ${inspeksiWithRelations.inspeksi.id}")
-//                                                    }
-//                                                }
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
-//                                            }
-//                                        }
-//
-//                                        val createdDate =
-//                                            inspeksiWithRelations.inspeksi.created_date_start ?: ""
-//                                        val formattedDate = try {
-//                                            val dateFormat = SimpleDateFormat(
-//                                                "yyyy-MM-dd HH:mm:ss",
-//                                                Locale.getDefault()
-//                                            )
-//                                            val date = dateFormat.parse(createdDate)
-//                                            val outputFormat = SimpleDateFormat(
-//                                                "yyyy/MM/dd/",
-//                                                Locale.getDefault()
-//                                            )
-//                                            outputFormat.format(date ?: Date())
-//                                        } catch (e: Exception) {
-//                                            AppLogger.e("Error formatting date: ${e.message}")
-//                                            val outputFormat = SimpleDateFormat(
-//                                                "yyyy/MM/dd/",
-//                                                Locale.getDefault()
-//                                            )
-//                                            outputFormat.format(Date())
-//                                        }
-//
-//                                        val basePathImage =
-//                                            formattedDate + prefManager!!.estateUserLogin
-//
-//                                        if (shouldAdd) {
-//                                            uniquePhotos[trimmedName] = mapOf(
-//                                                "name" to trimmedName,
-//                                                "path" to photoFile.absolutePath,
-//                                                "size" to photoFile.length().toString(),
-//                                                "table_ids" to inspeksiWithRelations.inspeksi.id.toString(),
-//                                                "base_path" to basePathImage,
-//                                                "database" to AppUtils.DatabaseTables.INSPEKSI
-//                                            )
-//                                            AppLogger.d("Added main inspeksi photo for upload: $trimmedName at ${photoFile.absolutePath}")
-//                                        }
-//
-//                                        photoFound = true
-//                                        break
-//                                    }
-//                                }
-//
-//                                if (!photoFound) {
-//                                    AppLogger.w("Main inspeksi photo not found: $trimmedName")
-//                                }
-//                            }
-
-                            // Handle photos from inspeksi detail
                             inspeksiWithRelations.detailInspeksi.forEach { detail ->
                                 val detailPhotoNames = detail.foto?.split(";") ?: listOf()
 
@@ -3524,8 +3419,7 @@ class HomePageActivity : AppCompatActivity() {
                                                         detail.status_uploaded_image,
                                                         JsonObject::class.java
                                                     )
-                                                    val errorArray =
-                                                        errorJson?.get("error")?.asJsonArray
+                                                    val errorArray = errorJson?.get("error")?.asJsonArray
 
                                                     errorArray?.forEach { errorItem ->
                                                         if (errorItem.asString == trimmedName) {
@@ -3538,9 +3432,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 }
                                             }
 
-                                            val createdDate =
-                                                inspeksiWithRelations.inspeksi.created_date_start
-                                                    ?: ""
+                                            val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
                                             val formattedDate = try {
                                                 val dateFormat = SimpleDateFormat(
                                                     "yyyy-MM-dd HH:mm:ss",
@@ -3561,19 +3453,27 @@ class HomePageActivity : AppCompatActivity() {
                                                 outputFormat.format(Date())
                                             }
 
-                                            val basePathImage =
-                                                formattedDate + prefManager!!.estateUserLogin
+                                            val basePathImage = formattedDate + prefManager!!.estateUserLogin
 
                                             if (shouldAdd) {
+                                                // Determine database type based on no_pokok
+                                                val databaseType = if (detail.no_pokok == 0) {
+                                                    AppUtils.DatabaseTables.INSPEKSI // TPH photos
+                                                } else {
+                                                    AppUtils.DatabaseTables.INSPEKSI_DETAIL // Pokok photos
+                                                }
+
                                                 uniquePhotos[trimmedName] = mapOf(
                                                     "name" to trimmedName,
                                                     "path" to photoFile.absolutePath,
                                                     "size" to photoFile.length().toString(),
                                                     "table_ids" to (detail.id ?: 0).toString(),
                                                     "base_path" to basePathImage,
-                                                    "database" to AppUtils.DatabaseTables.INSPEKSI_DETAIL
+                                                    "database" to databaseType
                                                 )
-                                                AppLogger.d("Added detail inspeksi photo for upload: $trimmedName at ${photoFile.absolutePath} (detail id: ${detail.id})")
+
+                                                val photoType = if (detail.no_pokok == 0) "TPH" else "Pokok"
+                                                AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath} (detail id: ${detail.id}, no_pokok: ${detail.no_pokok})")
                                             }
 
                                             photoFound = true
@@ -3582,13 +3482,13 @@ class HomePageActivity : AppCompatActivity() {
                                     }
 
                                     if (!photoFound) {
-                                        AppLogger.w("Detail inspeksi photo not found: $trimmedName")
+                                        val photoType = if (detail.no_pokok == 0) "TPH" else "Pokok"
+                                        AppLogger.w("$photoType photo not found: $trimmedName")
                                     }
                                 }
                             }
 
-                            val createdDate =
-                                inspeksiWithRelations.inspeksi.created_date_start ?: ""
+                            val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
                             val formattedDate = try {
                                 val dateFormat = SimpleDateFormat(
                                     "yyyy-MM-dd HH:mm:ss",
@@ -3610,20 +3510,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
-
-                            // Process inspeksi photos
-//                            val originalInspeksiFotoString =
-//                                inspeksiWithRelations.inspeksi.foto ?: ""
-//                            val modifiedInspeksiFotoString =
-//                                if (originalInspeksiFotoString.contains(";")) {
-//                                    originalInspeksiFotoString.split(";")
-//                                        .map { photoName -> "$basePath${photoName.trim()}" }
-//                                        .joinToString(";")
-//                                } else if (originalInspeksiFotoString.isNotEmpty()) {
-//                                    "$basePath$originalInspeksiFotoString"
-//                                } else {
-//                                    ""
-//                                }
 
                             val nikList = inspeksiWithRelations.detailInspeksi
                                 .mapNotNull { it.nik }
@@ -3658,56 +3544,57 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
 
-                            val inspeksiDetailArray =
-                                inspeksiWithRelations.detailInspeksi.map { detail ->
-                                    val originalDetailFotoString = detail.foto ?: ""
-                                    val modifiedDetailFotoString =
-                                        if (originalDetailFotoString.contains(";")) {
-                                            originalDetailFotoString.split(";")
-                                                .map { photoName -> "$basePath${photoName.trim()}" }
-                                                .joinToString(";")
-                                        } else if (originalDetailFotoString.isNotEmpty()) {
-                                            "$basePath$originalDetailFotoString"
-                                        } else {
-                                            ""
-                                        }
+                            val inspeksiDetailArray = inspeksiWithRelations.detailInspeksi.map { detail ->
+                                val originalDetailFotoString = detail.foto ?: ""
+                                val modifiedDetailFotoString =
+                                    if (originalDetailFotoString.contains(";")) {
+                                        originalDetailFotoString.split(";")
+                                            .map { photoName -> "$basePath${photoName.trim()}" }
+                                            .joinToString(";")
+                                    } else if (originalDetailFotoString.isNotEmpty()) {
+                                        "$basePath$originalDetailFotoString"
+                                    } else {
+                                        ""
+                                    }
 
-                                    mapOf<String, Any>(
-                                        "id" to (detail.id ?: 0),
-                                        "id_inspeksi" to (detail.id_inspeksi ?: ""),
-                                        "no_pokok" to (detail.no_pokok ?: 0),
-                                        "pokok_panen" to (detail.pokok_panen ?: 0),
-                                        "kode_inspeksi" to (detail.kode_inspeksi ?: 0),
-                                        "temuan_inspeksi" to (detail.temuan_inspeksi ?: 0.0),
-                                        "status_pemulihan" to (detail.status_pemulihan ?: 0.0),
-                                        "nik" to (detail.nik ?: ""),
-                                        "nama" to (detail.nama ?: ""),
-                                        "kemandoran_ppro" to (kemandoranMap[detail.nik]?.kemandoran_ppro ?: ""),
-                                        "kemandoran_nama" to (kemandoranMap[detail.nik]?.nama ?: ""),
-                                        "foto" to modifiedDetailFotoString,
-                                        "foto_pemulihan" to "",
-                                        "catatan" to (detail.komentar ?: ""),
-                                        "created_by" to (detail.created_by ?: ""),
-                                        "created_name" to (detail.created_name ?: ""),
-                                        "created_date" to (detail.created_date ?: ""),
-                                        "lat" to (detail.latIssue ?: 0.0),
-                                        "lon" to (detail.lonIssue ?: 0.0),
-                                    )
-                                }
+                                mapOf<String, Any>(
+                                    "id" to (detail.id ?: 0),
+                                    "id_inspeksi" to (detail.id_inspeksi ?: ""),
+                                    "no_pokok" to (detail.no_pokok ?: 0),
+                                    "pokok_panen" to (detail.pokok_panen ?: 0),
+                                    "kode_inspeksi" to (detail.kode_inspeksi ?: 0),
+                                    "temuan_inspeksi" to (detail.temuan_inspeksi ?: 0.0),
+                                    "status_pemulihan" to (detail.status_pemulihan ?: 0.0),
+                                    "nik" to (detail.nik ?: ""),
+                                    "nama" to (detail.nama ?: ""),
+                                    "kemandoran_ppro" to (kemandoranMap[detail.nik]?.kemandoran_ppro ?: ""),
+                                    "kemandoran_nama" to (kemandoranMap[detail.nik]?.nama ?: ""),
+                                    "foto" to modifiedDetailFotoString,
+                                    "foto_pemulihan" to (detail.foto_pemulihan ?: ""),
+                                    "catatan" to (detail.komentar ?: ""),
+                                    "catatan_pemulihan" to (detail.komentar_pemulihan ?: ""),
+                                    "created_by" to (detail.created_by ?: ""),
+                                    "created_name" to (detail.created_name ?: ""),
+                                    "created_date" to (detail.created_date ?: ""),
+                                    "updated_date" to (detail.updated_date ?: ""),
+                                    "updated_name" to (detail.updated_name ?: ""),
+                                    "updated_by" to (detail.updated_by ?: ""),
+                                    "lat" to (detail.latIssue ?: 0.0),
+                                    "lon" to (detail.lonIssue ?: 0.0),
+                                    "lat_pemulihan" to (detail.latPemulihan ?: 0.0),
+                                    "lon_pemulihan" to (detail.lonPemulihan ?: 0.0),
+                                )
+                            }
 
                             try {
                                 mapOf<String, Any>(
                                     "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
-                                    "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: 0),
-                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString()
-                                        ?: ""),
-                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString()
-                                        ?: ""),
+                                    "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: ""),
+                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString() ?: ""),
+                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString() ?: ""),
                                     "company" to (inspeksiWithRelations.tph?.company ?: 0),
-                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr
-                                        ?: ""),
-                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama
-                                        ?: ""),
+                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr ?: ""),
+                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama ?: ""),
                                     "dept" to (inspeksiWithRelations.tph?.dept ?: 0),
                                     "dept_ppro" to (inspeksiWithRelations.tph?.dept_ppro ?: 0),
                                     "dept_abbr" to (inspeksiWithRelations.tph?.dept_abbr ?: ""),
@@ -3723,36 +3610,27 @@ class HomePageActivity : AppCompatActivity() {
                                     "tph" to (inspeksiWithRelations.tph?.id ?: 0),
                                     "tph_nomor" to (inspeksiWithRelations.tph?.nomor ?: ""),
                                     "ancak" to (inspeksiWithRelations.tph?.ancak ?: ""),
-                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date_start
-                                        ?: ""),
-                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
-                                        ?: ""),
-                                    "inspeksi_putaran" to (inspeksiWithRelations.inspeksi.inspeksi_putaran
-                                        ?: 0),
-                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
-                                        ?: ""),
-                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
-                                        ?: 0),
+                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date ?: ""),
+                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen ?: ""),
+                                    "inspeksi_putaran" to (inspeksiWithRelations.inspeksi.inspeksi_putaran ?: 0),
+                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk ?: ""),
+                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi ?: 0),
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
-                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
-                                        ?: 0),
-//                                    "foto_tph" to modifiedInspeksiFotoString,
-//                                    "catatan" to (inspeksiWithRelations.inspeksi.komentar
-//                                        ?: ""),
-                                    "created_name" to (prefManager!!.nameUserLogin ?: ""),
-                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by
-                                        ?: ""),
-                                    "tph_id" to (inspeksiWithRelations.inspeksi.tph_id ?: 0),
-
-//                                    "lat" to (inspeksiWithRelations.inspeksi.lonTPH ?: 0.0),
-                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
-                                        ?: ""),
-                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version
-                                        ?: ""),
-                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
-                                        ?: ""),
-                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image
-                                        ?: ""),
+                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi ?: 0),
+                                    "jml_pokok_diperiksa" to (inspeksiWithRelations.inspeksi.jml_pkk_diperiksa ?: 0),
+                                    "created_name" to (inspeksiWithRelations.inspeksi.created_name ?: ""),
+                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by ?: ""),
+                                    "updated_name" to (inspeksiWithRelations.inspeksi.updated_name ?: ""),
+                                    "updated_date" to (inspeksiWithRelations.inspeksi.updated_date_start ?: ""),
+                                    "updated_by" to (inspeksiWithRelations.inspeksi.updated_by ?: ""),
+                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path ?: ""),
+                                    "tracking_path_pemulihan" to (inspeksiWithRelations.inspeksi.tracking_path_pemulihan ?: ""),
+                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version ?: ""),
+                                    "app_version_pemulihan" to (inspeksiWithRelations.inspeksi.app_version_pemulihan ?: ""),
+                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload ?: ""),
+//                                    "status_upload_pemulihan" to (inspeksiWithRelations.inspeksi.status_upload_pemulihan ?: "0"),
+//                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image ?: ""),
+//                                    "status_uploaded_image_pemulihan" to (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan ?: "0"),
                                     "inspeksi_detail" to inspeksiDetailArray
                                 )
                             } catch (e: Exception) {
@@ -3761,7 +3639,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }.toMutableList()
 
-                        // Save the final mapped JSON to temp file for debugging
                         val wrappedInspeksiData = mapOf(
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
@@ -3785,7 +3662,7 @@ class HomePageActivity : AppCompatActivity() {
                             e.printStackTrace()
                         }
 
-                        // Filter data to upload (status_upload == 0)
+// Filter data to upload (status_upload == 0)
                         val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
                             val statusUpload = inspeksiMap["status_upload"] as? String
                             statusUpload == "0"
@@ -3836,11 +3713,9 @@ class HomePageActivity : AppCompatActivity() {
                                 )
                             }
 
-
                             AppLogger.d("inspeksiBatchMap $inspeksiBatchMap")
                             if (inspeksiBatchMap.isNotEmpty()) {
-                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] =
-                                    inspeksiBatchMap
+                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] = inspeksiBatchMap
                             }
                         }
 
@@ -3852,15 +3727,17 @@ class HomePageActivity : AppCompatActivity() {
 
                             when (databaseField) {
                                 AppUtils.DatabaseTables.INSPEKSI -> {
+                                    // These are TPH photos (no_pokok = 0)
                                     allPhotosInspeksiTph.add(photoMap)
                                 }
 
                                 AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                    // These are Pokok photos (no_pokok > 0)
                                     allPhotosInspeksiPokok.add(photoMap)
                                 }
 
                                 else -> {
-                                    // Default fallback
+                                    // Default fallback - treat as TPH
                                     allPhotosInspeksiTph.add(photoMap)
                                     AppLogger.w("Unknown database field: $databaseField - adding to TPH category")
                                 }

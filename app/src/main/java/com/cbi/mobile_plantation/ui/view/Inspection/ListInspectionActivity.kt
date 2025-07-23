@@ -404,7 +404,7 @@ class ListInspectionActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this@ListInspectionActivity)
         dialog.setContentView(view)
         val titleDialogDetailTable = view.findViewById<TextView>(R.id.titleDialogDetailTable)
-        titleDialogDetailTable.text = "Inspeksi ${formatStartDate(inspectionPath.inspeksi.created_date_start)} ${inspectionPath.tph!!.blok_kode}-${inspectionPath.tph.nomor}"
+        titleDialogDetailTable.text = "Inspeksi ${formatStartDate(inspectionPath.inspeksi.created_date)} ${inspectionPath.tph!!.blok_kode}-${inspectionPath.tph.nomor}"
         val tphContainer = view.findViewById<LinearLayout>(R.id.tblLytTPH)
         val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
 
@@ -492,8 +492,7 @@ class ListInspectionActivity : AppCompatActivity() {
 
     private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: PanenEntity?, parentView: View, detailInspeksi: List<InspectionDetailModel>) {
         parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr!!.takeLast(2)} ${tph.blok_kode}"
-        val jamMulaiSelesai = formatDateRange(inspection.created_date_start, inspection.created_date_end)
-        parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = jamMulaiSelesai
+        parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = formatToIndonesianDate(inspection.created_date)
         parentView.findViewById<TextView>(R.id.tvJalurMasuk)?.text = inspection.jalur_masuk
         val barisText = formatBarisText(inspection.jenis_kondisi, inspection.baris)
         parentView.findViewById<TextView>(R.id.tvBaris)?.text = barisText

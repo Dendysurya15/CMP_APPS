@@ -139,8 +139,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
     suspend fun saveDataInspection(
         created_date_start: String,
-        created_date_end: String,
         created_by: String,
+        created_name: String,
         tph_id: Int,
         id_panen: String,
         date_panen: String,
@@ -161,6 +161,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         updated_date_start: String? = null,
         updated_date_end: String? = null,
         updated_by: String? = null,
+        updated_name: String? = null,
         app_version_pemulihan: String? = null
     ): SaveDataInspectionState {
         return try {
@@ -170,9 +171,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     inspectionId = existingInspectionId,
                     tracking_path_pemulihan = tracking_path_pemulihan,
                     inspeksi_putaran = 2,
-                    updated_date_start = updated_date_start ?: created_date_start,
-                    updated_date_end = updated_date_end ?: created_date_end,
-                    updated_by = updated_by ?: created_by,
+                    updated_date_start = updated_date_start ?: "",
+                    updated_date_end = updated_date_end ?: "",
+                    updated_by = updated_by ?: "",
+                    updated_name = updated_name ?: "",
                     app_version_pemulihan = app_version_pemulihan ?: ""
                 )
 
@@ -184,9 +186,9 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             } else {
                 // Create new inspection
                 val inspectionData = InspectionModel(
-                    created_date_start = created_date_start,
-                    created_date_end = created_date_end,
+                    created_date = created_date_start,
                     created_by = created_by,
+                    created_name = created_name,
                     tph_id = tph_id,
                     id_panen = id_panen,
                     date_panen = date_panen,
