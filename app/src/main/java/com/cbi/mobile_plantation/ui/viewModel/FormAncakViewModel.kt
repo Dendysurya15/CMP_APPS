@@ -19,78 +19,78 @@ import java.util.Date
 import java.util.Locale
 
 class FormAncakViewModel : ViewModel() {
-    data class PageData(
-        val pokokNumber: Int = 0,
-        val emptyTree: Int = 0,
-        val harvestTree: Int = 0,
-        val neatPelepah: Int = 0, // 7
-        val pelepahSengkleh: Int = 0, // 8
-        val overPruning: Int = 0, // 9
-        val underPruning: Int = 0, // 10
-        val buahMasakTdkDipotong: Int = 0, /// 3
-        val btPiringanGawangan: Int = 0, // 4
-        val brdKtpGawangan: Int = 0,   //1
-        val brdKtpPiringanPikulKetiak: Int = 0, //2
-        val photo: String? = null,
-        val comment: String? = null,
-        val latIssue: Double? = null,
-        val lonIssue: Double? = null,
-        val createdDate: String? = null,
-        val createdBy: Int? = null,
-        val createdName: String? = null
-    )
+        data class PageData(
+            val pokokNumber: Int = 0,
+            val emptyTree: Int = 0,
+            val harvestTree: Int = 0,
+            val neatPelepah: Int = 0, // 7
+            val pelepahSengkleh: Int = 0, // 8
+            val overPruning: Int = 0, // 9
+            val underPruning: Int = 0, // 10
+            val buahMasakTdkDipotong: Int = 0, /// 3
+            val btPiringanGawangan: Int = 0, // 4
+            val brdKtpGawangan: Int = 0,   //1
+            val brdKtpPiringanPikulKetiak: Int = 0, //2
+            val photo: String? = null,
+            val comment: String? = null,
+            val latIssue: Double? = null,
+            val lonIssue: Double? = null,
+            val createdDate: String? = null,
+            val createdBy: Int? = null,
+            val createdName: String? = null
+        )
 
-    data class ValidationResult(
-        val isValid: Boolean,
-        val fieldId: Int? = null,
-        val errorMessage: String? = null
-    )
+        data class ValidationResult(
+            val isValid: Boolean,
+            val fieldId: Int? = null,
+            val errorMessage: String? = null
+        )
 
-    private val _currentPage = MutableLiveData<Int>(1)
-    val currentPage: LiveData<Int> = _currentPage
+        private val _currentPage = MutableLiveData<Int>(1)
+        val currentPage: LiveData<Int> = _currentPage
 
-    private val _startingPage = MutableLiveData<Int>(1)
-    val startingPage: LiveData<Int> = _startingPage
+        private val _startingPage = MutableLiveData<Int>(1)
+        val startingPage: LiveData<Int> = _startingPage
 
-    private val _totalPages = MutableLiveData<Int>(AppUtils.TOTAL_MAX_TREES_INSPECTION)
-    val totalPages: LiveData<Int> = _totalPages
+        private val _totalPages = MutableLiveData<Int>(AppUtils.TOTAL_MAX_TREES_INSPECTION)
+        val totalPages: LiveData<Int> = _totalPages
 
-    private val _estName = MutableLiveData<String>("-")
-    val estName: LiveData<String> = _estName
+        private val _estName = MutableLiveData<String>("-")
+        val estName: LiveData<String> = _estName
 
-    private val _afdName = MutableLiveData<String>("-")
-    val afdName: LiveData<String> = _afdName
+        private val _afdName = MutableLiveData<String>("-")
+        val afdName: LiveData<String> = _afdName
 
-    private val _blokName = MutableLiveData<String>("-")
-    val blokName: LiveData<String> = _blokName
+        private val _blokName = MutableLiveData<String>("-")
+        val blokName: LiveData<String> = _blokName
 
-    private val _isInspection = MutableLiveData<Boolean>(true)
-    val isInspection: LiveData<Boolean> = _isInspection
+        private val _isInspection = MutableLiveData<Boolean>(true)
+        val isInspection: LiveData<Boolean> = _isInspection
 
-    private val _formData = MutableLiveData<MutableMap<Int, PageData>>(mutableMapOf())
-    val formData: LiveData<MutableMap<Int, PageData>> = _formData
+        private val _formData = MutableLiveData<MutableMap<Int, PageData>>(mutableMapOf())
+        val formData: LiveData<MutableMap<Int, PageData>> = _formData
 
-    private val _fieldValidationError = MutableLiveData<Map<Int, String>>(emptyMap())
-    val fieldValidationError: LiveData<Map<Int, String>> = _fieldValidationError
+        private val _fieldValidationError = MutableLiveData<Map<Int, String>>(emptyMap())
+        val fieldValidationError: LiveData<Map<Int, String>> = _fieldValidationError
 
-    fun nextPage() {
-        _currentPage.value = (_currentPage.value ?: 1) + 1
-    }
+        fun nextPage() {
+            _currentPage.value = (_currentPage.value ?: 1) + 1
+        }
 
-    fun previousPage() {
-        _currentPage.value = (_currentPage.value ?: 1) - 1
-    }
+        fun previousPage() {
+            _currentPage.value = (_currentPage.value ?: 1) - 1
+        }
 
-    fun updateTotalPages(totalPages: Int) {
-        _totalPages.value = totalPages
-        AppLogger.d("Total pages updated to: $totalPages")
-    }
+        fun updateTotalPages(totalPages: Int) {
+            _totalPages.value = totalPages
+            AppLogger.d("Total pages updated to: $totalPages")
+        }
 
-    fun setStartingPage(pageNumber: Int) {
-        _startingPage.value = pageNumber
-        _currentPage.value = pageNumber
-        AppLogger.d("Starting page set to: $pageNumber")
-    }
+        fun setStartingPage(pageNumber: Int) {
+            _startingPage.value = pageNumber
+            _currentPage.value = pageNumber
+            AppLogger.d("Starting page set to: $pageNumber")
+        }
 
     fun getPageData(pageNumber: Int): PageData? {
         val currentData = _formData.value ?: mutableMapOf()

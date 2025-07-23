@@ -1178,6 +1178,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                     preselectSpinnerValues(inspection)
                     preselectRadioValues(inspection)
                     preselectEditTextValues(inspection)
+//
+//                    selectedEstateByScan = currentInspectionData?.tph?.dept_abbr ?: ""
+//                    selectedAfdelingByScan = currentInspectionData?.tph?.divisi_abbr ?: ""
+//                    selectedBlokByScan = currentInspectionData?.tph?.blok_kode ?: ""
+//                    selectedIdPanenByScan = currentInspectionData?.inspeksi?.id_panen
+//                    selectedTanggalPanenByScan  = currentInspectionData?.inspeksi?.date_panen
 
                     Handler(Looper.getMainLooper()).postDelayed({
                         safePreloadTPH(inspection)
@@ -1497,9 +1503,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi
                                         ?: 1,
                                     baris = currentInspectionData?.inspeksi?.baris ?: "",
+                                    no_pokok_start = currentInspectionData?.inspeksi?.no_pokok_start ?: 1,
                                     jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi
                                         ?: 0,
-                                    jml_pkk_diperiksa = currentInspectionData?.inspeksi?.jml_pkk_diperiksa
+                                    jml_pkk_diperiksa = totalPokokDiperiksa
                                         ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
@@ -1522,7 +1529,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 if (selectedTPHIdByScan == null) {
                                     throw Exception("TPH ID tidak boleh kosong")
                                 }
-
+                                val nextPokokStart = if (is_from_pasar_tengah == true) {
+                                    (last_pokok_before_pasar_tengah ?: 0) + 1
+                                } else {
+                                    1
+                                }
                                 inspectionViewModel.saveDataInspection(
                                     created_date_start = dateStartInspection,
                                     created_by = userId.toString(),
@@ -1533,6 +1544,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     jalur_masuk = selectedJalurMasuk,
                                     jenis_kondisi = selectedKondisiValue.toInt(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
+                                    no_pokok_start = nextPokokStart,
                                     jml_pkk_inspeksi = totalPokokInspection,
                                     jml_pkk_diperiksa = totalPokokDiperiksa,
                                     tracking_path = trackingJson.toString(),
@@ -1582,15 +1594,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     } else {
                                         val formData =
                                             formAncakViewModel.formData.value ?: mutableMapOf()
-                                        val totalPages = formAncakViewModel.totalPages.value
-                                            ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
                                         val detailResult =
                                             inspectionViewModel.updateDataInspectionDetailsForFollowUp(
                                                 detailInspeksiList = currentInspectionData?.detailInspeksi
                                                     ?: emptyList(),
                                                 formData = formData,
-                                                totalPages = totalPages,
                                                 jumBrdTglPath = jumBrdTglPath,
                                                 jumBuahTglPath = jumBuahTglPath,
                                                 parameterInspeksi = parameterInspeksi,
@@ -4271,12 +4280,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 try {
 
                     if (is_from_pasar_tengah && currentInspectionData != null && !isTriggeredBtnScanned) {
-
-                        selectedIdPanenByScan = currentInspectionData?.panen?.id.toString() ?: "0"
                         selectedTPHIdByScan = selectedTPHInLIst.id
-                        selectedEstateByScan = currentInspectionData?.tph?.dept_abbr ?: ""
-                        selectedAfdelingByScan = currentInspectionData?.tph?.divisi_abbr ?: ""
-                        selectedBlokByScan = currentInspectionData?.tph?.blok_kode ?: ""
+
 
                         // Get all workers from panen data
                         val allPanenWorkers = mutableSetOf<String>()
@@ -4433,19 +4438,48 @@ open class FormInspectionActivity : AppCompatActivity(),
                             AppLogger.d("- Available: ${worker.name} (ID: ${worker.id})")
                         }
 
-                        // Set description from panen data
-                        val ancakText =
-                            currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
-                        val dateText =
-                            currentInspectionData?.panen?.date_created ?: "tidak diketahui"
+                        val ancakText = currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
 
                         selectedAncakByScan = ancakText
-                        selectedTanggalPanenByScan = dateText
 
-                        val descriptionText =
+                        val panenIdsJson = JSONArray()
+                        currentInspectionData?.inspeksi?.id_panen?.let { panenId ->
+                            panenIdsJson.put(panenId)
+                        }
+                        selectedIdPanenByScan = panenIdsJson.toString()
+
+                        selectedTanggalPanenByScan = currentInspectionData?.inspeksi?.date_panen ?: "[]"
+
+                        // Parse the JSON arrays for display text (same logic as else branch)
+                        val dateList = try {
+                            val datesArray = JSONArray(selectedTanggalPanenByScan)
+                            (0 until datesArray.length()).map {
+                                datesArray.getString(it)  // Keep full datetime
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error parsing dates: ${e.message}")
+                            listOf("tidak diketahui")
+                        }
+
+                        AppLogger.d("dateList: $dateList")
+
+                        val dateText = if (dateList.isNotEmpty()) {
+                            if (dateList.size == 1) {
+                                dateList.first()
+                            } else {
+                                "${dateList.joinToString(", ")} (${dateList.size} transaksi)"
+                            }
+                        } else {
+                            "tidak diketahui"
+                        }
+
+                        // Update description to match the else branch format
+                        val descriptionText = if (dateList.size > 1) {
+                            "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${uniqueInspectedWorkers.size} pekerja</b> :"
+                        } else {
                             "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
-                        descPemanenInspeksi.text =
-                            Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+                        }
+                        descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
                         AppLogger.d("Pasar tengah - Total selected workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
                         AppLogger.d("Pasar tengah - Available workers: ${availableWorkers.size}")
@@ -4737,16 +4771,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     ): List<ScannedTPHSelectionItem> {
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
-        // Debug: Log what's in coordinates
-        AppLogger.d("=== DEBUG latLonMap ===")
-        AppLogger.d("is_from_pasar_tengah: $is_from_pasar_tengah")
-        AppLogger.d("coordinates size: ${coordinates.size}")
-        AppLogger.d("coordinates keys: ${coordinates.keys}")
-        AppLogger.d("radiusMinimum: $radiusMinimum")
-        AppLogger.d("user position: lat=$userLat, lon=$userLon")
-
         val inspectionTPHId = if (is_from_pasar_tengah) currentInspectionData?.tph?.id else null
-        AppLogger.d("inspectionTPHId: $inspectionTPHId")
+
 
         // Separate pasar tengah TPHs and regular TPHs
         val pasarTengahTPHs = mutableListOf<ScannedTPHSelectionItem>()

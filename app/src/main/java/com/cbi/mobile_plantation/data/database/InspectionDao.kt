@@ -90,6 +90,7 @@ abstract class InspectionDao {
     UPDATE inspeksi SET
     tracking_path_pemulihan = :tracking_path_pemulihan,
     inspeksi_putaran = :inspeksi_putaran,
+    no_pokok_start = :no_pokok_start,
     updated_date_start = :updated_date_start,
     updated_date_end = :updated_date_end,
     updated_by = :updated_by,
@@ -101,6 +102,7 @@ abstract class InspectionDao {
         inspectionId: Int,
         tracking_path_pemulihan: String?,
         inspeksi_putaran: Int,
+        no_pokok_start: Int,
         updated_date_start: String,
         updated_date_end: String,
         updated_by: String,

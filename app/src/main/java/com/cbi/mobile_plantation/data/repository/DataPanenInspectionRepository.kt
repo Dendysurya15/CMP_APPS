@@ -128,6 +128,7 @@ class DataPanenInspectionRepository(
                 put("rute_masuk")
                 put("baris")
                 put("jml_pokok_inspeksi")
+                put("jml_pokok_diperiksa")
                 put("created_name")
                 put("created_by")
                 put("app_version")

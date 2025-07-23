@@ -148,6 +148,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         jenis_kondisi: Int,
         baris: String,
         inspeksi_putaran: Int? = 1,
+        no_pokok_start: Int? = 1,
         jml_pkk_inspeksi: Int,
         jml_pkk_diperiksa: Int,
         tracking_path: String,
@@ -171,6 +172,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     inspectionId = existingInspectionId,
                     tracking_path_pemulihan = tracking_path_pemulihan,
                     inspeksi_putaran = 2,
+                    no_pokok_start = no_pokok_start ?: 1,
                     updated_date_start = updated_date_start ?: "",
                     updated_date_end = updated_date_end ?: "",
                     updated_by = updated_by ?: "",
@@ -184,7 +186,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     SaveDataInspectionState.Error("Failed to update inspection")
                 }
             } else {
-                // Create new inspection
+
                 val inspectionData = InspectionModel(
                     created_date = created_date_start,
                     created_by = created_by,
@@ -196,6 +198,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     jenis_kondisi = jenis_kondisi,
                     baris = baris,
                     inspeksi_putaran = inspeksi_putaran,
+                    no_pokok_start =no_pokok_start,
                     jml_pkk_inspeksi = jml_pkk_inspeksi,
                     jml_pkk_diperiksa = jml_pkk_diperiksa,
                     tracking_path = tracking_path,
@@ -215,7 +218,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun updateDataInspectionDetailsForFollowUp(
         detailInspeksiList: List<InspectionDetailModel>,
         formData: Map<Int, FormAncakViewModel.PageData>,
-        totalPages: Int,
         jumBrdTglPath: Int,
         jumBuahTglPath: Int,
         parameterInspeksi: List<InspectionParameterItem>,
@@ -235,7 +237,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val getValue: (FormAncakViewModel.PageData, Int, Int) -> Int,
                 val statusPpro: Int,
                 val nama: String,
-                val temuanPokok: Int
+                val temuanPokok: Int,
+                val undivided: String
             )
 
             // Regular pokok mappings (exclude 5 and 6)
@@ -244,156 +247,184 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     1, { pageData, _, _ -> pageData.brdKtpGawangan },
                     parameterInspeksi.find { it.id == 1 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 1 }?.nama ?: AppUtils.kodeInspeksi.brondolanDigawangan,
-                    parameterInspeksi.find { it.id == 1 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 1 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 1 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
                     parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 2 }?.nama ?: AppUtils.kodeInspeksi.brondolanTidakDikutip,
-                    parameterInspeksi.find { it.id == 2 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 2 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 2 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
                     parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 3 }?.nama ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong,
-                    parameterInspeksi.find { it.id == 3 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 3 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 3 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     4, { pageData, _, _ -> pageData.btPiringanGawangan },
                     parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
                     parameterInspeksi.find { it.id == 4 }?.nama ?: AppUtils.kodeInspeksi.buahTertinggalPiringan,
-                    parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 4 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 7 }?.nama ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai,
-                    parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 7 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 8 }?.nama ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,
-                    parameterInspeksi.find { it.id == 8 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 8 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 8 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
-                    parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 9 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
                     10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning,
-                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
+                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 10 }?.undivided ?: "True"
                 )
             )
 
             var updatedCount = 0
 
-            // Handle regular pokok (no_pokok 1 to totalPages)
-            for (page in 1..totalPages) {
-                val pageData = formData[page]
-                val emptyTreeValue = pageData?.emptyTree ?: 0
+            // Log all pageData before processing
+            AppLogger.d("=== LOGGING ALL PAGE DATA BEFORE UPDATE ===")
+            formData.forEach { (pageNumber, pageData) ->
+                AppLogger.d("Page $pageNumber: $pageData")
+            }
+            AppLogger.d("=== END PAGE DATA LOGGING ===")
 
-                if (emptyTreeValue != 1) {
-                    AppLogger.d("Skipping page $page - emptyTree is not 1 (value: $emptyTreeValue)")
-                    continue
+            // Also create a lookup for counting unique people per no_pokok
+            val uniquePeoplePerNoPokok = detailInspeksiList
+                .groupBy { it.no_pokok }
+                .mapValues { (_, details) ->
+                    details.map { "${it.nama}_${it.nik}" }.distinct().size
                 }
 
-                AppLogger.d("Processing follow-up update for page $page")
+            AppLogger.d("=== GROUPING INFO ===")
+            uniquePeoplePerNoPokok.forEach { (noPokok, peopleCount) ->
+                AppLogger.d("no_pokok $noPokok has $peopleCount unique people")
+            }
+            AppLogger.d("=== END GROUPING INFO ===")
 
-                regularPokokMappings.forEach { mapping ->
-                    val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
+            // Main loop through each detail inspection
+            detailInspeksiList.forEach { detail ->
+                AppLogger.d("Processing detail ID: ${detail.id}, no_pokok: ${detail.no_pokok}, kode_inspeksi: ${detail.kode_inspeksi}, nama: ${detail.nama}, nik: ${detail.nik}")
 
-                    val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
-                    val dividedValue = if (undivided == "False") {
-                        rawValue.toDouble()
-                    } else {
-                        rawValue.toDouble()
+                // Handle special case for no_pokok = 0 (codes 5 and 6)
+                if (detail.no_pokok == 0) {
+                    when (detail.kode_inspeksi) {
+                        5 -> {
+                            // Find matching pageData with pokokNumber = 0
+                            val matchingPageData = formData.values.find { it.pokokNumber == 0 && it.emptyTree == 1 }
+
+                            val updateSuccess = repository.updateInspectionDetailForFollowUpById(
+                                inspectionDetailId = detail.id,
+                                temuanInspeksi = jumBuahTglPath.toDouble(),
+                                fotoPemulihan = matchingPageData?.photo,
+                                komentarPemulihan = matchingPageData?.comment,
+                                latPemulihan = matchingPageData?.latIssue ?: 0.0,
+                                lonPemulihan = matchingPageData?.lonIssue ?: 0.0,
+                                updatedDate = createdDateStart,
+                                updatedName = createdName,
+                                updatedBy = createdBy
+                            )
+
+                            if (updateSuccess) {
+                                updatedCount++
+                                AppLogger.d("Updated detail ID: ${detail.id}, no_pokok 0, Code 5, Value ${jumBuahTglPath.toDouble()}")
+                            }
+                        }
+                        6 -> {
+                            // Find matching pageData with pokokNumber = 0
+                            val matchingPageData = formData.values.find { it.pokokNumber == 0 && it.emptyTree == 1 }
+
+                            val updateSuccess = repository.updateInspectionDetailForFollowUpById(
+                                inspectionDetailId = detail.id,
+                                temuanInspeksi = jumBrdTglPath.toDouble(),
+                                fotoPemulihan = matchingPageData?.photo,
+                                komentarPemulihan = matchingPageData?.comment,
+                                latPemulihan = matchingPageData?.latIssue ?: 0.0,
+                                lonPemulihan = matchingPageData?.lonIssue ?: 0.0,
+                                updatedDate = createdDateStart,
+                                updatedName = createdName,
+                                updatedBy = createdBy
+                            )
+
+                            if (updateSuccess) {
+                                updatedCount++
+                                AppLogger.d("Updated detail ID: ${detail.id}, no_pokok 0, Code 6, Value ${jumBrdTglPath.toDouble()}")
+                            }
+                        }
+                        else -> {
+                            AppLogger.d("Skipping detail ID: ${detail.id} - no_pokok 0 but kode_inspeksi ${detail.kode_inspeksi} is not 5 or 6")
+                        }
+                    }
+                } else {
+                    // Handle regular pokok (no_pokok > 0)
+                    // Find matching pageData with pokokNumber = detail.no_pokok
+                    val matchingPageData = formData.values.find {
+                        it.pokokNumber == detail.no_pokok && it.emptyTree == 1
                     }
 
-                    // Skip if temuan_inspeksi value is 0
-                    if (dividedValue == 0.0) {
-                        AppLogger.d("Skipping update for page $page, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
+                    if (matchingPageData == null) {
+                        AppLogger.d("No matching pageData found for no_pokok: ${detail.no_pokok} or emptyTree != 1")
                         return@forEach
                     }
 
-                    // Find the existing inspection detail record by no_pokok and kode_inspeksi
-                    val existingDetail = detailInspeksiList.find {
-                        it.no_pokok == page && it.kode_inspeksi == mapping.kodeInspeksi
+                    // Find the mapping for this kode_inspeksi
+                    val mapping = regularPokokMappings.find { it.kodeInspeksi == detail.kode_inspeksi }
+
+                    if (mapping == null) {
+                        AppLogger.d("No mapping found for kode_inspeksi: ${detail.kode_inspeksi}")
+                        return@forEach
                     }
 
-                    existingDetail?.let { detail ->
-                        // Update the inspection detail record using its ID
-                        val updateSuccess = repository.updateInspectionDetailForFollowUpById(
-                            inspectionDetailId = detail.id,
-                            temuanInspeksi = dividedValue,
-                            fotoPemulihan = pageData.photo,
-                            komentarPemulihan = pageData.comment,
-                            latPemulihan = pageData.latIssue ?: 0.0,
-                            lonPemulihan = pageData.lonIssue ?: 0.0,
-                            updatedDate = pageData.createdDate ?: "",
-                            updatedName = pageData.createdName ?: "",
-                            updatedBy = pageData.createdBy.toString()
-                        )
+                    // Get the raw value from pageData
+                    val rawValue = mapping.getValue(matchingPageData, jumBrdTglPath, jumBuahTglPath)
 
-                        if (updateSuccess) {
-                            updatedCount++
-                            AppLogger.d("Updated inspection detail ID: ${detail.id}, Page $page, Code ${mapping.kodeInspeksi}, Value $dividedValue")
-                        }
+                    // Calculate the final value based on undivided setting
+                    val finalValue = if (mapping.undivided == "True") {
+                        // Get the count of unique people in this no_pokok
+                        val uniquePeopleCount = uniquePeoplePerNoPokok[detail.no_pokok] ?: 1
+                        rawValue.toDouble() / uniquePeopleCount
+                    } else {
+                        // Give full value to each person
+                        rawValue.toDouble()
                     }
-                }
-            }
 
-            // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6)
-            if (jumBuahTglPath != 0) {
-                val existingDetail = detailInspeksiList.find {
-                    it.no_pokok == 0 && it.kode_inspeksi == 5
-                }
-
-                existingDetail?.let { detail ->
+                    // Update the inspection detail record
                     val updateSuccess = repository.updateInspectionDetailForFollowUpById(
                         inspectionDetailId = detail.id,
-                        temuanInspeksi = jumBuahTglPath.toDouble(),
-                        fotoPemulihan = null,
-                        komentarPemulihan = null,
-                        latPemulihan = 0.0,
-                        lonPemulihan = 0.0,
-                        updatedDate = "",
-                        updatedName = "",
-                        updatedBy = ""
+                        temuanInspeksi = finalValue,
+                        fotoPemulihan = matchingPageData.photo,
+                        komentarPemulihan = matchingPageData.comment,
+                        latPemulihan = matchingPageData.latIssue ?: 0.0,
+                        lonPemulihan = matchingPageData.lonIssue ?: 0.0,
+                        updatedDate = matchingPageData.createdDate ?: createdDateStart,
+                        updatedName = matchingPageData.createdName ?: createdName,
+                        updatedBy = matchingPageData.createdBy?.toString() ?: createdBy
                     )
 
                     if (updateSuccess) {
                         updatedCount++
-                        AppLogger.d("Updated inspection detail ID: ${detail.id}, no_pokok 0, Code 5, Value ${jumBuahTglPath.toDouble()}")
-                    }
-                }
-            }
 
-            if (jumBrdTglPath != 0) {
-                val existingDetail = detailInspeksiList.find {
-                    it.no_pokok == 0 && it.kode_inspeksi == 6
-                }
-
-                existingDetail?.let { detail ->
-                    val updateSuccess = repository.updateInspectionDetailForFollowUpById(
-                        inspectionDetailId = detail.id,
-                        temuanInspeksi = jumBrdTglPath.toDouble(),
-                        fotoPemulihan = null,
-                        komentarPemulihan = null,
-                        latPemulihan = 0.0,
-                        lonPemulihan = 0.0,
-                        updatedDate = createdDateStart,
-                        updatedName = createdName,
-                        updatedBy = createdBy
-                    )
-
-                    if (updateSuccess) {
-                        updatedCount++
-                        AppLogger.d("Updated inspection detail ID: ${detail.id}, no_pokok 0, Code 6, Value ${jumBrdTglPath.toDouble()}")
                     }
                 }
             }
