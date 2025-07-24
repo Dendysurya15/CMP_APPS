@@ -31,8 +31,9 @@ abstract class UploadCMPDao {
 
     @Query("""
     DELETE FROM upload_cmp 
-    WHERE JSON_EXTRACT(table_ids, '$.absensi') LIKE '%' || :absensiId || '%'
+    WHERE table_ids LIKE '%' || :absensiId || '%'
+       AND table_ids LIKE '%"absensi"%'
 """)
-    abstract suspend fun deleteUploadCmpByAbsensiId(absensiId: Int)
+    abstract suspend fun deleteUploadCmpByAbsensiId(absensiId: Int): Int
 
 }

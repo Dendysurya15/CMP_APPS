@@ -65,7 +65,8 @@
             android:exported="false" />
         <activity
             android:name=".ui.view.Absensi.ListAbsensiActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait"/>
         <activity
             android:name=".ui.view.weighBridge.ListHistoryWeighBridgeActivity"
             android:exported="false" />
@@ -78,7 +79,9 @@
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.view.espb.FormESPBActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait"/>
         <activity
             android:name=".ui.view.ListTPHApproval"
             android:exported="false" />
@@ -88,6 +91,7 @@
         <activity
             android:name=".ui.view.panenTBS.FeaturePanenTBSActivity"
             android:exported="false"
+            android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.view.panenTBS.ListPanenTBSActivity"
