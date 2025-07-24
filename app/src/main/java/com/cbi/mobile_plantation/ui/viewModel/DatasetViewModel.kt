@@ -3232,9 +3232,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                AppLogger.d(modifiedRequest.toString())
-
-                AppLogger.d("klasdjfkljaslfk")
                 try {
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
@@ -3257,7 +3254,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 
                     AppLogger.d(response.toString())
-                    // Get headers
                     val contentType = response.headers()["Content-Type"]
                     val lastModified = response.headers()["Last-Modified-Dataset"]
                     val lastModifiedSettingsJson = response.headers()["Last-Modified-Settings"]
@@ -3446,18 +3442,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 ?: ""
                                                         )
 
-                                                    AppUtils.DatasetNames.parameter -> hasShownError = processDataset(
-                                                        jsonContent = jsonContent,
-                                                        dataset = request.dataset,
-                                                        modelClass = ParameterModel::class.java,
-                                                        results = results,
-                                                        response = response,
-                                                        updateOperation = ::updateOrInsertParameter,
-                                                        statusFlow = parameterStatus, // You'll need to create this or use existing one
-                                                        hasShownError = hasShownError,
-                                                        lastModifiedTimestamp = lastModified ?: ""
-                                                    )
-
                                                     else -> {
 
                                                         results[request.dataset] =
@@ -3466,7 +3450,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                 }
-                                                AppLogger.d("resultss bro $results")
                                                 _downloadStatuses.postValue(results.toMap())
                                             } catch (e: Exception) {
                                                 AppLogger.e("General processing error: ${e.message}")
@@ -3479,7 +3462,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             }
                                         }
 
-                                        // Cleanup
                                         tempFile.delete()
                                         extractDir.deleteRecursively()
 
@@ -3501,9 +3483,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
                             else if (contentType?.contains("application/json") == true) {
-
-
-                                AppLogger.d("masuk sini gess")
                                 Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =
                                     response.body()?.string() ?: "Empty Response"

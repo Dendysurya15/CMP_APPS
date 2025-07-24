@@ -1403,7 +1403,10 @@ class HomePageActivity : AppCompatActivity() {
                         },
                         cancelFunction = {
                             val intent = Intent(this, ListFollowUpInspeksi::class.java)
-                            intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.ListFollowUpInspeksi)
+                            intent.putExtra(
+                                "FEATURE_NAME",
+                                AppUtils.ListFeatureNames.ListFollowUpInspeksi
+                            )
                             startActivity(intent)
                         }
                     )
@@ -3419,7 +3422,8 @@ class HomePageActivity : AppCompatActivity() {
                                                         detail.status_uploaded_image,
                                                         JsonObject::class.java
                                                     )
-                                                    val errorArray = errorJson?.get("error")?.asJsonArray
+                                                    val errorArray =
+                                                        errorJson?.get("error")?.asJsonArray
 
                                                     errorArray?.forEach { errorItem ->
                                                         if (errorItem.asString == trimmedName) {
@@ -3432,7 +3436,8 @@ class HomePageActivity : AppCompatActivity() {
                                                 }
                                             }
 
-                                            val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
+                                            val createdDate =
+                                                inspeksiWithRelations.inspeksi.created_date ?: ""
                                             val formattedDate = try {
                                                 val dateFormat = SimpleDateFormat(
                                                     "yyyy-MM-dd HH:mm:ss",
@@ -3453,7 +3458,8 @@ class HomePageActivity : AppCompatActivity() {
                                                 outputFormat.format(Date())
                                             }
 
-                                            val basePathImage = formattedDate + prefManager!!.estateUserLogin
+                                            val basePathImage =
+                                                formattedDate + prefManager!!.estateUserLogin
 
                                             if (shouldAdd) {
                                                 // Determine database type based on no_pokok
@@ -3472,7 +3478,8 @@ class HomePageActivity : AppCompatActivity() {
                                                     "database" to databaseType
                                                 )
 
-                                                val photoType = if (detail.no_pokok == 0) "TPH" else "Pokok"
+                                                val photoType =
+                                                    if (detail.no_pokok == 0) "TPH" else "Pokok"
                                                 AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath} (detail id: ${detail.id}, no_pokok: ${detail.no_pokok})")
                                             }
 
@@ -3521,7 +3528,8 @@ class HomePageActivity : AppCompatActivity() {
                             if (nikList.isNotEmpty()) {
                                 try {
                                     // Get karyawan data by NIK first
-                                    val karyawanList = inspectionViewModel.getKemandoranByNik(nikList)
+                                    val karyawanList =
+                                        inspectionViewModel.getKemandoranByNik(nikList)
 
                                     // Extract kemandoran IDs from karyawan data and convert to String
                                     val kemandoranIds = karyawanList
@@ -3531,9 +3539,11 @@ class HomePageActivity : AppCompatActivity() {
                                         .distinct()
 
                                     if (kemandoranIds.isNotEmpty()) {
-                                        val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
+                                        val kemandoranList =
+                                            absensiViewModel.getKemandoranById(kemandoranIds)
                                         karyawanList.forEach { karyawan ->
-                                            val kemandoranData = kemandoranList.find { it.id == karyawan.kemandoran_id }
+                                            val kemandoranData =
+                                                kemandoranList.find { it.id == karyawan.kemandoran_id }
                                             if (kemandoranData != null && karyawan.nik != null) {
                                                 kemandoranMap[karyawan.nik] = kemandoranData
                                             }
@@ -3544,57 +3554,64 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
 
-                            val inspeksiDetailArray = inspeksiWithRelations.detailInspeksi.map { detail ->
-                                val originalDetailFotoString = detail.foto ?: ""
-                                val modifiedDetailFotoString =
-                                    if (originalDetailFotoString.contains(";")) {
-                                        originalDetailFotoString.split(";")
-                                            .map { photoName -> "$basePath${photoName.trim()}" }
-                                            .joinToString(";")
-                                    } else if (originalDetailFotoString.isNotEmpty()) {
-                                        "$basePath$originalDetailFotoString"
-                                    } else {
-                                        ""
-                                    }
+                            val inspeksiDetailArray =
+                                inspeksiWithRelations.detailInspeksi.map { detail ->
+                                    val originalDetailFotoString = detail.foto ?: ""
+                                    val modifiedDetailFotoString =
+                                        if (originalDetailFotoString.contains(";")) {
+                                            originalDetailFotoString.split(";")
+                                                .map { photoName -> "$basePath${photoName.trim()}" }
+                                                .joinToString(";")
+                                        } else if (originalDetailFotoString.isNotEmpty()) {
+                                            "$basePath$originalDetailFotoString"
+                                        } else {
+                                            ""
+                                        }
 
-                                mapOf<String, Any>(
-                                    "id" to (detail.id ?: 0),
-                                    "id_inspeksi" to (detail.id_inspeksi ?: ""),
-                                    "no_pokok" to (detail.no_pokok ?: 0),
-                                    "pokok_panen" to (detail.pokok_panen ?: 0),
-                                    "kode_inspeksi" to (detail.kode_inspeksi ?: 0),
-                                    "temuan_inspeksi" to (detail.temuan_inspeksi ?: 0.0),
-                                    "status_pemulihan" to (detail.status_pemulihan ?: 0.0),
-                                    "nik" to (detail.nik ?: ""),
-                                    "nama" to (detail.nama ?: ""),
-                                    "kemandoran_ppro" to (kemandoranMap[detail.nik]?.kemandoran_ppro ?: ""),
-                                    "kemandoran_nama" to (kemandoranMap[detail.nik]?.nama ?: ""),
-                                    "foto" to modifiedDetailFotoString,
-                                    "foto_pemulihan" to (detail.foto_pemulihan ?: ""),
-                                    "catatan" to (detail.komentar ?: ""),
-                                    "catatan_pemulihan" to (detail.komentar_pemulihan ?: ""),
-                                    "created_by" to (detail.created_by ?: ""),
-                                    "created_name" to (detail.created_name ?: ""),
-                                    "created_date" to (detail.created_date ?: ""),
-                                    "updated_date" to (detail.updated_date ?: ""),
-                                    "updated_name" to (detail.updated_name ?: ""),
-                                    "updated_by" to (detail.updated_by ?: ""),
-                                    "lat" to (detail.latIssue ?: 0.0),
-                                    "lon" to (detail.lonIssue ?: 0.0),
-                                    "lat_pemulihan" to (detail.latPemulihan ?: 0.0),
-                                    "lon_pemulihan" to (detail.lonPemulihan ?: 0.0),
-                                )
-                            }
+                                    mapOf<String, Any>(
+                                        "id" to (detail.id ?: 0),
+                                        "id_inspeksi" to (detail.id_inspeksi ?: ""),
+                                        "no_pokok" to (detail.no_pokok ?: 0),
+                                        "pokok_panen" to (detail.pokok_panen ?: 0),
+                                        "kode_inspeksi" to (detail.kode_inspeksi ?: 0),
+                                        "temuan_inspeksi" to (detail.temuan_inspeksi ?: 0.0),
+                                        "status_pemulihan" to (detail.status_pemulihan ?: 0.0),
+                                        "nik" to (detail.nik ?: ""),
+                                        "nama" to (detail.nama ?: ""),
+                                        "kemandoran_ppro" to (kemandoranMap[detail.nik]?.kemandoran_ppro
+                                            ?: ""),
+                                        "kemandoran_nama" to (kemandoranMap[detail.nik]?.nama
+                                            ?: ""),
+                                        "foto" to modifiedDetailFotoString,
+                                        "foto_pemulihan" to (detail.foto_pemulihan ?: ""),
+                                        "catatan" to (detail.komentar ?: ""),
+                                        "catatan_pemulihan" to (detail.komentar_pemulihan ?: ""),
+                                        "created_by" to (detail.created_by ?: ""),
+                                        "created_name" to (detail.created_name ?: ""),
+                                        "created_date" to (detail.created_date ?: ""),
+                                        "updated_date" to (detail.updated_date ?: ""),
+                                        "updated_name" to (detail.updated_name ?: ""),
+                                        "updated_by" to (detail.updated_by ?: ""),
+                                        "lat" to (detail.latIssue ?: 0.0),
+                                        "lon" to (detail.lonIssue ?: 0.0),
+                                        "lat_pemulihan" to (detail.latPemulihan ?: 0.0),
+                                        "lon_pemulihan" to (detail.lonPemulihan ?: 0.0),
+                                    )
+                                }
 
                             try {
                                 mapOf<String, Any>(
                                     "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
                                     "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: ""),
-                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString() ?: ""),
-                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString() ?: ""),
+                                    "regional" to (inspeksiWithRelations.tph?.regional?.toString()
+                                        ?: ""),
+                                    "wilayah" to (inspeksiWithRelations.tph?.wilayah?.toString()
+                                        ?: ""),
                                     "company" to (inspeksiWithRelations.tph?.company ?: 0),
-                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr ?: ""),
-                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama ?: ""),
+                                    "company_abbr" to (inspeksiWithRelations.tph?.company_abbr
+                                        ?: ""),
+                                    "company_nama" to (inspeksiWithRelations.tph?.company_nama
+                                        ?: ""),
                                     "dept" to (inspeksiWithRelations.tph?.dept ?: 0),
                                     "dept_ppro" to (inspeksiWithRelations.tph?.dept_ppro ?: 0),
                                     "dept_abbr" to (inspeksiWithRelations.tph?.dept_abbr ?: ""),
@@ -3610,25 +3627,43 @@ class HomePageActivity : AppCompatActivity() {
                                     "tph" to (inspeksiWithRelations.tph?.id ?: 0),
                                     "tph_nomor" to (inspeksiWithRelations.tph?.nomor ?: ""),
                                     "ancak" to (inspeksiWithRelations.tph?.ancak ?: ""),
-                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date ?: ""),
-                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen ?: ""),
-                                    "inspeksi_putaran" to (inspeksiWithRelations.inspeksi.inspeksi_putaran ?: 0),
-                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk ?: ""),
-                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi ?: 0),
+                                    "tgl_inspeksi" to (inspeksiWithRelations.inspeksi.created_date
+                                        ?: ""),
+                                    "tgl_panen" to (inspeksiWithRelations.inspeksi.date_panen
+                                        ?: ""),
+                                    "inspeksi_putaran" to (inspeksiWithRelations.inspeksi.inspeksi_putaran
+                                        ?: 0),
+                                    "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
+                                        ?: ""),
+                                    "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
+                                        ?: 0),
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
-                                    "no_pokok_start" to (inspeksiWithRelations.inspeksi.no_pokok_start ?: 0),
-                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi ?: 0),
-                                    "jml_pokok_diperiksa" to (inspeksiWithRelations.inspeksi.jml_pkk_diperiksa ?: 0),
-                                    "created_name" to (inspeksiWithRelations.inspeksi.created_name ?: ""),
-                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by ?: ""),
-                                    "updated_name" to (inspeksiWithRelations.inspeksi.updated_name ?: ""),
-                                    "updated_date" to (inspeksiWithRelations.inspeksi.updated_date_start ?: ""),
-                                    "updated_by" to (inspeksiWithRelations.inspeksi.updated_by ?: ""),
-                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path ?: ""),
-                                    "tracking_path_pemulihan" to (inspeksiWithRelations.inspeksi.tracking_path_pemulihan ?: ""),
-                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version ?: ""),
-                                    "app_version_pemulihan" to (inspeksiWithRelations.inspeksi.app_version_pemulihan ?: ""),
-                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload ?: ""),
+                                    "no_pokok_start" to (inspeksiWithRelations.inspeksi.no_pokok_start
+                                        ?: 0),
+                                    "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
+                                        ?: 0),
+                                    "jml_pokok_diperiksa" to (inspeksiWithRelations.inspeksi.jml_pkk_diperiksa
+                                        ?: 0),
+                                    "created_name" to (inspeksiWithRelations.inspeksi.created_name
+                                        ?: ""),
+                                    "created_by" to (inspeksiWithRelations.inspeksi.created_by
+                                        ?: ""),
+                                    "updated_name" to (inspeksiWithRelations.inspeksi.updated_name
+                                        ?: ""),
+                                    "updated_date" to (inspeksiWithRelations.inspeksi.updated_date_start
+                                        ?: ""),
+                                    "updated_by" to (inspeksiWithRelations.inspeksi.updated_by
+                                        ?: ""),
+                                    "tracking_path" to (inspeksiWithRelations.inspeksi.tracking_path
+                                        ?: ""),
+                                    "tracking_path_pemulihan" to (inspeksiWithRelations.inspeksi.tracking_path_pemulihan
+                                        ?: ""),
+                                    "app_version" to (inspeksiWithRelations.inspeksi.app_version
+                                        ?: ""),
+                                    "app_version_pemulihan" to (inspeksiWithRelations.inspeksi.app_version_pemulihan
+                                        ?: ""),
+                                    "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
+                                        ?: ""),
 //                                    "status_upload_pemulihan" to (inspeksiWithRelations.inspeksi.status_upload_pemulihan ?: "0"),
 //                                    "status_uploaded_image" to (inspeksiWithRelations.inspeksi.status_uploaded_image ?: ""),
 //                                    "status_uploaded_image_pemulihan" to (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan ?: "0"),
@@ -3716,7 +3751,8 @@ class HomePageActivity : AppCompatActivity() {
 
                             AppLogger.d("inspeksiBatchMap $inspeksiBatchMap")
                             if (inspeksiBatchMap.isNotEmpty()) {
-                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] = inspeksiBatchMap
+                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] =
+                                    inspeksiBatchMap
                             }
                         }
 
@@ -5859,7 +5895,6 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
         if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
-            AppLogger.d("Downloads: Estate ID is null or empty, aborting download")
             showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
             loadingDialog.dismiss()
             return
@@ -5867,14 +5902,13 @@ class HomePageActivity : AppCompatActivity() {
         try {
             val estateId = estateIdString.toInt()
             if (estateId <= 0) {
-                AppLogger.d("Downloads: Estate ID is not a valid positive number: $estateId")
                 showErrorDialog("Estate ID must be a positive number")
                 loadingDialog.dismiss()
                 return
             }
 
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
-                // Get datasets - estates are already loaded from the click handler
+
                 getDatasetsToDownload(
                     regionalIdString!!.toInt(),
                     estateId,
@@ -5990,7 +6024,6 @@ class HomePageActivity : AppCompatActivity() {
             return datasets
         }
 
-        // Rest of your existing code continues normally...
         if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
             // Get all estate timestamps directly from prefManager
             val estateTimestamps = prefManager!!.getMasterTPHEstateLastModifiedMap()
@@ -6026,7 +6059,6 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        // Add sinkronisasiRestan dataset for Mandor1 and Asisten when sync button triggered
         if (isTriggerButtonSinkronisasiData && (isMandor1 || isAsisten)) {
             datasets.add(
                 DatasetRequest(
