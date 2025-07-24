@@ -59,17 +59,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
-    private fun loadNopol() {
-        viewModelScope.launch {
-            try {
-                val nopol = repository.getNopolList()
-                _nopolList.postValue(nopol)
-            } catch (e: Exception) {
-                // Handle error
-            }
-        }
+    suspend fun getMillByAbbr(abbr: String): MillModel? {
+        return repository.getMillByAbbr(abbr)
     }
-
+    
     fun loadAllESPB() {
         viewModelScope.launch {
             _espbList.value = repository.getAllESPB()
