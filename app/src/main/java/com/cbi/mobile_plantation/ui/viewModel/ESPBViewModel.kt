@@ -59,6 +59,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
+    suspend fun getMillByAbbr(abbr: String): MillModel? {
+        return repository.getMillByAbbr(abbr)
+    }
+
     private fun loadNopol() {
         viewModelScope.launch {
             try {

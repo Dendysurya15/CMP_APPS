@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
@@ -972,6 +973,9 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun getMillByAbbr(abbr: String): MillModel? {
+        return millDao.getMillByAbbr(abbr)
+    }
 
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
