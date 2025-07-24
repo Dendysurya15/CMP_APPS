@@ -84,9 +84,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         return result ?: throw Exception("Failed to parse parameter inspeksi JSON")
     }
 
-    suspend fun loadInspectionCount(datetime: String? = null): Int {
-        val count = repository.getInspectionCount(datetime)
-        return count
+    suspend fun loadInspectionCount(
+        datetime: String? = null,
+        isPushedToServer: Int? = null
+    ): Int {
+        return repository.getInspectionCount(datetime, isPushedToServer)
     }
 
     fun updateDataIsZippedHP(ids: List<Int>, status: Int) {

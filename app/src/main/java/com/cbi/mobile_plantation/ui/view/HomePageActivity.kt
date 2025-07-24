@@ -502,7 +502,7 @@ class HomePageActivity : AppCompatActivity() {
                 }
                 try {
                     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                    val countDeferred = async { inspectionViewModel.loadInspectionCount(today) }
+                    val countDeferred = async { inspectionViewModel.loadInspectionCount(today, 0) }
                     countInspection = countDeferred.await().toString()
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount(
@@ -6193,9 +6193,6 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun hasRole(role: String): Boolean {
-        return prefManager!!.jabatanUserLogin?.contains(role, ignoreCase = true) ?: false
-    }
 
 
     private fun showErrorDialog(errorMessage: String) {

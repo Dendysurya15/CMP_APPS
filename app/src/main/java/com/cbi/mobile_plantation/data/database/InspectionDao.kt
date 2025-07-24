@@ -60,10 +60,13 @@ abstract class InspectionDao {
     @Query("""
     SELECT COUNT(*) FROM ${AppUtils.DatabaseTables.INSPEKSI}
     WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date) = :datetime)
+    AND (:isPushedToServer IS NULL OR isPushedToServer = :isPushedToServer)
 """)
     abstract suspend fun getInspectionCount(
-        datetime: String? = null
+        datetime: String? = null,
+        isPushedToServer: Int? = null
     ): Int
+
 
     @Query("UPDATE inspeksi SET status_uploaded_image = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadedImageInspeksi(ids: List<Int>, status: String): Int
