@@ -5237,6 +5237,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         if (isKeraniTimbang) {
+            AppLogger.d("aslkdjfaklsdjf")
             datasets.add(
                 DatasetRequest(
                     regional = regionalUser,
@@ -5246,7 +5247,14 @@ class HomePageActivity : AppCompatActivity() {
             )
             datasets.add(
                 DatasetRequest(
-                    estate = estateId,
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetEstate,
+                    dataset = AppUtils.DatasetNames.estate
+                ),
+            )
+            datasets.add(
+                DatasetRequest(
+                    regional = regionalId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
                 ),

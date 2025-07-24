@@ -1108,11 +1108,33 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val idBlokList = blokJjgList.map { it.first }
                     val idBlokString = idBlokList.joinToString(separator = ",")
 
-                    val tphData = withContext(Dispatchers.Main) {
+                    val tph1Entries = modifiedParsedData.tph1?.split(";")
+                    val tphSample = tph1Entries?.firstOrNull()
+
+                    if (!tphSample.isNullOrEmpty()) {
+                        val parts = tphSample.split(",")
+                        if (parts.isNotEmpty()) {
+                            val tphId = parts[0].toIntOrNull()
+
+
+                            AppLogger.d("tphid $tphId")
+                            if (tphId != null) {
+                                lifecycleScope.launch {
+                                    val tphDetails = datasetViewModel.getTPHDetailsByID(tphId)
+
+                                    AppLogger.d(tphDetails.toString())
+                                    if (tphDetails != null) {
+                                        AppLogger.d("TPH Details - Dept: ${tphDetails.dept_abbr}, Divisi: ${tphDetails.divisi_abbr}, Blok: ${tphDetails.blok}, Blok PPRO: ${tphDetails.blok_ppro}")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val blokSample = withContext(Dispatchers.Main) {
                         val tphDeferred = CompletableDeferred<TPHNewModel?>()
                         val firstBlockId = idBlokList.firstOrNull()
 
-                        // Fetch the TPH data if we have a block ID
                         firstBlockId?.let { blockId ->
                             weightBridgeViewModel.fetchTPHByBlockId(blockId)
 
@@ -1242,11 +1264,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     } ?: ""
 
                     AppLogger.d(nikValues.toString())
-                    globalRegional = tphData?.regional ?: ""
-                    globalWilayah = tphData?.wilayah ?: ""
-                    globalCompany = tphData?.company ?: 0
-                    globalDept = tphData?.dept ?: 0
-                    globalDivisi = tphData?.divisi ?: 0
+                    globalRegional = blokSample?.regional ?: ""
+                    globalWilayah = blokSample?.wilayah ?: ""
+                    globalCompany = blokSample?.company ?: 0
+                    globalDept = blokSample?.dept ?: 0
+                    globalDivisi = blokSample?.divisi ?: 0
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
