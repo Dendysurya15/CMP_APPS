@@ -20,6 +20,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.database.TPHDao
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
@@ -1108,51 +1110,79 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val idBlokList = blokJjgList.map { it.first }
                     val idBlokString = idBlokList.joinToString(separator = ",")
 
+                    // Modified code - Access repository correctly through ViewModel
                     val tph1Entries = modifiedParsedData.tph1?.split(";")
                     val tphSample = tph1Entries?.firstOrNull()
 
-                    if (!tphSample.isNullOrEmpty()) {
+                    var tphDetails: TPHDao.TPHDetails? = null
+
+                    val blokData = if (!tphSample.isNullOrEmpty()) {
                         val parts = tphSample.split(",")
                         if (parts.isNotEmpty()) {
                             val tphId = parts[0].toIntOrNull()
-
-
-                            AppLogger.d("tphid $tphId")
                             if (tphId != null) {
-                                lifecycleScope.launch {
-                                    val tphDetails = datasetViewModel.getTPHDetailsByID(tphId)
+                                // Wait for tphDetails to be fetched first
+                                withContext(Dispatchers.Main) {
+                                    val blokDeferred = CompletableDeferred<List<BlokModel>>()
 
-                                    AppLogger.d(tphDetails.toString())
-                                    if (tphDetails != null) {
-                                        AppLogger.d("TPH Details - Dept: ${tphDetails.dept_abbr}, Divisi: ${tphDetails.divisi_abbr}, Blok: ${tphDetails.blok}, Blok PPRO: ${tphDetails.blok_ppro}")
+                                    lifecycleScope.launch {
+                                        try {
+                                            // First, get the TPH details
+                                            tphDetails = datasetViewModel.getTPHDetailsByID(tphId)
+                                            AppLogger.d("tphDetail $tphDetails")
+
+                                            val est = tphDetails?.dept_abbr
+                                            val afd = tphDetails?.divisi_abbr
+
+                                            AppLogger.d("est $est")
+                                            AppLogger.d("afd $afd")
+                                            AppLogger.d("idBlokList $idBlokList")
+
+                                            // Process blocks sequentially using suspend functions
+                                            val allBlokData = mutableListOf<BlokModel>()
+
+                                            for (blockId in idBlokList) {
+                                                try {
+                                                    // Access repository through the ViewModel instance
+                                                    val result = withContext(Dispatchers.IO) {
+                                                        weightBridgeViewModel.repository.fetchBlokbyParams(blockId, est, afd)
+                                                    }
+
+                                                    result.getOrNull()?.let { blokModel ->
+                                                        allBlokData.add(blokModel)
+                                                        AppLogger.d("Added block $blockId: ${blokModel.kode}")
+                                                    } ?: AppLogger.w("Block $blockId returned null")
+
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error fetching block $blockId: ${e.message}")
+                                                }
+                                            }
+
+                                            AppLogger.d("Successfully fetched ${allBlokData.size} blocks")
+                                            blokDeferred.complete(allBlokData)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error in main block fetching: ${e.message}")
+                                            blokDeferred.complete(emptyList())
+                                        }
                                     }
+
+                                    blokDeferred.await()
                                 }
+                            } else {
+                                emptyList()
                             }
+                        } else {
+                            emptyList()
                         }
+                    } else {
+                        emptyList()
                     }
 
-                    val blokSample = withContext(Dispatchers.Main) {
-                        val tphDeferred = CompletableDeferred<TPHNewModel?>()
-                        val firstBlockId = idBlokList.firstOrNull()
+                    AppLogger.d("Total blokData: ${blokData.size}")
+                    AppLogger.d("blokData: $blokData")
 
-                        firstBlockId?.let { blockId ->
-                            weightBridgeViewModel.fetchTPHByBlockId(blockId)
-
-                            // Set up a one-time observer for the LiveData (now on main thread)
-                            weightBridgeViewModel.tphData.observe(this@ScanWeighBridgeActivity) { tphModel ->
-                                // Remove the observer to prevent future callbacks
-                                weightBridgeViewModel.tphData.removeObservers(this@ScanWeighBridgeActivity)
-                                tphDeferred.complete(tphModel)
-                            }
-                        } ?: tphDeferred.complete(null) // Complete with null if no block ID
-
-                        // Wait for the TPH data and return it
-                        tphDeferred.await()
-                    }
-
-                    val pemuatList =
-                        modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
-                            ?.filter { it.isNotEmpty() } ?: emptyList()
+                    val pemuatList = modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
+                        ?.filter { it.isNotEmpty() } ?: emptyList()
 
                     AppLogger.d("pemuatList $pemuatList")
 
@@ -1173,33 +1203,20 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     AppLogger.d("pemuatNama $pemuatNama")
 
-                    val blokData = try {
-                        weightBridgeViewModel.getDataByIdInBlok(idBlokList)
-                    } catch (e: Exception) {
-                        AppLogger.e("Error fetching Blok Data: ${e.message}")
-                        null
-                    } ?: emptyList()
 
-                    val blokIdToPproMap = blokData.associate { it.id_ppro to it.id }
-
-                    AppLogger.d("blokIdToPproMap $blokIdToPproMap")
-                    AppLogger.d("blokJjgList $blokJjgList")
-                    val BlokPPROJjg = blokJjgList.mapNotNull { (id_ppro, jjg) ->
-                        blokIdToPproMap[id_ppro]?.let { "$id_ppro,$jjg" } // Use id_ppro instead of 'it'
-                    }.joinToString(";")
-
-                    val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
-                    val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
+// Get dept and divisi info from first block
+                    val firstBlok = blokData.firstOrNull()
+                    val deptAbbr = firstBlok?.dept_abbr ?: "-"
+                    val divisiAbbr = firstBlok?.divisi_abbr ?: "-"
 
                     try {
                         // Check if first item exists and has dept_ppro and divisi_ppro
-                        val firstBlok = blokData.firstOrNull()
-                            ?: throw Exception("Terjadi kesalahan. Blok tidak ditemukan.")
+                        val validFirstBlok = firstBlok ?: throw Exception("Terjadi kesalahan. Blok tidak ditemukan.")
 
-                        val deptPpro = firstBlok.dept_ppro
+                        val deptPpro = validFirstBlok.dept_ppro
                             ?: throw Exception("Terjadi kesalahan. Estate tidak ditemukan.")
 
-                        val divisiPpro = firstBlok.divisi_ppro
+                        val divisiPpro = validFirstBlok.divisi_ppro
                             ?: throw Exception("Terjadi kesalahan. Afdeling tidak ditemukan.")
 
                         // Assign only if we didn't throw any exceptions
@@ -1211,12 +1228,36 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         throw e  // This will be caught by your outer catch block
                     }
 
-                    val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData.find { it.id_ppro == idBlok }?.kode
-                        if (blokKode != null && totalJjg != null) {
-                            "• $blokKode ($totalJjg jjg)"
-                        } else null
+                    val formattedBlokList = blokJjgList.mapNotNull { (blockKey, totalJjg) ->
+                        // Try to find by id_ppro first, then by id
+                        val blokModel = blokData.find { it.id_ppro == blockKey }
+                            ?: blokData.find { it.id == blockKey }
+
+                        if (blokModel != null && totalJjg != null) {
+                            "• ${blokModel.kode} ($totalJjg jjg)"
+                        } else {
+                            AppLogger.w("Block $blockKey not found in blokData")
+                            null
+                        }
                     }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+
+// For BlokPPROJjg - also super simple
+                    val BlokPPROJjg = blokJjgList.mapNotNull { (blockKey, jjg) ->
+                        // Try to find by id_ppro first, then by id
+                        val blokModel = blokData.find { it.id_ppro == blockKey }
+                            ?: blokData.find { it.id == blockKey }
+
+                        if (blokModel != null) {
+                            "${blokModel.id_ppro},$jjg"
+                        } else {
+                            AppLogger.w("Block $blockKey not found for BlokPPROJjg")
+                            null
+                        }
+                    }.joinToString(";")
+
+                    AppLogger.d("formattedBlokList:\n$formattedBlokList")
+                    AppLogger.d("BlokPPROJjg: $BlokPPROJjg")
+                    AppLogger.d("firstBlok $firstBlok")
 
                     val millId = modifiedParsedData?.espb?.millId ?: 0
 
@@ -1263,12 +1304,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             .joinToString(",")
                     } ?: ""
 
-                    AppLogger.d(nikValues.toString())
-                    globalRegional = blokSample?.regional ?: ""
-                    globalWilayah = blokSample?.wilayah ?: ""
-                    globalCompany = blokSample?.company ?: 0
-                    globalDept = blokSample?.dept ?: 0
-                    globalDivisi = blokSample?.divisi ?: 0
+                    globalRegional = firstBlok?.regional.toString() ?: ""
+                    globalWilayah = firstBlok?.wilayah.toString() ?: ""
+                    globalCompany = firstBlok?.company ?: 0
+                    globalDept = firstBlok?.dept ?: 0
+                    globalDivisi = firstBlok?.divisi ?: 0
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
