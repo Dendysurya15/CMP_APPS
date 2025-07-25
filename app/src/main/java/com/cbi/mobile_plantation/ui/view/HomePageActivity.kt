@@ -1488,7 +1488,6 @@ class HomePageActivity : AppCompatActivity() {
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
                                 // Add debug logging
-                                AppLogger.d("User role: ${prefManager!!.jabatanUserLogin}")
                                 AppLogger.d("afdelingIdString: $afdelingIdString")
                                 AppLogger.d("isMandor1: $isMandor1")
                                 AppLogger.d("isAsisten: $isAsisten")
