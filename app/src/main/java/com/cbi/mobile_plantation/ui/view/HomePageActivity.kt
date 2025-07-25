@@ -3638,11 +3638,7 @@ class HomePageActivity : AppCompatActivity() {
                                     "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
                                         ?: 0),
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
-                                    "no_pokok_start" to (inspeksiWithRelations.inspeksi.no_pokok_start
-                                        ?: 0),
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
-                                        ?: 0),
-                                    "jml_pokok_diperiksa" to (inspeksiWithRelations.inspeksi.jml_pkk_diperiksa
                                         ?: 0),
                                     "created_name" to (inspeksiWithRelations.inspeksi.created_name
                                         ?: ""),
@@ -6076,6 +6072,18 @@ class HomePageActivity : AppCompatActivity() {
                 ),
             )
         }
+
+        if (!isTriggerButtonSinkronisasiData) {
+
+            datasets.add(
+                DatasetRequest(
+                    regional = null,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.parameter
+                ),
+            )
+        }
+
 
         if (isMandorPanen) {
             datasets.add(

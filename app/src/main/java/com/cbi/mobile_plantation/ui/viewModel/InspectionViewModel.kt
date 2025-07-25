@@ -150,9 +150,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         jenis_kondisi: Int,
         baris: String,
         inspeksi_putaran: Int? = 1,
-        no_pokok_start: Int? = 1,
         jml_pkk_inspeksi: Int,
-        jml_pkk_diperiksa: Int,
         tracking_path: String,
         app_version: String,
         status_upload: String,
@@ -174,7 +172,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     inspectionId = existingInspectionId,
                     tracking_path_pemulihan = tracking_path_pemulihan,
                     inspeksi_putaran = 2,
-                    no_pokok_start = no_pokok_start ?: 1,
                     updated_date_start = updated_date_start ?: "",
                     updated_date_end = updated_date_end ?: "",
                     updated_by = updated_by ?: "",
@@ -200,9 +197,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     jenis_kondisi = jenis_kondisi,
                     baris = baris,
                     inspeksi_putaran = inspeksi_putaran,
-                    no_pokok_start =no_pokok_start,
                     jml_pkk_inspeksi = jml_pkk_inspeksi,
-                    jml_pkk_diperiksa = jml_pkk_diperiksa,
                     tracking_path = tracking_path,
                     app_version = app_version,
                     status_upload = status_upload,
@@ -551,27 +546,24 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
             AppLogger.d("Created ${regularPokokMappings.size} regular pokok inspection mappings from database parameters")
 
-            // Handle regular pokok (no_pokok 1 to totalPages)
-            for (page in 1..totalPages) {
-                val pageData = formData[page]
-                val emptyTreeValue = pageData?.emptyTree ?: 0
+            // More efficient approach: Loop through formData instead of 1..totalPages
+            formData.forEach { (pageNumber, pageData) ->
+                val emptyTreeValue = pageData.emptyTree
 
                 if (emptyTreeValue != 1) {
-                    AppLogger.d("Skipping page $page - emptyTree is not 1 (value: $emptyTreeValue)")
-                    continue
+                    AppLogger.d("Skipping page $pageNumber - emptyTree is not 1 (value: $emptyTreeValue)")
+                    return@forEach
                 }
 
-                AppLogger.d("Processing page $page with ${selectedKaryawanList.size} karyawan")
+                AppLogger.d("Processing page $pageNumber with ${selectedKaryawanList.size} karyawan")
 
                 selectedKaryawanList.forEach { karyawan ->
                     regularPokokMappings.forEach { mapping ->
-                        val rawValue = mapping.getValue(pageData!!, jumBrdTglPath, jumBuahTglPath)
+                        val rawValue = mapping.getValue(pageData, jumBrdTglPath, jumBuahTglPath)
 
-                        AppLogger.d("DEBUG: Page $page, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
+                        AppLogger.d("DEBUG: Page $pageNumber, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
 
-                        val undivided =
-                            parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided
-                                ?: "True"
+                        val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
                         val dividedValue = if (undivided == "False") {
                             rawValue.toDouble()
                         } else {
@@ -580,11 +572,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                         // Skip if temuan_inspeksi value is 0
                         if (dividedValue == 0.0) {
-                            AppLogger.d("Skipping save for page $page, karyawan ${karyawan.nama}, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
+                            AppLogger.d("Skipping save for page $pageNumber, karyawan ${karyawan.nama}, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
                             return@forEach
                         }
 
-                        AppLogger.d("Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
+                        AppLogger.d("Page $pageNumber, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
 
                         val inspectionDetail = InspectionDetailModel(
                             id_inspeksi = inspectionId,
@@ -593,7 +585,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             created_by = pageData.createdBy.toString(),
                             nik = karyawan.nik,
                             nama = karyawan.nama,
-                            no_pokok = page,
+                            no_pokok = pageNumber,
                             pokok_panen = pageData.harvestTree,
                             kode_inspeksi = mapping.kodeInspeksi,
                             temuan_inspeksi = dividedValue,
@@ -608,7 +600,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         )
 
                         inspectionDetailList.add(inspectionDetail)
-                        AppLogger.d("Added inspection detail: Page $page, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+                        AppLogger.d("Added inspection detail: Page $pageNumber, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
                     }
                 }
             }

@@ -2374,7 +2374,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
                             val baris = item.optString("baris", "")
                             val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
-                            val jmlPokokDiperiksa = item.optInt("jml_pokok_diperiksa", 0)
                             val createdName = item.optString("created_name", "")
                             val app_version = item.optString("app_version", "")
                             val createdBy = item.optInt("created_by", 0)
@@ -2395,7 +2394,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 jenis_kondisi = jenisInspeksi,
                                 baris = baris,
                                 jml_pkk_inspeksi = jmlPokokInspeksi,
-                                jml_pkk_diperiksa =  jmlPokokDiperiksa,
                                 tracking_path = trackingPath,
                                 dataIsZipped = 0,
                                 app_version = app_version,

@@ -1018,16 +1018,16 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun loadInspectionDataToViewModelSecondForm(inspectionData: InspectionWithDetailRelations) {
         val detailInspeksi = inspectionData.detailInspeksi
 
-        // Group details by no_pokok (page number)
-        val groupedByPokok = detailInspeksi.groupBy { it.no_pokok }
+        val groupedByPokok = detailInspeksi.groupBy { it.no_pokok }.toSortedMap()
 
-        AppLogger.d("Loading inspection data for ${groupedByPokok.size} pokok pages")
+        val startPage = groupedByPokok.keys.firstOrNull() ?: 1
 
-        // Load each page data
+        formAncakViewModel.setCurrentPage(startPage)
+        formAncakViewModel.setStartingPage(startPage)
+
         groupedByPokok.forEach { (noPokak, details) ->
             val pageData = convertInspectionDetailsToPageData(noPokak, details)
 
-            // Save to ViewModel
             formAncakViewModel.savePageData(noPokak, pageData)
 
             AppLogger.d("Loaded page $noPokak with data: $pageData")
@@ -1178,12 +1178,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     preselectSpinnerValues(inspection)
                     preselectRadioValues(inspection)
                     preselectEditTextValues(inspection)
-//
-//                    selectedEstateByScan = currentInspectionData?.tph?.dept_abbr ?: ""
-//                    selectedAfdelingByScan = currentInspectionData?.tph?.divisi_abbr ?: ""
-//                    selectedBlokByScan = currentInspectionData?.tph?.blok_kode ?: ""
-//                    selectedIdPanenByScan = currentInspectionData?.inspeksi?.id_panen
-//                    selectedTanggalPanenByScan  = currentInspectionData?.inspeksi?.date_panen
 
                     Handler(Looper.getMainLooper()).postDelayed({
                         safePreloadTPH(inspection)
@@ -1503,10 +1497,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi
                                         ?: 1,
                                     baris = currentInspectionData?.inspeksi?.baris ?: "",
-                                    no_pokok_start = currentInspectionData?.inspeksi?.no_pokok_start ?: 1,
                                     jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi
-                                        ?: 0,
-                                    jml_pkk_diperiksa = totalPokokDiperiksa
                                         ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
@@ -1544,9 +1535,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     jalur_masuk = selectedJalurMasuk,
                                     jenis_kondisi = selectedKondisiValue.toInt(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
-                                    no_pokok_start = nextPokokStart,
                                     jml_pkk_inspeksi = totalPokokInspection,
-                                    jml_pkk_diperiksa = totalPokokDiperiksa,
                                     tracking_path = trackingJson.toString(),
                                     app_version = infoApp,
                                     status_upload = "0",
@@ -1662,12 +1651,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                         )
 
                         AppLogger.d("globalInspectionId $inspectionId")
+                        AppLogger.d("globalInspectionId $inspectionId")
                         intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.InspeksiPanen)
                         intent.putExtra("IS_FROM_PASAR_TENGAH", true)
                         intent.putExtra("DIVISI_ABBR", selectedAfdeling)
                         intent.putExtra("DEPT_ABBR", prefManager!!.estateUserLogin)
                         intent.putExtra("BLOK_KODE", selectedBlokByScan)
-                        intent.putExtra("LAST_NUMBER_POKOK", totalPokokDiperiksa)
+                        intent.putExtra("LAST_NUMBER_POKOK", totalPokokInspection)
 
                         inspectionId?.let { id ->
                             intent.putExtra("id_inspeksi", id.toInt())
@@ -2957,13 +2947,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             emptyTreeValue == 1 || emptyTreeValue == 2
         }
 
-        totalPokokDiperiksa = (1..totalPages).count { pageNumber ->
-            val emptyTreeValue = formData[pageNumber]?.emptyTree ?: 0
-            emptyTreeValue != 0
-        }
-
-        AppLogger.d("totalPokokInspection $totalPokokInspection")
-        AppLogger.d("totalPokokDiperiksa $totalPokokDiperiksa")
 
         // Get container for dynamic cards
         val containerTemuanCards = findViewById<LinearLayout>(R.id.containerTemuanCards)
@@ -4339,6 +4322,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         // Get unique workers from inspection details (remove duplicates)
                         val uniqueInspectedWorkers = currentInspectionData?.detailInspeksi
+                            ?.filter { !it.nik.isNullOrBlank() && !it.nama.isNullOrBlank() } // Add this filter
                             ?.map { "${it.nik} - ${it.nama}" }
                             ?.toSet() ?: emptySet()
 
@@ -4359,6 +4343,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                             if (parts.size >= 2) {
                                 val nik = parts[0].trim()
                                 val nama = parts[1].trim()
+
+                                // Add validation to skip empty workers
+                                if (nik.isBlank() || nama.isBlank()) {
+                                    AppLogger.d("Skipping worker with empty nik or nama: $formattedWorker")
+                                    return@forEach
+                                }
 
                                 AppLogger.d("Processing worker: nik=$nik, nama=$nama")
                                 AppLogger.d("Formatted worker: $formattedWorker")
@@ -4442,11 +4432,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         selectedAncakByScan = ancakText
 
-                        val panenIdsJson = JSONArray()
-                        currentInspectionData?.inspeksi?.id_panen?.let { panenId ->
-                            panenIdsJson.put(panenId)
-                        }
-                        selectedIdPanenByScan = panenIdsJson.toString()
+                        selectedIdPanenByScan =   currentInspectionData?.inspeksi?.id_panen
 
                         selectedTanggalPanenByScan = currentInspectionData?.inspeksi?.date_panen ?: "[]"
 
@@ -4483,6 +4469,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         AppLogger.d("Pasar tengah - Total selected workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
                         AppLogger.d("Pasar tengah - Available workers: ${availableWorkers.size}")
+
+
+                        AppLogger.d("selectedKaryawanList $selectedKaryawanList")
                     } else {
                         val matchingPanenList = panenTPH.filter { panenWithRelations ->
                             val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()

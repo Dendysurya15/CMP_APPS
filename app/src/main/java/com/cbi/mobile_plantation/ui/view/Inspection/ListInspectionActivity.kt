@@ -423,12 +423,13 @@ class ListInspectionActivity : AppCompatActivity() {
                         this@ListInspectionActivity,
                         FormInspectionActivity::class.java
                     )
+
                     intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.InspeksiPanen)
                     intent.putExtra("IS_FROM_PASAR_TENGAH",true)
                     intent.putExtra("DIVISI_ABBR",inspectionPath.tph.divisi_abbr)
                     intent.putExtra("DEPT_ABBR",inspectionPath.tph.dept_abbr)
                     intent.putExtra("BLOK_KODE",inspectionPath.tph.blok_kode)
-                    intent.putExtra("LAST_NUMBER_POKOK",inspectionPath.inspeksi.jml_pkk_diperiksa)
+                    intent.putExtra("LAST_NUMBER_POKOK",inspectionPath.inspeksi.jml_pkk_inspeksi)
                     intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
                     startActivity(intent)
                 },
