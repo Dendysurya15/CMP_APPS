@@ -446,8 +446,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             null
         }
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility = View.VISIBLE
-            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
             map = findViewById(R.id.map)
             setupMapTouchHandling()
             setupMap()
@@ -762,7 +760,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             fabPhotoInfoBlok.visibility = View.VISIBLE
 
-            if (is_from_pasar_tengah) {
+            if (is_from_pasar_tengah || featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                 // For Pasar Tengah flow - go to Pokok mode (P. Ancak first)
                 isStartFromTPH = false
                 hasSelectedMode = true
@@ -781,7 +779,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         mainContentWrapper.visibility = View.VISIBLE
         headerFormInspection.visibility = View.VISIBLE
 
-        if (is_from_pasar_tengah) {
+        if (is_from_pasar_tengah || featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             isInTPH = false
             showFormInspectionScreen()
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
@@ -806,15 +804,17 @@ open class FormInspectionActivity : AppCompatActivity(),
             AppLogger.d("Inspection started immediately in ${if (is_from_pasar_tengah) "Pasar Tengah" else "Pokok"} mode at: $dateStartInspection")
         }
 
-        if (is_from_pasar_tengah) {
+        if (is_from_pasar_tengah || featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             formAncakViewModel.updateInfoFormAncak(
                 dept_abbr_pasar_tengah ?: "",
                 divisi_abbr_pasar_tengah ?: "",
                 blok_kode_pasar_tengah ?: ""
             )
             val startPage = (last_pokok_before_pasar_tengah ?: 1) + 1
-            formAncakViewModel.setCurrentPage(startPage)
-            formAncakViewModel.setStartingPage(startPage)
+
+//            AppLogger.d("startPage :$startPage")
+//            formAncakViewModel.setCurrentPage(startPage)
+//            formAncakViewModel.setStartingPage(startPage)
         } else {
             val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
             formAncakViewModel.updateInfoFormAncak(
@@ -1015,12 +1015,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun loadInspectionDataToViewModelSecondForm(inspectionData: InspectionWithDetailRelations) {
+    private fun loadInspectionDataToViewModelFirstForm(inspectionData: InspectionWithDetailRelations) {
         val detailInspeksi = inspectionData.detailInspeksi
 
         val groupedByPokok = detailInspeksi.groupBy { it.no_pokok }.toSortedMap()
 
-        val startPage = groupedByPokok.keys.firstOrNull() ?: 1
+        val startPage = groupedByPokok.keys.filter { it > 0 }.firstOrNull() ?: 1
 
         formAncakViewModel.setCurrentPage(startPage)
         formAncakViewModel.setStartingPage(startPage)
@@ -1029,15 +1029,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             val pageData = convertInspectionDetailsToPageData(noPokak, details)
 
             formAncakViewModel.savePageData(noPokak, pageData)
-
-            AppLogger.d("Loaded page $noPokak with data: $pageData")
         }
-
-        // Update total pages based on actual data
-        val maxPokok = groupedByPokok.keys.maxOrNull() ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+        val maxPokok =
+            groupedByPokok.keys.filter { it > 0 }.maxOrNull() ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         formAncakViewModel.updateTotalPages(maxPokok)
-
-        AppLogger.d("Updated total pages to: $maxPokok")
     }
 
     private fun convertInspectionDetailsToPageData(
@@ -1045,7 +1040,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         details: List<InspectionDetailModel>
     ): FormAncakViewModel.PageData {
 
-        // Initialize with default values - changed to Double
         var emptyTree = 0
         var harvestTree = 0
         var neatPelepah = 0.0
@@ -1064,7 +1058,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         var createdBy: Int? = null
         var createdName: String? = null
 
-        // Get common data from first detail (they should be same for same pokok)
         val firstDetail = details.firstOrNull()
         if (firstDetail != null) {
             photo = firstDetail.foto
@@ -1086,47 +1079,89 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Process each kode_inspeksi based on undivided status
         groupedByKode.forEach { (kodeInspeksi, detailsForKode) ->
+
             val isUndivided = inspectionConfig[kodeInspeksi] ?: true
 
             val finalValue = if (isUndivided) {
                 // Sum all temuan_inspeksi values (preserve decimal values)
-                detailsForKode.sumOf { it.temuan_inspeksi.toDouble() }
+                val sumValue = detailsForKode.sumOf { it.temuan_inspeksi.toDouble() }
+                sumValue
             } else {
                 // Check if kode_inspeksi is between 7-10 for special handling
                 if (kodeInspeksi in 7..10) {
                     val value = detailsForKode.firstOrNull()?.temuan_inspeksi?.toDouble() ?: 0.0
-                    if (value == 0.0) 2.0 else value
+                    val convertedValue = if (value == 0.0) 2.0 else value
+                    convertedValue
                 } else {
-                    // For other codes, just use the raw value
-                    detailsForKode.firstOrNull()?.temuan_inspeksi?.toDouble() ?: 0.0
+                    val rawValue = detailsForKode.firstOrNull()?.temuan_inspeksi?.toDouble() ?: 0.0
+                    rawValue
                 }
             }
 
             when (kodeInspeksi) {
-                1 -> brdKtpGawangan = finalValue
-                2 -> brdKtpPiringanPikulKetiak = finalValue
-                3 -> buahMasakTdkDipotong = finalValue
-                4 -> btPiringanGawangan = finalValue
-                5 -> { /* This might be TPH level data, not pokok level */
+                1 -> {
+                    brdKtpGawangan = finalValue
+                    AppLogger.d("  → brdKtpGawangan = $finalValue")
                 }
-
-                6 -> { /* This might be TPH level data, not pokok level */
+                2 -> {
+                    brdKtpPiringanPikulKetiak = finalValue
+                    AppLogger.d("  → brdKtpPiringanPikulKetiak = $finalValue")
                 }
-
-                7 -> neatPelepah = finalValue
-                8 -> pelepahSengkleh = finalValue
-                9 -> overPruning = finalValue
-                10 -> underPruning = finalValue
+                3 -> {
+                    buahMasakTdkDipotong = finalValue
+                    AppLogger.d("  → buahMasakTdkDipotong = $finalValue")
+                }
+                4 -> {
+                    btPiringanGawangan = finalValue
+                    AppLogger.d("  → btPiringanGawangan = $finalValue")
+                }
+                5 -> {
+                    AppLogger.d("  → Code 5 (TPH level data) = $finalValue - skipped")
+                }
+                6 -> {
+                    AppLogger.d("  → Code 6 (TPH level data) = $finalValue - skipped")
+                }
+                7 -> {
+                    neatPelepah = finalValue
+                    AppLogger.d("  → neatPelepah = $finalValue")
+                }
+                8 -> {
+                    pelepahSengkleh = finalValue
+                    AppLogger.d("  → pelepahSengkleh = $finalValue")
+                }
+                9 -> {
+                    overPruning = finalValue
+                    AppLogger.d("  → overPruning = $finalValue")
+                }
+                10 -> {
+                    underPruning = finalValue
+                    AppLogger.d("  → underPruning = $finalValue")
+                }
             }
         }
 
-        // Determine emptyTree based on findings
+        // Add defaults for missing codes 7, 8, 10
+        if (!groupedByKode.containsKey(7)) {
+            neatPelepah = 2.0
+        }
+        if (!groupedByKode.containsKey(8)) {
+            pelepahSengkleh = 2.0
+        }
+        if (!groupedByKode.containsKey(9)) {
+            overPruning = 2.0
+        }
+        if (!groupedByKode.containsKey(10)) {
+            underPruning = 2.0
+        }
+
         emptyTree = if (details.isNotEmpty()) {
-            // If there are any findings, set to 1 (Ya/Ada Temuan)
-            if (buahMasakTdkDipotong > 0.0 || btPiringanGawangan > 0.0 ||
-                brdKtpGawangan > 0.0 || brdKtpPiringanPikulKetiak > 0.0 ||
-                neatPelepah > 0.0 || pelepahSengkleh > 0.0 || underPruning > 0.0 || overPruning > 0.0
-            ) {
+            // Check for actual problems (value = 1 means "Ada"/"Ya")
+            val hasNumericFindings = buahMasakTdkDipotong > 0.0 || btPiringanGawangan > 0.0 ||
+                    brdKtpGawangan > 0.0 || brdKtpPiringanPikulKetiak > 0.0
+            val hasRadioFindings = neatPelepah == 1.0 || pelepahSengkleh == 1.0 ||
+                    underPruning == 1.0 || overPruning == 1.0
+
+            if (hasNumericFindings || hasRadioFindings) {
                 1 // Ada temuan
             } else {
                 2 // Tidak ada temuan
@@ -1137,7 +1172,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         harvestTree = firstDetail?.pokok_panen ?: 2 // Default to "Tidak" if not specified
 
-        return FormAncakViewModel.PageData(
+        val pageData = FormAncakViewModel.PageData(
             pokokNumber = noPokak,
             emptyTree = emptyTree,
             harvestTree = harvestTree,
@@ -1157,6 +1192,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             createdBy = createdBy,
             createdName = createdName
         )
+
+        AppLogger.d("Final PageData created: $pageData")
+        AppLogger.d("=== END CONVERSION FOR NO_POKOK $noPokak ===")
+
+        return pageData
     }
 
     private fun observeViewModel() {
@@ -1168,17 +1208,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                 currentInspectionData = inspection
                 if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                     updateMapWithInspectionData(inspection)
-                    populateFollowUpInspectionFirstFormUI(inspection)
+                    populateFollowUpInspectionSecondFormUI(inspection)
                     setupCountersFromInspectionData(inspection.detailInspeksi)
                     setupPemanenRecyclerView(inspection.detailInspeksi)
-                    loadInspectionDataToViewModelSecondForm(inspection)
+                    loadInspectionDataToViewModelFirstForm(inspection)
                 }
 
                 if (is_from_pasar_tengah) {
                     preselectSpinnerValues(inspection)
                     preselectRadioValues(inspection)
                     preselectEditTextValues(inspection)
-
                     Handler(Looper.getMainLooper()).postDelayed({
                         safePreloadTPH(inspection)
                     }, 200)
@@ -1488,7 +1527,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     created_date_start = currentInspectionData?.inspeksi?.created_date
                                         ?: "",
                                     created_by = currentInspectionData?.inspeksi?.created_by ?: "",
-                                    created_name = currentInspectionData?.inspeksi?.created_name ?: "",
+                                    created_name = currentInspectionData?.inspeksi?.created_name
+                                        ?: "",
                                     tph_id = currentInspectionData?.inspeksi?.tph_id ?: 0,
                                     id_panen = currentInspectionData?.inspeksi?.id_panen ?: "0",
                                     date_panen = currentInspectionData?.inspeksi?.date_panen ?: "",
@@ -2394,6 +2434,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
+                            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
+                                View.VISIBLE
+                            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
                             clFormInspection.visibility = View.GONE
                             clInfoBlokSection.visibility = View.VISIBLE
                             infoBlokView.visibility = View.VISIBLE
@@ -2844,6 +2887,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             val singleDate = datesJson.getString(0)
                             AppUtils.formatToIndonesianDate(singleDate) // Just the formatted date
                         }
+
                         else -> {
                             val datesList = mutableListOf<String>()
                             for (i in 0 until datesJson.length()) {
@@ -2870,6 +2914,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             val singleDate = datesJson.getString(0)
                             AppUtils.formatToIndonesianDate(singleDate) // Just the formatted date
                         }
+
                         else -> {
                             val datesList = mutableListOf<String>()
                             for (i in 0 until datesJson.length()) {
@@ -4428,13 +4473,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                             AppLogger.d("- Available: ${worker.name} (ID: ${worker.id})")
                         }
 
-                        val ancakText = currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
+                        val ancakText =
+                            currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
 
                         selectedAncakByScan = ancakText
 
-                        selectedIdPanenByScan =   currentInspectionData?.inspeksi?.id_panen
+                        selectedIdPanenByScan = currentInspectionData?.inspeksi?.id_panen
 
-                        selectedTanggalPanenByScan = currentInspectionData?.inspeksi?.date_panen ?: "[]"
+                        selectedTanggalPanenByScan =
+                            currentInspectionData?.inspeksi?.date_panen ?: "[]"
 
                         // Parse the JSON arrays for display text (same logic as else branch)
                         val dateList = try {
@@ -4465,7 +4512,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         } else {
                             "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
                         }
-                        descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+                        descPemanenInspeksi.text =
+                            Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
                         AppLogger.d("Pasar tengah - Total selected workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
                         AppLogger.d("Pasar tengah - Available workers: ${availableWorkers.size}")
@@ -4604,7 +4652,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             }
                         }
 
-                        selectedIdPanenByScan = panenIdsJson.toString() // Store as JSON array of IDs
+                        selectedIdPanenByScan =
+                            panenIdsJson.toString() // Store as JSON array of IDs
 
                         selectedAncakByScan = ancakText
                         val datesJson = JSONArray()
@@ -4612,7 +4661,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             datesJson.put(date)
                         }
 
-                        selectedTanggalPanenByScan = datesJson.toString() // Store as JSON array of dates
+                        selectedTanggalPanenByScan =
+                            datesJson.toString() // Store as JSON array of dates
 
 
                         val descriptionText = if (mergedData.dateList.size > 1) {
@@ -4882,7 +4932,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n")
-    private fun populateFollowUpInspectionFirstFormUI(inspectionData: InspectionWithDetailRelations) {
+    private fun populateFollowUpInspectionSecondFormUI(inspectionData: InspectionWithDetailRelations) {
         val inspection = inspectionData.inspeksi
         val tph = inspectionData.tph
         val panen = inspectionData.panen
@@ -4919,6 +4969,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val singleDate = datesJson.getString(0)
                         AppUtils.formatToIndonesianDate(singleDate)
                     }
+
                     else -> {
                         val datesList = mutableListOf<String>()
                         for (i in 0 until datesJson.length()) {
