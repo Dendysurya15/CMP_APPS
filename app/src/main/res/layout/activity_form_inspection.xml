@@ -16,7 +16,7 @@
         android:gravity="center"
         android:orientation="vertical"
         android:padding="40dp"
-        android:visibility="visible"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -73,7 +73,7 @@
         android:id="@+id/mainContentWrapper"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone">
+        android:visibility="visible">
 
         <include
             android:id="@+id/headerFormInspection"
@@ -716,12 +716,13 @@
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
+            <!-- Badge for photo FAB -->
             <View
                 android:id="@+id/badgePhotoInfoBlok"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/greenDarker"
+                android:backgroundTint="@color/colorRedDark"
                 android:elevation="10dp"
                 android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="@id/fabPhotoInfoBlok"
@@ -749,7 +750,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Action Button Form Data Section -->
+
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabPhotoFormInspect"
                 style="@style/RoundedFAB"
@@ -772,11 +773,41 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/greenDarker"
+                android:backgroundTint="@color/colorRedDark"
                 android:elevation="10dp"
                 android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="@id/fabPhotoFormInspect"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPhotoUser"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="100dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_camera_front_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="35dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="gone"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Badge for video camera FAB -->
+            <View
+                android:id="@+id/badgePhotoUser"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:background="@drawable/circle_white_background"
+                android:backgroundTint="@color/colorRedDark"
+                android:elevation="10dp"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="@id/fabPhotoUser"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabPrevFormInspect"
@@ -928,6 +959,36 @@
                 </LinearLayout>
 
             </ScrollView>
+
+            <!-- Selfie FAB for summary - shows when total pages < 20 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPhotoUser2"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="15dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_video_camera_front_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toTopOf="@+id/fabSaveFormInspect"
+                app:layout_constraintStart_toStartOf="@+id/fabSaveFormInspect"
+                app:maxImageSize="35dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="gone"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Badge for selfie FAB in summary -->
+            <View
+                android:id="@+id/badgePhotoUser2"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:background="@drawable/circle_white_background"
+                android:backgroundTint="@color/colorRedDark"
+                android:elevation="10dp"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="@id/fabPhotoUser2"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser2" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabSaveFormInspect"

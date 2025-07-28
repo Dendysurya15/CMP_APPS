@@ -295,6 +295,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var infoBlokView: ScrollView
     private lateinit var formInspectionView: ConstraintLayout
     private lateinit var map: MapView
+    private var photoSelfie: String? = null
+    private var isForSelfie: Boolean = false
     private lateinit var summaryView: ConstraintLayout
     private lateinit var bottomNavInspect: BottomNavigationView
     private lateinit var vpFormAncak: ViewPager2
@@ -303,6 +305,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
+    private lateinit var fabPhotoUser: FloatingActionButton
+    private lateinit var fabPhotoUser2: FloatingActionButton
     private lateinit var fabPhotoInfoBlok: FloatingActionButton
     private lateinit var clInfoBlokSection: ConstraintLayout
     private lateinit var clFormInspection: ConstraintLayout
@@ -804,18 +808,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             AppLogger.d("Inspection started immediately in ${if (is_from_pasar_tengah) "Pasar Tengah" else "Pokok"} mode at: $dateStartInspection")
         }
 
-        if (is_from_pasar_tengah || featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+        if (is_from_pasar_tengah) {
             formAncakViewModel.updateInfoFormAncak(
                 dept_abbr_pasar_tengah ?: "",
                 divisi_abbr_pasar_tengah ?: "",
                 blok_kode_pasar_tengah ?: ""
             )
             val startPage = (last_pokok_before_pasar_tengah ?: 1) + 1
-
-//            AppLogger.d("startPage :$startPage")
-//            formAncakViewModel.setCurrentPage(startPage)
-//            formAncakViewModel.setStartingPage(startPage)
-        } else {
+            formAncakViewModel.setCurrentPage(startPage)
+            formAncakViewModel.setStartingPage(startPage)
+        }else if(featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
             val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
             formAncakViewModel.updateInfoFormAncak(
                 estateName ?: "",
@@ -1024,7 +1026,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         formAncakViewModel.setCurrentPage(startPage)
         formAncakViewModel.setStartingPage(startPage)
-
+        AppLogger.d("inspectionData inspeksi ${inspectionData.inspeksi}")
+        formAncakViewModel.updateInfoFormAncak(
+            inspectionData.inspeksi.dept_abbr ?: "",
+            inspectionData.inspeksi.divisi_abbr ?: "",
+            inspectionData.inspeksi.blok_kode ?: ""
+        )
         groupedByPokok.forEach { (noPokak, details) ->
             val pageData = convertInspectionDetailsToPageData(noPokak, details)
 
@@ -1238,8 +1245,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             val totalPages =
                 formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
-
-
             Handler(Looper.getMainLooper()).postDelayed({
                 val startingPage = formAncakViewModel.startingPage.value ?: 1
                 fabPrevFormAncak.isEnabled = currentPage > startingPage
@@ -1270,11 +1275,38 @@ open class FormInspectionActivity : AppCompatActivity(),
             val pageData = formData[currentPage]
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
-            // Show/hide photo FAB based on conditions
-            fabPhotoFormAncak.visibility = if (emptyTreeValue == 1) {
+            // Show fabPhotoUser if current page meets the minimal requirement
+            fabPhotoUser.visibility = if (currentPage == AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION) {
                 View.VISIBLE
             } else {
                 View.GONE
+            }
+
+            // Show fabPhotoFormInspect if empty tree value is 1
+            val shouldShowFormPhoto = emptyTreeValue == 1
+            fabPhotoFormAncak.visibility = if (shouldShowFormPhoto) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
+
+            // Dynamically adjust fabPhotoUser position based on fabPhotoFormInspect visibility
+            if (fabPhotoUser.visibility == View.VISIBLE) {
+                val layoutParams = fabPhotoUser.layoutParams as ConstraintLayout.LayoutParams
+
+                if (shouldShowFormPhoto) {
+                    // Form photo is visible - position selfie FAB above it
+                    layoutParams.bottomToTop = R.id.fabPhotoFormInspect
+                    layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
+                    layoutParams.bottomMargin = (15 * resources.displayMetrics.density).toInt() // 15dp
+                } else {
+                    // Form photo is hidden - position selfie FAB at same location as form photo
+                    layoutParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
+                    layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+                    layoutParams.bottomMargin = (15 * resources.displayMetrics.density).toInt() // 15dp
+                }
+
+                fabPhotoUser.layoutParams = layoutParams
             }
         }
 
@@ -1295,14 +1327,32 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupPressedFAB() {
         fabNextFormAncak.setOnClickListener {
-            AppLogger.d("kaljds")
             val currentPokok = formAncakViewModel.currentPage.value ?: 1
             val nextPokok = currentPokok + 1
-            val totalPokok =
-                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val totalPokok = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
             val photoValue = pokokData?.photo ?: ""
+
+            // NEW: Selfie validation - check if current page >= minimal and selfie is missing
+            val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
+
+            AppLogger.d("Next button - currentPokok: $currentPokok, hasSelfiePhoto: $hasSelfiePhoto")
+
+            if (currentPokok >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
+                vibrate(500)
+                isForSelfie = true
+                showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon dapat mengambil foto user/selfie terlebih dahulu!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
 
             val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
             val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
@@ -1316,7 +1366,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
 
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
-            AppLogger.d("klasdjfkljasdf")
             if (hasFindings && !hasValidPhoto) {
                 vibrate(500)
                 showViewPhotoBottomSheet(null, isInTPH)
@@ -1334,10 +1383,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
-
-            AppLogger.d("klasdjfkljasdf")
-            val validationResult =
-                formAncakViewModel.validateCurrentPage(1)
+            val validationResult = formAncakViewModel.validateCurrentPage(1)
 
             AppLogger.d("df")
 
@@ -1399,11 +1445,31 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         fabPrevFormAncak.setOnClickListener {
             val currentPokok = formAncakViewModel.currentPage.value ?: 1
-
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val prevPage = currentPage - 1
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
+
+            // NEW: Selfie validation - check if current page >= minimal and selfie is missing
+            val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
+
+            AppLogger.d("Prev button - currentPokok: $currentPokok, hasSelfiePhoto: $hasSelfiePhoto")
+
+            if (currentPokok >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
+                vibrate(500)
+                isForSelfie = true
+                showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon dapat mengambil foto user/selfie terlebih dahulu!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
+
             val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
             val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
             val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
@@ -1412,7 +1478,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     (btPiringanGawangan > 0) ||
                     (btPiringanGawangan > 0) ||
                     ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
-
 
             val photoValue = pokokData?.photo ?: ""
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
@@ -1440,7 +1505,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     lat,
                     lon,
                     prefManager!!,
-                    this@FormInspectionActivity  // Pass context here
+                    this@FormInspectionActivity
                 )
             }
 
@@ -1463,15 +1528,49 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
+
         fabPhotoFormAncak.setOnClickListener {
-            showViewPhotoBottomSheet(null, isInTPH)
+            isForSelfie = false
+            showViewPhotoBottomSheet(null, false, false) // Form photo
+        }
+
+        fabPhotoUser.setOnClickListener {
+            isForSelfie = true
+            showViewPhotoBottomSheet(null, false, true) // Selfie photo
         }
 
         fabPhotoInfoBlok.setOnClickListener {
-            showViewPhotoBottomSheet(null, isInTPH)
+            isForSelfie = false
+            showViewPhotoBottomSheet(null, true, false) // TPH photo
+        }
+
+        fabPhotoUser2?.setOnClickListener {
+            isForSelfie = true
+            showViewPhotoBottomSheet(null, false, true) // Selfie photo
         }
 
         fabSaveFormAncak.setOnClickListener {
+            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+            val totalPagesWithData = formData.size
+            val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
+
+            AppLogger.d("Save button - totalPagesWithData: $totalPagesWithData, hasSelfiePhoto: $hasSelfiePhoto")
+
+            if (totalPagesWithData >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
+                vibrate(500)
+                isForSelfie = true
+                showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_not_completed),
+                    "Mohon dapat mengambil foto user/selfie terlebih dahulu sebelum menyimpan!",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
+
             if (totalPokokInspection <= 0) {
                 vibrate(500)
                 AlertDialogUtility.withSingleAction(
@@ -1541,6 +1640,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
+                                    foto_user = photoSelfie?: "",
                                     app_version = currentInspectionData?.inspeksi?.app_version
                                         ?: "",
                                     app_version_pemulihan = infoApp,
@@ -1572,6 +1672,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     tph_id = selectedTPHIdByScan ?: 0,
                                     id_panen = selectedIdPanenByScan ?: "0",
                                     date_panen = selectedTanggalPanenByScan!!,
+                                    foto_user = photoSelfie ?: "",
                                     jalur_masuk = selectedJalurMasuk,
                                     jenis_kondisi = selectedKondisiValue.toInt(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
@@ -1858,7 +1959,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n", "InflateParams")
-    private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null) {
+    private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null, isForSelfie:Boolean? = null) {
 
         AppLogger.d("isInTPH $isInTPH")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
@@ -1921,7 +2022,18 @@ open class FormInspectionActivity : AppCompatActivity(),
             behavior.isDraggable = false
         }
 
-        if (isInTPH == true) {
+        if (isForSelfie == true) {
+            // Selfie photo case
+            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
+            titlePhotoTemuan.text = "Lampiran Foto Selfie User"
+
+            // Hide comment section for selfie photos
+            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
+            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
+            titleComment.visibility = View.GONE
+            etPhotoComment.visibility = View.GONE
+
+        } else if (isInTPH == true) {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
             if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                 titlePhotoTemuan.text = "Lampiran Foto Pemulihan di TPH"
@@ -1954,19 +2066,27 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        val photoToShow = if (isInTPH == true) photoInTPH else currentData.photo
+        val photoToShow = when {
+            isForSelfie == true -> photoSelfie
+            isInTPH == true -> photoInTPH
+            else -> currentData.photo
+        }
 
-        val watermarkType = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-            if (isInTPH == true) {
-                WaterMarkFotoDanFolder.WMFUInspeksiTPH
-            } else {
-                WaterMarkFotoDanFolder.WMFUInspeksiPokok
+        val watermarkType = when {
+            isForSelfie == true -> WaterMarkFotoDanFolder.WMBuktiInspeksiUser
+            featureName == AppUtils.ListFeatureNames.FollowUpInspeksi -> {
+                if (isInTPH == true) {
+                    WaterMarkFotoDanFolder.WMFUInspeksiTPH
+                } else {
+                    WaterMarkFotoDanFolder.WMFUInspeksiPokok
+                }
             }
-        } else {
-            if (isInTPH == true) {
-                WaterMarkFotoDanFolder.WMInspeksiTPH
-            } else {
-                WaterMarkFotoDanFolder.WMInspeksiPokok
+            else -> {
+                if (isInTPH == true) {
+                    WaterMarkFotoDanFolder.WMInspeksiTPH
+                } else {
+                    WaterMarkFotoDanFolder.WMInspeksiPokok
+                }
             }
         }
 
@@ -1978,19 +2098,26 @@ open class FormInspectionActivity : AppCompatActivity(),
             etPhotoComment.setText("")
             etPhotoComment.clearFocus()
 
-            if (isInTPH == true) {
-                // Clear TPH photo
-                photoInTPH = null
-                komentarInTPH = null
-            } else {
-                // Clear form data photo
-                formAncakViewModel.savePageData(
-                    currentPage,
-                    currentData.copy(
-                        photo = null,
-                        comment = null,
+            when {
+                isForSelfie == true -> {
+                    // Clear selfie photo
+                    photoSelfie = null
+                }
+                isInTPH == true -> {
+                    // Clear TPH photo
+                    photoInTPH = null
+                    komentarInTPH = null
+                }
+                else -> {
+                    // Clear form data photo
+                    formAncakViewModel.savePageData(
+                        currentPage,
+                        currentData.copy(
+                            photo = null,
+                            comment = null,
+                        )
                     )
-                )
+                }
             }
 
             updatePhotoBadgeVisibility()
@@ -1998,7 +2125,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             bottomNavInspect.visibility = View.VISIBLE
             bottomSheetDialog.dismiss()
             Handler(Looper.getMainLooper()).postDelayed({
-                showViewPhotoBottomSheet(null, isInTPH)
+                showViewPhotoBottomSheet(null, isInTPH, isForSelfie)
             }, 100)
         }
 
@@ -2091,7 +2218,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 onClosePhoto = {
                                     bottomNavInspect.visibility = View.VISIBLE
                                     Handler(Looper.getMainLooper()).postDelayed({
-                                        showViewPhotoBottomSheet(null, isInTPH)
+                                        showViewPhotoBottomSheet(null, isInTPH, isForSelfie) // Add isForSelfie here
                                     }, 100)
                                 }
                             )
@@ -2278,6 +2405,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
+        fabPhotoUser = findViewById(R.id.fabPhotoUser)
+        fabPhotoUser2 = findViewById(R.id.fabPhotoUser2)
 
         fabSaveFormAncak = findViewById(R.id.fabSaveFormInspect)
 
@@ -2374,6 +2503,27 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()
                 val pokokData = formData[currentPokok]
                 val photoValue = pokokData?.photo ?: ""
+
+                val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
+                val currentPage = formAncakViewModel.currentPage.value ?: 1
+
+                AppLogger.d("hasSelfiePhoto $hasSelfiePhoto")
+                AppLogger.d("currentPage $currentPage")
+
+                if (currentPage == AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
+                    vibrate(500)
+                    isForSelfie = true
+                    showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        "Mohon dapat mengambil foto selfie terlebih dahulu!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnItemSelectedListener false
+                }
 
                 if (pokokData != null) {
                     val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
@@ -2498,7 +2648,24 @@ open class FormInspectionActivity : AppCompatActivity(),
                         withContext(Dispatchers.Main) {
                             isInTPH = false
                             setupSummaryPage()
+
+                            // Check form data to determine if selfie FAB should be shown
+                            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+                            val actualPagesWithData = formData.size  // This gives you how many pages actually have data
+
+                            AppLogger.d("Actual pages with data: $actualPagesWithData")
+
+                            // Show selfie FAB if actual pages with data is under 20
+                            val shouldShowSelfieFab = actualPagesWithData <= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
+
                             fabPhotoInfoBlok.visibility = View.GONE
+
+                            // Show/hide selfie FAB in summary
+                            fabPhotoUser2?.visibility = if (shouldShowSelfieFab) View.VISIBLE else View.GONE
+
+                            // Update selfie badge visibility
+                            updateSelfiePhotoBadgeVisibility()
+
                             infoBlokView.visibility = View.GONE
                             formInspectionView.visibility = View.GONE
                             summaryView.post {
@@ -2643,6 +2810,20 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    private fun updateSelfiePhotoBadgeVisibility() {
+        // Badge for User Selfie Section (fabPhotoUser2 in summary)
+        val badgePhotoUser2 = findViewById<View>(R.id.badgePhotoUser2)
+        val fabPhotoUser2 = findViewById<View>(R.id.fabPhotoUser2)
+        val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
+
+        // Only show badge if BOTH the FAB is visible AND there's a selfie photo
+        badgePhotoUser2?.visibility = if (fabPhotoUser2?.visibility == View.VISIBLE && hasSelfiePhoto) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
+
     private fun updatePemanenSpinner(availableWorkers: List<Worker>) {
         val workerNames = availableWorkers.map { it.name }
 
@@ -2730,6 +2911,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         val hasTPHPhoto = !photoInTPH.isNullOrEmpty()
 
         badgePhotoInfoBlok.visibility = if (hasTPHPhoto) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
+        // Badge for User Selfie Section (fabPhotoUser)
+        val badgePhotoUser = findViewById<View>(R.id.badgePhotoUser)
+        val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
+
+        badgePhotoUser.visibility = if (hasSelfiePhoto) {
             View.VISIBLE
         } else {
             View.GONE
@@ -4019,6 +4210,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     AppLogger.d("Scan button triggered - also loading regular panenTPH data")
 
                                     // Group panen records by TPH ID (same as normal flow)
+
                                     val panenGroupedByTPH =
                                         panenTPH.groupBy { panenWithRelationship ->
                                             panenWithRelationship.panen.tph_id?.toIntOrNull()
@@ -4098,7 +4290,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 } else {
                                     // Original logic for normal case
                                     AppLogger.d("Loading TPHs from database - normal flow")
-
+                                    AppLogger.d("panenTPH $panenTPH")
                                     // Group panen records by TPH ID
                                     val panenGroupedByTPH =
                                         panenTPH.groupBy { panenWithRelationship ->
@@ -6179,20 +6371,31 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentData =
                 formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
-
             AppLogger.d("currentData $currentData")
-            if (isInTPH) {
-                photoInTPH = fname
-            } else {
-                formAncakViewModel.savePageData(
-                    currentPage,
-                    currentData.copy(photo = fname)
-                )
+
+            when {
+                isForSelfie -> {
+                    // Save selfie photo to global variable
+                    photoSelfie = fname
+                }
+                isInTPH -> {
+                    photoInTPH = fname
+                }
+                else -> {
+                    formAncakViewModel.savePageData(
+                        currentPage,
+                        currentData.copy(photo = fname)
+                    )
+                }
             }
 
+            // Update badge visibility after saving photo
+            updatePhotoBadgeVisibility()
+
+            updateSelfiePhotoBadgeVisibility()
 
             Handler(Looper.getMainLooper()).postDelayed({
-                showViewPhotoBottomSheet(fname, isInTPH)
+                showViewPhotoBottomSheet(fname, isInTPH, isForSelfie)
             }, 100)
         }
     }

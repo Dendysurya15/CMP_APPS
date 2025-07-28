@@ -55,6 +55,7 @@ import java.util.zip.ZipInputStream
 object AppUtils {
 
     const val TOTAL_MAX_TREES_INSPECTION: Int = 100
+    const val MINIMAL_TAKE_SELFIE_INSPECTION: Int = 10
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
     const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
         UPDATE_INTERVAL_IN_MILLISECONDS / 2
@@ -229,6 +230,7 @@ object AppUtils {
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
+        const val WMBuktiInspeksiUser = "INSPEKSI_BY_USER"
         const val WMInspeksiTPH = "INSPEKSI_TPH"
         const val WMInspeksiPokok = "INSPEKSI_POKOK"
         const val WMFUInspeksiTPH = "FU_INSPEKSI_TPH"

@@ -1865,7 +1865,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
 
-                            // ... rest of your processing logic
                         }
 
 // Enhanced summary with spb_kode relationship check
@@ -2378,7 +2377,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val app_version = item.optString("app_version", "")
                             val createdBy = item.optInt("created_by", 0)
                             val trackingPath = item.optString("tracking_path", "")
-
+                            val dept = if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
+                            val deptPpro = if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
+                            val deptAbbr = if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
+                            val deptNama = if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
+                            val divisi = if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
+                            val divisiPpro = if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
+                            val divisiAbbr = if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
+                            val divisiNama = if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
+                            val blok = if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
+                            val blokPpro = if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
+                            val blokKode = if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
+                            val blokNama = if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
+                            val tphNomor = if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
+                            val ancak = if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
                             AppLogger.d("Creating inspection entity: inspectionId=$inspectionId, tphId=$tphId, date=$tglInspeksi")
 
                             // Create InspectionModel
@@ -2389,6 +2401,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 created_name = createdName,
                                 tph_id = tphId,
                                 id_panen = idPanen,
+                                dept = dept,
+                                dept_ppro = deptPpro,
+                                dept_abbr = deptAbbr,
+                                dept_nama = deptNama,
+                                divisi = divisi,
+                                divisi_ppro = divisiPpro,
+                                divisi_abbr = divisiAbbr,
+                                divisi_nama = divisiNama,
+                                blok = blok,
+                                blok_ppro = blokPpro,
+                                blok_kode = blokKode,
+                                blok_nama = blokNama,
+                                tph_nomor = tphNomor,
+                                ancak = ancak,
+                                foto_user = "",
                                 date_panen = tglPanen,
                                 jalur_masuk = jalurMasuk,
                                 jenis_kondisi = jenisInspeksi,
