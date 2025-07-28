@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 
@@ -81,11 +82,24 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     }
 
     private fun removeWorker(position: Int, context: Context) {
+        AppLogger.d("removeWorker called for position: $position")
+
+        if (position < 0 || position >= selectedWorkers.size) {
+            AppLogger.e("Invalid position for removal: $position, size: ${selectedWorkers.size}")
+            return
+        }
+
         val removedWorker = selectedWorkers.removeAt(position)
+        AppLogger.d("Removed worker: ${removedWorker.name} (ID: ${removedWorker.id})")
+
         context.vibrate()
         notifyDataSetChanged()
-        // Notify that available workers changed AND pass the removed worker info
+
+        // IMPORTANT: Call BOTH callbacks
         onWorkerRemovedListener?.invoke(getAvailableWorkers())
+
+        // This is the important one that was missing!
+        AppLogger.d("Calling onWorkerActuallyRemovedListener...")
         onWorkerActuallyRemovedListener?.invoke(removedWorker)
     }
 
@@ -131,11 +145,12 @@ class SelectedWorkerAdapter : RecyclerView.Adapter<SelectedWorkerAdapter.ViewHol
     // New method to set callback for when workers change
     fun setOnWorkerRemovedListener(listener: (List<Worker>) -> Unit) {
         this.onWorkerRemovedListener = listener
+        AppLogger.d("onWorkerRemovedListener set")
     }
 
     // New method to set callback for when worker is actually removed
     fun setOnWorkerActuallyRemovedListener(listener: (Worker) -> Unit) {
         this.onWorkerActuallyRemovedListener = listener
+        AppLogger.d("onWorkerActuallyRemovedListener set")
     }
 }
-

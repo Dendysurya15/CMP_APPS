@@ -174,7 +174,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var featureName: String? = null
-    private var is_from_pasar_tengah: Boolean = false
     private var dept_abbr_pasar_tengah: String? = null
     private var divisi_abbr_pasar_tengah: String? = null
     private var blok_kode_pasar_tengah: String? = null
@@ -279,7 +278,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var br1Value: String = ""
     private var br2Value: String = ""
 
-    private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
     private lateinit var rvSelectedPemanen: RecyclerView
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -291,6 +289,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private lateinit var formAncakPagerAdapter: FormAncakPagerAdapter
     private lateinit var keyboardWatcher: SoftKeyboardStateWatcher
+    private var allAvailableKaryawanList: List<KaryawanInfo> = emptyList()
+    private var allManualKaryawanList: List<KaryawanInfo> = emptyList()
+    private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter // For automatic
+    private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
+
+
 
     private lateinit var infoBlokView: ScrollView
     private lateinit var formInspectionView: ConstraintLayout
@@ -441,7 +445,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         divisi_abbr_pasar_tengah = intent.getStringExtra("DIVISI_ABBR").toString()
         blok_kode_pasar_tengah = intent.getStringExtra("BLOK_KODE").toString()
         last_pokok_before_pasar_tengah = intent.getIntExtra("LAST_NUMBER_POKOK", 1)
-        is_from_pasar_tengah = intent.getBooleanExtra("IS_FROM_PASAR_TENGAH", false)
+
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
         val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
         inspectionId = if (inspectionIdInt != -1) {
@@ -496,7 +500,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
-                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi || is_from_pasar_tengah) {
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi ) {
 
                         if (!inspectionId.isNullOrEmpty()) {
                             withContext(Dispatchers.Main) {
@@ -570,6 +574,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     loadingDialog.dismiss()
                 }
             } catch (e: Exception) {
+
+                AppLogger.d("error $e")
                 withContext(Dispatchers.Main) {
                     val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
 
@@ -759,12 +765,12 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun setupSelectionButtons() {
-        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi || is_from_pasar_tengah) {
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             // Direct flow for FollowUpInspeksi or when coming from Pasar Tengah
 
             fabPhotoInfoBlok.visibility = View.VISIBLE
 
-            if (is_from_pasar_tengah || featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                 // For Pasar Tengah flow - go to Pokok mode (P. Ancak first)
                 isStartFromTPH = false
                 hasSelectedMode = true
@@ -783,7 +789,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         mainContentWrapper.visibility = View.VISIBLE
         headerFormInspection.visibility = View.VISIBLE
 
-        if (is_from_pasar_tengah || featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             isInTPH = false
             showFormInspectionScreen()
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
@@ -805,19 +811,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             ).format(Date())
 
             hasInspectionStarted = true
-            AppLogger.d("Inspection started immediately in ${if (is_from_pasar_tengah) "Pasar Tengah" else "Pokok"} mode at: $dateStartInspection")
+
         }
 
-        if (is_from_pasar_tengah) {
-            formAncakViewModel.updateInfoFormAncak(
-                dept_abbr_pasar_tengah ?: "",
-                divisi_abbr_pasar_tengah ?: "",
-                blok_kode_pasar_tengah ?: ""
-            )
-            val startPage = (last_pokok_before_pasar_tengah ?: 1) + 1
-            formAncakViewModel.setCurrentPage(startPage)
-            formAncakViewModel.setStartingPage(startPage)
-        }else if(featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
+        if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
             val afdResult = afdelingNameUser!!.replaceFirst("AFD-", "")
             formAncakViewModel.updateInfoFormAncak(
                 estateName ?: "",
@@ -849,15 +846,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val menu = bottomNavInspect.menu
         menu.clear()
 
-        if (is_from_pasar_tengah) {
-            // Pasar Tengah mode: P. Ancak -> Info Blok -> Summary (Pokok mode order)
-            menu.add(0, R.id.navMenuAncakInspect, 0, "P. Ancak")
-                .setIcon(R.drawable.baseline_grain_24)
-            menu.add(0, R.id.navMenuBlokInspect, 1, "Info. Blok")
-                .setIcon(R.drawable.ic_home_black_24dp)
-            menu.add(0, R.id.navMenuSummaryInspect, 2, "Summary")
-                .setIcon(R.drawable.list_solid)
-        } else if (isTPHFirst) {
+        if (isTPHFirst) {
             // TPH mode: Info Blok -> P. Ancak -> Summary
             menu.add(0, R.id.navMenuBlokInspect, 0, "Info. Blok")
                 .setIcon(R.drawable.ic_home_black_24dp)
@@ -1110,36 +1099,45 @@ open class FormInspectionActivity : AppCompatActivity(),
                     brdKtpGawangan = finalValue
                     AppLogger.d("  → brdKtpGawangan = $finalValue")
                 }
+
                 2 -> {
                     brdKtpPiringanPikulKetiak = finalValue
                     AppLogger.d("  → brdKtpPiringanPikulKetiak = $finalValue")
                 }
+
                 3 -> {
                     buahMasakTdkDipotong = finalValue
                     AppLogger.d("  → buahMasakTdkDipotong = $finalValue")
                 }
+
                 4 -> {
                     btPiringanGawangan = finalValue
                     AppLogger.d("  → btPiringanGawangan = $finalValue")
                 }
+
                 5 -> {
                     AppLogger.d("  → Code 5 (TPH level data) = $finalValue - skipped")
                 }
+
                 6 -> {
                     AppLogger.d("  → Code 6 (TPH level data) = $finalValue - skipped")
                 }
+
                 7 -> {
                     neatPelepah = finalValue
                     AppLogger.d("  → neatPelepah = $finalValue")
                 }
+
                 8 -> {
                     pelepahSengkleh = finalValue
                     AppLogger.d("  → pelepahSengkleh = $finalValue")
                 }
+
                 9 -> {
                     overPruning = finalValue
                     AppLogger.d("  → overPruning = $finalValue")
                 }
+
                 10 -> {
                     underPruning = finalValue
                     AppLogger.d("  → underPruning = $finalValue")
@@ -1221,14 +1219,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     loadInspectionDataToViewModelFirstForm(inspection)
                 }
 
-                if (is_from_pasar_tengah) {
-                    preselectSpinnerValues(inspection)
-                    preselectRadioValues(inspection)
-                    preselectEditTextValues(inspection)
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        safePreloadTPH(inspection)
-                    }, 200)
-                }
             }
         }
 
@@ -1298,12 +1288,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                     // Form photo is visible - position selfie FAB above it
                     layoutParams.bottomToTop = R.id.fabPhotoFormInspect
                     layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
-                    layoutParams.bottomMargin = (15 * resources.displayMetrics.density).toInt() // 15dp
+                    layoutParams.bottomMargin =
+                        (15 * resources.displayMetrics.density).toInt() // 15dp
                 } else {
                     // Form photo is hidden - position selfie FAB at same location as form photo
                     layoutParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
                     layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
-                    layoutParams.bottomMargin = (15 * resources.displayMetrics.density).toInt() // 15dp
+                    layoutParams.bottomMargin =
+                        (15 * resources.displayMetrics.density).toInt() // 15dp
                 }
 
                 fabPhotoUser.layoutParams = layoutParams
@@ -1329,7 +1321,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabNextFormAncak.setOnClickListener {
             val currentPokok = formAncakViewModel.currentPage.value ?: 1
             val nextPokok = currentPokok + 1
-            val totalPokok = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+            val totalPokok =
+                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
             val photoValue = pokokData?.photo ?: ""
@@ -1554,9 +1547,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             val totalPagesWithData = formData.size
             val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
 
-            AppLogger.d("Save button - totalPagesWithData: $totalPagesWithData, hasSelfiePhoto: $hasSelfiePhoto")
-
-            if (totalPagesWithData >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
+            if (!hasSelfiePhoto) {
                 vibrate(500)
                 isForSelfie = true
                 showViewPhotoBottomSheet(null, false, true) // Selfie photo
@@ -1640,7 +1631,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
-                                    foto_user = photoSelfie?: "",
+                                    foto_user = photoSelfie ?: "",
                                     app_version = currentInspectionData?.inspeksi?.app_version
                                         ?: "",
                                     app_version_pemulihan = infoApp,
@@ -1660,11 +1651,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 if (selectedTPHIdByScan == null) {
                                     throw Exception("TPH ID tidak boleh kosong")
                                 }
-                                val nextPokokStart = if (is_from_pasar_tengah == true) {
-                                    (last_pokok_before_pasar_tengah ?: 0) + 1
-                                } else {
-                                    1
-                                }
+
                                 inspectionViewModel.saveDataInspection(
                                     created_date_start = dateStartInspection,
                                     created_by = userId.toString(),
@@ -1776,47 +1763,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             "success.json",
             R.color.greenDefault
         ) {
-
-            if (!is_from_pasar_tengah) {
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "Lanjutkan",
-                    getString(R.string.confirmation_dialog_title),
-                    "Apakah anda ingin melanjutkan pengisian Inspeksi dari Pasar Tengah dengan Nomor TPH ini. Anda masih dapat melakukan perubahan nomor TPH jika diperlukan.",
-                    "warning.json",
-                    ContextCompat.getColor(this, R.color.bluedarklight),
-                    function = {
-                        val intent = Intent(
-                            this@FormInspectionActivity,
-                            FormInspectionActivity::class.java
-                        )
-
-                        AppLogger.d("globalInspectionId $inspectionId")
-                        AppLogger.d("globalInspectionId $inspectionId")
-                        intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.InspeksiPanen)
-                        intent.putExtra("IS_FROM_PASAR_TENGAH", true)
-                        intent.putExtra("DIVISI_ABBR", selectedAfdeling)
-                        intent.putExtra("DEPT_ABBR", prefManager!!.estateUserLogin)
-                        intent.putExtra("BLOK_KODE", selectedBlokByScan)
-                        intent.putExtra("LAST_NUMBER_POKOK", totalPokokInspection)
-
-                        inspectionId?.let { id ->
-                            intent.putExtra("id_inspeksi", id.toInt())
-                        }
-                        startActivity(intent)
-                    },
-                    cancelFunction = {
-                        val intent =
-                            Intent(this@FormInspectionActivity, HomePageActivity::class.java)
-                        startActivity(intent)
-                        finishAffinity()
-                    }
-                )
-            } else {
-                val intent = Intent(this@FormInspectionActivity, HomePageActivity::class.java)
-                startActivity(intent)
-                finishAffinity()
-            }
+            val intent = Intent(this@FormInspectionActivity, HomePageActivity::class.java)
+            startActivity(intent)
+            finishAffinity()
         }
     }
 
@@ -1832,121 +1781,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
 
-    private fun safePreloadTPH(inspection: InspectionWithDetailRelations, attempt: Int = 1) {
-        if (latLonMap.isNotEmpty()) {
-            // Data is ready, preload now
-            preloadTPH(inspection)
-            AppLogger.d("Preloaded TPH on attempt: $attempt")
-        } else if (attempt < 5) { // Max 5 attempts
-            // Data not ready, try again in 100ms
-            Handler(Looper.getMainLooper()).postDelayed({
-                safePreloadTPH(inspection, attempt + 1)
-            }, 100)
-            AppLogger.d("Waiting for latLonMap, attempt: $attempt")
-        } else {
-            AppLogger.d("Failed to preload TPH after 5 attempts - latLonMap still empty")
-        }
-    }
-
-    private fun preloadTPH(inspection: InspectionWithDetailRelations) {
-        // Get the TPH ID from inspection data
-        val tphId = inspection.inspeksi.tph_id ?: inspection.tph?.id
-
-        if (tphId != null && lat != null && lon != null) {
-            AppLogger.d("Preloading TPH with ID: $tphId")
-
-            // Get TPHs inside radius using the existing latLonMap
-            val tphLocationList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
-
-            // Convert ScannedTPHLocation to ScannedTPHSelectionItem for the adapter
-            val tphList = tphLocationList.map { tphLocation ->
-                ScannedTPHSelectionItem(
-                    id = tphLocation.id!!,
-                    number = tphLocation.number ?: "",
-                    blockCode = tphLocation.blockCode ?: "",
-                    distance = tphLocation.distance,
-                    isAlreadySelected = false,
-                    selectionCount = 0,
-                    canBeSelectedAgain = true,
-                    isWithinRange = tphLocation.isWithinRange,
-                    jenisTPHId = tphLocation.jenisTPHId ?: "1",
-                    customLimit = null,
-                    tph_from_pasar_tengah = "1"
-                )
-            }
-
-            if (tphList.isNotEmpty()) {
-                // Pre-select the specific TPH from inspection data BEFORE creating adapter
-                selectedTPHIdByScan = tphId
-
-                // Show the recycler view and related UI elements
-                isEmptyScannedTPH = false
-                tphScannedResultRecyclerView.visibility = View.VISIBLE
-                titleScannedTPHInsideRadius.visibility = View.VISIBLE
-                descScannedTPHInsideRadius.visibility = View.VISIBLE
-                emptyScannedTPHInsideRadius.visibility = View.GONE
-
-                // Set up the adapter (now it will know which TPH is selected)
-                tphScannedResultRecyclerView.adapter =
-                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal, false)
-
-                // Set up recycler view height
-                val itemHeight = 50
-                val maxHeight = 250
-                val density = tphScannedResultRecyclerView.resources.displayMetrics.density
-                val maxHeightPx = (maxHeight * density).toInt()
-                val recyclerViewHeightPx = (tphList.size * itemHeight * density).toInt()
-
-                tphScannedResultRecyclerView.layoutParams.height =
-                    if (recyclerViewHeightPx > maxHeightPx) maxHeightPx else ViewGroup.LayoutParams.WRAP_CONTENT
-
-                tphScannedResultRecyclerView.requestLayout()
-
-                if (recyclerViewHeightPx > maxHeightPx) {
-                    tphScannedResultRecyclerView.isNestedScrollingEnabled = true
-                    tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_ALWAYS
-                } else {
-                    tphScannedResultRecyclerView.isNestedScrollingEnabled = false
-                    tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_NEVER
-                }
-
-                tphScannedResultRecyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-                tphScannedResultRecyclerView.isVerticalScrollBarEnabled = true
-
-                selectedTPHIdByScan = tphId
-
-                for (i in tphList.indices) {
-                    if (tphList[i].id == tphId) {
-                        tphScannedResultRecyclerView.scrollToPosition(i)
-
-                        // Create ScannedTPHSelectionItem from the TPH data (already converted above)
-                        val scannedTPHItem = tphList[i]
-
-                        // Automatically trigger TPH selection
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            onTPHSelected(scannedTPHItem)
-                        }, 500) // Wait a bit for the recycler view to be ready
-
-                        AppLogger.d("Pre-selected and auto-triggered TPH: ${tphList[i].number} at position $i")
-                        break
-                    }
-                }
-
-                AppLogger.d("Successfully preloaded TPH list with ${tphList.size} items")
-            } else {
-                AppLogger.d("No TPHs found inside radius for preloading")
-                tphScannedResultRecyclerView.visibility = View.GONE
-                titleScannedTPHInsideRadius.visibility = View.VISIBLE
-                descScannedTPHInsideRadius.visibility = View.VISIBLE
-                emptyScannedTPHInsideRadius.visibility = View.VISIBLE
-                isEmptyScannedTPH = true
-            }
-        } else {
-            AppLogger.d("Cannot preload TPH - tphId: $tphId, lat: $lat, lon: $lon")
-        }
-    }
-
-
     // Function to force scroll to top of FormAncakFragment
     private fun scrollToTopOfFormAncak() {
         val fragmentIndex = vpFormAncak.currentItem
@@ -1959,7 +1793,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n", "InflateParams")
-    private fun showViewPhotoBottomSheet(fileName: String? = null, isInTPH: Boolean? = null, isForSelfie:Boolean? = null) {
+    private fun showViewPhotoBottomSheet(
+        fileName: String? = null,
+        isInTPH: Boolean? = null,
+        isForSelfie: Boolean? = null
+    ) {
 
         AppLogger.d("isInTPH $isInTPH")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
@@ -2081,6 +1919,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     WaterMarkFotoDanFolder.WMFUInspeksiPokok
                 }
             }
+
             else -> {
                 if (isInTPH == true) {
                     WaterMarkFotoDanFolder.WMInspeksiTPH
@@ -2103,11 +1942,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                     // Clear selfie photo
                     photoSelfie = null
                 }
+
                 isInTPH == true -> {
                     // Clear TPH photo
                     photoInTPH = null
                     komentarInTPH = null
                 }
+
                 else -> {
                     // Clear form data photo
                     formAncakViewModel.savePageData(
@@ -2218,7 +2059,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 onClosePhoto = {
                                     bottomNavInspect.visibility = View.VISIBLE
                                     Handler(Looper.getMainLooper()).postDelayed({
-                                        showViewPhotoBottomSheet(null, isInTPH, isForSelfie) // Add isForSelfie here
+                                        showViewPhotoBottomSheet(
+                                            null,
+                                            isInTPH,
+                                            isForSelfie
+                                        ) // Add isForSelfie here
                                     }, 100)
                                 }
                             )
@@ -2418,6 +2263,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 setupViewPager()
                 observeViewModel()
                 setupPressedFAB()
+
+                setupPemanenSpinner()
             }
         }
 
@@ -2651,17 +2498,20 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             // Check form data to determine if selfie FAB should be shown
                             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-                            val actualPagesWithData = formData.size  // This gives you how many pages actually have data
+                            val actualPagesWithData =
+                                formData.size  // This gives you how many pages actually have data
 
                             AppLogger.d("Actual pages with data: $actualPagesWithData")
 
                             // Show selfie FAB if actual pages with data is under 20
-                            val shouldShowSelfieFab = actualPagesWithData <= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
+                            val shouldShowSelfieFab =
+                                actualPagesWithData <= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
 
                             fabPhotoInfoBlok.visibility = View.GONE
 
                             // Show/hide selfie FAB in summary
-                            fabPhotoUser2?.visibility = if (shouldShowSelfieFab) View.VISIBLE else View.GONE
+                            fabPhotoUser2?.visibility =
+                                if (shouldShowSelfieFab) View.VISIBLE else View.GONE
 
                             // Update selfie badge visibility
                             updateSelfiePhotoBadgeVisibility()
@@ -2801,13 +2651,13 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
-
-        selectedPemanenAdapter = SelectedWorkerAdapter()
-        rvSelectedPemanen.adapter = selectedPemanenAdapter
-        rvSelectedPemanen.layoutManager = FlexboxLayoutManager(this).apply {
-            justifyContent = JustifyContent.FLEX_START
-        }
+//        rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
+//
+//        selectedPemanenAdapter = SelectedWorkerAdapter()
+//        rvSelectedPemanen.adapter = selectedPemanenAdapter
+//        rvSelectedPemanen.layoutManager = FlexboxLayoutManager(this).apply {
+//            justifyContent = JustifyContent.FLEX_START
+//        }
     }
 
     private fun updateSelfiePhotoBadgeVisibility() {
@@ -2816,66 +2666,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         val fabPhotoUser2 = findViewById<View>(R.id.fabPhotoUser2)
         val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
 
-        // Only show badge if BOTH the FAB is visible AND there's a selfie photo
-        badgePhotoUser2?.visibility = if (fabPhotoUser2?.visibility == View.VISIBLE && hasSelfiePhoto) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
-    }
 
-    private fun updatePemanenSpinner(availableWorkers: List<Worker>) {
-        val workerNames = availableWorkers.map { it.name }
-
-        val spinner = findViewById<LinearLayout>(R.id.lyPemanen)
-            .findViewById<MaterialSpinner>(R.id.spPanenTBS)
-        val tvError = findViewById<LinearLayout>(R.id.lyPemanen)
-            .findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-
-        spinner.setItems(workerNames)
-
-        spinner.setOnItemSelectedListener { _, position, _, item ->
-            tvError.visibility = View.GONE
-
-            // Find the selected worker and add it back
-            val selectedWorkerName = item.toString()
-            val selectedWorker = availableWorkers.find { it.name == selectedWorkerName }
-
-            selectedWorker?.let { worker ->
-                selectedPemanenAdapter.addWorker(worker)
-
-                // Update the karyawan maps
-                val dashIndex = worker.name.indexOf(" - ")
-                val selectedNik = if (dashIndex != -1) {
-                    worker.name.substring(0, dashIndex).trim()
-                } else {
-                    ""
-                }
-                val selectedName = if (dashIndex != -1) {
-                    worker.name.substring(dashIndex + 3).trim()
-                } else {
-                    worker.name.trim()
-                }
-
-                // Re-add to maps (you might need to store this data when removing)
-                // karyawanIdMap[worker.name] = worker.id.toIntOrNull() ?: 0
-                // kemandoranIdMap[worker.name] = ... // You'll need to store kemandoran_id
-
-                // Update selectedKaryawanList
-                val updatedKaryawanList = selectedKaryawanList.toMutableList()
-                updatedKaryawanList.add(
-                    KaryawanInfo(
-                        nik = selectedNik,
-                        nama = selectedName,
-                        individualId = worker.id
-                    )
-                )
-                selectedKaryawanList = updatedKaryawanList
-
-                AppLogger.d("Re-added worker: ${worker.name}")
+        badgePhotoUser2?.visibility =
+            if (fabPhotoUser2?.visibility == View.VISIBLE && hasSelfiePhoto) {
+                View.VISIBLE
+            } else {
+                View.GONE
             }
-        }
     }
+
+
 
 
     private fun updateLabelTextView(linearLayout: LinearLayout, text: String) {
@@ -4134,6 +3934,78 @@ open class FormInspectionActivity : AppCompatActivity(),
         selectedItem: String
     ) {
         when (linearLayout.id) {
+
+            R.id.lyPemanenOtomatis -> {
+                AppLogger.d("Automatic spinner selection triggered: $selectedItem at position $position")
+
+                // Find the selected worker from automatic available list
+                val selectedWorker = allAvailableKaryawanList.find { karyawan ->
+                    val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                    formattedName == selectedItem
+                }
+
+                AppLogger.d("Found selected automatic worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
+
+                if (selectedWorker != null) {
+                    // Add to AUTOMATIC RecyclerView
+                    val worker = Worker(selectedWorker.individualId, selectedItem)
+                    selectedPemanenAdapter.addWorker(worker)
+
+                    // Add to selectedKaryawanList
+                    val originalSize = selectedKaryawanList.size
+                    selectedKaryawanList = selectedKaryawanList + selectedWorker
+                    AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+                    // Show automatic RecyclerView if it's hidden
+                    val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+                    rvSelectedPemanenOtomatis.visibility = View.VISIBLE
+
+                    // Update automatic spinner to remove selected worker
+                    AppLogger.d("Calling updatePemanenSpinnerAfterRemoval after selection...")
+                    updatePemanenSpinnerAfterRemoval()
+
+                    AppLogger.d("Added automatic worker to RecyclerView: ${selectedWorker.nama} (NIK: ${selectedWorker.nik})")
+                    AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
+                } else {
+                    AppLogger.e("Could not find selected automatic worker: $selectedItem")
+                }
+            }
+
+            R.id.lyPemanenManual -> {
+                AppLogger.d("Manual spinner selection triggered: $selectedItem at position $position")
+
+                // Find the selected worker from manual available list
+                val selectedWorker = allManualKaryawanList.find { karyawan ->
+                    val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                    formattedName == selectedItem
+                }
+
+                AppLogger.d("Found selected manual worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
+
+                if (selectedWorker != null) {
+                    // Add to MANUAL RecyclerView
+                    val worker = Worker(selectedWorker.individualId, selectedItem)
+                    selectedPemanenManualAdapter.addWorker(worker)
+
+                    // Add to selectedKaryawanList
+                    val originalSize = selectedKaryawanList.size
+                    selectedKaryawanList = selectedKaryawanList + selectedWorker
+                    AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+                    // Show manual RecyclerView if it's hidden
+                    val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+                    rvSelectedPemanenManual.visibility = View.VISIBLE
+
+                    // Update manual spinner to remove selected worker
+                    AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval after selection...")
+                    updateManualPemanenSpinnerAfterRemoval()
+
+                    AppLogger.d("Added manual worker to RecyclerView: ${selectedWorker.nama} (NIK: ${selectedWorker.nik})")
+                    AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
+                } else {
+                    AppLogger.e("Could not find selected manual worker: $selectedItem")
+                }
+            }
             R.id.lyAfdInspect -> {
                 hideResultScan()
                 selectedAfdeling = selectedItem
@@ -4182,175 +4054,69 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 val estateIdToUse = estateId!!.toInt()
                                 val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
 
-                                if (is_from_pasar_tengah && currentInspectionData != null) {
-                                    // Always load the inspection TPH
-                                    AppLogger.d("Loading TPH from pasar tengah - using currentInspectionData")
+                                // Original logic for normal case
+                                AppLogger.d("Loading TPHs from database - normal flow")
+                                AppLogger.d("panenTPH $panenTPH")
+                                // Group panen records by TPH ID
+                                val panenGroupedByTPH =
+                                    panenTPH.groupBy { panenWithRelationship ->
+                                        panenWithRelationship.panen.tph_id?.toIntOrNull()
+                                    }.filterKeys { it != null }
 
-                                    currentInspectionData?.tph?.let { tph ->
-                                        val tphId = tph.id
-                                        val lat = tph.lat?.toDoubleOrNull()
-                                        val lon = tph.lon?.toDoubleOrNull()
-                                        val nomor = tph.nomor ?: ""
-                                        val blokKode = tph.blok_kode ?: ""
-                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
+                                val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
+                                AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
 
-                                        if (tphId != null && lat != null && lon != null) {
+                                val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
+                                    estateIdToUse,
+                                    selectedDivisiId,
+                                    selectedTPHIds.distinct()
+                                )
+
+                                tphList.forEach { tph ->
+                                    val tphId = tph.id
+                                    val lat = tph.lat?.toDoubleOrNull()
+                                    val lon = tph.lon?.toDoubleOrNull()
+                                    val nomor = tph.nomor ?: ""
+                                    val baseBlokKode = tph.blok_kode ?: ""
+                                    val jenisTPHId = tph.jenis_tph_id ?: "1"
+
+                                    if (tphId != null && lat != null && lon != null) {
+                                        // Get all panen records for this TPH ID
+                                        val matchingPanenList =
+                                            panenGroupedByTPH[tphId] ?: emptyList()
+
+                                        if (matchingPanenList.isNotEmpty()) {
+                                            AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
+
+                                            // Merge all data from this TPH
+                                            val mergedData =
+                                                mergePanenRecordsForTPH(matchingPanenList)
+
+                                            // Create description with merged info
+                                            val blokKode = if (mergedData.dateList.size > 1) {
+                                                "$baseBlokKode (${mergedData.dateList.size} transaksi)###REGULAR"
+                                            } else {
+                                                "$baseBlokKode###REGULAR"
+                                            }
+
+                                            // Use TPH ID as key since we're merging all records for this TPH
                                             resultMap[tphId] = ScannedTPHLocation(
                                                 lat,
                                                 lon,
                                                 nomor,
-                                                "$blokKode###PASAR_TENGAH", // Mark as pasar tengah TPH
+                                                blokKode,
                                                 jenisTPHId
                                             )
-                                            AppLogger.d("Loaded inspection TPH: ID=$tphId, nomor=$nomor")
-                                        }
-                                    }
 
-
-                                    AppLogger.d("Scan button triggered - also loading regular panenTPH data")
-
-                                    // Group panen records by TPH ID (same as normal flow)
-
-                                    val panenGroupedByTPH =
-                                        panenTPH.groupBy { panenWithRelationship ->
-                                            panenWithRelationship.panen.tph_id?.toIntOrNull()
-                                        }.filterKeys { it != null }
-
-                                    val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
-                                    AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
-
-                                    val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
-                                        estateIdToUse,
-                                        selectedDivisiId,
-                                        selectedTPHIds.distinct()
-                                    )
-
-                                    tphList.forEach { tph ->
-                                        val tphId = tph.id
-                                        val lat = tph.lat?.toDoubleOrNull()
-                                        val lon = tph.lon?.toDoubleOrNull()
-                                        val nomor = tph.nomor ?: ""
-                                        val baseBlokKode = tph.blok_kode ?: ""
-                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
-
-                                        if (tphId != null && lat != null && lon != null) {
-                                            // Get all panen records for this TPH ID
-                                            val matchingPanenList =
-                                                panenGroupedByTPH[tphId] ?: emptyList()
-
-                                            if (matchingPanenList.isNotEmpty()) {
-                                                AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
-
-                                                // Merge all data from this TPH
-                                                val mergedData =
-                                                    mergePanenRecordsForTPH(matchingPanenList)
-
-                                                // Create description with merged info
-                                                val blokKode = if (mergedData.dateList.size > 1) {
-                                                    "$baseBlokKode (${mergedData.dateList.size} transaksi)"
-                                                } else {
-                                                    baseBlokKode
-                                                }
-
-                                                // Check if this TPH ID is the same as inspection TPH
-                                                val isInspectionTPH =
-                                                    currentInspectionData?.tph?.id == tphId
-                                                val finalBlokKode = if (isInspectionTPH) {
-                                                    "$blokKode###PASAR_TENGAH" // Mark as pasar tengah if same as inspection
-                                                } else {
-                                                    "$blokKode###REGULAR" // Mark as regular TPH
-                                                }
-
-                                                // Don't overwrite if inspection TPH already exists, but update with panenTPH data
-                                                if (resultMap.containsKey(tphId) && isInspectionTPH) {
-                                                    // Update the existing inspection TPH with panenTPH data (merged info)
-                                                    resultMap[tphId] = ScannedTPHLocation(
-                                                        lat,
-                                                        lon,
-                                                        nomor,
-                                                        finalBlokKode,
-                                                        jenisTPHId
-                                                    )
-                                                    AppLogger.d("Updated inspection TPH with panenTPH data: $tphId")
-                                                } else if (!resultMap.containsKey(tphId)) {
-                                                    resultMap[tphId] = ScannedTPHLocation(
-                                                        lat,
-                                                        lon,
-                                                        nomor,
-                                                        finalBlokKode,
-                                                        jenisTPHId
-                                                    )
-                                                    AppLogger.d("Added panenTPH: $tphId, isInspectionTPH: $isInspectionTPH")
-                                                }
-                                            }
-                                        }
-                                    }
-
-
-                                } else {
-                                    // Original logic for normal case
-                                    AppLogger.d("Loading TPHs from database - normal flow")
-                                    AppLogger.d("panenTPH $panenTPH")
-                                    // Group panen records by TPH ID
-                                    val panenGroupedByTPH =
-                                        panenTPH.groupBy { panenWithRelationship ->
-                                            panenWithRelationship.panen.tph_id?.toIntOrNull()
-                                        }.filterKeys { it != null }
-
-                                    val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
-                                    AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
-
-                                    val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
-                                        estateIdToUse,
-                                        selectedDivisiId,
-                                        selectedTPHIds.distinct()
-                                    )
-
-                                    tphList.forEach { tph ->
-                                        val tphId = tph.id
-                                        val lat = tph.lat?.toDoubleOrNull()
-                                        val lon = tph.lon?.toDoubleOrNull()
-                                        val nomor = tph.nomor ?: ""
-                                        val baseBlokKode = tph.blok_kode ?: ""
-                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
-
-                                        if (tphId != null && lat != null && lon != null) {
-                                            // Get all panen records for this TPH ID
-                                            val matchingPanenList =
-                                                panenGroupedByTPH[tphId] ?: emptyList()
-
-                                            if (matchingPanenList.isNotEmpty()) {
-                                                AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
-
-                                                // Merge all data from this TPH
-                                                val mergedData =
-                                                    mergePanenRecordsForTPH(matchingPanenList)
-
-                                                // Create description with merged info
-                                                val blokKode = if (mergedData.dateList.size > 1) {
-                                                    "$baseBlokKode (${mergedData.dateList.size} transaksi)###REGULAR"
-                                                } else {
-                                                    "$baseBlokKode###REGULAR"
-                                                }
-
-                                                // Use TPH ID as key since we're merging all records for this TPH
-                                                resultMap[tphId] = ScannedTPHLocation(
-                                                    lat,
-                                                    lon,
-                                                    nomor,
-                                                    blokKode,
-                                                    jenisTPHId
-                                                )
-
-                                                AppLogger.d("Merged TPH $tphId: ${mergedData.workerCount} workers, ${mergedData.dateList.size} transactions")
-                                            } else {
-                                                AppLogger.w("No matching panen records found for TPH ID: $tphId")
-                                            }
+                                            AppLogger.d("Merged TPH $tphId: ${mergedData.workerCount} workers, ${mergedData.dateList.size} transactions")
                                         } else {
-                                            AppLogger.w("Skipping invalid TPH: ID=$tphId, lat=$lat, lon=$lon")
+                                            AppLogger.w("No matching panen records found for TPH ID: $tphId")
                                         }
+                                    } else {
+                                        AppLogger.w("Skipping invalid TPH: ID=$tphId, lat=$lat, lon=$lon")
                                     }
                                 }
+
 
                                 AppLogger.d("Final resultMap size: ${resultMap.size}")
                                 resultMap
@@ -4484,424 +4250,177 @@ open class FormInspectionActivity : AppCompatActivity(),
             titlePemanenInspeksi.visibility = View.VISIBLE
             descPemanenInspeksi.visibility = View.VISIBLE
 
-            // Clear adapter and maps FIRST
+            // Clear RecyclerView and maps FIRST
             selectedPemanenAdapter.clearAllWorkers()
+            selectedPemanenManualAdapter.clearAllWorkers()
             karyawanIdMap.clear()
             kemandoranIdMap.clear()
-            rvSelectedPemanen.visibility = View.VISIBLE
-            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                selectedPemanenAdapter.setDisplayOnly(true)
-            }
+
+            // Clear the RecyclerView but DON'T recreate the adapter
+            val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+            val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+            rvSelectedPemanenOtomatis.visibility = View.GONE
+            rvSelectedPemanenManual.visibility = View.GONE
+
+            // Re-setup the callbacks for both adapters
+            setupAdapterCallbacks()
+            setupManualAdapterCallbacks()
+
+            selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
+            selectedKaryawanList = emptyList()
 
             selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
             selectedKaryawanList = emptyList()
 
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
+                    val matchingPanenList = panenTPH.filter { panenWithRelations ->
+                        val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()
+                        tphId == selectedTPHInLIst.id
+                    }
 
-                    if (is_from_pasar_tengah && currentInspectionData != null && !isTriggeredBtnScanned) {
-                        selectedTPHIdByScan = selectedTPHInLIst.id
+                    if (matchingPanenList.isEmpty()) {
+                        AppLogger.e("No matching panen records found for TPH ID: ${selectedTPHInLIst.id}")
+                        return@postDelayed
+                    }
 
+                    // Merge all panen records for this TPH
+                    val mergedData = mergePanenRecordsForTPH(matchingPanenList)
 
-                        // Get all workers from panen data
-                        val allPanenWorkers = mutableSetOf<String>()
-                        currentInspectionData?.panen?.let { panen ->
-                            val karyawanNik = panen.karyawan_nik ?: ""
-                            val karyawanNama = panen.karyawan_nama ?: ""
-                            val karyawanId = panen.karyawan_id ?: ""
+                    AppLogger.d("Merged data for TPH ${selectedTPHInLIst.id}:")
+                    AppLogger.d("- Workers: ${mergedData.workerCount}")
+                    AppLogger.d("- Dates: ${mergedData.dateList}")
+                    AppLogger.d("- Ancaks: ${mergedData.ancakList}")
 
-                            AppLogger.d("=== RAW PANEN DATA ===")
-                            AppLogger.d("karyawanNik: $karyawanNik")
-                            AppLogger.d("karyawanNama: $karyawanNama")
-                            AppLogger.d("karyawanId: $karyawanId")
+                    // Get info from first record for basic data
+                    val firstPanen = matchingPanenList.first().panen
+                    val firstTph = matchingPanenList.first().tph
 
-                            if (karyawanNik.isNotBlank() && karyawanNama.isNotBlank() && karyawanId.isNotBlank()) {
-                                // Split by comma but be careful with names that contain commas/dashes
+                    selectedTPHIdByScan = selectedTPHInLIst.id
+                    selectedEstateByScan = firstTph?.dept_abbr ?: ""
+                    selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
+                    selectedBlokByScan = firstTph?.blok_kode ?: ""
+
+                    // Store all available workers for spinner
+                    val allAvailableWorkers = mutableListOf<Worker>()
+                    val allKaryawanInfo = mutableListOf<KaryawanInfo>()
+
+                    // Process merged workers and prepare them for spinner
+                    mergedData.workerSet.forEach { formattedWorker ->
+                        val dashIndex = formattedWorker.indexOf(" - ")
+                        val selectedNik = if (dashIndex != -1) {
+                            formattedWorker.substring(0, dashIndex).trim()
+                        } else {
+                            ""
+                        }
+                        val selectedName = if (dashIndex != -1) {
+                            formattedWorker.substring(dashIndex + 3).trim()
+                        } else {
+                            formattedWorker.trim()
+                        }
+
+                        // Find the corresponding employee data from any of the panen records
+                        var selectedEmployee: PanenEntity? = null
+                        var individualKaryawanId: String? = null
+
+                        for (panenWithRelations in matchingPanenList) {
+                            val panenEntity = panenWithRelations.panen ?: continue
+                            val karyawanNik = panenEntity.karyawan_nik
+                            val karyawanNama = panenEntity.karyawan_nama
+                            val karyawanId = panenEntity.karyawan_id
+
+                            if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
                                 val niks = karyawanNik.split(",").map { it.trim() }
                                 val names = karyawanNama.split(",").map { it.trim() }
                                 val ids = karyawanId.split(",").map { it.trim() }
 
-                                AppLogger.d("=== SPLIT PANEN DATA ===")
-                                AppLogger.d("niks: $niks")
-                                AppLogger.d("names: $names")
-                                AppLogger.d("ids: $ids")
+                                val nikIndex = niks.indexOf(selectedNik)
+                                val nameIndex = names.indexOf(selectedName)
 
-                                for (i in niks.indices) {
-                                    if (i < names.size && i < ids.size) {
-                                        val nik = niks[i]
-                                        val nama = names[i]
-                                        // Handle names with dashes and special characters
-                                        val formattedWorker = "$nik - $nama"
-                                        allPanenWorkers.add(formattedWorker)
-
-                                        AppLogger.d("Added to allPanenWorkers: $formattedWorker")
-
-                                        // Add to maps
-                                        karyawanIdMap[formattedWorker] = ids[i].toIntOrNull() ?: 0
-                                        kemandoranIdMap[formattedWorker] =
-                                            panen.kemandoran_id.toIntOrNull() ?: 0
-                                        karyawanIdMap[nik] = ids[i].toIntOrNull() ?: 0
-                                        kemandoranIdMap[nik] =
-                                            panen.kemandoran_id.toIntOrNull() ?: 0
-                                        karyawanIdMap[nama] = ids[i].toIntOrNull() ?: 0
-                                        kemandoranIdMap[nama] =
-                                            panen.kemandoran_id.toIntOrNull() ?: 0
-                                    }
+                                if (nikIndex != -1 && nameIndex != -1 && nikIndex < ids.size) {
+                                    selectedEmployee = panenEntity
+                                    individualKaryawanId = ids[nikIndex]
+                                    break
                                 }
                             }
                         }
 
-                        AppLogger.d("=== ALL PANEN WORKERS ===")
-                        AppLogger.d("allPanenWorkers size: ${allPanenWorkers.size}")
-                        allPanenWorkers.forEach { worker ->
-                            AppLogger.d("- Panen worker: $worker")
-                        }
+                        if (selectedEmployee != null && individualKaryawanId != null) {
+                            karyawanIdMap[formattedWorker] = individualKaryawanId.toIntOrNull() ?: 0
+                            kemandoranIdMap[formattedWorker] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
 
-                        // Get unique workers from inspection details (remove duplicates)
-                        val uniqueInspectedWorkers = currentInspectionData?.detailInspeksi
-                            ?.filter { !it.nik.isNullOrBlank() && !it.nama.isNullOrBlank() } // Add this filter
-                            ?.map { "${it.nik} - ${it.nama}" }
-                            ?.toSet() ?: emptySet()
+                            if (selectedNik.isNotEmpty()) {
+                                karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedNik] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            }
+                            if (selectedName.isNotEmpty()) {
+                                karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedName] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            }
 
-                        AppLogger.d("=== INSPECTION DETAILS ===")
-                        AppLogger.d("detailInspeksi total records: ${currentInspectionData?.detailInspeksi?.size}")
-                        AppLogger.d("uniqueInspectedWorkers size: ${uniqueInspectedWorkers.size}")
-                        uniqueInspectedWorkers.forEach { worker ->
-                            AppLogger.d("- Unique inspected worker: $worker")
-                        }
+                            val worker = Worker(individualKaryawanId, formattedWorker)
+                            allAvailableWorkers.add(worker)
 
-                        // Process workers
-                        val inspectedWorkers = mutableSetOf<String>()
-                        val karyawanInfoList = mutableListOf<KaryawanInfo>()
-
-                        uniqueInspectedWorkers.forEach { formattedWorker ->
-                            val parts =
-                                formattedWorker.split(" - ", limit = 2) // Split only on first " - "
-                            if (parts.size >= 2) {
-                                val nik = parts[0].trim()
-                                val nama = parts[1].trim()
-
-                                // Add validation to skip empty workers
-                                if (nik.isBlank() || nama.isBlank()) {
-                                    AppLogger.d("Skipping worker with empty nik or nama: $formattedWorker")
-                                    return@forEach
-                                }
-
-                                AppLogger.d("Processing worker: nik=$nik, nama=$nama")
-                                AppLogger.d("Formatted worker: $formattedWorker")
-                                AppLogger.d(
-                                    "Exists in panen: ${
-                                        allPanenWorkers.contains(
-                                            formattedWorker
-                                        )
-                                    }"
+                            allKaryawanInfo.add(
+                                KaryawanInfo(
+                                    nik = selectedNik,
+                                    nama = selectedName,
+                                    individualId = individualKaryawanId
                                 )
+                            )
 
-                                if (allPanenWorkers.contains(formattedWorker)) {
-                                    // Worker exists in panen data
-                                    inspectedWorkers.add(formattedWorker)
-                                    val workerId = karyawanIdMap[formattedWorker]?.toString() ?: ""
-                                    val worker = Worker(workerId, formattedWorker)
-                                    selectedPemanenAdapter.addWorker(worker)
-
-                                    karyawanInfoList.add(
-                                        KaryawanInfo(
-                                            nik = nik,
-                                            nama = nama,
-                                            individualId = workerId
-                                        )
-                                    )
-
-                                    AppLogger.d("✓ Added worker from panen: $formattedWorker, ID: $workerId")
-                                } else {
-                                    // Worker was inspected but not in original panen data
-                                    // This can happen if workers were added during inspection
-                                    inspectedWorkers.add(formattedWorker)
-                                    val worker = Worker("0", formattedWorker)
-                                    selectedPemanenAdapter.addWorker(worker)
-
-                                    // Add dummy entries to maps for consistency
-                                    karyawanIdMap[formattedWorker] = 0
-                                    kemandoranIdMap[formattedWorker] = 0
-                                    karyawanIdMap[nik] = 0
-                                    kemandoranIdMap[nik] = 0
-                                    karyawanIdMap[nama] = 0
-                                    kemandoranIdMap[nama] = 0
-
-                                    karyawanInfoList.add(
-                                        KaryawanInfo(
-                                            nik = nik,
-                                            nama = nama,
-                                            individualId = "0"
-                                        )
-                                    )
-
-                                    AppLogger.d("✓ Added worker not in panen: $formattedWorker (ID: 0)")
-                                }
-                            } else {
-                                AppLogger.w("Invalid worker format: $formattedWorker")
-                            }
+                            AppLogger.d("Added worker to spinner: $formattedWorker, ID: $individualKaryawanId")
                         }
-
-                        selectedKaryawanList = karyawanInfoList
-
-                        // Set available workers (workers from panen that are NOT in inspection details)
-                        val availableWorkers = allPanenWorkers.filter { worker ->
-                            !inspectedWorkers.contains(worker)
-                        }.map { formattedWorker ->
-                            val workerId = karyawanIdMap[formattedWorker]?.toString() ?: ""
-                            Worker(workerId, formattedWorker)
-                        }
-
-                        selectedPemanenAdapter.setAvailableWorkers(availableWorkers)
-
-                        AppLogger.d("=== FINAL RESULTS ===")
-                        AppLogger.d("Selected workers: ${karyawanInfoList.size}")
-                        karyawanInfoList.forEach { worker ->
-                            AppLogger.d("- Selected: ${worker.nik} - ${worker.nama} (ID: ${worker.individualId})")
-                        }
-                        AppLogger.d("Available workers: ${availableWorkers.size}")
-                        availableWorkers.forEach { worker ->
-                            AppLogger.d("- Available: ${worker.name} (ID: ${worker.id})")
-                        }
-
-                        val ancakText =
-                            currentInspectionData?.panen?.ancak?.toString() ?: "tidak diketahui"
-
-                        selectedAncakByScan = ancakText
-
-                        selectedIdPanenByScan = currentInspectionData?.inspeksi?.id_panen
-
-                        selectedTanggalPanenByScan =
-                            currentInspectionData?.inspeksi?.date_panen ?: "[]"
-
-                        // Parse the JSON arrays for display text (same logic as else branch)
-                        val dateList = try {
-                            val datesArray = JSONArray(selectedTanggalPanenByScan)
-                            (0 until datesArray.length()).map {
-                                datesArray.getString(it)  // Keep full datetime
-                            }
-                        } catch (e: Exception) {
-                            AppLogger.e("Error parsing dates: ${e.message}")
-                            listOf("tidak diketahui")
-                        }
-
-                        AppLogger.d("dateList: $dateList")
-
-                        val dateText = if (dateList.isNotEmpty()) {
-                            if (dateList.size == 1) {
-                                dateList.first()
-                            } else {
-                                "${dateList.joinToString(", ")} (${dateList.size} transaksi)"
-                            }
-                        } else {
-                            "tidak diketahui"
-                        }
-
-                        // Update description to match the else branch format
-                        val descriptionText = if (dateList.size > 1) {
-                            "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${uniqueInspectedWorkers.size} pekerja</b> :"
-                        } else {
-                            "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
-                        }
-                        descPemanenInspeksi.text =
-                            Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
-
-                        AppLogger.d("Pasar tengah - Total selected workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
-                        AppLogger.d("Pasar tengah - Available workers: ${availableWorkers.size}")
-
-
-                        AppLogger.d("selectedKaryawanList $selectedKaryawanList")
-                    } else {
-                        val matchingPanenList = panenTPH.filter { panenWithRelations ->
-                            val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()
-                            tphId == selectedTPHInLIst.id
-                        }
-
-                        if (matchingPanenList.isEmpty()) {
-                            AppLogger.e("No matching panen records found for TPH ID: ${selectedTPHInLIst.id}")
-                            return@postDelayed
-                        }
-
-                        // Merge all panen records for this TPH
-                        val mergedData = mergePanenRecordsForTPH(matchingPanenList)
-
-                        AppLogger.d("Merged data for TPH ${selectedTPHInLIst.id}:")
-                        AppLogger.d("- Workers: ${mergedData.workerCount}")
-                        AppLogger.d("- Dates: ${mergedData.dateList}")
-                        AppLogger.d("- Ancaks: ${mergedData.ancakList}")
-
-                        // Get info from first record for basic data
-                        val firstPanen = matchingPanenList.first().panen
-                        val firstTph = matchingPanenList.first().tph
-
-
-                        selectedTPHIdByScan = selectedTPHInLIst.id
-                        selectedEstateByScan = firstTph?.dept_abbr ?: ""
-                        selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
-                        selectedBlokByScan = firstTph?.blok_kode ?: ""
-
-                        val karyawanInfoList = mutableListOf<KaryawanInfo>()
-
-                        // Process merged workers
-                        mergedData.workerSet.forEach { formattedWorker ->
-                            val dashIndex = formattedWorker.indexOf(" - ")
-                            val selectedNik = if (dashIndex != -1) {
-                                formattedWorker.substring(0, dashIndex).trim()
-                            } else {
-                                ""
-                            }
-                            val selectedName = if (dashIndex != -1) {
-                                formattedWorker.substring(dashIndex + 3).trim()
-                            } else {
-                                formattedWorker.trim()
-                            }
-
-                            // Find the corresponding employee data from any of the panen records
-                            var selectedEmployee: PanenEntity? = null
-                            var individualKaryawanId: String? = null
-
-                            for (panenWithRelations in matchingPanenList) {
-                                val panenEntity = panenWithRelations.panen ?: continue
-                                val karyawanNik = panenEntity.karyawan_nik
-                                val karyawanNama = panenEntity.karyawan_nama
-                                val karyawanId = panenEntity.karyawan_id
-
-                                if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
-                                    val niks = karyawanNik.split(",").map { it.trim() }
-                                    val names = karyawanNama.split(",").map { it.trim() }
-                                    val ids = karyawanId.split(",").map { it.trim() }
-
-                                    val nikIndex = niks.indexOf(selectedNik)
-                                    val nameIndex = names.indexOf(selectedName)
-
-                                    if (nikIndex != -1 && nameIndex != -1 && nikIndex < ids.size) {
-                                        selectedEmployee = panenEntity
-                                        individualKaryawanId = ids[nikIndex]
-                                        break
-                                    }
-                                }
-                            }
-
-                            if (selectedEmployee != null && individualKaryawanId != null) {
-                                // Add to maps
-                                karyawanIdMap[formattedWorker] =
-                                    individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[formattedWorker] =
-                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-
-                                if (selectedNik.isNotEmpty()) {
-                                    karyawanIdMap[selectedNik] =
-                                        individualKaryawanId.toIntOrNull() ?: 0
-                                    kemandoranIdMap[selectedNik] =
-                                        selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-                                }
-                                if (selectedName.isNotEmpty()) {
-                                    karyawanIdMap[selectedName] =
-                                        individualKaryawanId.toIntOrNull() ?: 0
-                                    kemandoranIdMap[selectedName] =
-                                        selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
-                                }
-
-                                val worker = Worker(individualKaryawanId, formattedWorker)
-                                selectedPemanenAdapter.addWorker(worker)
-
-                                karyawanInfoList.add(
-                                    KaryawanInfo(
-                                        nik = selectedNik,
-                                        nama = selectedName,
-                                        individualId = individualKaryawanId
-                                    )
-                                )
-
-                                AppLogger.d("Added merged worker: $formattedWorker, ID: $individualKaryawanId")
-                            }
-                        }
-
-                        selectedKaryawanList = karyawanInfoList
-
-                        // Create description with merged information
-                        val ancakText = if (mergedData.ancakList.isNotEmpty()) {
-                            mergedData.ancakList.joinToString(", ")
-                        } else {
-                            "tidak diketahui"
-                        }
-
-                        val dateText = if (mergedData.dateList.isNotEmpty()) {
-                            if (mergedData.dateList.size == 1) {
-                                mergedData.dateList.first()
-                            } else {
-                                "${mergedData.dateList.joinToString(", ")} (${mergedData.dateList.size} transaksi)"
-                            }
-                        } else {
-                            "tidak diketahui"
-                        }
-
-                        val panenIdsJson = JSONArray()
-                        matchingPanenList.forEach { panenWithRelations ->
-                            panenWithRelations.panen?.id?.let { panenId ->
-                                panenIdsJson.put(panenId)
-                            }
-                        }
-
-                        selectedIdPanenByScan =
-                            panenIdsJson.toString() // Store as JSON array of IDs
-
-                        selectedAncakByScan = ancakText
-                        val datesJson = JSONArray()
-                        mergedData.dateList.forEach { date ->
-                            datesJson.put(date)
-                        }
-
-                        selectedTanggalPanenByScan =
-                            datesJson.toString() // Store as JSON array of dates
-
-
-                        val descriptionText = if (mergedData.dateList.size > 1) {
-                            "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${mergedData.workerCount} pekerja</b> :"
-                        } else {
-                            "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh :"
-                        }
-
-                        descPemanenInspeksi.text =
-                            Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
-
-                        AppLogger.d("Total merged workers: ${selectedPemanenAdapter.getSelectedWorkers().size}")
-
-                        selectedPemanenAdapter.setAvailableWorkers(
-                            mergedData.workerSet.map { formattedWorker ->
-                                val dashIndex = formattedWorker.indexOf(" - ")
-                                val selectedNik = if (dashIndex != -1) {
-                                    formattedWorker.substring(0, dashIndex).trim()
-                                } else {
-                                    ""
-                                }
-
-                                // Find the worker ID
-                                var workerId = ""
-                                for (panenWithRelations in matchingPanenList) {
-                                    val panenEntity = panenWithRelations.panen ?: continue
-                                    val karyawanNik = panenEntity.karyawan_nik
-                                    val karyawanNama = panenEntity.karyawan_nama
-                                    val karyawanId = panenEntity.karyawan_id
-
-                                    if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
-                                        val niks = karyawanNik.split(",").map { it.trim() }
-                                        val ids = karyawanId.split(",").map { it.trim() }
-                                        val nikIndex = niks.indexOf(selectedNik)
-                                        if (nikIndex != -1 && nikIndex < ids.size) {
-                                            workerId = ids[nikIndex]
-                                            break
-                                        }
-                                    }
-                                }
-
-                                Worker(workerId, formattedWorker)
-                            }
-                        )
                     }
 
-                    setupPemanenSpinner()
+                    // Store all available workers
+                    allAvailableKaryawanList = allKaryawanInfo
+
+                    // Create description
+                    val ancakText = if (mergedData.ancakList.isNotEmpty()) {
+                        mergedData.ancakList.joinToString(", ")
+                    } else {
+                        "tidak diketahui"
+                    }
+
+                    val dateText = if (mergedData.dateList.isNotEmpty()) {
+                        if (mergedData.dateList.size == 1) {
+                            mergedData.dateList.first()
+                        } else {
+                            "${mergedData.dateList.joinToString(", ")} (${mergedData.dateList.size} transaksi)"
+                        }
+                    } else {
+                        "tidak diketahui"
+                    }
+
+                    val panenIdsJson = JSONArray()
+                    matchingPanenList.forEach { panenWithRelations ->
+                        panenWithRelations.panen?.id?.let { panenId ->
+                            panenIdsJson.put(panenId)
+                        }
+                    }
+
+                    selectedIdPanenByScan = panenIdsJson.toString()
+                    selectedAncakByScan = ancakText
+                    val datesJson = JSONArray()
+                    mergedData.dateList.forEach { date ->
+                        datesJson.put(date)
+                    }
+                    selectedTanggalPanenByScan = datesJson.toString()
+
+                    val descriptionText = if (mergedData.dateList.size > 1) {
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${mergedData.workerCount} pekerja</b>. Pilih pekerja untuk inspeksi:"
+                    } else {
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b>. Pilih pekerja untuk inspeksi:"
+                    }
+
+                    descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+
+                    // NOW POPULATE THE SPINNER with all available workers
+                    populatePemanenSpinner(allAvailableWorkers)
+                    setupManualPemanenSpinner()
+
+                    AppLogger.d("Total workers available in spinner: ${allAvailableWorkers.size}")
 
                 } catch (e: Exception) {
                     AppLogger.e("Error processing merged TPH selection: ${e.message}")
@@ -4911,6 +4430,235 @@ open class FormInspectionActivity : AppCompatActivity(),
             }, 200)
         }
     }
+
+    private fun populateManualPemanenSpinner(availableWorkers: List<Worker>) {
+        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+
+        // Always show spinner if there are workers available
+        if (availableWorkers.isNotEmpty()) {
+            lyPemanenManual.visibility = View.VISIBLE
+
+            // Create list of worker names for spinner
+            val workerNames = availableWorkers.map { it.name }
+
+            // Setup spinner with available workers
+            setupSpinnerView(lyPemanenManual, workerNames)
+
+            AppLogger.d("Manual spinner populated with ${workerNames.size} workers")
+        } else {
+            lyPemanenManual.visibility = View.GONE
+            AppLogger.d("No manual workers available for spinner")
+        }
+    }
+
+
+    private fun setupManualPemanenSpinner() {
+        AppLogger.d("Setting up manual pemanen spinner for blok: $selectedBlokByScan")
+
+        // Get all unique workers from all panen records that match the selected blok_kode
+        val matchingPanenByBlok = panenTPH.filter { panenWithRelations ->
+            val blokKode = panenWithRelations.tph?.blok_kode
+            blokKode == selectedBlokByScan
+        }
+
+        AppLogger.d("Found ${matchingPanenByBlok.size} panen records matching blok: $selectedBlokByScan")
+
+        if (matchingPanenByBlok.isEmpty()) {
+            AppLogger.d("No panen records found for blok: $selectedBlokByScan")
+            return
+        }
+
+        // Extract all unique workers from matching panen records
+        val allManualWorkers = mutableListOf<Worker>()
+        val allManualKaryawanInfo = mutableListOf<KaryawanInfo>()
+        val uniqueWorkerSet = mutableSetOf<String>() // To track unique nik-nama combinations
+
+        matchingPanenByBlok.forEach { panenWithRelations ->
+            val panenEntity = panenWithRelations.panen
+            val karyawanNik = panenEntity.karyawan_nik
+            val karyawanNama = panenEntity.karyawan_nama
+            val karyawanId = panenEntity.karyawan_id
+            val kemandoranId = panenEntity.kemandoran_id
+
+            if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
+                // Split by comma and process each worker
+                val niks = karyawanNik.split(",").map { it.trim() }
+                val names = karyawanNama.split(",").map { it.trim() }
+                val ids = karyawanId.split(",").map { it.trim() }
+
+                // Process each worker combination
+                for (i in niks.indices) {
+                    if (i < names.size && i < ids.size) {
+                        val nik = niks[i]
+                        val nama = names[i]
+                        val individualId = ids[i]
+
+                        // Create unique key for this worker
+                        val uniqueKey = "$nik-$nama"
+
+                        if (!uniqueWorkerSet.contains(uniqueKey) && nik.isNotEmpty() && nama.isNotEmpty()) {
+                            uniqueWorkerSet.add(uniqueKey)
+
+                            val formattedName = "$nik - $nama"
+                            val worker = Worker(individualId, formattedName)
+                            allManualWorkers.add(worker)
+
+                            // Add to maps for quick lookup
+                            karyawanIdMap[formattedName] = individualId.toIntOrNull() ?: 0
+                            kemandoranIdMap[formattedName] = kemandoranId.toIntOrNull() ?: 0
+                            karyawanIdMap[nik] = individualId.toIntOrNull() ?: 0
+                            kemandoranIdMap[nik] = kemandoranId.toIntOrNull() ?: 0
+                            karyawanIdMap[nama] = individualId.toIntOrNull() ?: 0
+                            kemandoranIdMap[nama] = kemandoranId.toIntOrNull() ?: 0
+
+                            allManualKaryawanInfo.add(
+                                KaryawanInfo(
+                                    nik = nik,
+                                    nama = nama,
+                                    individualId = individualId
+                                )
+                            )
+
+                            AppLogger.d("Added manual worker: $formattedName, ID: $individualId")
+                        }
+                    }
+                }
+            }
+        }
+
+        // Store all available manual workers
+        allManualKaryawanList = allManualKaryawanInfo
+
+        // Populate the manual spinner
+        populateManualPemanenSpinner(allManualWorkers)
+
+        AppLogger.d("Total unique manual workers found: ${allManualWorkers.size}")
+    }
+
+    private fun populatePemanenSpinner(availableWorkers: List<Worker>) {
+        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+
+        // Always show spinner once TPH is selected, regardless of worker count
+        lyPemanen.visibility = View.VISIBLE
+
+        // Create list of worker names for spinner
+        val workerNames = availableWorkers.map { it.name }
+
+        // Setup spinner with available workers (even if empty)
+        setupSpinnerView(lyPemanen, workerNames)
+
+        if (availableWorkers.isEmpty()) {
+            AppLogger.d("All workers have been selected - spinner shows empty")
+        } else {
+            AppLogger.d("Spinner populated with ${workerNames.size} workers")
+        }
+    }
+
+    // New method to update spinner after worker removal
+    private fun updatePemanenSpinnerAfterRemoval() {
+        AppLogger.d("updatePemanenSpinnerAfterRemoval called")
+
+        // Get currently selected workers from AUTOMATIC RecyclerView
+        val selectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        val selectedWorkerIds = selectedWorkers.map { it.id }.toSet()
+
+        AppLogger.d("Currently selected automatic worker IDs: $selectedWorkerIds")
+        AppLogger.d("All available automatic workers count: ${allAvailableKaryawanList.size}")
+
+        // Filter available workers to exclude already selected ones
+        val availableWorkers = allAvailableKaryawanList
+            .filter { karyawan ->
+                val isSelected = selectedWorkerIds.contains(karyawan.individualId)
+                AppLogger.d("Automatic  Worker ${karyawan.nama} (ID: ${karyawan.individualId}) - Selected: $isSelected")
+                !isSelected
+            }
+            .map { karyawan ->
+                val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                Worker(karyawan.individualId, formattedName)
+            }
+
+        AppLogger.d("Available automatic workers for spinner: ${availableWorkers.size}")
+
+        // Always keep spinner visible and populate it
+        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+        lyPemanen.visibility = View.VISIBLE
+
+        // Create list of worker names for spinner
+        val workerNames = if (availableWorkers.isNotEmpty()) {
+            availableWorkers.map { it.name }
+        } else {
+            // Show hint when empty
+            listOf("Pilih Pemanen")
+        }
+
+        // Setup spinner with available workers
+        setupSpinnerView(lyPemanen, workerNames)
+
+        // If empty, set the spinner to show hint and disable selection
+        if (availableWorkers.isEmpty()) {
+            val spinner = lyPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            spinner.setHint("Pilih Pemanen")
+            spinner.isEnabled = false
+        } else {
+            val spinner = lyPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            spinner.isEnabled = true
+        }
+
+        AppLogger.d("Automatic spinner updated with ${workerNames.size} available workers")
+    }
+
+    private fun updateManualPemanenSpinnerAfterRemoval() {
+        AppLogger.d("updateManualPemanenSpinnerAfterRemoval called")
+
+        // Get currently selected workers from MANUAL RecyclerView
+        val selectedWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+        val selectedWorkerIds = selectedWorkers.map { it.id }.toSet()
+
+        AppLogger.d("Currently selected manual worker IDs: $selectedWorkerIds")
+        AppLogger.d("All available manual workers count: ${allManualKaryawanList.size}")
+
+        // Filter available workers to exclude already selected ones
+        val availableWorkers = allManualKaryawanList
+            .filter { karyawan ->
+                val isSelected = selectedWorkerIds.contains(karyawan.individualId)
+                AppLogger.d("Manual Worker ${karyawan.nama} (ID: ${karyawan.individualId}) - Selected: $isSelected")
+                !isSelected
+            }
+            .map { karyawan ->
+                val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                Worker(karyawan.individualId, formattedName)
+            }
+
+        AppLogger.d("Available manual workers for spinner: ${availableWorkers.size}")
+
+        // Always keep spinner visible and populate it (same as automatic spinner)
+        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+        lyPemanenManual.visibility = View.VISIBLE  // Always visible!
+
+        // Create list of worker names for spinner
+        val workerNames = if (availableWorkers.isNotEmpty()) {
+            availableWorkers.map { it.name }
+        } else {
+            // Show hint when empty
+            listOf("Pilih Pemanen")
+        }
+
+        // Setup spinner with available workers (could be empty list)
+        setupSpinnerView(lyPemanenManual, workerNames)
+
+        // If empty, set the spinner to show hint and disable selection
+        if (availableWorkers.isEmpty()) {
+            val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            spinner.setHint("Pilih Pemanen")
+            spinner.isEnabled = false
+        } else {
+            val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+            spinner.isEnabled = true
+        }
+
+        AppLogger.d("Manual spinner updated with ${workerNames.size} available workers")
+    }
+
 
     override fun getCurrentlySelectedTPHId(): Int? {
         return selectedTPHIdByScan
@@ -5002,9 +4750,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     ): List<ScannedTPHSelectionItem> {
         val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
-        val inspectionTPHId = if (is_from_pasar_tengah) currentInspectionData?.tph?.id else null
-
-
         // Separate pasar tengah TPHs and regular TPHs
         val pasarTengahTPHs = mutableListOf<ScannedTPHSelectionItem>()
         val regularTPHs = mutableListOf<ScannedTPHSelectionItem>()
@@ -5055,31 +4800,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Sort regular TPHs by distance
         regularTPHs.sortBy { it.distance }
-
-        // Build final list
-        if (is_from_pasar_tengah && pasarTengahTPHs.isNotEmpty()) {
-            // Add pasar tengah TPH first
-            resultsList.addAll(pasarTengahTPHs)
-
-            // Add separator only if scan button was triggered AND there are regular TPHs
-            if (isTriggeredBtnScanned && regularTPHs.isNotEmpty()) {
-                resultsList.add(
-                    ScannedTPHSelectionItem(
-                        id = -1,
-                        number = "---",
-                        blockCode = "TPH Terdekat Saat ini",
-                        distance = 0.0F,
-                        isAlreadySelected = false,
-                        selectionCount = 0,
-                        canBeSelectedAgain = false,
-                        isWithinRange = false,
-                        jenisTPHId = "0",
-                        customLimit = "0",
-                        tph_from_pasar_tengah = "SEPARATOR"
-                    )
-                )
-            }
-        }
 
         // Add regular TPHs (only if scan button was triggered)
         if (isTriggeredBtnScanned) {
@@ -5230,31 +4950,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun setupPemanenSpinner() {
-        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanen)
-        lyPemanen.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text = "Pilih Pemanen"
+    private fun setupAdapterCallbacks() {
+        AppLogger.d("Setting up automatic adapter callbacks...")
 
-        // Initially hide the spinner
-        lyPemanen.visibility = View.GONE
-
-        // Set up the spinner callback in your adapter
-        selectedPemanenAdapter.setOnWorkerRemovedListener { availableWorkers ->
-            if (is_from_pasar_tengah && currentInspectionData != null) {
-                // For pasar tengah, calculate available workers from panen data minus inspected workers
-                calculateAndShowAvailableWorkersForPasarTengah()
-            } else {
-                // Original logic for non-pasar tengah
-                if (availableWorkers.isNotEmpty()) {
-                    lyPemanen.visibility = View.VISIBLE
-                    updatePemanenSpinner(availableWorkers)
-                } else {
-                    lyPemanen.visibility = View.GONE
-                }
-            }
-        }
-
-        // Set up callback for when worker is actually removed to update selectedKaryawanList
         selectedPemanenAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
+            AppLogger.d("Automatic worker removal callback triggered for: ${removedWorker.name}")
+
             // Remove from selectedKaryawanList
             val dashIndex = removedWorker.name.indexOf(" - ")
             val removedNik = if (dashIndex != -1) {
@@ -5269,11 +4970,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             // Update selectedKaryawanList by removing the worker
+            val originalSize = selectedKaryawanList.size
             selectedKaryawanList = selectedKaryawanList.filter { karyawan ->
                 !(karyawan.nik == removedNik && karyawan.nama == removedName)
             }
 
-            // Also remove from maps
+            AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+            // Remove from maps
             karyawanIdMap.remove(removedWorker.name)
             kemandoranIdMap.remove(removedWorker.name)
             karyawanIdMap.remove(removedNik)
@@ -5281,123 +4985,99 @@ open class FormInspectionActivity : AppCompatActivity(),
             karyawanIdMap.remove(removedName)
             kemandoranIdMap.remove(removedName)
 
-            AppLogger.d("Removed worker from selectedKaryawanList: $removedName (NIK: $removedNik)")
+            // Update automatic spinner to show the removed worker again
+            AppLogger.d("Calling updatePemanenSpinnerAfterRemoval...")
+            updatePemanenSpinnerAfterRemoval()
+
+            AppLogger.d("Removed automatic worker from selectedKaryawanList: $removedName (NIK: $removedNik)")
             AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
-
-            // After removing, recalculate available workers
-            if (is_from_pasar_tengah && currentInspectionData != null) {
-                calculateAndShowAvailableWorkersForPasarTengah()
-            }
-        }
-
-        if (is_from_pasar_tengah && currentInspectionData != null) {
-            calculateAndShowAvailableWorkersForPasarTengah()
-        } else {
-            setupSpinnerView(lyPemanen, emptyList())
         }
     }
+    private fun setupSelectedPemanenRecyclerView() {
+        val rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+        selectedPemanenAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanen.adapter = selectedPemanenAdapter
+        rvSelectedPemanen.layoutManager = LinearLayoutManager(this)
 
-    private fun calculateAndShowAvailableWorkersForPasarTengah() {
-        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanen)
+        // Setup callbacks for automatic adapter
+        setupAdapterCallbacks()
 
-        try {
-            // Get all workers from panen data by filtering panenTPH with current TPH ID
-            val allPanenWorkers = mutableSetOf<String>()
+        rvSelectedPemanen.visibility = View.GONE
+    }
+    private fun setupSelectedPemanenManualRecyclerView() {
+        val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+        selectedPemanenManualAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanenManual.adapter = selectedPemanenManualAdapter
+        rvSelectedPemanenManual.layoutManager = FlexboxLayoutManager(this).apply {
+            justifyContent = JustifyContent.FLEX_START
+        }
 
-            // Filter panenTPH records with the same tph_id as selected TPH
-            val matchingPanenList = panenTPH.filter { panenWithRelations ->
-                val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()
-                tphId == selectedTPHIdByScan
-            }
+        // Setup callbacks for manual adapter
+        setupManualAdapterCallbacks()
 
-            AppLogger.d("=== FILTERING PANEN RECORDS FOR TPH ID: $selectedTPHIdByScan ===")
-            AppLogger.d("Total panenTPH records: ${panenTPH.size}")
-            AppLogger.d("Matching records for TPH: ${matchingPanenList.size}")
+        rvSelectedPemanenManual.visibility = View.GONE
+    }
 
-            // Process each matching panen record to get all workers
-            matchingPanenList.forEach { panenWithRelations ->
-                val panen = panenWithRelations.panen
-                if (panen != null) {
-                    val karyawanNik = panen.karyawan_nik ?: ""
-                    val karyawanNama = panen.karyawan_nama ?: ""
-                    val karyawanId = panen.karyawan_id ?: ""
+    private fun setupManualAdapterCallbacks() {
+        AppLogger.d("Setting up manual adapter callbacks...")
 
-                    AppLogger.d("Processing panen record ID: ${panen.id}")
-                    AppLogger.d("- karyawanNik: $karyawanNik")
-                    AppLogger.d("- karyawanNama: $karyawanNama")
-                    AppLogger.d("- karyawanId: $karyawanId")
+        selectedPemanenManualAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
+            AppLogger.d("Manual worker removal callback triggered for: ${removedWorker.name}")
 
-                    if (karyawanNik.isNotBlank() && karyawanNama.isNotBlank() && karyawanId.isNotBlank()) {
-                        val niks = karyawanNik.split(",").map { it.trim() }
-                        val names = karyawanNama.split(",").map { it.trim() }
-                        val ids = karyawanId.split(",").map { it.trim() }
-
-                        for (i in niks.indices) {
-                            if (i < names.size && i < ids.size) {
-                                val nik = niks[i]
-                                val nama = names[i]
-                                val formattedWorker = "$nik - $nama"
-                                allPanenWorkers.add(formattedWorker)
-
-                                // Also ensure the worker is in the maps for later use
-                                val workerId = ids[i].toIntOrNull() ?: 0
-                                karyawanIdMap[formattedWorker] = workerId
-                                kemandoranIdMap[formattedWorker] =
-                                    panen.kemandoran_id.toIntOrNull() ?: 0
-                                karyawanIdMap[nik] = workerId
-                                kemandoranIdMap[nik] = panen.kemandoran_id.toIntOrNull() ?: 0
-                                karyawanIdMap[nama] = workerId
-                                kemandoranIdMap[nama] = panen.kemandoran_id.toIntOrNull() ?: 0
-
-                                AppLogger.d("Added worker from panen: $formattedWorker (ID: $workerId)")
-                            }
-                        }
-                    }
-                }
-            }
-
-            AppLogger.d("=== CALCULATING AVAILABLE WORKERS FOR PASAR TENGAH ===")
-            AppLogger.d("All panen workers: ${allPanenWorkers.size}")
-            allPanenWorkers.forEach { worker ->
-                AppLogger.d("- Panen worker: $worker")
-            }
-
-            // Get currently selected workers from adapter
-            val currentlySelectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
-            val currentlySelectedWorkerNames = currentlySelectedWorkers.map { it.name }.toSet()
-
-            AppLogger.d("Currently selected workers: ${currentlySelectedWorkerNames.size}")
-            currentlySelectedWorkerNames.forEach { worker ->
-                AppLogger.d("- Currently selected: $worker")
-            }
-
-            // Calculate available workers: all panen workers minus currently selected workers
-            val availableWorkers = allPanenWorkers.filter { worker ->
-                !currentlySelectedWorkerNames.contains(worker)
-            }.map { formattedWorker ->
-                val workerId = karyawanIdMap[formattedWorker]?.toString() ?: ""
-                Worker(workerId, formattedWorker)
-            }
-
-            AppLogger.d("Available workers for spinner: ${availableWorkers.size}")
-            availableWorkers.forEach { worker ->
-                AppLogger.d("- Available: ${worker.name} (ID: ${worker.id})")
-            }
-
-            // Show/hide spinner based on available workers
-            if (availableWorkers.isNotEmpty()) {
-                lyPemanen.visibility = View.VISIBLE
-                updatePemanenSpinner(availableWorkers)
+            // Remove from selectedKaryawanList
+            val dashIndex = removedWorker.name.indexOf(" - ")
+            val removedNik = if (dashIndex != -1) {
+                removedWorker.name.substring(0, dashIndex).trim()
             } else {
-                lyPemanen.visibility = View.GONE
+                ""
+            }
+            val removedName = if (dashIndex != -1) {
+                removedWorker.name.substring(dashIndex + 3).trim()
+            } else {
+                removedWorker.name.trim()
             }
 
-        } catch (e: Exception) {
-            AppLogger.e("Error calculating available workers for pasar tengah: ${e.message}")
-            lyPemanen.visibility = View.GONE
+            // Update selectedKaryawanList by removing the worker
+            val originalSize = selectedKaryawanList.size
+            selectedKaryawanList = selectedKaryawanList.filter { karyawan ->
+                !(karyawan.nik == removedNik && karyawan.nama == removedName)
+            }
+
+            AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+            // Remove from maps
+            karyawanIdMap.remove(removedWorker.name)
+            kemandoranIdMap.remove(removedWorker.name)
+            karyawanIdMap.remove(removedNik)
+            kemandoranIdMap.remove(removedNik)
+            karyawanIdMap.remove(removedName)
+            kemandoranIdMap.remove(removedName)
+
+            // Update manual spinner to show the removed worker again
+            AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval...")
+            updateManualPemanenSpinnerAfterRemoval()
+
+            AppLogger.d("Removed manual worker from selectedKaryawanList: $removedName (NIK: $removedNik)")
+            AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
         }
     }
 
+
+    private fun setupPemanenSpinner() {
+        val lyPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+
+        lyPemanenOtomatis.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text = "Pilih Pemanen (Otomatis)"
+        lyPemanenManual.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text = "Pilih Pemanen (Manual)"
+
+        // Initially hide both spinners
+        lyPemanenOtomatis.visibility = View.GONE
+        lyPemanenManual.visibility = View.GONE
+
+        // Setup both RecyclerViews
+        setupSelectedPemanenRecyclerView() // For automatic
+        setupSelectedPemanenManualRecyclerView() // For manual
+    }
 
     private fun setupPemanenRecyclerView(detailInspeksi: List<InspectionDetailModel>) {
         val rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenFollowUp)
@@ -6162,7 +5842,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             errorMessages.add("Minimal 1 pemanen yang dipilih!")
             missingFields.add("Pilih Pemanen")
 
-            val layoutBaris2 = findViewById<LinearLayout>(R.id.lyPemanen)
+            val layoutBaris2 = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
             val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
             val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
 
@@ -6378,9 +6058,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                     // Save selfie photo to global variable
                     photoSelfie = fname
                 }
+
                 isInTPH -> {
                     photoInTPH = fname
                 }
+
                 else -> {
                     formAncakViewModel.savePageData(
                         currentPage,

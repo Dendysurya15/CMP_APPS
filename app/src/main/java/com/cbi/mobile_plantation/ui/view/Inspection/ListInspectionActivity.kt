@@ -408,35 +408,6 @@ class ListInspectionActivity : AppCompatActivity() {
         val tphContainer = view.findViewById<LinearLayout>(R.id.tblLytTPH)
         val issueContainer = view.findViewById<LinearLayout>(R.id.tblLytIssue)
 
-        val btnStartPasarTengah = view.findViewById<TextView>(R.id.btnStartPasarTengah)
-
-        btnStartPasarTengah.setOnClickListener{
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Lanjutkan",
-                getString(R.string.confirmation_dialog_title),
-                "Inspeksi akan dilanjutkan dari Pasar Tengah dengan Nomor TPH ini. Anda masih dapat melakukan perubahan nomor TPH jika diperlukan.",
-                "warning.json",
-                ContextCompat.getColor(this, R.color.bluedarklight),
-                function = {
-                    val intent = Intent(
-                        this@ListInspectionActivity,
-                        FormInspectionActivity::class.java
-                    )
-
-                    intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.InspeksiPanen)
-                    intent.putExtra("IS_FROM_PASAR_TENGAH",true)
-                    intent.putExtra("DIVISI_ABBR",inspectionPath.tph.divisi_abbr)
-                    intent.putExtra("DEPT_ABBR",inspectionPath.tph.dept_abbr)
-                    intent.putExtra("BLOK_KODE",inspectionPath.tph.blok_kode)
-                    intent.putExtra("LAST_NUMBER_POKOK",inspectionPath.inspeksi.jml_pkk_inspeksi)
-                    intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
-                    startActivity(intent)
-                },
-                cancelFunction = { }
-            )
-        }
-
         // Populate TPH Section
         populateTPHData(tphContainer, inspectionPath.inspeksi, inspectionPath.tph, inspectionPath.panen, view, inspectionPath.detailInspeksi)
 

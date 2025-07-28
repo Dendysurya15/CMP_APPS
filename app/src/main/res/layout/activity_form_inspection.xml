@@ -648,11 +648,23 @@
                         tools:ignore="MissingConstraints" />
 
                     <include
-                        android:id="@+id/lyPemanen"
+                        android:id="@+id/lyPemanenOtomatis"
                         layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
 
                     <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvSelectedPemanenInspection"
+                        android:id="@+id/rvSelectedPemanenOtomatisInspection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/top_margin"
+                        android:overScrollMode="never"
+                        android:visibility="gone" />
+
+                    <include
+                        android:id="@+id/lyPemanenManual"
+                        layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSelectedPemanenManualInspection"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/top_margin"
