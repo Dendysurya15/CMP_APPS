@@ -107,6 +107,7 @@ class AppRepository(context: Context) {
         latPemulihan: Double,
         lonPemulihan: Double,
         updatedDate: String,
+        statusPemulihan : Int,
         updatedName: String,
         updatedBy: String
     ): Boolean {
@@ -117,6 +118,7 @@ class AppRepository(context: Context) {
                 fotoPemulihan = fotoPemulihan,
                 komentarPemulihan = komentarPemulihan,
                 latPemulihan = latPemulihan,
+                statusPemulihan = statusPemulihan,
                 lonPemulihan = lonPemulihan,
                 updatedDate = updatedDate,
                 updatedName = updatedName,

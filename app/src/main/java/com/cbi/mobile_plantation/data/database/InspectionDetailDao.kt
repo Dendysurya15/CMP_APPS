@@ -40,6 +40,7 @@ abstract class InspectionDetailDao {
     komentar_pemulihan = :komentarPemulihan,
     latPemulihan = :latPemulihan,
     lonPemulihan = :lonPemulihan,
+    status_pemulihan = :statusPemulihan,
     updated_date = :updatedDate,
     updated_name = :updatedName,
     updated_by = :updatedBy
@@ -52,6 +53,7 @@ abstract class InspectionDetailDao {
         komentarPemulihan: String?,
         latPemulihan: Double,
         lonPemulihan: Double,
+        statusPemulihan : Int,
         updatedDate: String,
         updatedName: String,
         updatedBy: String

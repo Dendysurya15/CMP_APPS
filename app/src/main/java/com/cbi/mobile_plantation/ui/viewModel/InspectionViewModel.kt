@@ -240,7 +240,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val undivided: String
             )
 
-            // Regular pokok mappings (exclude 5 and 6)
+            // Regular pokok mappings (exclude 5, 6, 9, and 10 - we'll handle pruning separately)
             val regularPokokMappings = listOf(
                 InspectionMapping(
                     1, { pageData, _, _ -> pageData.brdKtpGawangan },
@@ -283,22 +283,29 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     parameterInspeksi.find { it.id == 8 }?.nama ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,
                     parameterInspeksi.find { it.id == 8 }?.temuan_pokok ?: 1,
                     parameterInspeksi.find { it.id == 8 }?.undivided ?: "True"
-                ),
+                )
+            )
+
+            // Add pruning mappings (codes 9 and 10)
+            val pruningMappings = listOf(
                 InspectionMapping(
-                    9, { pageData, _, _ -> if (pageData.kondisiPruning == 1) 1 else 0 },
+                    9, { pageData, _, _ -> if (pageData.kondisiPruning == 2) 1 else 0 }, // Over Pruning
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
                     parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1,
                     parameterInspeksi.find { it.id == 9 }?.undivided ?: "True"
                 ),
-//                InspectionMapping(
-//                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
-//                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
-//                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning,
-//                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1,
-//                    parameterInspeksi.find { it.id == 10 }?.undivided ?: "True"
-//                )
+                InspectionMapping(
+                    10, { pageData, _, _ -> if (pageData.kondisiPruning == 3) 1 else 0 }, // Under Pruning
+                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning,
+                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1,
+                    parameterInspeksi.find { it.id == 10 }?.undivided ?: "True"
+                )
             )
+
+            // Combine all mappings
+            val allMappings = regularPokokMappings + pruningMappings
 
             var updatedCount = 0
 
@@ -341,6 +348,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                                 latPemulihan = matchingPageData?.latIssue ?: 0.0,
                                 lonPemulihan = matchingPageData?.lonIssue ?: 0.0,
                                 updatedDate = createdDateStart,
+                                statusPemulihan = 0,
                                 updatedName = createdName,
                                 updatedBy = createdBy
                             )
@@ -362,6 +370,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                                 latPemulihan = matchingPageData?.latIssue ?: 0.0,
                                 lonPemulihan = matchingPageData?.lonIssue ?: 0.0,
                                 updatedDate = createdDateStart,
+                                statusPemulihan = 0,
                                 updatedName = createdName,
                                 updatedBy = createdBy
                             )
@@ -388,7 +397,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     }
 
                     // Find the mapping for this kode_inspeksi
-                    val mapping = regularPokokMappings.find { it.kodeInspeksi == detail.kode_inspeksi }
+                    val mapping = allMappings.find { it.kodeInspeksi == detail.kode_inspeksi }
 
                     if (mapping == null) {
                         AppLogger.d("No mapping found for kode_inspeksi: ${detail.kode_inspeksi}")
@@ -397,6 +406,17 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                     // Get the raw value from pageData
                     val rawValue = mapping.getValue(matchingPageData, jumBrdTglPath, jumBuahTglPath)
+
+                    // For pruning codes (9 and 10), log the kondisiPruning value
+                    if (detail.kode_inspeksi == 9 || detail.kode_inspeksi == 10) {
+                        AppLogger.d("Pruning check - Page ${detail.no_pokok}, kondisiPruning: ${matchingPageData.kondisiPruning}, kode_inspeksi: ${detail.kode_inspeksi}, rawValue: $rawValue")
+                    }
+
+                    // Skip if the value is 0 (this handles the kondisiPruning = 1 (Normal) case)
+                    if (rawValue == 0) {
+                        AppLogger.d("Skipping detail ID: ${detail.id} - rawValue is 0")
+                        return@forEach
+                    }
 
                     // Calculate the final value based on undivided setting
                     val finalValue = if (mapping.undivided == "True") {
@@ -416,6 +436,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         komentarPemulihan = matchingPageData.comment,
                         latPemulihan = matchingPageData.latIssue ?: 0.0,
                         lonPemulihan = matchingPageData.lonIssue ?: 0.0,
+                        statusPemulihan = 1,
                         updatedDate = matchingPageData.createdDate ?: createdDateStart,
                         updatedName = matchingPageData.createdName ?: createdName,
                         updatedBy = matchingPageData.createdBy?.toString() ?: createdBy
@@ -423,7 +444,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                     if (updateSuccess) {
                         updatedCount++
-
                     }
                 }
             }
@@ -436,7 +456,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             SaveDataInspectionDetailsState.Error(e.toString())
         }
     }
-
 
     suspend fun saveDataInspectionDetails(
         inspectionId: String,
@@ -480,7 +499,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 val temuanPokok: Int
             )
 
-            // Regular pokok mappings (exclude 5 and 6)
+            // Regular pokok mappings (exclude 5, 6, 9, and 10 - we'll handle pruning separately)
             val regularPokokMappings = listOf(
                 InspectionMapping(
                     1, { pageData, _, _ -> pageData.brdKtpGawangan },
@@ -528,25 +547,31 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     parameterInspeksi.find { it.id == 8 }?.nama
                         ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,
                     parameterInspeksi.find { it.id == 8 }?.temuan_pokok ?: 1
-                ),
+                )
+            )
 
+            // Add pruning mappings (codes 9 and 10)
+            val pruningMappings = listOf(
                 InspectionMapping(
-                    9, { pageData, _, _ -> if (pageData.kondisiPruning == 1) 1 else 0 },
+                    9, { pageData, _, _ -> if (pageData.kondisiPruning == 2) 1 else 0 }, // Over Pruning
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
                     parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1
                 ),
 
-//                InspectionMapping(
-//                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
-//                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
-//                    parameterInspeksi.find { it.id == 10 }?.nama
-//                        ?: AppUtils.kodeInspeksi.underPruning,
-//                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
-//                )
+                InspectionMapping(
+                    10, { pageData, _, _ -> if (pageData.kondisiPruning == 3) 1 else 0 }, // Under Pruning
+                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
+                    parameterInspeksi.find { it.id == 10 }?.nama
+                        ?: AppUtils.kodeInspeksi.underPruning,
+                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
+                )
             )
 
-            AppLogger.d("Created ${regularPokokMappings.size} regular pokok inspection mappings from database parameters")
+            // Combine all mappings
+            val allMappings = regularPokokMappings + pruningMappings
+
+            AppLogger.d("Created ${allMappings.size} inspection mappings from database parameters (including pruning)")
 
             // More efficient approach: Loop through formData instead of 1..totalPages
             formData.forEach { (pageNumber, pageData) ->
@@ -560,10 +585,15 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 AppLogger.d("Processing page $pageNumber with ${selectedKaryawanList.size} karyawan")
 
                 selectedKaryawanList.forEach { karyawan ->
-                    regularPokokMappings.forEach { mapping ->
+                    allMappings.forEach { mapping ->
                         val rawValue = mapping.getValue(pageData, jumBrdTglPath, jumBuahTglPath)
 
                         AppLogger.d("DEBUG: Page $pageNumber, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
+
+                        // For pruning codes, log the kondisiPruning value
+                        if (mapping.kodeInspeksi == 9 || mapping.kodeInspeksi == 10) {
+                            AppLogger.d("Pruning check - Page $pageNumber, kondisiPruning: ${pageData.kondisiPruning}, kode_inspeksi: ${mapping.kodeInspeksi}, rawValue: $rawValue")
+                        }
 
                         val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
                         val dividedValue = if (undivided == "False") {
@@ -572,7 +602,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             rawValue.toDouble() / karyawanCount.toDouble()
                         }
 
-                        // Skip if temuan_inspeksi value is 0
+                        // Skip if temuan_inspeksi value is 0 (this handles kondisiPruning = 1 (Normal) case)
                         if (dividedValue == 0.0) {
                             AppLogger.d("Skipping save for page $pageNumber, karyawan ${karyawan.nama}, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
                             return@forEach
@@ -591,7 +621,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             pokok_panen = pageData.harvestTree,
                             kode_inspeksi = mapping.kodeInspeksi,
                             temuan_inspeksi = dividedValue,
-                            status_pemulihan = 0,
+                            status_pemulihan = pageData.status_pemulihan ?: 0,
                             foto = pageData.photo,
                             foto_pemulihan = null,
                             komentar = pageData.comment,

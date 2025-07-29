@@ -91,6 +91,7 @@
             android:layout_height="0dp"
             app:layout_constraintBottom_toTopOf="@id/bottomNavInspect"
             app:layout_constraintEnd_toEndOf="parent"
+
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/headerFormInspection">
 
@@ -108,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:paddingHorizontal="20dp"
-                    android:paddingBottom="30dp">
+                    android:paddingBottom="100dp">
 
                     <TextView
                         android:layout_width="match_parent"

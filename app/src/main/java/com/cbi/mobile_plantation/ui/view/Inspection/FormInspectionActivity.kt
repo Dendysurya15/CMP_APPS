@@ -1573,10 +1573,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         fabNextToFormAncak.setOnClickListener {
             if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    if (!validateAndShowErrors()) {
-                        vibrate(500)
-                        return@setOnClickListener
-                    }
+//                    if (!validateAndShowErrors()) {
+//                        vibrate(500)
+//                        return@setOnClickListener
+//                    }
             }
 
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
@@ -4354,7 +4354,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             R.id.lyJalurInspect -> {
                 val mapData = listRadioItems["EntryPath"] ?: emptyMap()
                 val selectedKey = mapData.entries.find { it.value == selectedItem }?.value
+
+
                 selectedJalurMasuk = selectedKey ?: ""
+                AppLogger.d("selectedJalurMasuk $selectedJalurMasuk")
             }
 
         }

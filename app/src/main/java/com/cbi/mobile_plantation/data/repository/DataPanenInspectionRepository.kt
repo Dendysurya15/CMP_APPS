@@ -73,7 +73,7 @@ class DataPanenInspectionRepository(
                 }
 
                 // Date range condition using BETWEEN
-                put("tanggal", JSONObject().apply {
+                put("created_date", JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(sevenDaysAgo)
                         put(today)
