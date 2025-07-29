@@ -380,7 +380,7 @@ class FollowUpInspeksi : AppCompatActivity() {
         // Use ONLY location pin icon
         val drawable = ContextCompat.getDrawable(this, R.drawable.baseline_location_pin_24)
 
-        val hasUnresolvedIssues = details.any { it.status_pemulihan == 0.0 }
+        val hasUnresolvedIssues = details.any { it.status_pemulihan == 0 }
         val colorRes = if (hasUnresolvedIssues) {
             android.R.color.holo_orange_dark
         } else {

@@ -277,7 +277,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var isInTPH: Boolean = true
     private var br1Value: String = ""
     private var br2Value: String = ""
-
+    private var isForFollowUp = false
     private lateinit var rvSelectedPemanen: RecyclerView
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -309,8 +309,14 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
+    private lateinit var fabFollowUpNow: FloatingActionButton
     private lateinit var fabPhotoUser: FloatingActionButton
     private lateinit var fabPhotoUser2: FloatingActionButton
+    private lateinit var labelPhotoUser: TextView
+    private lateinit var labelPhotoFormInspect: TextView
+    private lateinit var labelFollowUpNow: TextView
+
+
     private lateinit var fabPhotoInfoBlok: FloatingActionButton
     private lateinit var clInfoBlokSection: ConstraintLayout
     private lateinit var clFormInspection: ConstraintLayout
@@ -454,6 +460,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             null
         }
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
+                View.VISIBLE
+            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
             map = findViewById(R.id.map)
             setupMapTouchHandling()
             setupMap()
@@ -1265,42 +1274,61 @@ open class FormInspectionActivity : AppCompatActivity(),
             val pageData = formData[currentPage]
             val emptyTreeValue = pageData?.emptyTree ?: 0
 
-            // Show fabPhotoUser if current page meets the minimal requirement
-            fabPhotoUser.visibility = if (currentPage == AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION) {
-                View.VISIBLE
-            } else {
-                View.GONE
-            }
+            // === fabPhotoUser & label ===
+            val showFabPhotoUser = currentPage == AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
+            fabPhotoUser.visibility = if (showFabPhotoUser) View.VISIBLE else View.GONE
+            labelPhotoUser.visibility = fabPhotoUser.visibility
 
-            // Show fabPhotoFormInspect if empty tree value is 1
-            val shouldShowFormPhoto = emptyTreeValue == 1
-            fabPhotoFormAncak.visibility = if (shouldShowFormPhoto) {
-                View.VISIBLE
-            } else {
-                View.GONE
-            }
+            // === fabFollowUpNow & label ===
+            val showFabFollowUp = emptyTreeValue == 1
+            fabFollowUpNow.visibility = if (showFabFollowUp) View.VISIBLE else View.GONE
+            labelFollowUpNow.visibility = fabFollowUpNow.visibility
 
-            // Dynamically adjust fabPhotoUser position based on fabPhotoFormInspect visibility
-            if (fabPhotoUser.visibility == View.VISIBLE) {
+            // === fabPhotoFormInspect & label ===
+            val showFabFormPhoto = emptyTreeValue == 1
+            fabPhotoFormAncak.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
+            labelPhotoFormInspect.visibility = fabPhotoFormAncak.visibility
+
+            // === Update fabPhotoUser Position ===
+            if (showFabPhotoUser) {
                 val layoutParams = fabPhotoUser.layoutParams as ConstraintLayout.LayoutParams
-
-                if (shouldShowFormPhoto) {
-                    // Form photo is visible - position selfie FAB above it
-                    layoutParams.bottomToTop = R.id.fabPhotoFormInspect
-                    layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
-                    layoutParams.bottomMargin =
-                        (15 * resources.displayMetrics.density).toInt() // 15dp
-                } else {
-                    // Form photo is hidden - position selfie FAB at same location as form photo
-                    layoutParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
-                    layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
-                    layoutParams.bottomMargin =
-                        (15 * resources.displayMetrics.density).toInt() // 15dp
+                when {
+                    showFabFollowUp && showFabFormPhoto -> {
+                        layoutParams.bottomToTop = R.id.fabFollowUpNow
+                        layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
+                    }
+                    showFabFormPhoto -> {
+                        layoutParams.bottomToTop = R.id.fabPhotoFormInspect
+                        layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
+                    }
+                    showFabFollowUp -> {
+                        layoutParams.bottomToTop = R.id.fabFollowUpNow
+                        layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
+                    }
+                    else -> {
+                        layoutParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
+                        layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+                    }
                 }
-
+                layoutParams.bottomMargin = (15 * resources.displayMetrics.density).toInt()
                 fabPhotoUser.layoutParams = layoutParams
             }
+
+            // === Update fabFollowUpNow Position ===
+            if (showFabFollowUp) {
+                val layoutParams = fabFollowUpNow.layoutParams as ConstraintLayout.LayoutParams
+                if (showFabFormPhoto) {
+                    layoutParams.bottomToTop = R.id.fabPhotoFormInspect
+                    layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
+                } else {
+                    layoutParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
+                    layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+                }
+                layoutParams.bottomMargin = (15 * resources.displayMetrics.density).toInt()
+                fabFollowUpNow.layoutParams = layoutParams
+            }
         }
+
 
         formAncakViewModel.fieldValidationError.observe(this) { errorMap ->
             val currentFragment =
@@ -1335,7 +1363,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (currentPokok >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
                 vibrate(500)
                 isForSelfie = true
-                showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1361,7 +1389,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
             if (hasFindings && !hasValidPhoto) {
                 vibrate(500)
-                showViewPhotoBottomSheet(null, isInTPH)
+                showViewPhotoBottomSheet(null, isInTPH, false, false)
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1451,7 +1479,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (currentPokok >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
                 vibrate(500)
                 isForSelfie = true
-                showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1477,7 +1505,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             if (hasFindings && !hasValidPhoto) {
                 vibrate(500)
-                showViewPhotoBottomSheet(null, isInTPH)
+                showViewPhotoBottomSheet(null, isInTPH, false, false)
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1524,23 +1552,30 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         fabPhotoFormAncak.setOnClickListener {
             isForSelfie = false
-            showViewPhotoBottomSheet(null, false, false) // Form photo
+            showViewPhotoBottomSheet(null, false, false, false) // Form photo
         }
 
         fabPhotoUser.setOnClickListener {
             isForSelfie = true
-            showViewPhotoBottomSheet(null, false, true) // Selfie photo
+            showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
         }
 
         fabPhotoInfoBlok.setOnClickListener {
             isForSelfie = false
-            showViewPhotoBottomSheet(null, true, false) // TPH photo
+            showViewPhotoBottomSheet(null, true, false, false) // TPH photo
         }
 
         fabPhotoUser2?.setOnClickListener {
             isForSelfie = true
-            showViewPhotoBottomSheet(null, false, true) // Selfie photo
+            showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
         }
+
+        fabFollowUpNow.setOnClickListener {
+            isForSelfie = false
+            isForFollowUp = true
+            showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+        }
+
 
         fabSaveFormAncak.setOnClickListener {
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
@@ -1550,7 +1585,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (!hasSelfiePhoto) {
                 vibrate(500)
                 isForSelfie = true
-                showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1796,10 +1831,10 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun showViewPhotoBottomSheet(
         fileName: String? = null,
         isInTPH: Boolean? = null,
-        isForSelfie: Boolean? = null
+        isForSelfie: Boolean? = null,
+        isForFollowUp: Boolean? = null
     ) {
 
-        AppLogger.d("isInTPH $isInTPH")
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -1826,12 +1861,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             isClickable = true
             imeOptions = EditorInfo.IME_ACTION_DONE
             inputType = AndroidInputType.TYPE_CLASS_TEXT
-
         }
 
         etPhotoComment.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                // Hide keyboard when Done is pressed
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
                 etPhotoComment.clearFocus()
@@ -1847,8 +1880,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showSoftInput(etPhotoComment, InputMethodManager.SHOW_IMPLICIT)
         }
-
-
 
         bottomSheetDialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
@@ -1870,6 +1901,15 @@ open class FormInspectionActivity : AppCompatActivity(),
             val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
             titleComment.visibility = View.GONE
             etPhotoComment.visibility = View.GONE
+
+        } else if (isForFollowUp == true) {
+            // Follow-up photo case
+            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
+            titlePhotoTemuan.text = "Lampiran Foto Pemulihan"
+
+            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
+            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
+            titleComment.text = "Komentar Pemulihan"
 
         } else if (isInTPH == true) {
             val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
@@ -1907,11 +1947,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         val photoToShow = when {
             isForSelfie == true -> photoSelfie
             isInTPH == true -> photoInTPH
+            isForFollowUp == true -> currentData.foto_pemulihan
             else -> currentData.photo
         }
 
         val watermarkType = when {
             isForSelfie == true -> WaterMarkFotoDanFolder.WMBuktiInspeksiUser
+            isForFollowUp == true -> WaterMarkFotoDanFolder.WMFUInspeksiPokok
             featureName == AppUtils.ListFeatureNames.FollowUpInspeksi -> {
                 if (isInTPH == true) {
                     WaterMarkFotoDanFolder.WMFUInspeksiTPH
@@ -1919,7 +1961,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     WaterMarkFotoDanFolder.WMFUInspeksiPokok
                 }
             }
-
             else -> {
                 if (isInTPH == true) {
                     WaterMarkFotoDanFolder.WMInspeksiTPH
@@ -1949,6 +1990,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                     komentarInTPH = null
                 }
 
+                isForFollowUp == true -> {
+                    // Clear follow-up photo
+                    formAncakViewModel.savePageData(
+                        currentPage,
+                        currentData.copy(
+                            foto_pemulihan = null,
+                            komentar_pemulihan = null,
+                            status_pemulihan = 0,
+                        )
+                    )
+                }
+
                 else -> {
                     // Clear form data photo
                     formAncakViewModel.savePageData(
@@ -1966,7 +2019,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             bottomNavInspect.visibility = View.VISIBLE
             bottomSheetDialog.dismiss()
             Handler(Looper.getMainLooper()).postDelayed({
-                showViewPhotoBottomSheet(null, isInTPH, isForSelfie)
+                showViewPhotoBottomSheet(null, isInTPH, isForSelfie, isForFollowUp)
             }, 100)
         }
 
@@ -1986,6 +2039,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                 override fun afterTextChanged(s: Editable?) {
                     // Save TPH comment to the variable
                     komentarInTPH = s?.toString() ?: ""
+                }
+            })
+        }else if (isForFollowUp == true) {
+            // Load existing follow-up comment
+            etPhotoComment.setText(currentData.komentar_pemulihan)
+            etPhotoComment.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    formAncakViewModel.savePageData(
+                        currentPage,
+                        currentData.copy(komentar_pemulihan = s?.toString() ?: "")
+                    )
                 }
             })
         } else {
@@ -2062,7 +2128,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         showViewPhotoBottomSheet(
                                             null,
                                             isInTPH,
-                                            isForSelfie
+                                            isForSelfie,
+                                            isForFollowUp
                                         ) // Add isForSelfie here
                                     }, 100)
                                 }
@@ -2250,6 +2317,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabPrevFormAncak = findViewById(R.id.fabPrevFormInspect)
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
+        labelPhotoFormInspect = findViewById(R.id.labelPhotoFormInspect)
+        labelPhotoUser = findViewById(R.id.labelPhotoUser)
+        labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
+        fabFollowUpNow = findViewById(R.id.fabFollowUpNow)
         fabPhotoUser = findViewById(R.id.fabPhotoUser)
         fabPhotoUser2 = findViewById(R.id.fabPhotoUser2)
 
@@ -2360,7 +2431,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 if (currentPage == AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
                     vibrate(500)
                     isForSelfie = true
-                    showViewPhotoBottomSheet(null, false, true) // Selfie photo
+                    showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
                     AlertDialogUtility.withSingleAction(
                         this,
                         stringXML(R.string.al_back),
@@ -2387,7 +2458,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     if (hasFindings && !hasValidPhoto) {
                         vibrate(500)
-                        showViewPhotoBottomSheet(null, isInTPH)
+                        showViewPhotoBottomSheet(null, isInTPH,false)
                         AlertDialogUtility.withSingleAction(
                             this,
                             stringXML(R.string.al_back),
@@ -2416,10 +2487,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             if (activeBottomNavId == R.id.navMenuBlokInspect) {
                 if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    if (!validateAndShowErrors()) {
-                        vibrate(500)
-                        return@setOnItemSelectedListener false
-                    }
+//                    if (!validateAndShowErrors()) {
+//                        vibrate(500)
+//                        return@setOnItemSelectedListener false
+//                    }
                 }
 
             }
@@ -2431,9 +2502,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
-                            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
-                                View.VISIBLE
-                            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
                             clFormInspection.visibility = View.GONE
                             clInfoBlokSection.visibility = View.VISIBLE
                             infoBlokView.visibility = View.VISIBLE
@@ -2706,6 +2774,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             View.GONE
         }
 
+        // Badge for Follow-Up Section (fabFollowUpNow)
+        val badgeFollowUpNow = findViewById<View>(R.id.badgeFollowUpNow)
+        val hasFollowUpPhoto = currentData.foto_pemulihan != null
+
+        badgeFollowUpNow.visibility = if (hasFollowUpPhoto) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
         // Badge for Info Blok Section (fabPhotoInfoBlok)
         val badgePhotoInfoBlok = findViewById<View>(R.id.badgePhotoInfoBlok)
         val hasTPHPhoto = !photoInTPH.isNullOrEmpty()
@@ -2726,6 +2804,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             View.GONE
         }
     }
+
 
     @SuppressLint("SetTextI18n")
     private fun setupSummaryPage() {
@@ -5604,7 +5683,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Use ONLY location pin icon
         val drawable = ContextCompat.getDrawable(this, R.drawable.baseline_location_pin_24)
 
-        val hasUnresolvedIssues = details.any { it.status_pemulihan == 0.0 }
+        val hasUnresolvedIssues = details.any { it.status_pemulihan == 0 }
         val colorRes = if (hasUnresolvedIssues) {
             android.R.color.holo_orange_dark
         } else {
@@ -5857,7 +5936,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (photoInTPH == null) {
 
             isValid = false
-            showViewPhotoBottomSheet(null, isInTPH)
+            showViewPhotoBottomSheet(null, isInTPH,false,false)
             errorMessages.add("Foto di TPH wajib")
             missingFields.add("Foto TPH")
         }
@@ -6109,6 +6188,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             AppLogger.d("currentData $currentData")
 
+            AppLogger.d("isFollowUP $isForFollowUp")
+
             when {
                 isForSelfie -> {
                     // Save selfie photo to global variable
@@ -6119,7 +6200,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                     photoInTPH = fname
                 }
 
+                isForFollowUp -> {
+
+                    AppLogger.d("masuk sini gessss")
+                    formAncakViewModel.savePageData(
+                        currentPage,
+                        currentData.copy(
+                            foto_pemulihan = fname,
+                            status_pemulihan = 1  // ✅ Set to "1" when photo is saved
+                        )
+                    )
+                }
+
                 else -> {
+                    AppLogger.d("masuk sini gak sih")
+                    // Save regular form photo to PageData
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(photo = fname)
@@ -6129,11 +6224,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             // Update badge visibility after saving photo
             updatePhotoBadgeVisibility()
-
             updateSelfiePhotoBadgeVisibility()
 
             Handler(Looper.getMainLooper()).postDelayed({
-                showViewPhotoBottomSheet(fname, isInTPH, isForSelfie)
+                showViewPhotoBottomSheet(fname, isInTPH, isForSelfie, isForFollowUp)
+                isForSelfie = false
+                isInTPH = false
+                isForFollowUp = false
             }, 100)
         }
     }

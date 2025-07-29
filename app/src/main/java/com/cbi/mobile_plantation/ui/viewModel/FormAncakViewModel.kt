@@ -37,7 +37,10 @@ class FormAncakViewModel : ViewModel() {
             val lonIssue: Double? = null,
             val createdDate: String? = null,
             val createdBy: Int? = null,
-            val createdName: String? = null
+            val createdName: String? = null,
+            val foto_pemulihan: String? = null,
+            val komentar_pemulihan: String? = null,
+            val status_pemulihan: Int? = 0,
         )
 
         data class ValidationResult(

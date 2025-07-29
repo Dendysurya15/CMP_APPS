@@ -20,7 +20,7 @@ data class InspectionDetailModel(
     val pokok_panen: Int? = null,
     val kode_inspeksi: Int,
     val temuan_inspeksi: Double,
-    val status_pemulihan: Double,
+    val status_pemulihan: Int,
     val foto: String? = null,
     val foto_pemulihan: String? = null,
     val komentar: String? = null,
