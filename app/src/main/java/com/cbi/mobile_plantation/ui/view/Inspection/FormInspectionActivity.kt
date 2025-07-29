@@ -145,6 +145,10 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import org.w3c.dom.Text
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
@@ -4492,10 +4496,30 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                     selectedTanggalPanenByScan = datesJson.toString()
 
-                    val descriptionText = if (mergedData.dateList.size > 1) {
-                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b> oleh total <b>${mergedData.workerCount} pekerja</b>. Pilih pekerja untuk inspeksi:"
+                    val today = LocalDate.now()
+
+                    val formattedDatesWithH = mergedData.dateList.mapNotNull { dateStr ->
+                        try {
+                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            val date = LocalDateTime.parse(dateStr, formatter).toLocalDate()
+                            val hPlus = ChronoUnit.DAYS.between(date, today)
+                            "$dateStr (H + $hPlus)"
+                        } catch (e: Exception) {
+                            AppLogger.e("Date parsing failed for $dateStr: ${e.message}")
+                            null
+                        }
+                    }
+
+                    val finalDateText = if (formattedDatesWithH.size == 1) {
+                        formattedDatesWithH.first()
                     } else {
-                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$dateText</b>. Pilih pekerja untuk inspeksi:"
+                        formattedDatesWithH.joinToString(", ")
+                    }
+
+                    val descriptionText = if (mergedData.dateList.size > 1) {
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$finalDateText</b> oleh total <b>${mergedData.workerCount} pekerja</b>. Pilih pekerja untuk inspeksi:"
+                    } else {
+                        "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$finalDateText</b>. Pilih pekerja untuk inspeksi:"
                     }
 
                     descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
