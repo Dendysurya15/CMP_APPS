@@ -25,8 +25,7 @@ class FormAncakViewModel : ViewModel() {
             val harvestTree: Int = 0,
             val neatPelepah: Int = 0, // 7
             val pelepahSengkleh: Int = 0, // 8
-            val overPruning: Int = 0, // 9
-            val underPruning: Int = 0, // 10
+            val kondisiPruning: Int = 0,
             val buahMasakTdkDipotong: Int = 0, /// 3
             val btPiringanGawangan: Int = 0, // 4
             val brdKtpGawangan: Int = 0,   //1
@@ -221,15 +220,11 @@ class FormAncakViewModel : ViewModel() {
                 AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
             }
 
-            if (data?.overPruning == 0) {
-                errors[R.id.lyOverPruningInspect] = "Kondisi OverPruning wajib diisi!"
+            if (data?.kondisiPruning == 0) {
+                errors[R.id.lyKondisiPruningInspect] = "Kondisi OverPruning wajib diisi!"
                 AppLogger.d("VALIDATION FAILED: pruning == 0")
             }
 
-            if (data?.underPruning == 0) {
-                errors[R.id.lyUnderPruningInspect] = "Kondisi UnderPruning wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: pruning == 0")
-            }
 
         } else {
             AppLogger.d("emptyTree == ${data?.emptyTree} (Tidak/Titik Kosong), skipping field validation")

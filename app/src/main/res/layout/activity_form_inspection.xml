@@ -711,15 +711,68 @@
 
             </ScrollView>
 
+            <!-- Left FAB for Photo -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabPhotoInfoBlok"
                 style="@style/RoundedFAB"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="20dp"
+                android:layout_marginStart="20dp"
                 android:layout_marginBottom="15dp"
                 android:backgroundTint="@color/orange"
                 android:src="@drawable/baseline_add_a_photo_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <ImageView
+                android:id="@+id/badgePhotoInfoBlok"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:layout_marginLeft="45dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintStart_toStartOf="@id/fabPhotoInfoBlok"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok" />
+
+            <TextView
+                android:id="@+id/labelPhotoInfoBlok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto TPH"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="visible"
+                app:layout_constraintBottom_toBottomOf="@id/fabPhotoInfoBlok"
+                app:layout_constraintStart_toEndOf="@id/fabPhotoInfoBlok"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok" />
+
+            <!-- Right FAB for Next to Form Ancak -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabNextToFormAncak"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="15dp"
+                android:backgroundTint="@color/greenDefault"
+                android:src="@drawable/baseline_arrow_forward_24"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -727,18 +780,6 @@
                 app:pressedTranslationZ="0dp"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
-
-            <!-- Badge for photo FAB -->
-            <View
-                android:id="@+id/badgePhotoInfoBlok"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/colorRedDark"
-                android:elevation="10dp"
-                android:visibility="gone"
-                app:layout_constraintEnd_toEndOf="@id/fabPhotoInfoBlok"
-                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -770,12 +811,12 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
                 android:layout_marginBottom="165dp"
-                android:backgroundTint="@color/greenDarker"
+                android:backgroundTint="@color/redblack"
                 android:src="@drawable/circle_user_solid"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:maxImageSize="35dp"
+                app:maxImageSize="30dp"
                 app:pressedTranslationZ="0dp"
                 android:visibility="gone"
                 app:tint="@android:color/white"
@@ -802,16 +843,22 @@ android:background="@drawable/rounded_label_background"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoUser" />
 
             <!-- Badge for fabPhotoUser -->
-            <View
+            <ImageView
                 android:id="@+id/badgePhotoUser"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
                 android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/colorRedDark"
-                android:elevation="10dp"
                 android:visibility="gone"
+                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabPhotoUser"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoUser" />
+
+
+
 
             <!-- fabFollowUpNow - Middle FAB with Label -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -853,16 +900,20 @@ android:background="@drawable/rounded_label_background"
                 app:layout_constraintTop_toTopOf="@id/fabFollowUpNow" />
 
             <!-- Badge for fabFollowUpNow -->
-            <View
+            <ImageView
                 android:id="@+id/badgeFollowUpNow"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
                 android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/colorRedDark"
-                android:elevation="10dp"
                 android:visibility="gone"
+                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabFollowUpNow"
                 app:layout_constraintTop_toTopOf="@id/fabFollowUpNow" />
+
 
             <!-- fabPhotoFormInspect - Bottom FAB with Label -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -903,16 +954,20 @@ android:background="@drawable/rounded_label_background"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
 
             <!-- Badge for fabPhotoFormInspect -->
-            <View
+            <ImageView
                 android:id="@+id/badgePhotoInspect"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
                 android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/colorRedDark"
-                android:elevation="10dp"
                 android:visibility="gone"
+                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabPhotoFormInspect"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
+
 
             <!-- Navigation FABs - Previous -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton

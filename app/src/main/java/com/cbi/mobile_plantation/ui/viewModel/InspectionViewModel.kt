@@ -285,19 +285,19 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     parameterInspeksi.find { it.id == 8 }?.undivided ?: "True"
                 ),
                 InspectionMapping(
-                    9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
+                    9, { pageData, _, _ -> if (pageData.kondisiPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
                     parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1,
                     parameterInspeksi.find { it.id == 9 }?.undivided ?: "True"
                 ),
-                InspectionMapping(
-                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
-                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning,
-                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1,
-                    parameterInspeksi.find { it.id == 10 }?.undivided ?: "True"
-                )
+//                InspectionMapping(
+//                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
+//                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
+//                    parameterInspeksi.find { it.id == 10 }?.nama ?: AppUtils.kodeInspeksi.underPruning,
+//                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1,
+//                    parameterInspeksi.find { it.id == 10 }?.undivided ?: "True"
+//                )
             )
 
             var updatedCount = 0
@@ -531,19 +531,19 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 ),
 
                 InspectionMapping(
-                    9, { pageData, _, _ -> if (pageData.overPruning == 1) 1 else 0 },
+                    9, { pageData, _, _ -> if (pageData.kondisiPruning == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 9 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
                     parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1
                 ),
 
-                InspectionMapping(
-                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
-                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
-                    parameterInspeksi.find { it.id == 10 }?.nama
-                        ?: AppUtils.kodeInspeksi.underPruning,
-                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
-                )
+//                InspectionMapping(
+//                    10, { pageData, _, _ -> if (pageData.underPruning == 1) 1 else 0 },
+//                    parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
+//                    parameterInspeksi.find { it.id == 10 }?.nama
+//                        ?: AppUtils.kodeInspeksi.underPruning,
+//                    parameterInspeksi.find { it.id == 10 }?.temuan_pokok ?: 1
+//                )
             )
 
             AppLogger.d("Created ${regularPokokMappings.size} regular pokok inspection mappings from database parameters")

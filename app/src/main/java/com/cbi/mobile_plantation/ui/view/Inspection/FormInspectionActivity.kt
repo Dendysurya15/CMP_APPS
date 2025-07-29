@@ -299,7 +299,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
 
 
-
     private lateinit var infoBlokView: ScrollView
     private lateinit var formInspectionView: ConstraintLayout
     private lateinit var map: MapView
@@ -312,6 +311,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var descPemanenInspeksi: TextView
     private lateinit var fabPrevFormAncak: FloatingActionButton
     private lateinit var fabNextFormAncak: FloatingActionButton
+    private lateinit var fabNextToFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
     private lateinit var fabFollowUpNow: FloatingActionButton
     private lateinit var fabPhotoUser: FloatingActionButton
@@ -356,6 +356,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun initUI() {
         vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
+        fabNextToFormAncak = findViewById(R.id.fabNextToFormAncak)
         bottomNavInspect = findViewById(R.id.bottomNavInspect)
         titlePemanenInspeksi = findViewById(R.id.titlePemanenInspeksi)
         descPemanenInspeksi = findViewById(R.id.descPemanenInspeksi)
@@ -513,7 +514,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
-                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi ) {
+                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
 
                         if (!inspectionId.isNullOrEmpty()) {
                             withContext(Dispatchers.Main) {
@@ -1053,7 +1054,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         var harvestTree = 0
         var neatPelepah = 0.0
         var pelepahSengkleh = 0.0
-        var underPruning = 0.0
         var overPruning = 0.0
         var buahMasakTdkDipotong = 0.0
         var btPiringanGawangan = 0.0
@@ -1151,10 +1151,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("  → overPruning = $finalValue")
                 }
 
-                10 -> {
-                    underPruning = finalValue
-                    AppLogger.d("  → underPruning = $finalValue")
-                }
+//                10 -> {
+//                    underPruning = finalValue
+//                    AppLogger.d("  → underPruning = $finalValue")
+//                }
             }
         }
 
@@ -1168,16 +1168,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (!groupedByKode.containsKey(9)) {
             overPruning = 2.0
         }
-        if (!groupedByKode.containsKey(10)) {
-            underPruning = 2.0
-        }
+//        if (!groupedByKode.containsKey(10)) {
+//            underPruning = 2.0
+//        }
 
         emptyTree = if (details.isNotEmpty()) {
             // Check for actual problems (value = 1 means "Ada"/"Ya")
             val hasNumericFindings = buahMasakTdkDipotong > 0.0 || btPiringanGawangan > 0.0 ||
                     brdKtpGawangan > 0.0 || brdKtpPiringanPikulKetiak > 0.0
-            val hasRadioFindings = neatPelepah == 1.0 || pelepahSengkleh == 1.0 ||
-                    underPruning == 1.0 || overPruning == 1.0
+            val hasRadioFindings = neatPelepah == 1.0 || pelepahSengkleh == 1.0
+                    || overPruning == 1.0
 
             if (hasNumericFindings || hasRadioFindings) {
                 1 // Ada temuan
@@ -1196,8 +1196,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             harvestTree = harvestTree,
             neatPelepah = neatPelepah.toInt(),
             pelepahSengkleh = pelepahSengkleh.toInt(),
-            overPruning = overPruning.toInt(),
-            underPruning = underPruning.toInt(),
+            kondisiPruning = overPruning.toInt(),
             buahMasakTdkDipotong = buahMasakTdkDipotong.toInt(),
             btPiringanGawangan = btPiringanGawangan.toInt(),
             brdKtpGawangan = brdKtpGawangan.toInt(),
@@ -1301,14 +1300,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                         layoutParams.bottomToTop = R.id.fabFollowUpNow
                         layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
                     }
+
                     showFabFormPhoto -> {
                         layoutParams.bottomToTop = R.id.fabPhotoFormInspect
                         layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
                     }
+
                     showFabFollowUp -> {
                         layoutParams.bottomToTop = R.id.fabFollowUpNow
                         layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
                     }
+
                     else -> {
                         layoutParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
                         layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
@@ -1567,6 +1569,61 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabPhotoInfoBlok.setOnClickListener {
             isForSelfie = false
             showViewPhotoBottomSheet(null, true, false, false) // TPH photo
+        }
+
+        fabNextToFormAncak.setOnClickListener {
+            if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    if (!validateAndShowErrors()) {
+                        vibrate(500)
+                        return@setOnClickListener
+                    }
+            }
+
+            bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
+            lifecycleScope.launch {
+                withContext(Dispatchers.Main) {
+                    isInTPH = false
+                    clInfoBlokSection.visibility = View.GONE
+                    clFormInspection.visibility = View.VISIBLE
+                    if (!trackingLocation.containsKey("start")) {
+                        trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
+                    }
+
+                    if (!hasInspectionStarted) {
+                        if (!trackingLocation.containsKey("start")) {
+                            trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
+                        }
+
+                        dateStartInspection = SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            Locale.getDefault()
+                        ).format(Date())
+
+                        hasInspectionStarted = true
+                        AppLogger.d("Inspection started at: $dateStartInspection")
+                    } else {
+                        AppLogger.d("Inspection already started, keeping original start time: $dateStartInspection")
+                    }
+
+                    val afdResult = selectedAfdeling.replaceFirst("AFD-", "")
+                    formAncakViewModel.updateInfoFormAncak(
+                        estateName ?: "",
+                        afdResult,
+                        selectedBlokByScan ?: ""
+                    )
+                    fabPhotoInfoBlok.visibility = View.GONE
+                    infoBlokView.visibility = View.GONE
+                    summaryView.visibility = View.GONE
+                    formInspectionView.post {
+                        vpFormAncak.post {
+                            formInspectionView.visibility = View.VISIBLE
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                loadingDialog.dismiss()
+                            }, 300)
+                        }
+                    }
+                }
+            }
         }
 
         fabPhotoUser2?.setOnClickListener {
@@ -1965,6 +2022,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     WaterMarkFotoDanFolder.WMFUInspeksiPokok
                 }
             }
+
             else -> {
                 if (isInTPH == true) {
                     WaterMarkFotoDanFolder.WMInspeksiTPH
@@ -2045,11 +2103,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                     komentarInTPH = s?.toString() ?: ""
                 }
             })
-        }else if (isForFollowUp == true) {
+        } else if (isForFollowUp == true) {
             // Load existing follow-up comment
             etPhotoComment.setText(currentData.komentar_pemulihan)
             etPhotoComment.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {
+                }
+
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
                     formAncakViewModel.savePageData(
@@ -2462,7 +2527,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     if (hasFindings && !hasValidPhoto) {
                         vibrate(500)
-                        showViewPhotoBottomSheet(null, isInTPH,false)
+                        showViewPhotoBottomSheet(null, isInTPH, false)
                         AlertDialogUtility.withSingleAction(
                             this,
                             stringXML(R.string.al_back),
@@ -2723,13 +2788,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-//        rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenInspection)
-//
-//        selectedPemanenAdapter = SelectedWorkerAdapter()
-//        rvSelectedPemanen.adapter = selectedPemanenAdapter
-//        rvSelectedPemanen.layoutManager = FlexboxLayoutManager(this).apply {
-//            justifyContent = JustifyContent.FLEX_START
-//        }
     }
 
     private fun updateSelfiePhotoBadgeVisibility() {
@@ -2746,8 +2804,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 View.GONE
             }
     }
-
-
 
 
     private fun updateLabelTextView(linearLayout: LinearLayout, text: String) {
@@ -2769,7 +2825,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
         // Badge for Form Data Section (fabPhotoFormInspect)
-        val badgePhotoInspect = findViewById<View>(R.id.badgePhotoInspect)
+        val badgePhotoInspect = findViewById<ImageView>(R.id.badgePhotoInspect)
         val hasFormPhoto = currentData.photo != null
 
         badgePhotoInspect.visibility = if (hasFormPhoto) {
@@ -2779,7 +2835,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         // Badge for Follow-Up Section (fabFollowUpNow)
-        val badgeFollowUpNow = findViewById<View>(R.id.badgeFollowUpNow)
+        val badgeFollowUpNow = findViewById<ImageView>(R.id.badgeFollowUpNow)
         val hasFollowUpPhoto = currentData.foto_pemulihan != null
 
         badgeFollowUpNow.visibility = if (hasFollowUpPhoto) {
@@ -3619,25 +3675,25 @@ open class FormInspectionActivity : AppCompatActivity(),
             hasData = true
         }
 
-        if (pageData.overPruning > 0) {
+        if (pageData.kondisiPruning > 0) {
             llDetailsList.addView(
                 createDetailRow(
                     "Over Pruning",
-                    ": ${getRadioText("overPruning", pageData.overPruning)}"
+                    ": ${getRadioText("kondisiPruning", pageData.kondisiPruning)}"
                 )
             )
             hasData = true
         }
 
-        if (pageData.underPruning > 0) {
-            llDetailsList.addView(
-                createDetailRow(
-                    "Under Pruning",
-                    ": ${getRadioText("underPruning", pageData.underPruning)}"
-                )
-            )
-            hasData = true
-        }
+//        if (pageData.underPruning > 0) {
+//            llDetailsList.addView(
+//                createDetailRow(
+//                    "Under Pruning",
+//                    ": ${getRadioText("underPruning", pageData.underPruning)}"
+//                )
+//            )
+//            hasData = true
+//        }
 
 // Check if any numeric field has data > 0
         val hasNumericData = (pageData.buahMasakTdkDipotong > 0) ||
@@ -4042,7 +4098,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show automatic RecyclerView if it's hidden
-                    val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+                    val rvSelectedPemanenOtomatis =
+                        findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
                     rvSelectedPemanenOtomatis.visibility = View.VISIBLE
 
                     // Update automatic spinner to remove selected worker
@@ -4080,7 +4137,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show manual RecyclerView if it's hidden
-                    val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+                    val rvSelectedPemanenManual =
+                        findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
                     rvSelectedPemanenManual.visibility = View.VISIBLE
 
                     // Update manual spinner to remove selected worker
@@ -4345,8 +4403,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             kemandoranIdMap.clear()
 
             // Clear the RecyclerView but DON'T recreate the adapter
-            val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
-            val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+            val rvSelectedPemanenOtomatis =
+                findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+            val rvSelectedPemanenManual =
+                findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
             rvSelectedPemanenOtomatis.visibility = View.GONE
             rvSelectedPemanenManual.visibility = View.GONE
 
@@ -4435,15 +4495,19 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         if (selectedEmployee != null && individualKaryawanId != null) {
                             karyawanIdMap[formattedWorker] = individualKaryawanId.toIntOrNull() ?: 0
-                            kemandoranIdMap[formattedWorker] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            kemandoranIdMap[formattedWorker] =
+                                selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
 
                             if (selectedNik.isNotEmpty()) {
                                 karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[selectedNik] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedNik] =
+                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
                             if (selectedName.isNotEmpty()) {
-                                karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[selectedName] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                                karyawanIdMap[selectedName] =
+                                    individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedName] =
+                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
 
                             val worker = Worker(individualKaryawanId, formattedWorker)
@@ -4500,7 +4564,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     val formattedDatesWithH = mergedData.dateList.mapNotNull { dateStr ->
                         try {
-                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            val formatter = DateTimeFormatter.ofPattern(
+                                "yyyy-MM-dd HH:mm:ss",
+                                Locale.getDefault()
+                            )
                             val date = LocalDateTime.parse(dateStr, formatter).toLocalDate()
                             val hPlus = ChronoUnit.DAYS.between(date, today)
                             "$dateStr (H + $hPlus)"
@@ -4522,7 +4589,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$finalDateText</b>. Pilih pekerja untuk inspeksi:"
                     }
 
-                    descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+                    descPemanenInspeksi.text =
+                        Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
                     // NOW POPULATE THE SPINNER with all available workers
                     populatePemanenSpinner(allAvailableWorkers)
@@ -5121,6 +5189,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
         }
     }
+
     private fun setupSelectedPemanenRecyclerView() {
         val rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
         selectedPemanenAdapter = SelectedWorkerAdapter()
@@ -5132,8 +5201,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         rvSelectedPemanen.visibility = View.GONE
     }
+
     private fun setupSelectedPemanenManualRecyclerView() {
-        val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+        val rvSelectedPemanenManual =
+            findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
         selectedPemanenManualAdapter = SelectedWorkerAdapter()
         rvSelectedPemanenManual.adapter = selectedPemanenManualAdapter
         rvSelectedPemanenManual.layoutManager = FlexboxLayoutManager(this).apply {
@@ -5195,8 +5266,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         val lyPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
         val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
 
-        lyPemanenOtomatis.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text = "Pilih Pemanen (Otomatis)"
-        lyPemanenManual.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text = "Pilih Pemanen (Manual)"
+        lyPemanenOtomatis.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text =
+            "Pilih Pemanen (Otomatis)"
+        lyPemanenManual.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text =
+            "Pilih Pemanen (Manual)"
 
         // Initially hide both spinners
         lyPemanenOtomatis.visibility = View.GONE
@@ -5960,7 +6033,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (photoInTPH == null) {
 
             isValid = false
-            showViewPhotoBottomSheet(null, isInTPH,false,false)
+            showViewPhotoBottomSheet(null, isInTPH, false, false)
             errorMessages.add("Foto di TPH wajib")
             missingFields.add("Foto TPH")
         }
@@ -5976,7 +6049,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             // Show error ONLY on automatic spinner (manual is optional)
             val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-            val tvErrorOtomatis = layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val tvErrorOtomatis =
+                layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
             val mcvOtomatis = layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
 
             tvErrorOtomatis.text = "Minimal 1 pemanen yang dipilih!"
@@ -5989,7 +6063,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             // Hide error ONLY from automatic spinner (manual doesn't show errors)
             val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-            val tvErrorOtomatis = layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val tvErrorOtomatis =
+                layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
             val mcvOtomatis = layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
 
             tvErrorOtomatis.visibility = View.GONE
