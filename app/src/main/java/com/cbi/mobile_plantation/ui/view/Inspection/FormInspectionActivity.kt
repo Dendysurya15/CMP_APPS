@@ -3954,6 +3954,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     // Add to selectedKaryawanList
                     val originalSize = selectedKaryawanList.size
                     selectedKaryawanList = selectedKaryawanList + selectedWorker
+
+                    AppLogger.d("selectedPemanenAdapter $selectedPemanenAdapter")
                     AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show automatic RecyclerView if it's hidden
@@ -3987,6 +3989,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     val worker = Worker(selectedWorker.individualId, selectedItem)
                     selectedPemanenManualAdapter.addWorker(worker)
 
+                    AppLogger.d("selectedPemanenManualAdapter $selectedPemanenManualAdapter")
+
                     // Add to selectedKaryawanList
                     val originalSize = selectedKaryawanList.size
                     selectedKaryawanList = selectedKaryawanList + selectedWorker
@@ -4006,6 +4010,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.e("Could not find selected manual worker: $selectedItem")
                 }
             }
+
             R.id.lyAfdInspect -> {
                 hideResultScan()
                 selectedAfdeling = selectedItem
@@ -4438,13 +4443,23 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (availableWorkers.isNotEmpty()) {
             lyPemanenManual.visibility = View.VISIBLE
 
+            // Sort workers by name alphabetically (extract name part after first " - ")
+            val sortedWorkers = availableWorkers.sortedBy { worker ->
+                val dashIndex = worker.name.indexOf(" - ")
+                if (dashIndex != -1) {
+                    worker.name.substring(dashIndex + 3).trim() // Sort by name part
+                } else {
+                    worker.name // Fallback to full string
+                }
+            }
+
             // Create list of worker names for spinner
-            val workerNames = availableWorkers.map { it.name }
+            val workerNames = sortedWorkers.map { it.name }
 
             // Setup spinner with available workers
             setupSpinnerView(lyPemanenManual, workerNames)
 
-            AppLogger.d("Manual spinner populated with ${workerNames.size} workers")
+            AppLogger.d("Manual spinner populated with ${workerNames.size} workers (sorted alphabetically)")
         } else {
             lyPemanenManual.visibility = View.GONE
             AppLogger.d("No manual workers available for spinner")
@@ -4541,8 +4556,18 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Always show spinner once TPH is selected, regardless of worker count
         lyPemanen.visibility = View.VISIBLE
 
+        // Sort workers by name alphabetically (extract name part after first " - ")
+        val sortedWorkers = availableWorkers.sortedBy { worker ->
+            val dashIndex = worker.name.indexOf(" - ")
+            if (dashIndex != -1) {
+                worker.name.substring(dashIndex + 3).trim() // Sort by name part
+            } else {
+                worker.name // Fallback to full string
+            }
+        }
+
         // Create list of worker names for spinner
-        val workerNames = availableWorkers.map { it.name }
+        val workerNames = sortedWorkers.map { it.name }
 
         // Setup spinner with available workers (even if empty)
         setupSpinnerView(lyPemanen, workerNames)
@@ -4550,7 +4575,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (availableWorkers.isEmpty()) {
             AppLogger.d("All workers have been selected - spinner shows empty")
         } else {
-            AppLogger.d("Spinner populated with ${workerNames.size} workers")
+            AppLogger.d("Spinner populated with ${workerNames.size} workers (sorted alphabetically)")
         }
     }
 
@@ -5835,6 +5860,37 @@ open class FormInspectionActivity : AppCompatActivity(),
             showViewPhotoBottomSheet(null, isInTPH)
             errorMessages.add("Foto di TPH wajib")
             missingFields.add("Foto TPH")
+        }
+
+        val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+        val totalSelectedWorkers = automaticWorkers.size + manualWorkers.size
+
+        if (totalSelectedWorkers == 0) {
+            AppLogger.d("No workers selected in any adapter!")
+            errorMessages.add("Minimal 1 pemanen yang dipilih!")
+            missingFields.add("Pilih Pemanen")
+
+            // Show error ONLY on automatic spinner (manual is optional)
+            val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+            val tvErrorOtomatis = layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val mcvOtomatis = layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+            tvErrorOtomatis.text = "Minimal 1 pemanen yang dipilih!"
+            tvErrorOtomatis.visibility = View.VISIBLE
+            mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+
+            isValid = false
+        } else {
+            AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
+
+            // Hide error ONLY from automatic spinner (manual doesn't show errors)
+            val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+            val tvErrorOtomatis = layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+            val mcvOtomatis = layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+            tvErrorOtomatis.visibility = View.GONE
+            mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
         }
 
         if (selectedKaryawanList.isEmpty()) {
