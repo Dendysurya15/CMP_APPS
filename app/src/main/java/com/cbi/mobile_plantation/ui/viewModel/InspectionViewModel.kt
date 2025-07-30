@@ -214,6 +214,40 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    // Add this helper function first
+    private fun processFormData(formData: Map<Int, FormAncakViewModel.PageData>): Pair<Map<Int, FormAncakViewModel.PageData>, Map<Int, FormAncakViewModel.PageData>> {
+        val processedFormData = formData.mapValues { (_, pageData) ->
+            if (pageData.emptyTree != 1) {
+                // Reset values to 0 or null if emptyTree != 1
+                pageData.copy(
+                    harvestTree = 0,
+                    neatPelepah = 0,
+                    pelepahSengkleh = 0,
+                    kondisiPruning = 0,
+                    buahMasakTdkDipotong = 0,
+                    btPiringanGawangan = 0,
+                    brdKtpGawangan = 0,
+                    brdKtpPiringanPikulKetiak = 0,
+                    photo = null,
+                    comment = null,
+                    latIssue = null,
+                    lonIssue = null,
+                    foto_pemulihan = null,
+                    komentar_pemulihan = null,
+                    status_pemulihan = null
+                )
+            } else {
+                // Keep original data if emptyTree == 1
+                pageData
+            }
+        }
+
+        // Return both processed data and filtered valid data
+        val validFormData = processedFormData.filter { (_, pageData) -> pageData.emptyTree == 1 }
+
+        return Pair(processedFormData, validFormData)
+    }
+
     suspend fun updateDataInspectionDetailsForFollowUp(
         detailInspeksiList: List<InspectionDetailModel>,
         formData: Map<Int, FormAncakViewModel.PageData>,
@@ -225,12 +259,17 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         createdBy: String
     ): SaveDataInspectionDetailsState {
         return try {
-            if (parameterInspeksi.isEmpty()) {
-                AppLogger.w("No parameter inspeksi found, cannot update inspection details")
-                return SaveDataInspectionDetailsState.Error("No parameter inspeksi data found")
+
+            val (processedFormData, validFormData) = processFormData(formData)
+
+            processedFormData.forEach { (pageNumber, pageData) ->
+                if (pageData.emptyTree != 1) {
+                    AppLogger.d("Page $pageNumber: emptyTree=${pageData.emptyTree} - Values reset to 0/null")
+                } else {
+                    AppLogger.d("Page $pageNumber: emptyTree=${pageData.emptyTree} - Using original values")
+                }
             }
 
-            // Create mapping dynamically from database parameter
             data class InspectionMapping(
                 val kodeInspeksi: Int,
                 val getValue: (FormAncakViewModel.PageData, Int, Int) -> Int,
@@ -310,11 +349,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             var updatedCount = 0
 
             // Log all pageData before processing
-            AppLogger.d("=== LOGGING ALL PAGE DATA BEFORE UPDATE ===")
-            formData.forEach { (pageNumber, pageData) ->
-                AppLogger.d("Page $pageNumber: $pageData")
-            }
-            AppLogger.d("=== END PAGE DATA LOGGING ===")
+//            AppLogger.d("=== LOGGING ALL PROCESSED PAGE DATA ===")
+//            processedFormData.forEach { (pageNumber, pageData) ->
+//                AppLogger.d("Page $pageNumber: $pageData")
+//            }
+//            AppLogger.d("=== END PAGE DATA LOGGING ===")
 
             // Also create a lookup for counting unique people per no_pokok
             val uniquePeoplePerNoPokok = detailInspeksiList
@@ -337,8 +376,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 if (detail.no_pokok == 0) {
                     when (detail.kode_inspeksi) {
                         5 -> {
-                            // Find matching pageData with pokokNumber = 0
-                            val matchingPageData = formData.values.find { it.pokokNumber == 0 && it.emptyTree == 1 }
+                            // Use validFormData instead of formData.values
+                            val matchingPageData = validFormData.values.find { it.pokokNumber == 0 }
 
                             val updateSuccess = repository.updateInspectionDetailForFollowUpById(
                                 inspectionDetailId = detail.id,
@@ -359,8 +398,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             }
                         }
                         6 -> {
-                            // Find matching pageData with pokokNumber = 0
-                            val matchingPageData = formData.values.find { it.pokokNumber == 0 && it.emptyTree == 1 }
+                            // Use validFormData instead of formData.values
+                            val matchingPageData = validFormData.values.find { it.pokokNumber == 0 }
 
                             val updateSuccess = repository.updateInspectionDetailForFollowUpById(
                                 inspectionDetailId = detail.id,
@@ -386,13 +425,13 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 } else {
                     // Handle regular pokok (no_pokok > 0)
-                    // Find matching pageData with pokokNumber = detail.no_pokok
-                    val matchingPageData = formData.values.find {
-                        it.pokokNumber == detail.no_pokok && it.emptyTree == 1
+                    // Use validFormData instead of checking emptyTree again
+                    val matchingPageData = validFormData.values.find {
+                        it.pokokNumber == detail.no_pokok
                     }
 
                     if (matchingPageData == null) {
-                        AppLogger.d("No matching pageData found for no_pokok: ${detail.no_pokok} or emptyTree != 1")
+                        AppLogger.d("No valid pageData found for no_pokok: ${detail.no_pokok}")
                         return@forEach
                     }
 
@@ -444,6 +483,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                     if (updateSuccess) {
                         updatedCount++
+                        AppLogger.d("Updated detail ID: ${detail.id}, no_pokok: ${detail.no_pokok}, kode_inspeksi: ${detail.kode_inspeksi}, finalValue: $finalValue")
                     }
                 }
             }
@@ -474,9 +514,23 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         komentar: String,
     ): SaveDataInspectionDetailsState {
         return try {
+            // PROCESS THE DATA FIRST - Reset values where emptyTree != 1, then filter valid data
+            val (processedFormData, validFormData) = processFormData(formData)
+
+
+            AppLogger.d("Processed ${processedFormData.size} total pages, ${validFormData.size} valid pages for inspection")
+
+            // Log the processing results
+            processedFormData.forEach { (pageNumber, pageData) ->
+                if (pageData.emptyTree != 1) {
+                    AppLogger.d("Page $pageNumber: emptyTree=${pageData.emptyTree} - Values reset to 0/null")
+                } else {
+                    AppLogger.d("Page $pageNumber: emptyTree=${pageData.emptyTree} - Using original values")
+                }
+            }
+
             val inspectionDetailList = mutableListOf<InspectionDetailModel>()
 
-            // Get karyawan count for division calculations
             val karyawanCount = selectedKaryawanList.size
             AppLogger.d("Karyawan count for division: $karyawanCount")
 
@@ -571,17 +625,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             // Combine all mappings
             val allMappings = regularPokokMappings + pruningMappings
 
-            AppLogger.d("Created ${allMappings.size} inspection mappings from database parameters (including pruning)")
-
-            // More efficient approach: Loop through formData instead of 1..totalPages
-            formData.forEach { (pageNumber, pageData) ->
-                val emptyTreeValue = pageData.emptyTree
-
-                if (emptyTreeValue != 1) {
-                    AppLogger.d("Skipping page $pageNumber - emptyTree is not 1 (value: $emptyTreeValue)")
-                    return@forEach
-                }
-
+            validFormData.forEach { (pageNumber, pageData) ->
                 AppLogger.d("Processing page $pageNumber with ${selectedKaryawanList.size} karyawan")
 
                 selectedKaryawanList.forEach { karyawan ->

@@ -360,7 +360,6 @@ class FormAncakFragment : Fragment() {
                 setOnClickListener {
                     clearValidationErrors()
 
-                    // Normal handling for all fields (no special pruning logic)
                     lastSelectedRadioButton?.isChecked = false
                     isChecked = true
                     lastSelectedRadioButton = this
@@ -384,11 +383,6 @@ class FormAncakFragment : Fragment() {
         }
     }
 
-
-
-    private fun vibrate() {
-        // Your existing vibrate implementation
-    }
 
     fun updatePageData() {
         isUpdatingData = true  // 🚨 Disable TextWatchers

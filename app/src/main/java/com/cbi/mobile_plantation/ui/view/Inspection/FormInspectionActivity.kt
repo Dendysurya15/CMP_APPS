@@ -316,6 +316,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var fabFollowUpNow: FloatingActionButton
     private lateinit var fabPhotoUser: FloatingActionButton
     private lateinit var fabPhotoUser2: FloatingActionButton
+    private lateinit var labelPhotoUser2: TextView
     private lateinit var labelPhotoUser: TextView
     private lateinit var labelPhotoFormInspect: TextView
     private lateinit var labelFollowUpNow: TextView
@@ -1393,7 +1394,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
 
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
-            if (hasFindings && !hasValidPhoto) {
+            val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
+            if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
                 showViewPhotoBottomSheet(null, isInTPH, false, false)
                 AlertDialogUtility.withSingleAction(
@@ -1508,8 +1510,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             val photoValue = pokokData?.photo ?: ""
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
-
-            if (hasFindings && !hasValidPhoto) {
+            val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
+            if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
                 showViewPhotoBottomSheet(null, isInTPH, false, false)
                 AlertDialogUtility.withSingleAction(
@@ -1777,6 +1779,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         val totalPages = formAncakViewModel.totalPages.value
                                             ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
+                                        AppLogger.d("selectedKaryawanList $selectedKaryawanList")
                                         val detailResult =
                                             inspectionViewModel.saveDataInspectionDetails(
                                                 inspectionId = result.inspectionId.toString(),
@@ -2387,6 +2390,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         fabNextFormAncak = findViewById(R.id.fabNextFormInspect)
         fabPhotoFormAncak = findViewById(R.id.fabPhotoFormInspect)
         labelPhotoFormInspect = findViewById(R.id.labelPhotoFormInspect)
+        labelPhotoUser2 = findViewById(R.id.labelPhotoUser2)
         labelPhotoUser = findViewById(R.id.labelPhotoUser)
         labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
         fabFollowUpNow = findViewById(R.id.fabFollowUpNow)
@@ -2513,43 +2517,52 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 if (pokokData != null) {
-                    val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
-                    val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
-                    val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
-                    val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
+                    val emptyTreeValue = pokokData?.emptyTree ?: 0
 
-                    // Check if photo is required based on findings
-                    val hasFindings = (buahMasakTdkDipotong > 0) ||
-                            (btPiringanGawangan > 0) ||
-                            (btPiringanGawangan > 0) ||
-                            ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
-                    val hasValidPhoto = photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
+                    // Only check findings and photo if emptyTree == 1
+                    if (emptyTreeValue == 1) {
+                        val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
+                        val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
+                        val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
+                        val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
 
-                    if (hasFindings && !hasValidPhoto) {
-                        vibrate(500)
-                        showViewPhotoBottomSheet(null, isInTPH, false)
-                        AlertDialogUtility.withSingleAction(
-                            this,
-                            stringXML(R.string.al_back),
-                            stringXML(R.string.al_data_not_completed),
-                            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
-                                "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
-                            else
-                                "Mohon dapat mengambil foto temuan terlebih dahulu!",
-                            "warning.json",
-                            R.color.colorRedDark
-                        ) {}
-                        return@setOnItemSelectedListener false
-                    }
+                        // Check if photo is required based on findings
+                        val hasFindings = (buahMasakTdkDipotong > 0) ||
+                                (btPiringanGawangan > 0) ||
+                                (btPiringanGawangan > 0) ||
+                                ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
+                        val hasValidPhoto = photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
 
-                    if (hasFindings) {
-                        formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
-                            currentPokok,
-                            lat,
-                            lon,
-                            prefManager!!,
-                            this@FormInspectionActivity
-                        )
+                        AppLogger.d("emptyTree: $emptyTreeValue, hasFindings: $hasFindings, hasValidPhoto: $hasValidPhoto")
+
+                        if (hasFindings && !hasValidPhoto) {
+                            vibrate(500)
+                            showViewPhotoBottomSheet(null, isInTPH, false)
+                            AlertDialogUtility.withSingleAction(
+                                this,
+                                stringXML(R.string.al_back),
+                                stringXML(R.string.al_data_not_completed),
+                                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
+                                    "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
+                                else
+                                    "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                                "warning.json",
+                                R.color.colorRedDark
+                            ) {}
+                            return@setOnItemSelectedListener false
+                        }
+
+                        if (hasFindings) {
+                            formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                                currentPokok,
+                                lat,
+                                lon,
+                                prefManager!!,
+                                this@FormInspectionActivity
+                            )
+                        }
+                    } else {
+                        AppLogger.d("Skipping findings check - emptyTree is not 1 (value: $emptyTreeValue)")
                     }
                 }
             }
@@ -2648,6 +2661,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             // Show/hide selfie FAB in summary
                             fabPhotoUser2?.visibility =
+                                if (shouldShowSelfieFab) View.VISIBLE else View.GONE
+                            labelPhotoUser2?.visibility =
                                 if (shouldShowSelfieFab) View.VISIBLE else View.GONE
 
                             // Update selfie badge visibility
@@ -4086,6 +4101,23 @@ open class FormInspectionActivity : AppCompatActivity(),
                 AppLogger.d("Found selected automatic worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
 
                 if (selectedWorker != null) {
+                    // Check if worker already exists in selectedKaryawanList
+                    val isDuplicate = selectedKaryawanList.any { existing ->
+                        existing.nik == selectedWorker.nik && existing.nama == selectedWorker.nama
+                    }
+
+                    if (isDuplicate) {
+                        AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
+//                        Toast.makeText(
+//                            this,
+//                            "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!",
+//                            Toast.LENGTH_SHORT
+//                        ).show()
+
+                        Toasty.error(this, "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!", Toast.LENGTH_SHORT, true).show()
+                        return
+                    }
+
                     // Add to AUTOMATIC RecyclerView
                     val worker = Worker(selectedWorker.individualId, selectedItem)
                     selectedPemanenAdapter.addWorker(worker)
@@ -4098,8 +4130,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show automatic RecyclerView if it's hidden
-                    val rvSelectedPemanenOtomatis =
-                        findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+                    val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
                     rvSelectedPemanenOtomatis.visibility = View.VISIBLE
 
                     // Update automatic spinner to remove selected worker
@@ -4125,6 +4156,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                 AppLogger.d("Found selected manual worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
 
                 if (selectedWorker != null) {
+                    // Check if worker already exists in selectedKaryawanList
+                    val isDuplicate = selectedKaryawanList.any { existing ->
+                        existing.nik == selectedWorker.nik && existing.nama == selectedWorker.nama
+                    }
+
+                    if (isDuplicate) {
+                        AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
+
+                        Toasty.error(this, "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!", Toast.LENGTH_SHORT, true).show()
+                        return
+                    }
+
                     // Add to MANUAL RecyclerView
                     val worker = Worker(selectedWorker.individualId, selectedItem)
                     selectedPemanenManualAdapter.addWorker(worker)
@@ -4137,8 +4180,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show manual RecyclerView if it's hidden
-                    val rvSelectedPemanenManual =
-                        findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+                    val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
                     rvSelectedPemanenManual.visibility = View.VISIBLE
 
                     // Update manual spinner to remove selected worker
@@ -4275,11 +4317,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
                         try {
-                            AppLogger.d("test lagi coba $isTriggeredBtnScanned")
+
                             latLonMap = latLonResult.await()
-                            AppLogger.d("latlonmap $latLonMap")
-                            AppLogger.d("latLonMap created successfully with ${latLonMap.size} entries")
-                            AppLogger.d("latLonMap keys: ${latLonMap.keys}")
+
                         } catch (e: Exception) {
                             AppLogger.e("Error awaiting latLonResult: ${e.message}", e.toString())
                             withContext(Dispatchers.Main) {

@@ -743,7 +743,8 @@
                 android:visibility="gone"
                 android:elevation="10dp"
                 app:layout_constraintStart_toStartOf="@id/fabPhotoInfoBlok"
-                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok" />
+                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok"
+                tools:ignore="UseAppTint" />
 
             <TextView
                 android:id="@+id/labelPhotoInfoBlok"
@@ -1117,21 +1118,41 @@ android:background="@drawable/rounded_label_background"
                         android:id="@+id/containerTemuanCards"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginBottom="80dp"
                         android:orientation="vertical" />
 
                 </LinearLayout>
 
             </ScrollView>
 
-            <!-- Selfie FAB for summary - shows when total pages < 20 -->
+            <!-- User Photo FAB with left label -->
+            <TextView
+                android:id="@+id/labelPhotoUser2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Selfie"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabPhotoUser2"
+                app:layout_constraintEnd_toStartOf="@id/fabPhotoUser2"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser2" />
+
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabPhotoUser2"
                 style="@style/RoundedFAB"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="15dp"
-                android:backgroundTint="@color/greenDarker"
-                android:src="@drawable/baseline_video_camera_front_24"
+                android:backgroundTint="@color/redblack"
+                android:src="@drawable/circle_user_solid"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toTopOf="@+id/fabSaveFormInspect"
                 app:layout_constraintStart_toStartOf="@+id/fabSaveFormInspect"
@@ -1141,17 +1162,41 @@ android:background="@drawable/rounded_label_background"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
-            <!-- Badge for selfie FAB in summary -->
-            <View
+            <ImageView
                 android:id="@+id/badgePhotoUser2"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:layout_marginLeft="45dp"
                 android:background="@drawable/circle_white_background"
-                android:backgroundTint="@color/colorRedDark"
-                android:elevation="10dp"
                 android:visibility="gone"
-                app:layout_constraintEnd_toEndOf="@id/fabPhotoUser2"
-                app:layout_constraintTop_toTopOf="@id/fabPhotoUser2" />
+                android:elevation="10dp"
+                app:layout_constraintStart_toStartOf="@id/fabPhotoUser2"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser2"
+                tools:ignore="UseAppTint" />
+
+            <!-- Save FAB with left label -->
+            <TextView
+                android:id="@+id/labelSaveFormInspect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Simpan"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="visible"
+                app:layout_constraintBottom_toBottomOf="@id/fabSaveFormInspect"
+                app:layout_constraintEnd_toStartOf="@id/fabSaveFormInspect"
+                app:layout_constraintTop_toTopOf="@id/fabSaveFormInspect" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabSaveFormInspect"
