@@ -48,6 +48,9 @@ abstract class InspectionDao {
         inspectionId: String
     ): List<InspectionWithDetailRelations>
 
+    @Query("SELECT * FROM inspeksi WHERE created_date = :createdDate AND tph_id = :tphId AND dept_abbr = :deptAbbr AND divisi_abbr = :divisiAbbr LIMIT 1")
+    abstract suspend fun getDataInspeksi(createdDate: String, tphId: Int, deptAbbr: String?, divisiAbbr: String?): InspectionModel?
+
     @Query("UPDATE inspeksi SET status_upload = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadInspeksiPanen(ids: List<Int>, status: Int)
 
@@ -87,7 +90,8 @@ abstract class InspectionDao {
             Result.failure(e)
         }
     }
-
+    @Insert
+    abstract suspend fun insert(inspection: InspectionModel): Long
 
     @Query("""
     UPDATE inspeksi SET

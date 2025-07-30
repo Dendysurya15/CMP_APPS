@@ -118,7 +118,6 @@ class DataPanenInspectionRepository(
         val jsonObject = JSONObject().apply {
             put("table", "inspeksi")
             put("select", JSONArray().apply {
-                put("id")
                 put("id_panen")
                 put("dept")
                 put("dept_ppro")
@@ -190,6 +189,12 @@ class DataPanenInspectionRepository(
                             put("created_date")
                             put("lat")
                             put("lon")
+                        })
+                        // Add WHERE condition to skip records where status_pemulihan == 1
+                        put("where", JSONObject().apply {
+                            put("status_pemulihan", JSONObject().apply {
+                                put("!=", 1)
+                            })
                         })
                     })
                 })

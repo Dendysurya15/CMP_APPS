@@ -512,11 +512,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         lonTPH: Double,
         foto: String? = null,
         komentar: String,
+        foto_pemulihan_tph:String,
+        komentar_pemulihan_tph:String,
     ): SaveDataInspectionDetailsState {
         return try {
             // PROCESS THE DATA FIRST - Reset values where emptyTree != 1, then filter valid data
             val (processedFormData, validFormData) = processFormData(formData)
-
 
             AppLogger.d("Processed ${processedFormData.size} total pages, ${validFormData.size} valid pages for inspection")
 
@@ -654,11 +655,18 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                         AppLogger.d("Page $pageNumber, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
 
+                        // Check if status_pemulihan is 1 and foto_pemulihan is not null
+                        val isPemulihanComplete = pageData.status_pemulihan == 1 && pageData.foto_pemulihan != null
+
                         val inspectionDetail = InspectionDetailModel(
                             id_inspeksi = inspectionId,
                             created_date = pageData.createdDate ?: "",
                             created_name = pageData.createdName ?: "",
                             created_by = pageData.createdBy.toString(),
+                            // Set updated fields only if pemulihan is complete
+                            updated_date = if (isPemulihanComplete) pageData.createdDate ?: "" else null,
+                            updated_name = if (isPemulihanComplete) pageData.createdName ?: "" else null,
+                            updated_by = if (isPemulihanComplete) pageData.createdBy.toString() else null,
                             nik = karyawan.nik,
                             nama = karyawan.nama,
                             no_pokok = pageNumber,
@@ -667,38 +675,54 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             temuan_inspeksi = dividedValue,
                             status_pemulihan = pageData.status_pemulihan ?: 0,
                             foto = pageData.photo,
-                            foto_pemulihan = null,
+                            foto_pemulihan = pageData.foto_pemulihan,
                             komentar = pageData.comment,
+                            komentar_pemulihan = if (isPemulihanComplete) pageData.komentar_pemulihan else null,
                             latIssue = pageData.latIssue ?: 0.0,
                             lonIssue = pageData.lonIssue ?: 0.0,
+                            // Set lat/lonPemulihan only if pemulihan is complete
+                            latPemulihan = if (isPemulihanComplete) pageData.latIssue ?: 0.0 else null,
+                            lonPemulihan = if (isPemulihanComplete) pageData.lonIssue ?: 0.0 else null,
                             status_upload = "0",
                             status_uploaded_image = "0"
                         )
 
                         inspectionDetailList.add(inspectionDetail)
                         AppLogger.d("Added inspection detail: Page $pageNumber, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+
+                        if (isPemulihanComplete) {
+                            AppLogger.d("Pemulihan data saved for page $pageNumber, karyawan ${karyawan.nama}: lat=${pageData.latIssue}, lon=${pageData.lonIssue}")
+                        }
                     }
                 }
             }
 
             // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6 only)
             if (jumBuahTglPath != 0) {
+                val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
                 val inspectionDetail = InspectionDetailModel(
                     id_inspeksi = inspectionId,
                     created_date = createdDate,
                     created_name = createdName,
                     created_by = createdBy,
+                    updated_date = if (isPemulihanTphComplete) createdDate else null,
+                    updated_name = if (isPemulihanTphComplete) createdName else null,
+                    updated_by = if (isPemulihanTphComplete) createdBy else null,
                     nik = "",
                     nama = "",
                     no_pokok = 0,
                     pokok_panen = null,
                     kode_inspeksi = 5,
                     temuan_inspeksi = jumBuahTglPath.toDouble(),
-                    status_pemulihan = 0,
+                    status_pemulihan = if (isPemulihanTphComplete) 1 else 0,
                     foto = foto,
                     komentar = komentar,
+                    foto_pemulihan = if (isPemulihanTphComplete) foto_pemulihan_tph else null,
+                    komentar_pemulihan = if (isPemulihanTphComplete) komentar_pemulihan_tph else null,
                     latIssue = latTPH,
                     lonIssue = lonTPH,
+                    latPemulihan = if (isPemulihanTphComplete) latTPH else null,
+                    lonPemulihan = if (isPemulihanTphComplete) lonTPH else null,
                     status_upload = "0",
                     status_uploaded_image = "0"
                 )
@@ -707,27 +731,34 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             if (jumBrdTglPath != 0) {
+                val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
                 val inspectionDetail = InspectionDetailModel(
                     id_inspeksi = inspectionId,
                     created_date = createdDate,
                     created_name = createdName,
                     created_by = createdBy,
+                    updated_date = if (isPemulihanTphComplete) createdDate else null,
+                    updated_name = if (isPemulihanTphComplete) createdName else null,
+                    updated_by = if (isPemulihanTphComplete) createdBy else null,
                     nik = "",
                     nama = "",
                     no_pokok = 0,
                     pokok_panen = null,
                     kode_inspeksi = 6,
                     temuan_inspeksi = jumBrdTglPath.toDouble(),
-                    status_pemulihan = 0,
+                    status_pemulihan = if (isPemulihanTphComplete) 1 else 0,
                     foto = foto,
                     komentar = komentar,
                     latIssue = latTPH,
                     lonIssue = lonTPH,
+                    latPemulihan = if (isPemulihanTphComplete) latTPH else null,
+                    lonPemulihan = if (isPemulihanTphComplete) lonTPH else null,
+                    foto_pemulihan = if (isPemulihanTphComplete) foto_pemulihan_tph else null,
+                    komentar_pemulihan = if (isPemulihanTphComplete) komentar_pemulihan_tph else null,
                     status_upload = "0",
                     status_uploaded_image = "0"
                 )
                 inspectionDetailList.add(inspectionDetail)
-                AppLogger.d("Added inspection detail: no_pokok 0, Code 6, Value ${jumBrdTglPath.toDouble()}")
             }
 
             AppLogger.d("Total inspection details to save: ${inspectionDetailList.size}")

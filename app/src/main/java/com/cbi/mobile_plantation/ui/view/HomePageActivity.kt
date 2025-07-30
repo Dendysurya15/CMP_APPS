@@ -3569,8 +3569,8 @@ class HomePageActivity : AppCompatActivity() {
                                         }
 
                                     mapOf<String, Any>(
-                                        "id" to (detail.id ?: 0),
-                                        "id_inspeksi" to (detail.id_inspeksi ?: ""),
+//                                        "id" to (detail.id ?: 0),
+//                                        "id_inspeksi" to (detail.id_inspeksi ?: ""),
                                         "no_pokok" to (detail.no_pokok ?: 0),
                                         "pokok_panen" to (detail.pokok_panen ?: 0),
                                         "kode_inspeksi" to (detail.kode_inspeksi ?: 0),
@@ -3601,7 +3601,7 @@ class HomePageActivity : AppCompatActivity() {
 
                             try {
                                 mapOf<String, Any>(
-                                    "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
+//                                    "id" to (inspeksiWithRelations.inspeksi.id ?: 0),
                                     "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: ""),
                                     "regional" to (inspeksiWithRelations.tph?.regional?.toString()
                                         ?: ""),

@@ -42,6 +42,7 @@ data class InspectionModel(
     val inspeksi_putaran: Int? = 1,
     val baris: String,
     val foto_user:String,
+    val foto_user_pemulihan:String?=null,
     val jml_pkk_inspeksi: Int,
     val tracking_path: String,
     val tracking_path_pemulihan: String? = null,

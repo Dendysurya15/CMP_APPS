@@ -314,8 +314,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var fabNextToFormAncak: FloatingActionButton
     private lateinit var fabPhotoFormAncak: FloatingActionButton
     private lateinit var fabFollowUpNow: FloatingActionButton
+    private lateinit var fabFollowUpTPH: FloatingActionButton
     private lateinit var fabPhotoUser: FloatingActionButton
     private lateinit var fabPhotoUser2: FloatingActionButton
+    private var photoTPHFollowUp: String? = null
+    private var komentarTPHFollowUp: String? = null
     private lateinit var labelPhotoUser2: TextView
     private lateinit var labelPhotoUser: TextView
     private lateinit var labelPhotoFormInspect: TextView
@@ -357,6 +360,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun initUI() {
         vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
+        fabFollowUpTPH = findViewById(R.id.fabFollowUpTPH)
         fabNextToFormAncak = findViewById(R.id.fabNextToFormAncak)
         bottomNavInspect = findViewById(R.id.bottomNavInspect)
         titlePemanenInspeksi = findViewById(R.id.titlePemanenInspeksi)
@@ -1568,17 +1572,26 @@ open class FormInspectionActivity : AppCompatActivity(),
             showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
         }
 
+        fabFollowUpTPH.setOnClickListener {
+            isForSelfie = false
+            isInTPH = true
+            isForFollowUp = true
+            showViewPhotoBottomSheet(null, true, false, true) // TPH Follow-up photo
+        }
+
+
         fabPhotoInfoBlok.setOnClickListener {
             isForSelfie = false
+            isInTPH = true
             showViewPhotoBottomSheet(null, true, false, false) // TPH photo
         }
 
         fabNextToFormAncak.setOnClickListener {
             if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-//                    if (!validateAndShowErrors()) {
-//                        vibrate(500)
-//                        return@setOnClickListener
-//                    }
+                    if (!validateAndShowErrors()) {
+                        vibrate(500)
+                        return@setOnClickListener
+                    }
             }
 
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
@@ -1648,7 +1661,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (!hasSelfiePhoto) {
                 vibrate(500)
                 isForSelfie = true
-                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+                showViewPhotoBottomSheet(null, false, true, false)
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1710,7 +1723,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
                             val result = if (isFollowUp) {
-                                // Follow-up: only update specific fields
                                 inspectionViewModel.saveDataInspection(
                                     created_date_start = currentInspectionData?.inspeksi?.created_date
                                         ?: "",
@@ -1796,6 +1808,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 lonTPH = lon ?: 0.0,
                                                 foto = photoInTPH,
                                                 komentar = komentarInTPH ?: "",
+                                                foto_pemulihan_tph = photoTPHFollowUp ?:"",
+                                                komentar_pemulihan_tph = komentarTPHFollowUp?:""
                                             )
 
                                         when (detailResult) {
@@ -1955,61 +1969,57 @@ open class FormInspectionActivity : AppCompatActivity(),
             behavior.isDraggable = false
         }
 
-        if (isForSelfie == true) {
-            // Selfie photo case
-            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
-            titlePhotoTemuan.text = "Lampiran Foto Selfie User"
+        val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
+        val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
 
-            // Hide comment section for selfie photos
-            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
-            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
-            titleComment.visibility = View.GONE
-            etPhotoComment.visibility = View.GONE
+        when {
+            isForSelfie == true -> {
+                // Selfie photo case
+                titlePhotoTemuan.text = "Lampiran Foto Selfie User"
+                titleComment.visibility = View.GONE
+                etPhotoComment.visibility = View.GONE
+            }
 
-        } else if (isForFollowUp == true) {
-            // Follow-up photo case
-            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
-            titlePhotoTemuan.text = "Lampiran Foto Pemulihan"
-
-            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
-            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
-            titleComment.text = "Komentar Pemulihan"
-
-        } else if (isInTPH == true) {
-            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
-            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            isInTPH == true && isForFollowUp == true -> {
+                // TPH Follow-up photo case - NEW CASE
                 titlePhotoTemuan.text = "Lampiran Foto Pemulihan di TPH"
-            } else {
-                titlePhotoTemuan.text = "Lampiran Foto di TPH"
+                titleComment.text = "Komentar Pemulihan TPH"
+                titleComment.visibility = View.VISIBLE
+                etPhotoComment.visibility = View.VISIBLE
             }
 
-            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
-            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
-            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                titleComment.text = "Komentar Temuan Pemulihan"
-            } else {
-                titleComment.text = "Komentar"
-            }
-            updatePhotoBadgeVisibility()
-        } else {
-            val titlePhotoTemuan = view.findViewById<TextView>(R.id.titlePhotoTemuan)
-            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            isForFollowUp == true -> {
+
                 titlePhotoTemuan.text = "Lampiran Foto Pemulihan"
-            } else {
-                titlePhotoTemuan.text = "Lampiran Foto Temuan"
+                titleComment.text = "Komentar Pemulihan"
             }
 
-            val incLytPhotosInspect = view.findViewById<View>(R.id.incLytPhotosInspect)
-            val titleComment = incLytPhotosInspect.findViewById<TextView>(R.id.titleComment)
-            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                titleComment.text = "Komentar Temuan Inspeksi"
-            } else {
-                titleComment.text = "Komentar"
+            isInTPH == true -> {
+
+                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    titlePhotoTemuan.text = "Lampiran Foto Pemulihan di TPH"
+                    titleComment.text = "Komentar Temuan Pemulihan"
+                } else {
+                    titlePhotoTemuan.text = "Lampiran Foto di TPH"
+                    titleComment.text = "Komentar"
+                }
+                updatePhotoBadgeVisibility()
+            }
+
+            else -> {
+                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    titlePhotoTemuan.text = "Lampiran Foto Pemulihan"
+                    titleComment.text = "Komentar Temuan Inspeksi"
+                } else {
+                    titlePhotoTemuan.text = "Lampiran Foto Temuan"
+                    titleComment.text = "Komentar"
+                }
             }
         }
 
         val photoToShow = when {
             isForSelfie == true -> photoSelfie
+            isInTPH == true && isForFollowUp == true -> photoTPHFollowUp // NEW CASE
             isInTPH == true -> photoInTPH
             isForFollowUp == true -> currentData.foto_pemulihan
             else -> currentData.photo
@@ -2017,6 +2027,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val watermarkType = when {
             isForSelfie == true -> WaterMarkFotoDanFolder.WMBuktiInspeksiUser
+            isInTPH == true && isForFollowUp == true -> WaterMarkFotoDanFolder.WMFUInspeksiTPH
             isForFollowUp == true -> WaterMarkFotoDanFolder.WMFUInspeksiPokok
             featureName == AppUtils.ListFeatureNames.FollowUpInspeksi -> {
                 if (isInTPH == true) {
@@ -2025,7 +2036,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     WaterMarkFotoDanFolder.WMFUInspeksiPokok
                 }
             }
-
             else -> {
                 if (isInTPH == true) {
                     WaterMarkFotoDanFolder.WMInspeksiTPH
@@ -2045,18 +2055,20 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             when {
                 isForSelfie == true -> {
-                    // Clear selfie photo
                     photoSelfie = null
                 }
 
+                isInTPH == true && isForFollowUp == true -> {
+                    photoTPHFollowUp = null
+                    komentarTPHFollowUp = null
+                }
+
                 isInTPH == true -> {
-                    // Clear TPH photo
                     photoInTPH = null
                     komentarInTPH = null
                 }
 
                 isForFollowUp == true -> {
-                    // Clear follow-up photo
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(
@@ -2068,7 +2080,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 else -> {
-                    // Clear form data photo
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(
@@ -2080,7 +2091,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             updatePhotoBadgeVisibility()
-
             bottomNavInspect.visibility = View.VISIBLE
             bottomSheetDialog.dismiss()
             Handler(Looper.getMainLooper()).postDelayed({
@@ -2088,63 +2098,57 @@ open class FormInspectionActivity : AppCompatActivity(),
             }, 100)
         }
 
-        if (isInTPH == true) {
-            // Load existing TPH comment
-            etPhotoComment.setText(komentarInTPH)
-            etPhotoComment.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int
-                ) {
-                }
+        when {
+            isInTPH == true && isForFollowUp == true -> {
+                // TPH Follow-up comment - NEW CASE
+                etPhotoComment.setText(komentarTPHFollowUp)
+                etPhotoComment.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: Editable?) {
+                        komentarTPHFollowUp = s?.toString() ?: ""
+                    }
+                })
+            }
 
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    // Save TPH comment to the variable
-                    komentarInTPH = s?.toString() ?: ""
-                }
-            })
-        } else if (isForFollowUp == true) {
-            // Load existing follow-up comment
-            etPhotoComment.setText(currentData.komentar_pemulihan)
-            etPhotoComment.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int
-                ) {
-                }
+            isInTPH == true -> {
+                etPhotoComment.setText(komentarInTPH)
+                etPhotoComment.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: Editable?) {
+                        komentarInTPH = s?.toString() ?: ""
+                    }
+                })
+            }
 
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    formAncakViewModel.savePageData(
-                        currentPage,
-                        currentData.copy(komentar_pemulihan = s?.toString() ?: "")
-                    )
-                }
-            })
-        } else {
-            etPhotoComment.setText(currentData.comment)
-            etPhotoComment.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int
-                ) {
-                }
+            isForFollowUp == true -> {
+                etPhotoComment.setText(currentData.komentar_pemulihan)
+                etPhotoComment.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: Editable?) {
+                        formAncakViewModel.savePageData(
+                            currentPage,
+                            currentData.copy(komentar_pemulihan = s?.toString() ?: "")
+                        )
+                    }
+                })
+            }
 
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    formAncakViewModel.savePageData(
-                        currentPage,
-                        currentData.copy(comment = s?.toString() ?: "")
-                    )
-                }
-            })
+            else -> {
+                etPhotoComment.setText(currentData.comment)
+                etPhotoComment.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: Editable?) {
+                        formAncakViewModel.savePageData(
+                            currentPage,
+                            currentData.copy(comment = s?.toString() ?: "")
+                        )
+                    }
+                })
+            }
         }
 
         var resultFileName = photoToShow ?: ""
@@ -2202,7 +2206,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             isInTPH,
                                             isForSelfie,
                                             isForFollowUp
-                                        ) // Add isForSelfie here
+                                        )
                                     }, 100)
                                 }
                             )
@@ -2569,10 +2573,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             if (activeBottomNavId == R.id.navMenuBlokInspect) {
                 if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-//                    if (!validateAndShowErrors()) {
-//                        vibrate(500)
-//                        return@setOnItemSelectedListener false
-//                    }
+                    if (!validateAndShowErrors()) {
+                        vibrate(500)
+                        return@setOnItemSelectedListener false
+                    }
                 }
 
             }
@@ -2864,6 +2868,15 @@ open class FormInspectionActivity : AppCompatActivity(),
         val hasTPHPhoto = !photoInTPH.isNullOrEmpty()
 
         badgePhotoInfoBlok.visibility = if (hasTPHPhoto) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
+        val badgePhotoFUTPH = findViewById<View>(R.id.badgePhotoFUTPH)
+        val hasTPHFollowUpPhoto = !photoTPHFollowUp.isNullOrEmpty()
+
+        badgePhotoFUTPH.visibility = if (hasTPHFollowUpPhoto) {
             View.VISIBLE
         } else {
             View.GONE
@@ -6321,42 +6334,42 @@ open class FormInspectionActivity : AppCompatActivity(),
     ) {
         if (shouldReopenBottomSheet) {
             shouldReopenBottomSheet = false
-
             bottomNavInspect.visibility = View.VISIBLE
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1
-            val currentData =
-                formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
+            val currentData = formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
-            AppLogger.d("currentData $currentData")
-
-            AppLogger.d("isFollowUP $isForFollowUp")
 
             when {
                 isForSelfie -> {
-                    // Save selfie photo to global variable
+                    AppLogger.d("ddddd jasldkfja")
                     photoSelfie = fname
                 }
+
+                isInTPH && isForFollowUp -> {
+                    AppLogger.d("asldkfjlaksd jflaksjdflkasdfkl j")
+                    photoTPHFollowUp = fname
+                }
+
 
                 isInTPH -> {
                     photoInTPH = fname
                 }
 
                 isForFollowUp -> {
-
-                    AppLogger.d("masuk sini gessss")
+                    AppLogger.d("lkjl kjlkjlkj lkjl")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(
                             foto_pemulihan = fname,
-                            status_pemulihan = 1  // ✅ Set to "1" when photo is saved
+                            status_pemulihan = 1
                         )
                     )
                 }
 
                 else -> {
-                    AppLogger.d("masuk sini gak sih")
-                    // Save regular form photo to PageData
+
+                    AppLogger.d(" jasldkfja")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(photo = fname)
@@ -6364,7 +6377,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
-            // Update badge visibility after saving photo
+            AppLogger.d("photoTPHFollow UP $photoTPHFollowUp")
             updatePhotoBadgeVisibility()
             updateSelfiePhotoBadgeVisibility()
 

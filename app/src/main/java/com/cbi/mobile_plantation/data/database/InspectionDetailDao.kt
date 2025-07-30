@@ -32,6 +32,16 @@ abstract class InspectionDetailDao {
     @Query("DELETE FROM ${AppUtils.DatabaseTables.INSPEKSI_DETAIL} WHERE id_inspeksi = :inspectionId")
     abstract suspend fun deleteByInspectionId(inspectionId: String)
 
+    // In InspectionDetailDao
+    @Query("SELECT * FROM inspeksi_detail WHERE created_date = :createdDate AND nik = :nik AND nama = :nama AND kode_inspeksi = :kodeInspeksi AND temuan_inspeksi = :temuanInspeksi LIMIT 1")
+    abstract suspend fun getDataInspeksiDetail(
+        createdDate: String,
+        nik: String,
+        nama: String,
+        kodeInspeksi: Int,
+        temuanInspeksi: Double
+    ): InspectionDetailModel?
+
 
     @Query("""
     UPDATE inspeksi_detail SET 

@@ -109,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:paddingHorizontal="20dp"
-                    android:paddingBottom="100dp">
+                    android:paddingBottom="150dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -712,7 +712,59 @@
 
             </ScrollView>
 
-            <!-- Left FAB for Photo -->
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabFollowUpTPH"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="95dp"
+                android:backgroundTint="@color/yellowbutton"
+                android:src="@drawable/baseline_manage_search_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="visible"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+
+            <TextView
+
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Pemulihan TPH"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="visible"
+                app:layout_constraintBottom_toBottomOf="@id/fabFollowUpTPH"
+                app:layout_constraintStart_toEndOf="@id/fabFollowUpTPH"
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH" />
+
+            <ImageView
+                android:id="@+id/badgePhotoFUTPH"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintEnd_toEndOf="@id/fabFollowUpTPH"
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH" />
+
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabPhotoInfoBlok"
                 style="@style/RoundedFAB"

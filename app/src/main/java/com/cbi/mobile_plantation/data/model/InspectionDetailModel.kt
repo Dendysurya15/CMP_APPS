@@ -33,4 +33,5 @@ data class InspectionDetailModel(
     val status_upload_pemulihan: String? = null,
     val status_uploaded_image: String,
     val status_uploaded_image_pemulihan: String? = null,
+    val isPushedToServer: Int = 0
 )
