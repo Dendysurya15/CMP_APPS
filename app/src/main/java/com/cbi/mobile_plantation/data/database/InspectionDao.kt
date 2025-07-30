@@ -99,6 +99,7 @@ abstract class InspectionDao {
     inspeksi_putaran = :inspeksi_putaran,
     updated_date_start = :updated_date_start,
     updated_date_end = :updated_date_end,
+    foto_user_pemulihan = :foto_user_pemulihan,
     updated_by = :updated_by,
     updated_name = :updated_name,
     app_version_pemulihan = :app_version_pemulihan
@@ -112,6 +113,7 @@ abstract class InspectionDao {
         updated_date_end: String,
         updated_by: String,
         updated_name: String,
+        foto_user_pemulihan : String,
         app_version_pemulihan:String
     )
 

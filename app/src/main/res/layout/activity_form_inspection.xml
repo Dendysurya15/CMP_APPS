@@ -727,13 +727,13 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:maxImageSize="30dp"
                 app:pressedTranslationZ="0dp"
-                android:visibility="visible"
+                android:visibility="gone"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
 
             <TextView
-
+                android:id="@+id/labelFollowUpTPH"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
@@ -746,7 +746,7 @@
                 android:textColor="@android:color/white"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:visibility="visible"
+                android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="@id/fabFollowUpTPH"
                 app:layout_constraintStart_toEndOf="@id/fabFollowUpTPH"
                 app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH" />
@@ -778,6 +778,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:maxImageSize="30dp"
+                android:visibility="gone"
                 app:pressedTranslationZ="0dp"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
@@ -812,7 +813,7 @@
                 android:textColor="@android:color/white"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:visibility="visible"
+                android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="@id/fabPhotoInfoBlok"
                 app:layout_constraintStart_toEndOf="@id/fabPhotoInfoBlok"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok" />

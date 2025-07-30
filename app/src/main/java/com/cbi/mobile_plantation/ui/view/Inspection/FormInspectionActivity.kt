@@ -264,7 +264,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var totalPokokInspection = 0
-    private var totalPokokDiperiksa = 0
     private var jumBrdTglPath = 0
     private var jumBuahTglPath = 0
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
@@ -272,7 +271,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
     private var selectedDivisiValue: Int? = null
-    private var selectedBlok: String = ""
     private var selectedTPHValue: Int? = null
     private var selectedJalurMasuk: String = ""
 
@@ -323,6 +321,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var labelPhotoUser: TextView
     private lateinit var labelPhotoFormInspect: TextView
     private lateinit var labelFollowUpNow: TextView
+    private lateinit var labelPhotoInfoBlok: TextView
+    private lateinit var labelFollowUpTPH: TextView
+    private lateinit var badgePhotoFUTPH: ImageView
+    private lateinit var badgePhotoInspect: ImageView
+
 
 
     private lateinit var fabPhotoInfoBlok: FloatingActionButton
@@ -361,6 +364,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         vpFormAncak = findViewById(R.id.vpFormAncakInspect)
         fabPhotoInfoBlok = findViewById(R.id.fabPhotoInfoBlok)
         fabFollowUpTPH = findViewById(R.id.fabFollowUpTPH)
+        labelPhotoInfoBlok = findViewById(R.id.labelPhotoInfoBlok)
+        labelFollowUpTPH = findViewById(R.id.labelFollowUpTPH)
+        badgePhotoFUTPH = findViewById(R.id.badgePhotoFUTPH)
+        badgePhotoInspect = findViewById(R.id.badgePhotoInspect)
+
+        labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
         fabNextToFormAncak = findViewById(R.id.fabNextToFormAncak)
         bottomNavInspect = findViewById(R.id.bottomNavInspect)
         titlePemanenInspeksi = findViewById(R.id.titlePemanenInspeksi)
@@ -787,10 +796,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             // Direct flow for FollowUpInspeksi or when coming from Pasar Tengah
 
-            fabPhotoInfoBlok.visibility = View.VISIBLE
-
             if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                // For Pasar Tengah flow - go to Pokok mode (P. Ancak first)
                 isStartFromTPH = false
                 hasSelectedMode = true
                 setupNavigationForPokokMode()
@@ -798,6 +804,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             showMainContent()
         } else {
 
+            fabPhotoInfoBlok.visibility = View.VISIBLE
             showMainContent()
 
         }
@@ -808,14 +815,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         mainContentWrapper.visibility = View.VISIBLE
         headerFormInspection.visibility = View.VISIBLE
 
-        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-            isInTPH = false
-            showFormInspectionScreen()
-            bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
-        } else {
-            // For other flows, show info blok screen first
+//        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+////            isInTPH = false
+//            bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
+//            showFormInspectionScreen()
+//        } else {
+//            // For other flows, show info blok screen first
             showInfoBlokScreen()
-        }
+//        }
     }
 
     private fun showFormInspectionScreen() {
@@ -843,14 +850,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
 
-        fabPhotoInfoBlok.visibility = View.GONE
-        clInfoBlokSection.visibility = View.GONE
-        clSummaryInspection.visibility = View.GONE
-        clFormInspection.post {
-            vpFormAncak.post {
-                clFormInspection.visibility = View.VISIBLE
-            }
-        }
+//        fabPhotoInfoBlok.visibility = View.GONE
+//        clInfoBlokSection.visibility = View.GONE
+//        clSummaryInspection.visibility = View.GONE
+//        clFormInspection.post {
+//            vpFormAncak.post {
+//                clFormInspection.visibility = View.VISIBLE
+//            }
+//        }
     }
 
     private fun setupNavigationForTPHMode() {
@@ -858,7 +865,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun setupNavigationForPokokMode() {
-        updateBottomNavigationOrder(false)
+        updateBottomNavigationOrder(true)
     }
 
     private fun updateBottomNavigationOrder(isTPHFirst: Boolean) {
@@ -886,7 +893,34 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun showInfoBlokScreen() {
         clInfoBlokSection.visibility = View.VISIBLE
-        fabPhotoInfoBlok.visibility = View.VISIBLE
+
+        if(featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+            // Normal inspection - show both FABs in their normal positions
+            fabPhotoInfoBlok.visibility = View.VISIBLE
+            labelPhotoInfoBlok.visibility = View.VISIBLE
+            fabFollowUpTPH.visibility = View.VISIBLE
+            labelFollowUpTPH.visibility = View.VISIBLE
+        } else {
+            // Follow Up Inspeksi - only show Follow Up FAB but move it to bottom position
+            fabPhotoInfoBlok.visibility = View.GONE
+            labelPhotoInfoBlok.visibility = View.GONE
+
+            // Show Follow Up elements
+            fabFollowUpTPH.visibility = View.VISIBLE
+            labelFollowUpTPH.visibility = View.VISIBLE
+            badgePhotoFUTPH.visibility = View.GONE
+
+            // Move Follow Up FAB to the bottom position (same as fabPhotoInfoBlok)
+            val layoutParams = fabFollowUpTPH.layoutParams as ConstraintLayout.LayoutParams
+            layoutParams.bottomMargin = 15.dpToPx() // Use your existing extension function
+            fabFollowUpTPH.layoutParams = layoutParams
+
+            // Also adjust the badge position if needed
+            val badgeLayoutParams = badgePhotoFUTPH.layoutParams as ConstraintLayout.LayoutParams
+            badgeLayoutParams.marginStart = 45.dpToPx() // Use your existing extension function
+            badgePhotoFUTPH.layoutParams = badgeLayoutParams
+        }
+
         clFormInspection.visibility = View.GONE
         clSummaryInspection.visibility = View.GONE
     }
@@ -1025,15 +1059,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun loadInspectionDataToViewModelFirstForm(inspectionData: InspectionWithDetailRelations) {
+    private fun loadInspectionDataToViewModelSecondForm(inspectionData: InspectionWithDetailRelations) {
         val detailInspeksi = inspectionData.detailInspeksi
 
         val groupedByPokok = detailInspeksi.groupBy { it.no_pokok }.toSortedMap()
 
-        val startPage = groupedByPokok.keys.filter { it > 0 }.firstOrNull() ?: 1
-
-        formAncakViewModel.setCurrentPage(startPage)
-        formAncakViewModel.setStartingPage(startPage)
+        formAncakViewModel.setCurrentPage(1)
+        formAncakViewModel.setStartingPage(1)
         AppLogger.d("inspectionData inspeksi ${inspectionData.inspeksi}")
         formAncakViewModel.updateInfoFormAncak(
             inspectionData.inspeksi.dept_abbr ?: "",
@@ -1048,6 +1080,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val maxPokok =
             groupedByPokok.keys.filter { it > 0 }.maxOrNull() ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         formAncakViewModel.updateTotalPages(maxPokok)
+
     }
 
     private fun convertInspectionDetailsToPageData(
@@ -1059,7 +1092,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         var harvestTree = 0
         var neatPelepah = 0.0
         var pelepahSengkleh = 0.0
-        var overPruning = 0.0
+        var kondisiPruning = 1 // Default to Normal (1)
         var buahMasakTdkDipotong = 0.0
         var btPiringanGawangan = 0.0
         var brdKtpGawangan = 0.0
@@ -1152,37 +1185,43 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 9 -> {
-                    overPruning = finalValue
-                    AppLogger.d("  → overPruning = $finalValue")
+                    // Over Pruning - set kondisiPruning to 2
+                    if (finalValue == 1.0) {
+                        kondisiPruning = 2
+                        AppLogger.d("  → kondisiPruning set to 2 (Over Pruning) from code 9")
+                    }
                 }
 
-//                10 -> {
-//                    underPruning = finalValue
-//                    AppLogger.d("  → underPruning = $finalValue")
-//                }
+                10 -> {
+                    // Under Pruning - set kondisiPruning to 3
+                    if (finalValue == 1.0) {
+                        kondisiPruning = 3
+                        AppLogger.d("  → kondisiPruning set to 3 (Under Pruning) from code 10")
+                    }
+                }
             }
         }
 
-        // Add defaults for missing codes 7, 8, 10
+        // Add defaults for missing codes 7, 8
         if (!groupedByKode.containsKey(7)) {
             neatPelepah = 2.0
         }
         if (!groupedByKode.containsKey(8)) {
             pelepahSengkleh = 2.0
         }
-        if (!groupedByKode.containsKey(9)) {
-            overPruning = 2.0
-        }
-//        if (!groupedByKode.containsKey(10)) {
-//            underPruning = 2.0
-//        }
+
+        // Handle kondisiPruning logic:
+        // If neither code 9 nor code 10 exists (or both have value 0), kondisiPruning remains 1 (Normal)
+        // If code 9 exists with value 1, kondisiPruning = 2 (Over Pruning)
+        // If code 10 exists with value 1, kondisiPruning = 3 (Under Pruning)
+        AppLogger.d("  → Final kondisiPruning = $kondisiPruning")
 
         emptyTree = if (details.isNotEmpty()) {
             // Check for actual problems (value = 1 means "Ada"/"Ya")
             val hasNumericFindings = buahMasakTdkDipotong > 0.0 || btPiringanGawangan > 0.0 ||
                     brdKtpGawangan > 0.0 || brdKtpPiringanPikulKetiak > 0.0
-            val hasRadioFindings = neatPelepah == 1.0 || pelepahSengkleh == 1.0
-                    || overPruning == 1.0
+            val hasRadioFindings = neatPelepah == 1.0 || pelepahSengkleh == 1.0 ||
+                    kondisiPruning == 2 || kondisiPruning == 3 // Check for Over/Under Pruning
 
             if (hasNumericFindings || hasRadioFindings) {
                 1 // Ada temuan
@@ -1201,7 +1240,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             harvestTree = harvestTree,
             neatPelepah = neatPelepah.toInt(),
             pelepahSengkleh = pelepahSengkleh.toInt(),
-            kondisiPruning = overPruning.toInt(),
+            kondisiPruning = kondisiPruning,
             buahMasakTdkDipotong = buahMasakTdkDipotong.toInt(),
             btPiringanGawangan = btPiringanGawangan.toInt(),
             brdKtpGawangan = brdKtpGawangan.toInt(),
@@ -1230,10 +1269,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                 currentInspectionData = inspection
                 if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                     updateMapWithInspectionData(inspection)
-                    populateFollowUpInspectionSecondFormUI(inspection)
+                    populateFollowUpInspectionFirstFormUI(inspection)
                     setupCountersFromInspectionData(inspection.detailInspeksi)
                     setupPemanenRecyclerView(inspection.detailInspeksi)
-                    loadInspectionDataToViewModelFirstForm(inspection)
+                    loadInspectionDataToViewModelSecondForm(inspection)
                 }
 
             }
@@ -1251,6 +1290,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val totalPages =
                 formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+
 
             Handler(Looper.getMainLooper()).postDelayed({
                 val startingPage = formAncakViewModel.startingPage.value ?: 1
@@ -1293,11 +1334,17 @@ open class FormInspectionActivity : AppCompatActivity(),
             labelFollowUpNow.visibility = fabFollowUpNow.visibility
 
             // === fabPhotoFormInspect & label ===
-            val showFabFormPhoto = emptyTreeValue == 1
-            fabPhotoFormAncak.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
-            labelPhotoFormInspect.visibility = fabPhotoFormAncak.visibility
+            // Hide form photo elements if it's Follow Up feature
+            val showFabFormPhoto = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                false
+            } else {
+                emptyTreeValue == 1
+            }
 
-            // === Update fabPhotoUser Position ===
+            fabPhotoFormAncak.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
+            labelPhotoFormInspect.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
+            badgePhotoInspect.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
+
             if (showFabPhotoUser) {
                 val layoutParams = fabPhotoUser.layoutParams as ConstraintLayout.LayoutParams
                 when {
@@ -1364,7 +1411,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
             val pokokData = formData[currentPokok]
-            val photoValue = pokokData?.photo ?: ""
+            val photoValue = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                pokokData?.foto_pemulihan ?: ""
+            } else {
+                pokokData?.photo ?: ""
+            }
 
             // NEW: Selfie validation - check if current page >= minimal and selfie is missing
             val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
@@ -1401,7 +1452,12 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
             if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
-                showViewPhotoBottomSheet(null, isInTPH, false, false)
+                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                    showViewPhotoBottomSheet(null, isInTPH, false, false)
+                }else{
+                    isForFollowUp = true
+                    showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+                }
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1512,12 +1568,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                     (btPiringanGawangan > 0) ||
                     ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
 
-            val photoValue = pokokData?.photo ?: ""
+            val photoValue = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                pokokData?.foto_pemulihan ?: ""
+            } else {
+                pokokData?.photo ?: ""
+            }
             val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
             val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
             if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
-                showViewPhotoBottomSheet(null, isInTPH, false, false)
+                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                    showViewPhotoBottomSheet(null, isInTPH, false, false)
+                }else{
+                    isForFollowUp = true
+                    showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+                }
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
@@ -1741,7 +1806,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         ?: 0,
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
-                                    foto_user = photoSelfie ?: "",
+                                    foto_user = "",
+                                    foto_user_pemulihan = photoSelfie,
                                     app_version = currentInspectionData?.inspeksi?.app_version
                                         ?: "",
                                     app_version_pemulihan = infoApp,
@@ -2396,7 +2462,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         labelPhotoFormInspect = findViewById(R.id.labelPhotoFormInspect)
         labelPhotoUser2 = findViewById(R.id.labelPhotoUser2)
         labelPhotoUser = findViewById(R.id.labelPhotoUser)
-        labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
         fabFollowUpNow = findViewById(R.id.fabFollowUpNow)
         fabPhotoUser = findViewById(R.id.fabPhotoUser)
         fabPhotoUser2 = findViewById(R.id.fabPhotoUser2)
@@ -2497,7 +2562,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()
                 val pokokData = formData[currentPokok]
-                val photoValue = pokokData?.photo ?: ""
+                val photoValue = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    pokokData?.foto_pemulihan ?: ""
+                } else {
+                    pokokData?.photo ?: ""
+                }
 
                 val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
                 val currentPage = formAncakViewModel.currentPage.value ?: 1
@@ -2541,7 +2610,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         if (hasFindings && !hasValidPhoto) {
                             vibrate(500)
-                            showViewPhotoBottomSheet(null, isInTPH, false)
+                            if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                                showViewPhotoBottomSheet(null, isInTPH, false, false)
+                            }else{
+                                isForFollowUp = true
+                                showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+                            }
                             AlertDialogUtility.withSingleAction(
                                 this,
                                 stringXML(R.string.al_back),
@@ -2591,7 +2665,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             clFormInspection.visibility = View.GONE
                             clInfoBlokSection.visibility = View.VISIBLE
                             infoBlokView.visibility = View.VISIBLE
-                            fabPhotoInfoBlok.visibility = View.VISIBLE
+                            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi){
+                                fabPhotoInfoBlok.visibility = View.GONE
+                            }
+
                             formInspectionView.visibility = View.GONE
                             summaryView.visibility = View.GONE
                             isInTPH = true
@@ -5096,7 +5173,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     @SuppressLint("SetTextI18n")
-    private fun populateFollowUpInspectionSecondFormUI(inspectionData: InspectionWithDetailRelations) {
+    private fun populateFollowUpInspectionFirstFormUI(inspectionData: InspectionWithDetailRelations) {
         val inspection = inspectionData.inspeksi
         val tph = inspectionData.tph
         val panen = inspectionData.panen
