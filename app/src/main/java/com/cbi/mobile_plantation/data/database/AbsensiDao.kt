@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AbsensiModel
@@ -14,6 +15,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import com.github.junrar.Archive
 
 @Dao
@@ -67,6 +69,29 @@ abstract class AbsensiDao {
 
     @Query("DELETE FROM absensi WHERE id IN (:id)")
     abstract fun deleteByListID(id: List<Int>): Int
+
+    @Query("""
+    UPDATE ${AppUtils.DatabaseTables.ABSENSI}
+    SET 
+        karyawan_msk_id = :mskId,
+        karyawan_msk_nama = :mskNama,
+        karyawan_msk_nik = :mskNik,
+        karyawan_tdk_msk_id = :tdkMskId,
+        karyawan_tdk_msk_nama = :tdkMskNama,
+        karyawan_tdk_msk_nik = :tdkMskNik,
+        status_upload = :statusUpload
+    WHERE id = :id
+""")
+    abstract suspend fun updateAbsensiFields(
+        id: Int,
+        mskId: String,
+        mskNama: String,
+        mskNik: String,
+        tdkMskId: String,
+        tdkMskNama: String,
+        tdkMskNik: String,
+        statusUpload: Int
+    )
 
     @Transaction
     @Query("SELECT * FROM absensi WHERE archive = 1 AND date(date_absen) = date('now', 'localtime')")

@@ -31,4 +31,5 @@ data class AbsensiModel(
     val dataIsZipped: Int = 0,
     val status_upload: Int = 0,
     val status_uploaded_image: String = "0",
+    val id_upload_cmp: Int? = null
 )

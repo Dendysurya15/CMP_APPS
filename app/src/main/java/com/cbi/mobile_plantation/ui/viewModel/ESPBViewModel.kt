@@ -9,6 +9,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -195,7 +196,7 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         }
     }
 
-    suspend fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
+    suspend fun getBlokById(listBlokId: List<Int>): List<BlokModel> {
         return repository.getBlokById(listBlokId)
     }
 

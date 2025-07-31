@@ -20,9 +20,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.BlokModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -341,7 +341,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "check_only" to false
                                 )
 
-                                AppLogger.d("testing")
+                                AppLogger.d("test bro")
 
                                 val espbJsonCheckDuplicate = Gson().toJson(wrappedEspbDataCheck)
                                 weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJsonCheckDuplicate)
@@ -426,7 +426,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang mengupload data ke server, harap tunggu",
                                     true
                                 )
-                                AppLogger.d("test")
                                 weightBridgeViewModel.uploadESPBKraniTimbang(
                                     itemsToUpload,
                                     globalIdEspb

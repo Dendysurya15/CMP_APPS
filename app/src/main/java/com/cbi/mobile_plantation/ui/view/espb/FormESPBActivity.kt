@@ -113,8 +113,7 @@ class FormESPBActivity : AppCompatActivity() {
     private var pemuatList: List<KaryawanModel> = emptyList()
     private var transporterList: List<TransporterModel> = emptyList()
     private var nopolList: List<KendaraanModel> = emptyList()
-
-    private lateinit var inputMappings: List<Triple<LinearLayout, String, FeaturePanenTBSActivity.InputType>>
+    private lateinit var backButton: ImageView
     private lateinit var viewModelFactory: ESPBViewModelFactory
     private var pemuatListId: ArrayList<String> = ArrayList()
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
@@ -143,9 +142,6 @@ class FormESPBActivity : AppCompatActivity() {
     private val karyawanNamaMap = mutableMapOf<String, String>()
     private var activityInitialized = false
     private var noESPBStr = "NULL"
-    private var pemuat_id = "NULL"
-    private var kemandoran_id = "NULL"
-    private var pemuat_nik = "NULL"
     private var tph1NoIdPanen = ""
     private var selectedTransporterName = ""
     private lateinit var warningText: TextView
@@ -179,13 +175,46 @@ class FormESPBActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun updateWarningText() {
         warningText.text = "Peringatan, pastikan semua form sudah terisi dengan benar!\n" +
                 "Jika QR Code sudah tampil, maka anda harus melakukan Scan QR Code dan konfirmasi scan dengan menekan tombol!"
         warningText.setTextColor(ContextCompat.getColor(this, R.color.black))
     }
 
+    private fun createScannedResultFromTPH1(): String {
+        if (tph1.isEmpty()) return ""
+
+        val panenIds = tph1IdPanen.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        return "[${panenIds.joinToString(", ")}]" // Format as list of IDs for restoration
+    }
+
+    private fun navigateBackToListTPH() {
+        val intent = Intent(this, ListPanenTBSActivity::class.java)
+
+        // Pass the preserved scan data back
+        intent.putExtra("FEATURE_NAME", featureName)
+        intent.putExtra("scannedResult", createScannedResultFromTPH1())
+        intent.putExtra("previous_tph_1", tph1)
+        intent.putExtra("previous_tph_0", tph0)
+        intent.putExtra("previous_tph_1_id_panen", tph1IdPanen)
+        intent.putExtra("RESTORE_CHECKBOX_STATE", true) // Flag to restore checkbox states
+
+        AppLogger.d("Navigating back to ListPanenTBSActivity with data:")
+        AppLogger.d("tph1: $tph1")
+        AppLogger.d("tph0: $tph0")
+        AppLogger.d("tph1IdPanen: $tph1IdPanen")
+        AppLogger.d("createScannedResultFromTPH1(): ${createScannedResultFromTPH1()}")
+
+        startActivity(intent)
+        finishAffinity()
+    }
+
     private fun setupUI() {
+        backButton = findViewById<ImageView>(R.id.btn_back)
+        backButton.setOnClickListener {
+            onBackPressed()
+        }
         setupWarningCard()
         findViewById<ConstraintLayout>(R.id.headerFormESPB).findViewById<ImageView>(R.id.statusLocation)
             .apply {
@@ -195,18 +224,12 @@ class FormESPBActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 AlertDialogUtility.withTwoActions(
                     this@FormESPBActivity,
-                    "KEMBALI",
-                    "Kembali ke Menu utama?",
-                    "Data scan sebelumnya akan terhapus dan dapat diisi ulang kembali",
+                    "Kembali",
+                    "Kembali ke List TPH?",
+                    "Data yang sudah diisi akan hilang",
                     "warning.json",
                     function = {
-                        startActivity(
-                            Intent(
-                                this@FormESPBActivity,
-                                HomePageActivity::class.java
-                            )
-                        )
-                        finishAffinity()
+                        navigateBackToListTPH()
                     }
                 ) {
                 }
@@ -570,6 +593,7 @@ class FormESPBActivity : AppCompatActivity() {
                 ColorStateList.valueOf(ContextCompat.getColor(this, R.color.graytextdark))
 
 
+
             Log.d("FormESPBActivity", "Generate QR clicked, selectedNopol = $selectedNopol")
 
             // Check if selectedNopol is valid
@@ -830,6 +854,7 @@ class FormESPBActivity : AppCompatActivity() {
 
             val btnPreviewFullQR: MaterialButton = findViewById(R.id.btnPreviewFullQR)
 
+
             AlertDialogUtility.Companion.withTwoActions(
                 this,
                 "SIMPAN",
@@ -837,70 +862,23 @@ class FormESPBActivity : AppCompatActivity() {
                 "Pastikan seluruh data sudah valid!",
                 "warning.json",
                 function = {
-                    btnPreviewFullQR.visibility = View.VISIBLE
-                    btnPreviewFullQR.setOnClickListener {
-                        showQrCodeFullScreen(qrCodeImageView.drawable)
-                    }
+
                     disableAllSpinners()
                     val statusDraft = if (mekanisasi == 0) {
                         1
                     } else {
                         0
                     }
-                    saveESPB(
-                        blok_jjg = blok_jjg,
-                        nopol = selectedNopol,
-                        driver = driver,
-                        pemuat_id = uniqueIdKaryawan,
-                        transporter_id = transporter_id,
-                        mill_id = selectedMillId!!,
-                        created_by_id = idPetugas!!,
-                        creator_info = creatorInfo.toString(),
-                        noESPB = noESPBStr,
-                        created_at = getCurrentDateTime(),
-                        tph0 = "",
-                        tph1 = tph1,
-                        status_draft = statusDraft,
-                        status_mekanisasi = mekanisasi,
-                        pemuat_nik = uniqueNikPemanen,
-                        kemandoran_id = uniqueKemandoranId
-                    )
-                    val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
-                    btKonfirmScanESPB.visibility = View.VISIBLE
-                    btKonfirmScanESPB.setOnClickListener {
-                        AlertDialogUtility.withTwoActions(
-                            this,
-                            getString(R.string.al_yes),
-                            getString(R.string.confirmation_dialog_title),
-                            "${getString(R.string.al_make_sure_scanned_qr)}",
-                            "warning.json",
-                            ContextCompat.getColor(
-                                this,
-                                R.color.bluedarklight
-                            ),
-                            function = {
-                                playSound(R.raw.berhasil_konfirmasi)
-                                showSuccessAndNavigate()
-
-                            },
-                            cancelFunction = {
-                                // Don't re-enable since we're still in the outer dialog
-                            }
-                        )
-                    }
 
                     if (mekanisasi == 0) {
 
-                        AppLogger.d("uniqueNikPemanen $uniqueNikPemanen")
-
-                        AppLogger.d(blok_jjg.toString())
                         val json = constructESPBJson(
                             blok_jjg = blok_jjg,
                             nopol = selectedNopol,
                             driver = driver,
                             pemuat_id = uniqueIdKaryawan,
                             transporter_id = transporter_id,
-                            mill_id = selectedMillId!!,
+                            mill_id = selectedMillId,
                             created_by_id = idPetugas!!,
                             no_espb = noESPBStr,
                             tph0 = "",
@@ -912,23 +890,85 @@ class FormESPBActivity : AppCompatActivity() {
                             kemandoran_id = uniqueKemandoranId
                         )
 
-                        AppLogger.d("json $json")
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 
 
+                        if (encodedData != null) {
+                            // Data is valid size, proceed with QR generation
+                            AppLogger.d("Encoded data valid: ${encodedData.take(50)}...")
 
-                        ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView,
-                            this@FormESPBActivity,
-                            showLogo = false)
-                        setMaxBrightness(this, true)
-                        playSound(R.raw.berhasil_generate_qr)
+                            ListPanenTBSActivity().generateHighQualityQRCode(
+                                encodedData,
+                                qrCodeImageView,
+                                this@FormESPBActivity,
+                                showLogo = false
+                            )
+                            setMaxBrightness(this, true)
+                            playSound(R.raw.berhasil_generate_qr)
 
-                        takeQRCodeScreenshot(
-                            qrCodeImageView,
-                            pemuatNama,
-                            driver,
-                            blokDisplay
-                        )
+                            takeQRCodeScreenshot(
+                                qrCodeImageView,
+                                pemuatNama,
+                                driver,
+                                blokDisplay
+                            )
+
+                            saveESPB(
+                                blok_jjg = blok_jjg,
+                                nopol = selectedNopol,
+                                driver = driver,
+                                pemuat_id = uniqueIdKaryawan,
+                                transporter_id = transporter_id,
+                                mill_id = selectedMillId,
+                                created_by_id = idPetugas,
+                                creator_info = creatorInfo.toString(),
+                                noESPB = noESPBStr,
+                                created_at = getCurrentDateTime(),
+                                tph0 = "",
+                                tph1 = tph1,
+                                status_draft = statusDraft,
+                                status_mekanisasi = mekanisasi,
+                                pemuat_nik = uniqueNikPemanen,
+                                kemandoran_id = uniqueKemandoranId
+                            )
+
+                            btnPreviewFullQR.visibility = View.VISIBLE
+                            btnPreviewFullQR.setOnClickListener {
+                                showQrCodeFullScreen(qrCodeImageView.drawable)
+                            }
+
+                            val btKonfirmScanESPB = findViewById<MaterialButton>(R.id.btKonfirmScanESPB)
+                            btKonfirmScanESPB.visibility = View.VISIBLE
+                            btKonfirmScanESPB.setOnClickListener {
+                                AlertDialogUtility.withTwoActions(
+                                    this,
+                                    getString(R.string.al_yes),
+                                    getString(R.string.confirmation_dialog_title),
+                                    "${getString(R.string.al_make_sure_scanned_qr)}",
+                                    "warning.json",
+                                    ContextCompat.getColor(
+                                        this,
+                                        R.color.bluedarklight
+                                    ),
+                                    function = {
+                                        playSound(R.raw.berhasil_konfirmasi)
+                                        showSuccessAndNavigate()
+
+                                    },
+                                    cancelFunction = {
+                                        // Don't re-enable since we're still in the outer dialog
+                                    }
+                                )
+                            }
+                        } else {
+                            // Data is too large or encoding failed
+                            AppLogger.e("QR generation failed - data too large or encoding error")
+
+                            Toast.makeText(this, "Tidak dapat membuat QR Code - data terlalu besar", Toast.LENGTH_LONG).show()
+
+                            enableButtonAndSpinners()
+                        }
+
                     }
                 },
                 cancelFunction = {
@@ -1753,7 +1793,6 @@ class FormESPBActivity : AppCompatActivity() {
                     "selectedTransporterId: $selectedTransporterId"
                 )
             }
-
             R.id.formEspbPemuat -> {
                 val selectedPemuat = selectedItem.toString()
                 AppLogger.d("Selected Pemuat: $selectedPemuat")

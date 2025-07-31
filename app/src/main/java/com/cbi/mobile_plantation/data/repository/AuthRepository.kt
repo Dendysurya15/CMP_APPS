@@ -28,9 +28,16 @@ class AuthRepository {
                     val errorBody = response.errorBody()?.string()
                     AppLogger.e("API Error: Code ${response.code()} - Body: $errorBody")
 
+                    // Simple approach: Replace message for authentication errors
+                    val customErrorBody = if (response.code() == 500 || response.code() == 401) {
+                        "{\"success\":false,\"message\":\"Username atau Password Tidak Sesuai\"}"
+                    } else {
+                        errorBody ?: "{\"message\":\"Unknown server error\"}"
+                    }
+                    AppLogger.d("asdasdasdasdasdas")
+
                     Response.error(response.code(),
-                        ResponseBody.create("application/json".toMediaType(),
-                            errorBody ?: "{\"message\":\"Unknown server error\"}"))
+                        ResponseBody.create("application/json".toMediaType(), customErrorBody))
                 } else {
                     response
                 }

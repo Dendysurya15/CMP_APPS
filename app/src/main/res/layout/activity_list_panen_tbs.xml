@@ -30,7 +30,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp">
 
-
             <LinearLayout
                 android:id="@+id/calendarContainer"
                 android:layout_width="match_parent"
@@ -39,7 +38,6 @@
                 android:layout_marginTop="10dp"
                 android:orientation="horizontal"
                 android:visibility="visible"
-
                 tools:ignore="MissingConstraints">
 
                 <!-- Material Card with Button -->
@@ -58,7 +56,6 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="10dp"
-                        android:layout_marginVertical="5dp"
                         android:backgroundTint="@color/white"
                         android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
                         android:onClick="openDatePicker"

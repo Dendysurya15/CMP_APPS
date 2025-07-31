@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:background="@color/white">
+
+    <TextView
+        android:id="@+id/tvEmployeeName"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:text="Nama Karyawan"
+        android:textColor="@color/black"
+        android:textSize="12sp"
+        android:gravity="center_vertical"
+        android:padding="4dp"
+        android:fontFamily="@font/manrope_semibold" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/MCVSpinner"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginLeft="5dp"
+        android:background="@color/white">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/white">
+
+            <com.jaredrummler.materialspinner.MaterialSpinner
+                android:id="@+id/spAttendanceStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:ms_hint="Pilih Status"
+                app:ms_hint_color="@color/black"
+                app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
+                app:ms_text_color="@color/black" />
+
+        </FrameLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>
