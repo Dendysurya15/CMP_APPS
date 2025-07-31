@@ -4,11 +4,14 @@ import android.os.Bundle
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.provider.Settings
 import kotlin.reflect.full.findAnnotation
@@ -16,12 +19,24 @@ import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.PopupWindow
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -44,6 +59,7 @@ import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
@@ -59,7 +75,7 @@ import com.cbi.mobile_plantation.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.mobile_plantation.ui.adapter.FeatureCard
 import com.cbi.mobile_plantation.ui.adapter.FeatureCardAdapter
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
-import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
+
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.Absensi.FeatureAbsensiActivity
 import com.cbi.mobile_plantation.ui.view.Absensi.ListAbsensiActivity
@@ -70,6 +86,7 @@ import com.cbi.mobile_plantation.ui.view.HektarPanen.DaftarHektarMPanen
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
@@ -90,20 +107,20 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.worker.DataCleanupWorker
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import com.jaredrummler.materialspinner.MaterialSpinner
 import com.rajat.pdfviewer.PdfViewerActivity
 import com.rajat.pdfviewer.util.saveTo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -121,8 +138,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class HomePageActivity : AppCompatActivity() {
 
@@ -152,7 +167,7 @@ class HomePageActivity : AppCompatActivity() {
     private var countHektarZero: Int = 0  // Global variable for count
     private var countScanMpanen: Int = 0  // Global variable for count
     private var countInspection: String = ""
-
+    val masterEstateHasBeenChoice = mutableMapOf<String, Boolean>()
     private val _globalLastSync = MutableLiveData<String>()
     private val globalLastSync: LiveData<String> get() = _globalLastSync
 
@@ -183,6 +198,8 @@ class HomePageActivity : AppCompatActivity() {
         "https://cmp.citraborneo.co.id/apkcmp/MANUALBOOK/User_Manual_CMP.pdf" // Replace with your actual PDF URL
     private var isPdfDownloaded = false
     private var isDownloading = false
+    private var currentBottomSheetDialog: BottomSheetDialog? = null
+    private var currentBottomSheetView: View? = null
 
     data class ResponseJsonUpload(
         val trackingId: Int,
@@ -191,7 +208,7 @@ class HomePageActivity : AppCompatActivity() {
         val tanggal_upload: String,
         val type: String,
     )
-
+    private var estateList: List<EstateModel> = emptyList()
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
 
     private lateinit var datasetViewModel: DatasetViewModel
@@ -499,7 +516,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferredAbsensi = async { absensiViewModel.loadAbsensiCount() }
                     countAbsensi = countDeferredAbsensi.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapAbsensiPanen, countAbsensi.toString())
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.RekapAbsensiPanen,
+                            countAbsensi.toString()
+                        )
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapAbsensiPanen)
                     }
                 } catch (e: Exception) {
@@ -686,6 +706,15 @@ class HomePageActivity : AppCompatActivity() {
                 subTitle = "Sinkronisasi data manual"
             ),
             FeatureCard(
+                cardBackgroundColor = R.color.greendarkerbutton,
+                featureName = AppUtils.ListFeatureNames.UnduhTPHAsistensi,
+                featureNameBackgroundColor = R.color.yellowbutton,
+                iconResource = R.drawable.baseline_download_24,
+                functionDescription = "Unduh Master TPH untuk asistensi estate lain",
+                displayType = DisplayType.ICON,
+                subTitle = "Unduh TPH Asistensi"
+            ),
+            FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
                 featureName = AppUtils.ListFeatureNames.UploadDataCMP,
                 featureNameBackgroundColor = R.color.colorRedDark,
@@ -780,6 +809,7 @@ class HomePageActivity : AppCompatActivity() {
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+
                 )
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOfNotNull(
@@ -801,6 +831,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
 
                     )
@@ -913,27 +944,48 @@ class HomePageActivity : AppCompatActivity() {
         setupTitleAppNameAndVersion()
         setupName()
         setupLogout()
+        datasetViewModel.getAllEstates()
         checkPermissions()
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
+        setupObserver()
         prefManager!!.registeredDeviceUsername = prefManager!!.username
-        panenViewModel.updateStatus.observeOnce(this) { success ->
-            if (success) {
-                AppLogger.d("✅ Panen Archive Updated Successfully")
-            } else {
-                AppLogger.e("❌ Panen Archive Update Failed")
-            }
-        }
-
-        uploadCMPViewModel.updateStatusUploadCMP.observe(this) { (id, success) ->
-            if (success) {
-                AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
-            } else {
-                AppLogger.e("❌ Upload Data with Tracking ID $id Insertion Failed")
-            }
-        }
     }
 
+    private fun setupObserver() {
+
+        lifecycleScope.launch {
+            // Observe with lifecycle awareness
+            panenViewModel.updateStatus.observe(this@HomePageActivity) { success ->
+                if (success) {
+                    AppLogger.d("✅ Panen Archive Updated Successfully")
+                } else {
+                    AppLogger.e("❌ Panen Archive Update Failed")
+                }
+            }
+
+            uploadCMPViewModel.updateStatusUploadCMP.observe(this@HomePageActivity) { (id, success) ->
+                if (success) {
+                    AppLogger.d("✅ Upload Data with Tracking ID $id Inserted or Updated Successfully")
+                } else {
+                    AppLogger.e("❌ Upload Data with Tracking ID $id Insertion Failed")
+                }
+            }
+
+
+            delay(100)
+
+            withContext(Dispatchers.Main) {
+                datasetViewModel.allEstatesList.observe(this@HomePageActivity) { list ->
+                    val allEstates = list ?: emptyList()
+                    estateList = allEstates
+
+                    AppLogger.d("allEstates $allEstates")
+                }
+            }
+
+        }
+    }
 
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
@@ -954,6 +1006,7 @@ class HomePageActivity : AppCompatActivity() {
         )
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun onFeatureCardClicked(feature: FeatureCard) {
 
         vibrate()
@@ -983,7 +1036,8 @@ class HomePageActivity : AppCompatActivity() {
                             val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
 
                             withContext(Dispatchers.IO) {
-                                val afdelingData = datasetViewModel.getAfdelingById(afdelingId!!.toInt())
+                                val afdelingData =
+                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
                                 afdelingDeferred.complete(afdelingData)
                             }
 
@@ -1007,10 +1061,17 @@ class HomePageActivity : AppCompatActivity() {
                             if (afdeling.sinkronisasi_otomatis != 0) {
                                 // Check if sinkronisasi is required
                                 val lastSyncDateTime = prefManager!!.lastSyncDate
-                                val lastSyncDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(lastSyncDateTime)
-                                )
-                                val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                val lastSyncDate =
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                        SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        ).parse(lastSyncDateTime)!!
+                                    )
+                                val currentDate = SimpleDateFormat(
+                                    "yyyy-MM-dd",
+                                    Locale.getDefault()
+                                ).format(Date())
 
                                 if (lastSyncDate != currentDate) {
                                     AlertDialogUtility.withSingleAction(
@@ -1028,7 +1089,8 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             // All validations passed, proceed with attendance check
-                            val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+                            val absensiDeferred =
+                                CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                             absensiViewModel.loadActiveAbsensi()
                             delay(100)
@@ -1460,12 +1522,195 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+            AppUtils.ListFeatureNames.UnduhTPHAsistensi -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val bottomSheetDialog = BottomSheetDialog(this)
+                    val view = LayoutInflater.from(this)
+                        .inflate(R.layout.layout_bottom_sheet_edit_nama_pemanen, null)
+
+                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text = "Unduh Data Master TPH Asistensi"
+
+                    view.findViewById<Button>(R.id.btnCancel).setOnClickListener {
+                        bottomSheetDialog.dismiss()
+                    }
+
+                    currentBottomSheetDialog = bottomSheetDialog
+                    currentBottomSheetView = view
+
+
+                    val tvTitleFormPanenTBS = view.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+                    tvTitleFormPanenTBS.text = "Pilih Estate"
+
+                    val downloadButton = view.findViewById<Button>(R.id.btnUpdatePemanen)
+                    downloadButton.text = "Unduh Dataset"
+
+                    val layoutMasterDept = view.findViewById<LinearLayout>(R.id.layoutPemanen)
+                    val estateNames = estateList.sortedBy { it.nama }.mapNotNull { "${it.nama}" }
+
+                    try {
+                        val editText = layoutMasterDept.findViewById<EditText>(R.id.etHomeMarkerTPH)
+                        val spinner = layoutMasterDept.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                        val tvError = layoutMasterDept.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+
+                        spinner.setItems(estateNames)
+
+
+                        downloadButton.setOnClickListener {
+                            if (AppUtils.isNetworkAvailable(this)) {
+                                datasetViewModel.resetState()
+                                // When processing selected estates, use the values directly
+                                val selectedEstates =
+                                    masterEstateHasBeenChoice.filter { it.value }.keys.toList()
+
+                                if (selectedEstates.isEmpty()) {
+                                    vibrate()
+                                    tvError.visibility =
+                                        View.VISIBLE
+                                    tvError.text =
+                                        getString(
+                                            R.string.al_must_checked_master_estate
+                                        )
+                                } else {
+                                    AlertDialogUtility.withTwoActions(
+                                        this,
+                                        "Unduh",
+                                        getString(R.string.confirmation_dialog_title),
+                                        getString(R.string.al_confirm_download_tph_asistensi),
+                                        "warning.json",
+                                        ContextCompat.getColor(this, R.color.bluedarklight),
+                                        function = {
+                                            val datasetRequests = mutableListOf<DatasetRequest>()
+
+                                            selectedEstates.forEach { estateName ->
+                                                // Find the estate in your estate list by name
+                                                val estate =
+                                                    estateList.find { it.abbr == estateName || it.nama == estateName }
+                                                estate?.let {
+                                                    val estateId = it.id ?: 0
+                                                    val estateAbbr = it.abbr ?: "unknown"
+                                                    val lastModified = prefManager!!.getEstateLastModified(estateAbbr)
+
+                                                    Log.d(
+                                                        "Estate Download",
+                                                        "Adding estate: $estateAbbr (ID: $estateId), Last modified: $lastModified"
+                                                    )
+
+                                                    // Add TPH dataset request for this estate
+                                                    datasetRequests.add(
+                                                        DatasetRequest(
+                                                            estate = estateId,
+                                                            estateAbbr = estateAbbr,
+                                                            lastModified = lastModified,
+                                                            dataset = AppUtils.DatasetNames.tph,
+                                                            isDownloadMasterTPHAsistensi = true
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            if (datasetRequests.isNotEmpty()) {
+                                                setupDownloadDialogAsistensi(datasetRequests)
+                                            }
+                                        },
+                                        cancelFunction = { }
+                                    )
+
+
+
+                                }
+                            } else {
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    stringXML(R.string.al_back),
+                                    stringXML(R.string.al_no_internet_connection),
+                                    stringXML(R.string.al_no_internet_connection_description_login),
+                                    "network_error.json",
+                                    R.color.colorRedDark
+                                ) {
+
+                                }
+                            }
+
+                        }
+
+                        fun ensureKeyboardHidden() {
+                            try {
+                                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                                imm.hideSoftInputFromWindow(layoutMasterDept.windowToken, 0)
+                                editText.clearFocus()
+                            } catch (e: Exception) {
+                                Log.e("SetupSpinnerView", "Error hiding keyboard: ${e.message}", e)
+                            }
+                        }
+
+                        fun updateButtonText(selectedItems: Map<String, Boolean>) {
+                            val count = selectedItems.count { it.value }
+                            downloadButton.text = if (count > 0) "Unduh $count master dataset" else "Unduh Master"
+                        }
+
+                        spinner.setOnTouchListener { _, event ->
+                            try {
+                                ensureKeyboardHidden()
+                                if (event.action == MotionEvent.ACTION_UP) {
+                                    showPopupSearchDropdown(
+                                        spinner,
+                                        estateNames,
+                                        editText,
+                                        layoutMasterDept,
+                                        downloadButton, // Pass the button reference
+                                        true // Force multi-select
+                                    ) { selectedItem, position ->
+                                        try {
+                                            spinner.text = selectedItem
+                                            tvError.visibility = View.GONE
+                                            val selectedEstate = estateList[position]
+                                            AppLogger.d(selectedEstate.toString())
+                                        } catch (e: Exception) {
+                                            Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                            }
+                            true
+                        }
+
+                        // Handle selection count if needed
+                        try {
+                            val selectedCount = masterEstateHasBeenChoice.count { it.value }
+                            updateButtonText(masterEstateHasBeenChoice)
+                        } catch (e: Exception) {
+                            Log.e("SetupSpinnerView", "Error processing selection count: ${e.message}", e)
+                        }
+
+                    } catch (e: Exception) {
+                        Log.e("SetupSpinnerView", "Error in spinner setup: ${e.message}", e)
+                    }
+
+                    bottomSheetDialog.setContentView(view)
+                    val maxHeight = (this.resources.displayMetrics.heightPixels * 0.5).toInt()
+
+                    bottomSheetDialog.show()
+                    bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                        ?.let { bottomSheet ->
+                            val behavior = BottomSheetBehavior.from(bottomSheet)
+                            behavior.apply {
+                                this.peekHeight = maxHeight
+                                this.state = BottomSheetBehavior.STATE_EXPANDED
+                                this.isFitToContents = true
+                                this.isDraggable = false
+                            }
+                            bottomSheet.layoutParams?.height = maxHeight
+                        }
+                }
+            }
+
             AppUtils.ListFeatureNames.SinkronisasiData -> {
                 if (feature.displayType == DisplayType.ICON) {
                     if (AppUtils.isNetworkAvailable(this)) {
                         isTriggerButtonSinkronisasiData = true
 
-                        // Show loading dialog
                         loadingDialog.show()
                         loadingDialog.setMessage("Sedang mempersiapkan data...")
 
@@ -2447,13 +2692,19 @@ class HomePageActivity : AppCompatActivity() {
                             // Process data for HEKTARAN (summary by date AND blok)
                             val groupedByDateAndBlok = hektarPanenToUpload.groupBy { data ->
                                 // Extract first date from date_created_panen
-                                val firstDate = data.date_created_panen.split(";").firstOrNull() ?: ""
+                                val firstDate =
+                                    data.date_created_panen.split(";").firstOrNull() ?: ""
                                 val dateOnly = if (firstDate.isNotEmpty()) {
                                     try {
-                                        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                        val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                        val inputFormat = SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        )
+                                        val outputFormat =
+                                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                                         val date = inputFormat.parse(firstDate)
-                                        date?.let { outputFormat.format(it) } ?: firstDate.split(" ")[0]
+                                        date?.let { outputFormat.format(it) }
+                                            ?: firstDate.split(" ")[0]
                                     } catch (e: Exception) {
                                         firstDate.split(" ")[0] // fallback to first part before space
                                     }
@@ -2471,191 +2722,212 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             // Create a list to hold our restructured data (with nested children)
-                            val restructuredData = groupedByDateAndBlok.map { (compositeKey, dataList) ->
-                                // Extract date and blok from composite key
-                                val (dateOnly, blokId) = compositeKey.split("_").let {
-                                    it[0] to it[1].toIntOrNull()
-                                }
-
-                                // Get first item to extract common properties
-                                val firstItem = dataList.first()
-
-                                // Calculate luasan_panen sum for this date+blok combination
-                                val totalLuasanPanen = dataList.sumOf { it.luas_panen.toDouble() }.toFloat()
-
-                                // Count distinct pemanen_nama for this date+blok combination
-                                val distinctPemanen = dataList.map { it.pemanen_nama }.distinct().size
-
-                                // Create a structure for this date+blok with its child details
-                                val hektaranData = mutableMapOf<String, Any>(
-                                    "tanggal" to dateOnly,
-                                    "regional" to (firstItem.regional ?: ""),
-                                    "wilayah" to (firstItem.wilayah ?: ""),
-                                    "company" to (firstItem.company ?: 0),
-                                    "company_abbr" to (firstItem.company_abbr ?: ""),
-                                    "company_nama" to (firstItem.company_nama ?: ""),
-                                    "dept" to (firstItem.dept ?: 0),
-                                    "dept_ppro" to (firstItem.dept_ppro ?: 0),
-                                    "dept_abbr" to (firstItem.dept_abbr ?: ""),
-                                    "dept_nama" to (firstItem.dept_nama ?: ""),
-                                    "divisi" to (firstItem.divisi ?: 0),
-                                    "divisi_abbr" to (firstItem.divisi_abbr ?: ""),
-                                    "divisi_nama" to (firstItem.divisi_nama ?: ""),
-                                    "blok" to (blokId ?: 0),
-                                    "blok_ppro" to (firstItem.blok_ppro ?: 0),
-                                    "blok_kode" to (firstItem.blok_kode ?: 0),
-                                    "blok_nama" to (firstItem.blok_nama ?: ""),
-                                    "luasan_blok" to (firstItem.luas_blok ?: ""),
-                                    "luasan_panen" to totalLuasanPanen,
-                                    "jumlah_pemanen" to distinctPemanen,
-                                    "created_name" to "",
-                                    "created_by" to (firstItem.created_by ?: ""),
-                                    "created_date" to (firstItem.date_created ?: ""),
-                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity).toString(),
-                                )
-
-                                // Process detail records for this date+blok combination
-                                val detailRecords = mutableListOf<Map<String, Any>>()
-
-                                // Process all data items for this date+blok combination
-                                for (data in dataList) {
-                                    // Split all arrays
-                                    val tphIdsList = data.tph_ids.split(";")
-                                    val totalJjgList = data.total_jjg_arr.split(";")
-                                    val unripeList = data.unripe_arr.split(";")
-                                    val overripeList = data.overripe_arr.split(";")
-                                    val emptyBunchList = data.empty_bunch_arr.split(";")
-                                    val abnormalList = data.abnormal_arr.split(";")
-                                    val ripeList = data.ripe_arr.split(";")
-                                    val kirimList = data.kirim_pabrik_arr.split(";")
-                                    val dibayarList = data.dibayar_arr.split(";")
-                                    val dateCreatedPanenList = data.date_created_panen.split(";")
-
-                                    AppLogger.d("Processing data for ${data.pemanen_nama} - Date: $dateOnly, Blok: $blokId")
-                                    AppLogger.d("TPH IDs: $tphIdsList")
-                                    AppLogger.d("Total JJG: $totalJjgList")
-
-                                    // Get kemandoran data (keeping your existing code)
-                                    val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
-                                    val kemandoranIds = listOf(data.kemandoran_id ?: "")
-
-                                    if (kemandoranIds.first().isNotEmpty()) {
-                                        lifecycleScope.launch(Dispatchers.IO) {
-                                            try {
-                                                val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
-                                                kemandoranDeferred.complete(kemandoranList)
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error fetching kemandoran data: ${e.message}")
-                                                kemandoranDeferred.complete(emptyList())
-                                            }
-                                        }
-                                    } else {
-                                        kemandoranDeferred.complete(emptyList())
+                            val restructuredData =
+                                groupedByDateAndBlok.map { (compositeKey, dataList) ->
+                                    // Extract date and blok from composite key
+                                    val (dateOnly, blokId) = compositeKey.split("_").let {
+                                        it[0] to it[1].toIntOrNull()
                                     }
 
-                                    val kemandoranList = try {
-                                        kemandoranDeferred.await()
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error waiting for kemandoran data: ${e.message}")
-                                        emptyList()
-                                    }
+                                    // Get first item to extract common properties
+                                    val firstItem = dataList.first()
 
-                                    val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
-                                        kemandoranList.first().kemandoran_ppro ?: ""
-                                    } else {
-                                        ""
-                                    }
+                                    // Calculate luasan_panen sum for this date+blok combination
+                                    val totalLuasanPanen =
+                                        dataList.sumOf { it.luas_panen.toDouble() }.toFloat()
 
-                                    val kemandoranKode = if (kemandoranList.isNotEmpty()) {
-                                        kemandoranList.first().kode ?: ""
-                                    } else {
-                                        ""
-                                    }
+                                    // Count distinct pemanen_nama for this date+blok combination
+                                    val distinctPemanen =
+                                        dataList.map { it.pemanen_nama }.distinct().size
 
-                                    // Initialize totals for THIS data item
-                                    var totalJjgPanen = 0.0
-                                    var totalJjgMentah = 0.0
-                                    var totalJjgLewatMasak = 0.0
-                                    var totalJjgKosong = 0.0
-                                    var totalJjgAbnormal = 0.0
-                                    var totalJjgMasak = 0.0
-                                    var totalJjgKirim = 0.0
-                                    var totalJjgBayar = 0.0
-                                    val dateCreatedArray = mutableListOf<String>()
-                                    val tphArray = mutableListOf<String>()
-                                    val entryCount = tphIdsList.size
-
-                                    // Sum all JJG values for this data item
-                                    for (i in 0 until entryCount) {
-                                        if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
-                                            // Sum all JJG values
-                                            totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull() ?: 0.0 else 0.0)
-                                            tphArray.add(tphIdsList[i])
-
-                                            // Collect date_created values
-                                            val dateCreated = if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
-                                            if (dateCreated != null && dateCreated.isNotEmpty()) {
-                                                dateCreatedArray.add(dateCreated)
-                                            }
-                                        }
-                                    }
-
-                                    // Debug log to see what values we're getting
-                                    AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
-                                    AppLogger.d("Creating hektaran_detail for Date: $dateOnly, Blok: $blokId, Pemanen: ${data.pemanen_nama}")
-
-                                    // Create single entry with summed values for this data item
-                                    detailRecords.add(
-                                        mapOf<String, Any>(
-                                            "tipe" to "",
-                                            "blok" to (data.blok ?: 0),
-                                            "kemandoran_id" to (data.kemandoran_id ?: ""),
-                                            "kemandoran_nama" to (data.kemandoran_nama ?: ""),
-                                            "kemandoran_ppro" to kemandoranPpro,
-                                            "kemandoran_kode" to kemandoranKode,
-                                            "pemanen_nik" to (data.nik ?: ""),
-                                            "pemanen_nama" to (data.pemanen_nama ?: ""),
-                                            "tph" to Gson().toJson(tphArray),
-                                            "ancak" to "",
-                                            "jjg_panen" to totalJjgPanen.toString(),
-                                            "jjg_masak" to totalJjgMasak.toString(),
-                                            "jjg_mentah" to totalJjgMentah.toString(),
-                                            "jjg_lewat_masak" to totalJjgLewatMasak.toString(),
-                                            "jjg_kosong" to totalJjgKosong.toString(),
-                                            "jjg_abnormal" to totalJjgAbnormal.toString(),
-                                            "jjg_serangan_tikus" to "0",
-                                            "jjg_panjang" to "0",
-                                            "jjg_tidak_vcut" to "0",
-                                            "jjg_kirim" to totalJjgKirim.toString(),
-                                            "jjg_bayar" to totalJjgBayar.toString(),
-                                            "luasan" to data.luas_panen,
-                                            "date_panen" to Gson().toJson(dateCreatedArray),
-                                            "status" to 1,
-                                        )
+                                    // Create a structure for this date+blok with its child details
+                                    val hektaranData = mutableMapOf<String, Any>(
+                                        "tanggal" to dateOnly,
+                                        "regional" to (firstItem.regional ?: ""),
+                                        "wilayah" to (firstItem.wilayah ?: ""),
+                                        "company" to (firstItem.company ?: 0),
+                                        "company_abbr" to (firstItem.company_abbr ?: ""),
+                                        "company_nama" to (firstItem.company_nama ?: ""),
+                                        "dept" to (firstItem.dept ?: 0),
+                                        "dept_ppro" to (firstItem.dept_ppro ?: 0),
+                                        "dept_abbr" to (firstItem.dept_abbr ?: ""),
+                                        "dept_nama" to (firstItem.dept_nama ?: ""),
+                                        "divisi" to (firstItem.divisi ?: 0),
+                                        "divisi_abbr" to (firstItem.divisi_abbr ?: ""),
+                                        "divisi_nama" to (firstItem.divisi_nama ?: ""),
+                                        "blok" to (blokId ?: 0),
+                                        "blok_ppro" to (firstItem.blok_ppro ?: 0),
+                                        "blok_kode" to (firstItem.blok_kode ?: 0),
+                                        "blok_nama" to (firstItem.blok_nama ?: ""),
+                                        "luasan_blok" to (firstItem.luas_blok ?: ""),
+                                        "luasan_panen" to totalLuasanPanen,
+                                        "jumlah_pemanen" to distinctPemanen,
+                                        "created_name" to "",
+                                        "created_by" to (firstItem.created_by ?: ""),
+                                        "created_date" to (firstItem.date_created ?: ""),
+                                        "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
+                                            .toString(),
                                     )
+
+                                    // Process detail records for this date+blok combination
+                                    val detailRecords = mutableListOf<Map<String, Any>>()
+
+                                    // Process all data items for this date+blok combination
+                                    for (data in dataList) {
+                                        // Split all arrays
+                                        val tphIdsList = data.tph_ids.split(";")
+                                        val totalJjgList = data.total_jjg_arr.split(";")
+                                        val unripeList = data.unripe_arr.split(";")
+                                        val overripeList = data.overripe_arr.split(";")
+                                        val emptyBunchList = data.empty_bunch_arr.split(";")
+                                        val abnormalList = data.abnormal_arr.split(";")
+                                        val ripeList = data.ripe_arr.split(";")
+                                        val kirimList = data.kirim_pabrik_arr.split(";")
+                                        val dibayarList = data.dibayar_arr.split(";")
+                                        val dateCreatedPanenList =
+                                            data.date_created_panen.split(";")
+
+                                        AppLogger.d("Processing data for ${data.pemanen_nama} - Date: $dateOnly, Blok: $blokId")
+                                        AppLogger.d("TPH IDs: $tphIdsList")
+                                        AppLogger.d("Total JJG: $totalJjgList")
+
+                                        // Get kemandoran data (keeping your existing code)
+                                        val kemandoranDeferred =
+                                            CompletableDeferred<List<KemandoranModel>>()
+                                        val kemandoranIds = listOf(data.kemandoran_id ?: "")
+
+                                        if (kemandoranIds.first().isNotEmpty()) {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val kemandoranList =
+                                                        absensiViewModel.getKemandoranById(
+                                                            kemandoranIds
+                                                        )
+                                                    kemandoranDeferred.complete(kemandoranList)
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error fetching kemandoran data: ${e.message}")
+                                                    kemandoranDeferred.complete(emptyList())
+                                                }
+                                            }
+                                        } else {
+                                            kemandoranDeferred.complete(emptyList())
+                                        }
+
+                                        val kemandoranList = try {
+                                            kemandoranDeferred.await()
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error waiting for kemandoran data: ${e.message}")
+                                            emptyList()
+                                        }
+
+                                        val kemandoranPpro = if (kemandoranList.isNotEmpty()) {
+                                            kemandoranList.first().kemandoran_ppro ?: ""
+                                        } else {
+                                            ""
+                                        }
+
+                                        val kemandoranKode = if (kemandoranList.isNotEmpty()) {
+                                            kemandoranList.first().kode ?: ""
+                                        } else {
+                                            ""
+                                        }
+
+                                        // Initialize totals for THIS data item
+                                        var totalJjgPanen = 0.0
+                                        var totalJjgMentah = 0.0
+                                        var totalJjgLewatMasak = 0.0
+                                        var totalJjgKosong = 0.0
+                                        var totalJjgAbnormal = 0.0
+                                        var totalJjgMasak = 0.0
+                                        var totalJjgKirim = 0.0
+                                        var totalJjgBayar = 0.0
+                                        val dateCreatedArray = mutableListOf<String>()
+                                        val tphArray = mutableListOf<String>()
+                                        val entryCount = tphIdsList.size
+
+                                        // Sum all JJG values for this data item
+                                        for (i in 0 until entryCount) {
+                                            if (i < tphIdsList.size && tphIdsList[i].isNotEmpty()) {
+                                                // Sum all JJG values
+                                                totalJjgPanen += (if (i < totalJjgList.size) totalJjgList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgMentah += (if (i < unripeList.size) unripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgLewatMasak += (if (i < overripeList.size) overripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgKosong += (if (i < emptyBunchList.size) emptyBunchList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgAbnormal += (if (i < abnormalList.size) abnormalList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgMasak += (if (i < ripeList.size) ripeList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgKirim += (if (i < kirimList.size) kirimList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                totalJjgBayar += (if (i < dibayarList.size) dibayarList[i].toDoubleOrNull()
+                                                    ?: 0.0 else 0.0)
+                                                tphArray.add(tphIdsList[i])
+
+                                                // Collect date_created values
+                                                val dateCreated =
+                                                    if (i < dateCreatedPanenList.size) dateCreatedPanenList[i] else data.date_created
+                                                if (dateCreated != null && dateCreated.isNotEmpty()) {
+                                                    dateCreatedArray.add(dateCreated)
+                                                }
+                                            }
+                                        }
+
+                                        // Debug log to see what values we're getting
+                                        AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
+                                        AppLogger.d("Creating hektaran_detail for Date: $dateOnly, Blok: $blokId, Pemanen: ${data.pemanen_nama}")
+
+                                        // Create single entry with summed values for this data item
+                                        detailRecords.add(
+                                            mapOf<String, Any>(
+                                                "tipe" to "",
+                                                "blok" to (data.blok ?: 0),
+                                                "kemandoran_id" to (data.kemandoran_id ?: ""),
+                                                "kemandoran_nama" to (data.kemandoran_nama ?: ""),
+                                                "kemandoran_ppro" to kemandoranPpro,
+                                                "kemandoran_kode" to kemandoranKode,
+                                                "pemanen_nik" to (data.nik ?: ""),
+                                                "pemanen_nama" to (data.pemanen_nama ?: ""),
+                                                "tph" to Gson().toJson(tphArray),
+                                                "ancak" to "",
+                                                "jjg_panen" to totalJjgPanen.toString(),
+                                                "jjg_masak" to totalJjgMasak.toString(),
+                                                "jjg_mentah" to totalJjgMentah.toString(),
+                                                "jjg_lewat_masak" to totalJjgLewatMasak.toString(),
+                                                "jjg_kosong" to totalJjgKosong.toString(),
+                                                "jjg_abnormal" to totalJjgAbnormal.toString(),
+                                                "jjg_serangan_tikus" to "0",
+                                                "jjg_panjang" to "0",
+                                                "jjg_tidak_vcut" to "0",
+                                                "jjg_kirim" to totalJjgKirim.toString(),
+                                                "jjg_bayar" to totalJjgBayar.toString(),
+                                                "luasan" to data.luas_panen,
+                                                "date_panen" to Gson().toJson(dateCreatedArray),
+                                                "status" to 1,
+                                            )
+                                        )
+                                    }
+
+                                    AppLogger.d("Created hektaran for Date: $dateOnly, Blok: $blokId with ${detailRecords.size} detail records")
+
+                                    // Add the detail records as a child element to the hektaran data
+                                    hektaranData[AppUtils.DatabaseTables.HEKTARAN_DETAIL] =
+                                        detailRecords
+
+                                    // Return the complete hektaran structure with child details
+                                    hektaranData
                                 }
-
-                                AppLogger.d("Created hektaran for Date: $dateOnly, Blok: $blokId with ${detailRecords.size} detail records")
-
-                                // Add the detail records as a child element to the hektaran data
-                                hektaranData[AppUtils.DatabaseTables.HEKTARAN_DETAIL] = detailRecords
-
-                                // Return the complete hektaran structure with child details
-                                hektaranData
-                            }
 
                             AppLogger.d("Final restructured data count: ${restructuredData.size}")
                             restructuredData.forEachIndexed { index, item ->
                                 val tanggal = item["tanggal"]
                                 val blok = item["blok"]
-                                val detailCount = (item[AppUtils.DatabaseTables.HEKTARAN_DETAIL] as? List<*>)?.size ?: 0
+                                val detailCount =
+                                    (item[AppUtils.DatabaseTables.HEKTARAN_DETAIL] as? List<*>)?.size
+                                        ?: 0
                                 AppLogger.d("Hektaran $index: Date=$tanggal, Blok=$blok, Details=$detailCount")
                             }
 
@@ -2703,13 +2975,19 @@ class HomePageActivity : AppCompatActivity() {
 
                                 // Find data items with this date+blok that have dataIsZipped = 0
                                 val notYetZipped = hektarPanenList.any { data ->
-                                    val firstDate = data.date_created_panen.split(";").firstOrNull() ?: ""
+                                    val firstDate =
+                                        data.date_created_panen.split(";").firstOrNull() ?: ""
                                     val dateOnly = if (firstDate.isNotEmpty()) {
                                         try {
-                                            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                            val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                            val inputFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val outputFormat =
+                                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                                             val date = inputFormat.parse(firstDate)
-                                            date?.let { outputFormat.format(it) } ?: firstDate.split(" ")[0]
+                                            date?.let { outputFormat.format(it) }
+                                                ?: firstDate.split(" ")[0]
                                         } catch (e: Exception) {
                                             firstDate.split(" ")[0]
                                         }
@@ -4733,6 +5011,7 @@ class HomePageActivity : AppCompatActivity() {
 
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
                     prefManager!!.isFirstTimeLaunch = false
+                    datasetViewModel.getAllEstates()
                     AppLogger.d("First-time launch flag updated to false")
                 }
 
@@ -4752,7 +5031,7 @@ class HomePageActivity : AppCompatActivity() {
     private fun startDownloadsV2(
         datasetRequests: List<DatasetRequest>,
         previewData: String? = null,
-        titleDialog:String? = "Sinkronisasi Restan & Dataset"
+        titleDialog: String? = "Sinkronisasi Restan & Dataset"
     ) {
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
@@ -5011,9 +5290,9 @@ class HomePageActivity : AppCompatActivity() {
                 }
 //
 //                // Always reset successful estates, even if some failed
-//                if (successfulEstates.isNotEmpty()) {
-//                    resetEstateSelection(successfulEstates)
-//                }
+                if (successfulEstates.isNotEmpty()) {
+                    resetEstateSelection(successfulEstates)
+                }
 
                 // Refresh master data
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -5102,7 +5381,7 @@ class HomePageActivity : AppCompatActivity() {
 //        }
 //    }
 
-    private fun startDownloads(previewData: String? = null, titleDialog : String?= null) {
+    private fun startDownloads(previewData: String? = null, titleDialog: String? = null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -5122,6 +5401,24 @@ class HomePageActivity : AppCompatActivity() {
             loadingDialog.dismiss()
             return
         }
+
+        AppLogger.d("=== Current User Preferences Before Sync ===")
+        AppLogger.d("nameUserLogin: ${prefManager!!.nameUserLogin}")
+        AppLogger.d("jabatanUserLogin: ${prefManager!!.jabatanUserLogin}")
+        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
+        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
+        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
+        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
+        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
+        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
+        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
+        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
+        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
+        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
+        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
+        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
+        AppLogger.d("=== End Current User Preferences Before Sync ===")
+
         try {
             val estateId = estateIdString.toInt()
             if (estateId <= 0) {
@@ -5130,6 +5427,7 @@ class HomePageActivity : AppCompatActivity() {
                 loadingDialog.dismiss()
                 return
             }
+
 
             val filteredRequests = if (isTriggerButtonSinkronisasiData) {
                 // Get datasets - estates are already loaded from the click handler
@@ -5276,6 +5574,16 @@ class HomePageActivity : AppCompatActivity() {
             )
         }
 
+        if (isTriggerButtonSinkronisasiData) {
+            datasets.add(
+                DatasetRequest(
+                    lastModified = null,
+                    idUser = prefManager!!.idUserLogin,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataUser
+                )
+            )
+        }
+
         if (isMandorPanen) {
             datasets.add(
                 DatasetRequest(
@@ -5366,6 +5674,666 @@ class HomePageActivity : AppCompatActivity() {
         )
 
         return datasets
+    }
+
+    private fun resetEstateSelection(successfulEstates: List<String>) {
+        successfulEstates.forEach { estateAbbr ->
+            // Find the estate by abbreviation
+            val estate = estateList.find { it.abbr == estateAbbr }
+            estate?.let {
+                // Use the estate name as the key (since that's what's stored in masterEstateHasBeenChoice)
+                val key = it.nama
+                if (key != null) {
+                    masterEstateHasBeenChoice[key] = false
+                }
+            }
+        }
+
+        updateDownloadMasterDataButtonText(masterEstateHasBeenChoice)
+    }
+
+    private fun updateDownloadMasterDataButtonText(selectedItems: Map<String, Boolean>) {
+        val count = selectedItems.count { it.value }
+        val newText = if (count > 0) "Unduh $count master dataset" else "Unduh Dataset"
+
+        // Find the button in the bottom sheet view
+        currentBottomSheetView?.findViewById<Button>(R.id.btnUpdatePemanen)?.let { button ->
+            AppLogger.d("Updating button text to: $newText")
+            button.text = newText
+        } ?: AppLogger.d("Bottom sheet view or button not found")
+    }
+
+    fun setupDownloadDialogAsistensi(datasetRequests: List<DatasetRequest>) {
+
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+        titleTV.text = "Download Dataset"
+
+        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
+        counterSizeFile.visibility = View.VISIBLE
+
+        // Get all buttons
+        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val btnDownloadDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+
+        // Update button text to reflect download operation
+        btnDownloadDataset.text = "Download Dataset"
+        btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
+
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        containerDownloadDataset.visibility = View.VISIBLE
+
+        // Initially show only close and download buttons
+        closeDialogBtn.visibility = View.VISIBLE
+        btnDownloadDataset.visibility = View.VISIBLE
+        btnRetryDownload.visibility = View.GONE
+
+        // Create upload items from dataset requests (we'll reuse the existing adapter)
+        val downloadItems = mutableListOf<UploadCMPItem>()
+
+        var itemId = 0
+        datasetRequests.forEach { request ->
+            downloadItems.add(
+                UploadCMPItem(
+                    id = itemId++,
+                    title = "Master TPH ${request.estateAbbr}",
+                    fullPath = "",
+                    baseFilename = request.estateAbbr ?: "",
+                    data = "",
+                    type = "",
+                    databaseTable = ""
+                )
+            )
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (counterTV.text == "0/0" && downloadItems.size > 0) {
+                counterTV.text = "0/${downloadItems.size}"
+            }
+        }, 100)
+
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        val adapter = UploadProgressCMPDataAdapter(downloadItems)
+        recyclerView.adapter = adapter
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        fun startDownload(
+            requestsToDownload: List<DatasetRequest> = datasetRequests,
+            itemsToShow: List<UploadCMPItem> = downloadItems
+        ) {
+            // Check network connectivity first
+            if (!AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+                return
+            }
+
+            // Disable buttons during download
+            btnDownloadDataset.isEnabled = false
+            closeDialogBtn.isEnabled = false
+            btnRetryDownload.isEnabled = false
+            btnDownloadDataset.alpha = 0.7f
+            closeDialogBtn.alpha = 0.7f
+            btnRetryDownload.alpha = 0.7f
+            btnDownloadDataset.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+
+            // Reset title color
+            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+            titleTV.text = "Download Dataset"
+
+            datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
+        }
+
+        btnDownloadDataset.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_upload),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { startDownload() },
+                    cancelFunction = { }
+                )
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) {
+                    // Do nothing
+                }
+            }
+        }
+
+        var failedRequests: List<DatasetRequest> = listOf()
+        btnRetryDownload.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Create new download items only for failed requests
+                val retryDownloadItems = mutableListOf<UploadCMPItem>()
+                var itemId = 0
+
+                AppLogger.d("failedRequests $failedRequests")
+
+                failedRequests.forEach { request ->
+                    retryDownloadItems.add(
+                        UploadCMPItem(
+                            id = itemId++,
+                            title = "${request.estateAbbr} - ${request.dataset}",
+                            fullPath = "",
+                            baseFilename = request.estateAbbr ?: "",
+                            data = "",
+                            type = "",
+                            databaseTable = ""
+                        )
+                    )
+                }
+
+                // Clear and update the RecyclerView with only failed items
+                adapter.updateItems(retryDownloadItems)
+
+                // Reset adapter state (progress bars, status icons, etc.)
+                adapter.resetState()
+
+                // Reset view model state
+                datasetViewModel.resetState()
+
+                // Update UI elements
+                counterTV.text = "0/${retryDownloadItems.size}"
+                titleTV.text = "Download Dataset"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+                // Hide retry button, show download button
+                btnRetryDownload.visibility = View.GONE
+                btnDownloadDataset.visibility = View.VISIBLE
+
+                // Start download with only failed requests
+                startDownload(failedRequests, retryDownloadItems)
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@HomePageActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+            }
+        }
+
+
+        closeDialogBtn.setOnClickListener {
+            datasetViewModel.processingComplete.removeObservers(this)
+            datasetViewModel.itemProgressMap.removeObservers(this)
+            datasetViewModel.completedCount.removeObservers(this)
+            datasetViewModel.itemStatusMap.removeObservers(this)
+            datasetViewModel.itemErrorMap.removeObservers(this)
+
+            datasetViewModel.resetState()
+            dialog.dismiss()
+        }
+
+        // Observe completed count (connect this to your actual download view model)
+        datasetViewModel.completedCount.observe(this) { completed ->
+            val total = datasetViewModel.totalCount.value ?: downloadItems.size
+            counterTV.text = "$completed/$total"
+        }
+
+        // Observe download progress
+        datasetViewModel.itemProgressMap.observe(this) { progressMap ->
+            // Update progress for each item
+            for ((id, progress) in progressMap) {
+                AppLogger.d("Progress update for item $id: $progress%")
+                adapter.updateProgress(id, progress)
+            }
+
+            // Update title if any download is in progress
+            if (progressMap.values.any { it in 1..99 }) {
+                titleTV.text = "Sedang Download Dataset..."
+            }
+
+        }
+
+
+        datasetViewModel.processingComplete.observe(this) { isComplete ->
+            if (isComplete) {
+                val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
+
+                // Separate successful and failed downloads
+                val successfulIds = mutableListOf<Int>()
+                val failedIds = mutableListOf<Int>()
+
+                currentStatusMap.forEach { (id, status) ->
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED) {
+                        successfulIds.add(id)
+                    } else {
+                        failedIds.add(id)
+                    }
+                }
+
+                // Get successful estate abbreviations
+                val successfulEstates = datasetRequests.filterIndexed { index, _ ->
+                    index in successfulIds
+                }.mapNotNull { it.estateAbbr }
+
+                // Store failed requests for retry
+                failedRequests = datasetRequests.filterIndexed { index, _ ->
+                    index in failedIds
+                }
+
+                // Always reset successful estates, even if some failed
+                if (successfulEstates.isNotEmpty()) {
+                    resetEstateSelection(successfulEstates)
+                }
+
+                // Refresh master data
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        // Update UI based on download results
+                        if (failedIds.isEmpty()) {
+                            // All successful
+                            titleTV.text = "Download Berhasil"
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.greenDarker
+                                )
+                            )
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.GONE
+                            // Enable close button
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        } else {
+                            // Some or all failed
+                            titleTV.text = "Terjadi Kesalahan Download"
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.colorRedDark
+                                )
+                            )
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.VISIBLE
+                            btnRetryDownload.isEnabled = true
+                            btnRetryDownload.alpha = 1f
+                            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                            // Enable close button
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        }
+
+                        datasetViewModel.getDistinctMasterDeptInfoCopy()
+                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
+
+                        delay(
+                            1000
+                        )
+                        datasetViewModel.distinctDeptInfoListCopy.observe(this@HomePageActivity) { list ->
+                            Log.d("DepartmentInfo", "Observed list size: ${list?.size}")
+                            val distinctDeptInfos = list ?: emptyList()
+                            val deptInfoMap =
+                                distinctDeptInfos.associate { it.dept to it.dept_abbr }
+
+                            Log.d("DepartmentInfo", "Department Map: $deptInfoMap")
+
+//                            masterDeptInfoMap = deptInfoMap
+                            departmentInfoDeferred.complete(deptInfoMap)
+                        }
+
+
+                        // Wait for the deferred to complete
+                        val fullDeptInfoMap = departmentInfoDeferred.await()
+//
+//                        val masterDeptAbbrList = fullDeptInfoMap.values.toList()
+//
+//                        Log.d("DepartmentInfo", "Master Dept Abbr List: $masterDeptAbbrList")
+//
+//                        val layoutEstate = findViewById<LinearLayout>(R.id.layoutEstate)
+//
+//                        Log.d("DepartmentInfo", "Setting up spinner with list")
+//                        setupSpinnerView(layoutEstate, masterDeptAbbrList)
+//
+
+                    }
+                }
+            }
+        }
+
+        datasetViewModel.itemStatusMap.observe(this) { statusMap ->
+            // Update status for each item
+            for ((id, status) in statusMap) {
+                // No need for mapping - just pass the status directly to adapter
+                adapter.updateStatus(id, status)
+            }
+        }
+
+        // Observe errors for each item
+        datasetViewModel.itemErrorMap.observe(this) { errorMap ->
+            for ((id, error) in errorMap) {
+                if (!error.isNullOrEmpty()) {
+                    adapter.updateError(id, error)
+                }
+            }
+
+            if (errorMap.values.any { !it.isNullOrEmpty() }) {
+                titleTV.text = "Terjadi Kesalahan Download"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+            }
+        }
+    }
+
+    private fun showPopupSearchDropdown(
+        spinner: MaterialSpinner,
+        data: List<String>,
+        editText: EditText,
+        linearLayout: LinearLayout,
+        downloadButton: Button? = null, // Add button parameter
+        isMultiSelect: Boolean = false,
+        onItemSelected: (String, Int) -> Unit
+    ) {
+        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
+        val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
+
+        val tvError = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+
+        tvError?.visibility = View.GONE
+
+        // Use Map<String, Boolean> for selected items
+        val selectedItems = if (linearLayout.id == R.id.layoutPemanen) {
+            masterEstateHasBeenChoice // This should be a Map<String, Boolean>
+        } else {
+            mutableMapOf<String, Boolean>()
+        }
+
+        fun isAnyCheckboxSelected(): Boolean {
+            return selectedItems.values.any { it }
+        }
+
+        // Update button text function
+        fun updateButtonText() {
+            downloadButton?.let { button ->
+                val count = selectedItems.count { it.value }
+                button.text = if (count > 0) "Unduh $count master dataset" else "Unduh Master"
+            }
+        }
+
+        // Update button text initially
+        updateButtonText()
+
+        val estateNameToAbbrMap = estateList.associate { it.nama to it.abbr }
+
+        // Create PopupWindow
+        val popupWindow = PopupWindow(
+            popupView,
+            spinner.width,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            isFocusable = true
+            isOutsideTouchable = true
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+
+        var filteredData = data
+
+        // Choose adapter based on selection mode
+        val adapter = if (isMultiSelect) {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                R.layout.list_item_dropdown_multiple,
+                R.id.text1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+                    val textView = view.findViewById<TextView>(R.id.text1)
+                    val itemValue = filteredData[position]
+
+                    val estateAbbr = estateNameToAbbrMap[itemValue]
+                    val hasExistingData = if (estateAbbr != null) {
+                        prefManager?.getEstateLastModified(estateAbbr) != null
+                    } else {
+                        false
+                    }
+
+                    val isUserEstate = itemValue == prefManager!!.estateUserLengkapLogin
+
+                    if (hasExistingData || isUserEstate) {
+                        textView.setTypeface(textView.typeface, Typeface.BOLD)
+                        textView.setTextColor(ContextCompat.getColor(context, R.color.greendarkerbutton))
+
+                        if (isUserEstate) {
+                            textView.text = "★ $itemValue"
+                        } else {
+                            textView.text = "✓ $itemValue"
+                        }
+
+                        checkbox.isChecked = true
+                        checkbox.isEnabled = true
+                        checkbox.isClickable = false
+                        checkbox.isFocusable = false
+                        checkbox.buttonTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(context, R.color.greendarkerbutton)
+                        )
+
+                        view.alpha = 1.0f
+                        view.setOnTouchListener { _, _ -> true }
+                    } else {
+                        textView.setTextColor(Color.BLACK)
+                        textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                        textView.text = itemValue
+                        checkbox.isEnabled = true
+                        checkbox.isClickable = true
+                        checkbox.isFocusable = true
+
+                        view.isClickable = true
+                        view.alpha = 1.0f
+                        view.setOnTouchListener(null)
+
+                        val isChecked = selectedItems[itemValue] == true
+                        checkbox.isChecked = isChecked
+                        checkbox.buttonTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(context, R.color.greenBorder)
+                        )
+
+                        checkbox.setOnClickListener {
+                            val nowChecked = checkbox.isChecked
+                            selectedItems[itemValue] = nowChecked
+                            checkbox.buttonTintList = ColorStateList.valueOf(
+                                ContextCompat.getColor(context, R.color.greenBorder)
+                            )
+
+                            val errorTextView = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                            if (errorTextView.visibility == View.VISIBLE && isAnyCheckboxSelected()) {
+                                errorTextView.visibility = View.GONE
+                            }
+
+                            // Update button text when checkbox is clicked
+                            updateButtonText()
+                        }
+
+                        view.setOnClickListener {
+                            val nowChecked = !checkbox.isChecked
+                            checkbox.isChecked = nowChecked
+                            selectedItems[itemValue] = nowChecked
+                            checkbox.buttonTintList = ColorStateList.valueOf(
+                                ContextCompat.getColor(context, R.color.greenBorder)
+                            )
+
+                            // Update button text when view is clicked
+                            updateButtonText()
+                        }
+                    }
+
+                    return view
+                }
+
+                override fun isEnabled(position: Int): Boolean {
+                    return filteredData.isNotEmpty()
+                }
+            }
+        } else {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                android.R.layout.simple_list_item_1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val textView = view.findViewById<TextView>(android.R.id.text1)
+                    textView.setTextColor(Color.BLACK)
+                    return view
+                }
+            }
+        }
+
+        listView.adapter = adapter
+
+        // Search functionality
+        editTextSearch.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val titleSearch = popupView.findViewById<TextView>(R.id.titleSearchDropdown)
+
+                filteredData = if (!s.isNullOrEmpty()) {
+                    titleSearch.visibility = View.VISIBLE
+                    data.filter { it.contains(s, ignoreCase = true) }
+                } else {
+                    titleSearch.visibility = View.GONE
+                    data
+                }
+
+                // Update adapter with filtered data
+                val filteredAdapter = if (isMultiSelect) {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        R.layout.list_item_dropdown_multiple,
+                        R.id.text1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(R.id.text1)
+                            val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                checkbox.visibility = View.GONE
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                checkbox.visibility = View.VISIBLE
+
+                                val itemValue = filteredData[position]
+                                checkbox.isChecked = selectedItems[itemValue] == true
+
+                                checkbox.setOnClickListener {
+                                    selectedItems[itemValue] = checkbox.isChecked
+                                    updateButtonText() // Update button text
+                                }
+
+                                view.setOnClickListener {
+                                    checkbox.isChecked = !checkbox.isChecked
+                                    selectedItems[itemValue] = checkbox.isChecked
+                                    updateButtonText() // Update button text
+                                }
+
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                } else {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        android.R.layout.simple_list_item_1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                }
+
+                listView.adapter = filteredAdapter
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (filteredData.isNotEmpty()) {
+                val selectedItem = filteredData[position]
+                val originalPosition = data.indexOf(selectedItem)
+                spinner.text = selectedItem
+                editText.setText(selectedItem)
+                onItemSelected(selectedItem, originalPosition)
+                popupWindow.dismiss()
+            }
+        }
+
+        popupWindow.showAsDropDown(spinner)
+
+        editTextSearch.requestFocus()
+        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 
     private fun refreshPanenCount() {

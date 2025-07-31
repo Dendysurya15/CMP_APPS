@@ -213,6 +213,7 @@ object AppUtils {
         const val RekapAbsensiPanen = "Rekap Absensi Panen"
         const val ScanAbsensiPanen = "Scan Absensi Panen"
         const val SinkronisasiData = "Sinkronisasi data"
+        const val UnduhTPHAsistensi = "Unduh TPH Asistensi"
         const val UploadDataCMP = "Upload Data CMP"
 
         const val ScanPanenMPanen = "Scan Mandor Panen"
@@ -251,6 +252,7 @@ object AppUtils {
         const val kendaraan = "kendaraan"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val sinkronisasiRestan = "Sinkronisasi Data Restan"
+        const val sinkronisasiDataUser = "Sinkronisasi Data User"
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
     }

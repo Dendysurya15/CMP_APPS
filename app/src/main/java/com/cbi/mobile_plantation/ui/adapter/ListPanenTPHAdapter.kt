@@ -112,12 +112,15 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         val username: String
     )
 
-    fun setFeatureAndScanned(feature: String, tphList: List<String>) {
+    private var isRestoringFromPrevious = false
+
+    fun setFeatureAndScanned(feature: String, tphList: List<String>, isRestoring: Boolean = false) {
         featureName = feature
         tphListScan = tphList
+        isRestoringFromPrevious = isRestoring
 
-
-        preSelectTphIds()
+        // DON'T call preSelectTphIds() here - tphList might be empty!
+        // preSelectTphIds()
         notifyDataSetChanged()
     }
 
@@ -308,37 +311,39 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         }
 
         // Process scanned items
-        for (item in tphList) {
-            val tphId = item["tph_id"].toString()
-            if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
-                val blokName = item["blok_name"].toString()
+        if (!isRestoringFromPrevious) {
+            for (item in tphList) {
+                val tphId = item["tph_id"].toString()
+                if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
+                    val blokName = item["blok_name"].toString()
 
-                // Add block name to the set
-                checkedBlocks.add(blokName)
+                    // Add block name to the set
+                    checkedBlocks.add(blokName)
 
-                // Extract jjg count from the item
-                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
-                try {
-                    val jjgJson = JSONObject(jjgJsonString)
-                    // Use different fields based on feature name
-                    val jjgValue =
-                        jjgJson.optInt("KP", 0)
+                    // Extract jjg count from the item
+                    val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                    try {
+                        val jjgJson = JSONObject(jjgJsonString)
+                        // Use different fields based on feature name
+                        val jjgValue =
+                            jjgJson.optInt("KP", 0)
 
-                    // Update block details - add jjgValue to total and increment count
-                    val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
-                    checkedBlocksDetails[blokName] = Pair(
-                        currentDetails.first + jjgValue,  // Sum of jjg values
-                        currentDetails.second + 1         // Count of occurrences
-                    )
+                        // Update block details - add jjgValue to total and increment count
+                        val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
+                        checkedBlocksDetails[blokName] = Pair(
+                            currentDetails.first + jjgValue,  // Sum of jjg values
+                            currentDetails.second + 1         // Count of occurrences
+                        )
 
-                    // Add to the map
-                    tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
-                    jjgCount += jjgValue
+                        // Add to the map
+                        tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
+                        jjgCount += jjgValue
 
-                    // Count each TPH even if it's a duplicate ID
-                    tphCount++
-                } catch (e: Exception) {
-                    Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                        // Count each TPH even if it's a duplicate ID
+                        tphCount++
+                    } catch (e: Exception) {
+                        Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                    }
                 }
             }
         }
@@ -533,13 +538,12 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 val username = extractedData.username
 
 
-                AppLogger.d(username)
+
                 if (!uniqueUsernames.contains(username)) {
                     uniqueUsernames.add(username)
                 }
                 val colorIndex = uniqueUsernames.indexOf(username)
 
-                AppLogger.d("colorIndex $colorIndex")
                 val color = getUsernameColor(colorIndex, context)
                 binding.td5.setBackgroundColor(color)
                 binding.td1.text = extractedData.blokText
@@ -586,7 +590,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                             bottomSheetDialog.dismiss()
                         }
 
-                        AppLogger.d("data $data")
+
 
                         val btnEditPemanen = view.findViewById<Button>(R.id.btnEditPemanen)
                         if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1){
@@ -771,7 +775,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.numListTerupload.visibility = View.GONE
                 binding.checkBoxPanen.setOnCheckedChangeListener(null)
                 binding.checkBoxPanen.isChecked = isSelected
-//                binding.checkBoxPanen.isEnabled = !isScannedItem
 
                 val checkedColor = if (isScannedItem) {
                     ContextCompat.getColor(context, R.color.greenDarker)
@@ -1296,40 +1299,69 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     }
 
     fun getPreSelectedItems(): List<Map<String, Any>> {
+        AppLogger.d("=== getPreSelectedItems START ===")
+        AppLogger.d("tphListScan: $tphListScan")
+        AppLogger.d("isRestoringFromPrevious: $isRestoringFromPrevious")
+
         val result = mutableListOf<Map<String, Any>>()
 
-        // Get all items that match the scanned TPH IDs
         for (item in tphList) {
-            val tphId = extractData(item).tphId.toString()
-            if (tphListScan.contains(tphId)) {
-                result.add(item)
-            }
-        }
-
-        // Return distinct items to avoid duplicates
-        return result.distinct()
-    }
-
-    fun getSelectedItems(): List<Map<String, Any>> {
-        val result = mutableListOf<Map<String, Any>>()
-
-        // Get manually selected items
-        for (position in selectedItems) {
-            tphList.getOrNull(position)?.let { result.add(it) }
-        }
-
-
-        AppLogger.d("manuallyDeselectedItems $manuallyDeselectedItems")
-        // Add scanned items ONLY if they haven't been manually deselected
-        for (i in tphList.indices) {
-            if (!manuallyDeselectedItems.contains(i)) {
-                val item = tphList[i]
+            if (isRestoringFromPrevious) {
+                // When restoring, match by panen ID
+                val panenId = item["id"]?.toString() ?: ""
+                AppLogger.d("Checking item with panenId='$panenId'")
+                if (tphListScan.contains(panenId)) {
+                    AppLogger.d("MATCH! Adding item with panenId: $panenId")
+                    result.add(item)
+                }
+            } else {
+                // When scanning normally, match by TPH ID
                 val tphId = extractData(item).tphId.toString()
-                if (tphListScan.contains(tphId) && !selectedItems.contains(i)) {
+                AppLogger.d("Checking item with tphId='$tphId'")
+                if (tphListScan.contains(tphId)) {
+                    AppLogger.d("MATCH! Adding item with tphId: $tphId")
                     result.add(item)
                 }
             }
         }
+
+        AppLogger.d("getPreSelectedItems result.size: ${result.size}")
+        AppLogger.d("=== getPreSelectedItems END ===")
+        return result.distinct()
+    }
+
+    fun getSelectedItems(): List<Map<String, Any>> {
+        AppLogger.d("=== getSelectedItems START ===")
+        val result = mutableListOf<Map<String, Any>>()
+
+        // Get manually selected items
+        for (position in selectedItems) {
+            tphList.getOrNull(position)?.let {
+                AppLogger.d("Adding manually selected item at position $position")
+                result.add(it)
+            }
+        }
+
+        // Add scanned items if they haven't been manually deselected
+        for (i in tphList.indices) {
+            if (!manuallyDeselectedItems.contains(i) && !selectedItems.contains(i)) {
+                val item = tphList[i]
+                val isScannedMatch = if (isRestoringFromPrevious) {
+                    val panenId = item["id"]?.toString() ?: ""
+                    tphListScan.contains(panenId)
+                } else {
+                    val tphId = extractData(item).tphId.toString()
+                    tphListScan.contains(tphId)
+                }
+
+                if (isScannedMatch) {
+                    AppLogger.d("Adding scanned item at index $i")
+                    result.add(item)
+                }
+            }
+        }
+
+        AppLogger.d("getSelectedItems final result.size: ${result.size}")
         return result.distinct()
     }
 
@@ -1369,7 +1401,15 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
     override fun onBindViewHolder(holder: ListPanenTPHViewHolder, position: Int) {
         val item = filteredList[position]
         val tphId = extractData(item).tphId.toString()
-        val isScannedItem = tphListScan.contains(tphId)
+        val panenId = item["id"]?.toString() ?: ""
+
+        // Fix: Check for scanned items in both normal and restore modes
+        val isScannedItem = if (isRestoringFromPrevious) {
+            tphListScan.contains(panenId) // Match by panen ID when restoring
+        } else {
+            tphListScan.contains(tphId) // Match by TPH ID when scanning normally
+        }
+
         val originalPosition = tphList.indexOf(item)
 
         if (isScannedItem) {
@@ -1444,7 +1484,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     @SuppressLint("NotifyDataSetChanged")
     fun updateData(newData: List<Map<String, Any>>) {
-
         preselectedTphIds.clear()
         preselectedTphIds.addAll(tphListScan)
 
@@ -1452,31 +1491,19 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         selectedItems.clear()
         selectAllState = false
         isSortAscending = null
-        tphList.addAll(newData)
-        manuallyDeselectedItems.clear() // Add this line
+        tphList.addAll(newData)  // ← Data is loaded here
+        manuallyDeselectedItems.clear()
         filteredList = tphList.toMutableList()
 
-        // Pre-select items that match the scanned TPH IDs
-        if (preselectedTphIds.isNotEmpty()) {
-            tphList.forEachIndexed { index, item ->
-                try {
-                    val tphId = item["tph_id"].toString()
-                    if (preselectedTphIds.contains(tphId)) {
-                        selectedItems.add(index)
-                    }
-                } catch (e: Exception) {
-                    Log.e("ListPanenTPHAdapter", "Error pre-selecting TPH: ${e.message}")
-                }
-            }
-        }
+        // NOW call preSelectTphIds() after data is loaded
+        preSelectTphIds()
 
         notifyDataSetChanged()
         onSelectionChangeListener?.invoke(selectedItems.size)
-        calculateTotals() // Add this line
+        calculateTotals()
     }
 
 
-    // Add this method to ListPanenTPHAdapter class
     fun preSelectTphIds() {
         if (tphListScan.isNotEmpty()) {
             var selectionChanged = false
@@ -1484,22 +1511,37 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             // Find all matching items and add them to selectedItems
             tphList.forEachIndexed { index, item ->
                 try {
-                    val extractedData = extractData(item)
-                    if (tphListScan.contains(extractedData.tphId.toString())) {
-                        selectedItems.add(index)
-                        selectionChanged = true
+                    if (isRestoringFromPrevious) {
+
+                        val panenId = item["id"]?.toString() ?: ""
+                        if (tphListScan.contains(panenId)) {
+                            selectedItems.add(index)
+                            selectionChanged = true
+                        }
+                    } else {
+                        // When scanning normally, match by TPH ID
+                        val extractedData = extractData(item)
+                        val tphId = extractedData.tphId.toString()
+
+                        if (tphListScan.contains(tphId)) {
+                            selectedItems.add(index)
+                            selectionChanged = true
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e("ListPanenTPHAdapter", "Error pre-selecting TPH: ${e.message}")
+                    Log.e("ListPanenTPHAdapter", "Error pre-selecting TPH at index $index: ${e.message}")
                 }
             }
 
             if (selectionChanged) {
                 notifyDataSetChanged()
                 onSelectionChangeListener?.invoke(selectedItems.size)
-                calculateTotals() // Add this line
+                calculateTotals()
             }
+        } else {
+            AppLogger.d("tphListScan is empty, nothing to preselect")
         }
+        AppLogger.d("=== preSelectTphIds END ===")
     }
 
 
