@@ -2042,11 +2042,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         when {
             isForSelfie == true -> {
                 // Selfie photo case
-                titlePhotoTemuan.text = if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    "Lampiran Foto Selfie User"
-                } else {
-                    "Lampiran Foto Selfie Pemulihan User"
-                }
+                titlePhotoTemuan.text = "Lampiran Foto Selfie User"
                 titleComment.visibility = View.GONE
                 etPhotoComment.visibility = View.GONE
             }
@@ -6437,6 +6433,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 isForFollowUp -> {
+                    AppLogger.d("lkjl kjlkjlkj lkjl")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(
@@ -6447,6 +6444,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 else -> {
+
+                    AppLogger.d(" jasldkfja")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(photo = fname)
@@ -6454,6 +6453,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
+            AppLogger.d("photoTPHFollow UP $photoTPHFollowUp")
             updatePhotoBadgeVisibility()
             updateSelfiePhotoBadgeVisibility()
 
