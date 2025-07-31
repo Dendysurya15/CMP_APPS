@@ -5584,7 +5584,7 @@ class HomePageActivity : AppCompatActivity() {
             )
         }
 
-        if (isMandorPanen) {
+        if (isMandorPanen || isMandor1) {
             datasets.add(
                 DatasetRequest(
                     regional = regionalUser,
