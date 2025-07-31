@@ -21,6 +21,8 @@ import androidx.lifecycle.lifecycleScope
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
+import com.cbi.mobile_plantation.data.database.TPHDao
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -424,10 +426,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang mengupload data ke server, harap tunggu",
                                     true
                                 )
-//                                weightBridgeViewModel.uploadESPBKraniTimbang(
-//                                    itemsToUpload,
-//                                    globalIdEspb
-//                                )
+                                weightBridgeViewModel.uploadESPBKraniTimbang(
+                                    itemsToUpload,
+                                    globalIdEspb
+                                )
 
                                 val processedEndpoints = mutableSetOf<String>()
 
@@ -1107,29 +1109,79 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val idBlokList = blokJjgList.map { it.first }
                     val idBlokString = idBlokList.joinToString(separator = ",")
 
-                    val tphData = withContext(Dispatchers.Main) {
-                        val tphDeferred = CompletableDeferred<TPHNewModel?>()
-                        val firstBlockId = idBlokList.firstOrNull()
+                    // Modified code - Access repository correctly through ViewModel
+                    val tph1Entries = modifiedParsedData.tph1?.split(";")
+                    val tphSample = tph1Entries?.firstOrNull()
 
-                        // Fetch the TPH data if we have a block ID
-                        firstBlockId?.let { blockId ->
-                            weightBridgeViewModel.fetchTPHByBlockId(blockId)
+                    var tphDetails: TPHDao.TPHDetails? = null
 
-                            // Set up a one-time observer for the LiveData (now on main thread)
-                            weightBridgeViewModel.tphData.observe(this@ScanWeighBridgeActivity) { tphModel ->
-                                // Remove the observer to prevent future callbacks
-                                weightBridgeViewModel.tphData.removeObservers(this@ScanWeighBridgeActivity)
-                                tphDeferred.complete(tphModel)
+                    val blokData = if (!tphSample.isNullOrEmpty()) {
+                        val parts = tphSample.split(",")
+                        if (parts.isNotEmpty()) {
+                            val tphId = parts[0].toIntOrNull()
+                            if (tphId != null) {
+                                // Wait for tphDetails to be fetched first
+                                withContext(Dispatchers.Main) {
+                                    val blokDeferred = CompletableDeferred<List<BlokModel>>()
+
+                                    lifecycleScope.launch {
+                                        try {
+                                            // First, get the TPH details
+                                            tphDetails = datasetViewModel.getTPHDetailsByID(tphId)
+                                            AppLogger.d("tphDetail $tphDetails")
+
+                                            val est = tphDetails?.dept_abbr
+                                            val afd = tphDetails?.divisi_abbr
+
+                                            AppLogger.d("est $est")
+                                            AppLogger.d("afd $afd")
+                                            AppLogger.d("idBlokList $idBlokList")
+
+                                            // Process blocks sequentially using suspend functions
+                                            val allBlokData = mutableListOf<BlokModel>()
+
+                                            for (blockId in idBlokList) {
+                                                try {
+                                                    // Access repository through the ViewModel instance
+                                                    val result = withContext(Dispatchers.IO) {
+                                                        weightBridgeViewModel.repository.fetchBlokbyParams(blockId, est, afd)
+                                                    }
+
+                                                    result.getOrNull()?.let { blokModel ->
+                                                        allBlokData.add(blokModel)
+                                                        AppLogger.d("Added block $blockId: ${blokModel.kode}")
+                                                    } ?: AppLogger.w("Block $blockId returned null")
+
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error fetching block $blockId: ${e.message}")
+                                                }
+                                            }
+
+                                            AppLogger.d("Successfully fetched ${allBlokData.size} blocks")
+                                            blokDeferred.complete(allBlokData)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error in main block fetching: ${e.message}")
+                                            blokDeferred.complete(emptyList())
+                                        }
+                                    }
+
+                                    blokDeferred.await()
+                                }
+                            } else {
+                                emptyList()
                             }
-                        } ?: tphDeferred.complete(null) // Complete with null if no block ID
-
-                        // Wait for the TPH data and return it
-                        tphDeferred.await()
+                        } else {
+                            emptyList()
+                        }
+                    } else {
+                        emptyList()
                     }
 
-                    val pemuatList =
-                        modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
-                            ?.filter { it.isNotEmpty() } ?: emptyList()
+                    AppLogger.d("Total blokData: ${blokData.size}")
+                    AppLogger.d("blokData: $blokData")
+
+                    val pemuatList = modifiedParsedData?.espb?.pemuat_id?.split(",")?.map { it.trim() }
+                        ?.filter { it.isNotEmpty() } ?: emptyList()
 
                     AppLogger.d("pemuatList $pemuatList")
 
@@ -1150,34 +1202,21 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     AppLogger.d("pemuatNama $pemuatNama")
 
-                    val blokData = try {
-                        weightBridgeViewModel.getDataByIdInBlok(idBlokList)
-                    } catch (e: Exception) {
-                        AppLogger.e("Error fetching Blok Data: ${e.message}")
-                        null
-                    } ?: emptyList()
 
-                    val blokIdToPproMap = blokData.associate { it.id_ppro to it.id }
-
-                    AppLogger.d("blokIdToPproMap $blokIdToPproMap")
-                    AppLogger.d("blokJjgList $blokJjgList")
-                    val BlokPPROJjg = blokJjgList.mapNotNull { (id_ppro, jjg) ->
-                        blokIdToPproMap[id_ppro]?.let { "$id_ppro,$jjg" } // Use id_ppro instead of 'it'
-                    }.joinToString(";")
-
-                    val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
-                    val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
+// Get dept and divisi info from first block
+                    val firstBlok = blokData.firstOrNull()
+                    val deptAbbr = firstBlok?.dept_abbr ?: "-"
+                    val divisiAbbr = firstBlok?.divisi_abbr ?: "-"
 
                     try {
                         // Check if first item exists and has dept_ppro and divisi_ppro
-                        val firstBlok = blokData.firstOrNull()
-                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
+                        val validFirstBlok = firstBlok ?: throw Exception("Terjadi kesalahan. Blok tidak ditemukan.")
 
-                        val deptPpro = firstBlok.dept_ppro
-                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
+                        val deptPpro = validFirstBlok.dept_ppro
+                            ?: throw Exception("Terjadi kesalahan. Estate tidak ditemukan.")
 
-                        val divisiPpro = firstBlok.divisi_ppro
-                            ?: throw Exception("Terjadi kesalahan. Mohon ulangi pemindaian dengan fokus kamera yang tepat.")
+                        val divisiPpro = validFirstBlok.divisi_ppro
+                            ?: throw Exception("Terjadi kesalahan. Afdeling tidak ditemukan.")
 
                         // Assign only if we didn't throw any exceptions
                         globalDeptPPRO = deptPpro
@@ -1188,12 +1227,36 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         throw e  // This will be caught by your outer catch block
                     }
 
-                    val formattedBlokList = blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                        val blokKode = blokData.find { it.id_ppro == idBlok }?.kode
-                        if (blokKode != null && totalJjg != null) {
-                            "• $blokKode ($totalJjg jjg)"
-                        } else null
+                    val formattedBlokList = blokJjgList.mapNotNull { (blockKey, totalJjg) ->
+                        // Try to find by id_ppro first, then by id
+                        val blokModel = blokData.find { it.id_ppro == blockKey }
+                            ?: blokData.find { it.id == blockKey }
+
+                        if (blokModel != null && totalJjg != null) {
+                            "• ${blokModel.kode} ($totalJjg jjg)"
+                        } else {
+                            AppLogger.w("Block $blockKey not found in blokData")
+                            null
+                        }
                     }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+
+// For BlokPPROJjg - also super simple
+                    val BlokPPROJjg = blokJjgList.mapNotNull { (blockKey, jjg) ->
+                        // Try to find by id_ppro first, then by id
+                        val blokModel = blokData.find { it.id_ppro == blockKey }
+                            ?: blokData.find { it.id == blockKey }
+
+                        if (blokModel != null) {
+                            "${blokModel.id_ppro},$jjg"
+                        } else {
+                            AppLogger.w("Block $blockKey not found for BlokPPROJjg")
+                            null
+                        }
+                    }.joinToString(";")
+
+                    AppLogger.d("formattedBlokList:\n$formattedBlokList")
+                    AppLogger.d("BlokPPROJjg: $BlokPPROJjg")
+                    AppLogger.d("firstBlok $firstBlok")
 
                     val millId = modifiedParsedData?.espb?.millId ?: 0
 
@@ -1240,12 +1303,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             .joinToString(",")
                     } ?: ""
 
-                    AppLogger.d(nikValues.toString())
-                    globalRegional = tphData?.regional ?: ""
-                    globalWilayah = tphData?.wilayah ?: ""
-                    globalCompany = tphData?.company ?: 0
-                    globalDept = tphData?.dept ?: 0
-                    globalDivisi = tphData?.divisi ?: 0
+                    globalRegional = firstBlok?.regional.toString() ?: ""
+                    globalWilayah = firstBlok?.wilayah.toString() ?: ""
+                    globalCompany = firstBlok?.company ?: 0
+                    globalDept = firstBlok?.dept ?: 0
+                    globalDivisi = firstBlok?.divisi ?: 0
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg

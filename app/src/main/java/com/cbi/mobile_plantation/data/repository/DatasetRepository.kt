@@ -15,16 +15,24 @@ import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.DepartmentInfo
+import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
+import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
+import org.json.JSONArray
+import org.json.JSONObject
 import retrofit2.Response
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class DatasetRepository(
     context: Context,
@@ -134,6 +142,10 @@ class DatasetRepository(
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
     }
 
+    suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? = withContext(Dispatchers.IO) {
+        tphDao.getTPHDetailsByID(tphId)
+    }
+
     suspend fun getLatLonDivisi(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
         return tphDao.getLatLonByDivisi(idEstate, idDivisi)
     }
@@ -213,6 +225,48 @@ class DatasetRepository(
         val requestBody = mapOf("last_modified" to lastModified)
         return apiService.downloadSettingJson(requestBody)
     }
+
+    // Add this to your repository - with pagination
+    suspend fun getTPHEstate(estateAbbr: String): Response<ResponseBody> {
+        // Build the JSON object for the request
+        val jsonObject = JSONObject().apply {
+            put("table", "tph")
+            put("select", JSONArray().apply {
+                put("id")
+                put("regional")
+                put("company")
+                put("company_abbr")
+                put("company_nama")
+                put("dept")
+                put("dept_ppro")
+                put("dept_abbr")
+                put("dept_nama")
+                put("divisi")
+                put("divisi_ppro")
+                put("divisi_abbr")
+                put("divisi_nama")
+                put("blok")
+                put("blok_kode")
+                put("blok_nama")
+                put("ancak")
+                put("nomor")
+                put("tahun")
+            })
+
+            put("where", JSONObject().apply {
+                put("dept_abbr", estateAbbr)
+                put("status", 1)
+            })
+        }
+
+
+        // Convert to RequestBody
+        val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        // Perform API call
+        return apiService.getDataRaw(requestBody)
+    }
+
 
     suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
         return tphDao.getTPHsByIds(tphIds)

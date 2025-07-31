@@ -46,38 +46,40 @@ abstract class TPHDao {
     // The update transaction now checks for department ID
     @Transaction
     open suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) {
-        AppLogger.d("TPH Transaction - Starting update with ${tph.size} records")
+        AppLogger.d("TPH Upsert - Starting with ${tph.size} records")
 
-        if (tph.isNotEmpty()) {
-            val deptId = tph.firstOrNull()?.dept
-            val deptAbbr = tph.firstOrNull()?.dept_abbr
+        if (tph.isEmpty()) return
 
+        val startTime = System.currentTimeMillis()
+        val batchSize = 2000 // Optimal for 100K records
+        val batches = tph.chunked(batchSize)
 
-            if (deptId != null) {
-                val count = getCountByDept(deptId)
-                if (count > 0) {
-                    val deletedCount = deleteByDept(deptId)
-                }
-            } else {
-                AppLogger.d("TPH Transaction - WARNING: Department ID is null, cannot perform targeted delete")
+        var totalProcessed = 0
+
+        try {
+            for ((batchIndex, batch) in batches.withIndex()) {
+                // This single line does everything: UPDATE existing or INSERT new
+                upsertBatch(batch)
+
+                totalProcessed += batch.size
+                val progress = (totalProcessed * 100.0 / tph.size).toInt()
+                AppLogger.d("Batch ${batchIndex + 1}/${batches.size} - $totalProcessed/${tph.size} ($progress%)")
             }
 
+            val totalTime = System.currentTimeMillis() - startTime
+            AppLogger.d("SUCCESS: ${tph.size} records in ${totalTime}ms")
 
-            insertAll(tph)
-
-
-            if (deptId != null) {
-                val newCount = getCountByDept(deptId)
-                AppLogger.d("TPH Transaction - After insertion: $newCount records for Dept ID: $deptId")
-            }
-
-
-        } else {
-            AppLogger.d("TPH Transaction - Empty TPH list, nothing to update")
+        } catch (e: Exception) {
+            AppLogger.e("FAILED: ${e.message}")
+            throw e
         }
     }
 
-    @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun upsertBatch(tph: List<TPHNewModel>)
+
+
+    @Query("SELECT * FROM tph WHERE blok_ppro = :blockId LIMIT 1")
     abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -146,6 +148,14 @@ abstract class TPHDao {
     abstract fun getTPHByCriteria(
         idEstate: Int, idDivisi: Int, tahunTanam: String, idBlok: Int
     ): List<TPHNewModel>
+
+    @Query("SELECT dept_abbr, divisi_abbr, blok, blok_ppro FROM tph WHERE id = :id")
+    abstract suspend fun getTPHDetailsByID(id: Int): TPHDetails?
+
+    data class TPHDetails(
+        val dept_abbr: String?,
+        val divisi_abbr: String?,
+    )
 
     @Query(
         """
