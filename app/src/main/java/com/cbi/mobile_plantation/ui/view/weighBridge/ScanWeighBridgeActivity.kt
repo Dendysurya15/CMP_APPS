@@ -292,7 +292,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang membuat file .zip untuk upload",
                                     true
                                 )
-// For CMP data
+                                // For CMP data
                                 var number = 0
 
                                 val espbData = mapOf(

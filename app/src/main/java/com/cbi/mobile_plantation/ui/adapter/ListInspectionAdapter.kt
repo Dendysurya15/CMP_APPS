@@ -1,46 +1,31 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.annotation.SuppressLint
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
+import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.databinding.TableItemRowBinding
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class ListInspectionAdapter(
-    private val onItemClick: (PathWithInspectionTphRelations) -> Unit,
-    private val onCheckboxChanged: (List<String>) -> Unit
+    private val featureName: String, // Add this parameter
+    private val onItemClick: (InspectionWithDetailRelations) -> Unit
 ) : RecyclerView.Adapter<ListInspectionAdapter.InspectionDataViewHolder>() {
 
-    private var inspectionPaths: List<PathWithInspectionTphRelations> = emptyList()
-    private val selectedIds = mutableSetOf<String>()
-    private var currentState = 0
+    private var inspectionPaths: List<InspectionWithDetailRelations> = emptyList()
 
     @SuppressLint("NotifyDataSetChanged")
-    fun setData(data: List<PathWithInspectionTphRelations>) {
+    fun setData(data: List<InspectionWithDetailRelations>) {
         inspectionPaths = data
-        notifyDataSetChanged()
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    fun toggleSelectAll(isSelected: Boolean) {
-        if (isSelected) {
-            inspectionPaths.forEach { selectedIds.add(it.getPathId()) }
-        } else {
-            selectedIds.clear()
-        }
-        notifyDataSetChanged()
-
-        onCheckboxChanged(selectedIds.toList())
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    fun updateCurrentState(state: Int) {
-        currentState = state
         notifyDataSetChanged()
     }
 
@@ -70,51 +55,83 @@ class ListInspectionAdapter(
                     onItemClick(inspectionPaths[position])
                 }
             }
+        }
 
-            binding.checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
-                val position = bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    val id = inspectionPaths[position].getPathId()
-                    if (isChecked) {
-                        selectedIds.add(id)
-                    } else {
-                        selectedIds.remove(id)
+        fun bind(item: InspectionWithDetailRelations) {
+            binding.apply {
+
+                flCheckBoxItemTph.visibility = View.GONE
+                td1.visibility = View.VISIBLE
+                td2.visibility = View.VISIBLE
+                td3.visibility = View.VISIBLE
+                td4.visibility = View.VISIBLE
+                td5.visibility = View.GONE
+
+                when (featureName) {
+                    AppUtils.ListFeatureNames.ListFollowUpInspeksi -> {
+                        td1.text = "${item.tph?.blok_kode ?: ""}-${item.tph?.nomor ?: ""}"
+
+                        td2.text = item.inspeksi.created_date
+                        td3.text = item.inspeksi.jml_pkk_inspeksi.toString()
+
+                        val statusIcon = if (item.inspeksi.status_upload == "0") {
+                            R.drawable.baseline_close_24
+                        } else {
+                            R.drawable.baseline_check_box_24
+                        }
+
+                        val iconColor = if (item.inspeksi.status_upload == "0") {
+                            ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
+                        } else {
+                            ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark)
+                        }
+
+                        td4.text = ""
+                        td4.gravity = Gravity.CENTER_VERTICAL
+                        td4.setCompoundDrawablesWithIntrinsicBounds(0, statusIcon, 0, 0)
+                        td4.compoundDrawables[1]?.setTint(iconColor)
                     }
-                    onCheckboxChanged(selectedIds.toList())
+                    else -> {
+                        // Default behavior for other features
+                        td1.text = "${item.tph?.blok_kode ?: ""}-${item.tph?.nomor ?: ""}"
+
+                        td2.text = item.inspeksi.jml_pkk_inspeksi.toString()
+
+                        val startTime = formatTime(item.inspeksi.created_date)
+                        td3.text = "$startTime"
+
+                        val statusIcon = if (item.inspeksi.status_upload == "0") {
+                            R.drawable.baseline_close_24
+                        } else {
+                            R.drawable.baseline_check_box_24
+                        }
+
+                        val iconColor = if (item.inspeksi.status_upload == "0") {
+                            ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
+                        } else {
+                            ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark)
+                        }
+
+                        td4.text = ""
+                        td4.gravity = Gravity.CENTER_VERTICAL
+                        td4.setCompoundDrawablesWithIntrinsicBounds(0, statusIcon, 0, 0)
+                        td4.compoundDrawables[1]?.setTint(iconColor)
+                    }
                 }
             }
         }
 
-        fun bind(item: PathWithInspectionTphRelations) {
-            binding.apply {
-                binding.td1.visibility = View.VISIBLE
-                binding.td2.visibility = View.VISIBLE
-                binding.td3.visibility = View.VISIBLE
-
-                binding.td1.text = item.getBlok()
-                binding.td2.text = item.getTotalData().toString()
-
-                val formattedTime = try {
-                    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-                    val outputFormat = SimpleDateFormat("HH:mm", Locale("id", "ID")) // Indonesian format
-                    val date = inputFormat.parse(item.getCreatedDate())
-                    outputFormat.format(date ?: "-")
-                } catch (e: Exception) {
-                    "-"
-                }
-                binding.td3.text = formattedTime
-
-                flCheckBoxItemTph.visibility = if (currentState == 0) View.VISIBLE else View.GONE
-                checkBoxPanen.setOnCheckedChangeListener(null)
-                checkBoxPanen.isChecked = selectedIds.contains(item.getPathId())
-                checkBoxPanen.setOnCheckedChangeListener { _, isChecked ->
-                    val id = item.getPathId()
-                    if (isChecked) {
-                        selectedIds.add(id)
-                    } else {
-                        selectedIds.remove(id)
-                    }
-                    onCheckboxChanged(selectedIds.toList())
+        private fun formatTime(dateTimeString: String): String {
+            return try {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                val date = inputFormat.parse(dateTimeString)
+                outputFormat.format(date ?: Date())
+            } catch (e: Exception) {
+                if (dateTimeString.contains(" ")) {
+                    dateTimeString.split(" ").getOrNull(1)?.substring(0, 5) ?: "00:00"
+                } else {
+                    "00:00"
                 }
             }
         }

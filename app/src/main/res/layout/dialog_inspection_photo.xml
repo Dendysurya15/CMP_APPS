@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingHorizontal="20dp"
@@ -18,7 +19,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="15dp"
+
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -28,7 +29,8 @@
                 android:layout_weight="1"
                 android:fontFamily="@font/manrope_bold"
                 android:gravity="center|start"
-                android:text="Lampiran Foto"
+                android:layout_marginBottom="15dp"
+                android:id="@+id/titlePhotoTemuan"
                 android:textColor="@color/black"
                 android:textSize="20dp" />
 
@@ -43,6 +45,7 @@
                 app:tint="@color/colorRed" />
 
         </LinearLayout>
+
 
         <include
            android:id="@+id/incLytPhotosInspect"

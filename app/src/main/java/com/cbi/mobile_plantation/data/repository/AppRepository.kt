@@ -5,18 +5,18 @@ import android.util.Log
 import androidx.room.withTransaction
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
-import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
-import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -47,17 +47,19 @@ class AppRepository(context: Context) {
 
     private val panenDao = database.panenDao()
     private val espbDao = database.espbDao()
+    private val blokDao = database.blokDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
     private val karyawanDao = database.karyawanDao()
     private val kemandoranDao = database.kemandoranDao()
     private val transporterDao = database.transporterDao()
     private val inspectionDao = database.inspectionDao()
-    private val inspectionPathDao = database.inspectionPathDao()
+    private val inspectionDetailDao = database.inspectionDetailDao()
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
-    private val blokDao = database.blokDao()
+    private val afdelingDao = database.afdelingDao()
+    private val parameterDao = database.parameterDao()
 
 
     sealed class SaveResultPanen {
@@ -67,6 +69,120 @@ class AppRepository(context: Context) {
 
     suspend fun saveDataPanen(data: PanenEntity) {
         panenDao.insert(data)
+    }
+
+    suspend fun insertInspectionData(inspectionData: InspectionModel): Long {
+        return inspectionDao.insertInspection(inspectionData)
+    }
+
+    suspend fun updateInspectionForFollowUp(
+        inspectionId: Int,
+        tracking_path_pemulihan: String?,
+        inspeksi_putaran: Int,
+        updated_date_start: String,
+        updated_date_end: String,
+        updated_by: String,
+        foto_user_pemulihan:String,
+        updated_name: String,
+        app_version_pemulihan: String,
+    ): Boolean {
+        return try {
+            inspectionDao.updateInspectionForFollowUp(
+                inspectionId = inspectionId,
+                tracking_path_pemulihan = tracking_path_pemulihan,
+                inspeksi_putaran = inspeksi_putaran,
+                updated_date_start = updated_date_start,
+                updated_date_end = updated_date_end,
+                updated_by = updated_by,
+                foto_user_pemulihan = foto_user_pemulihan,
+                updated_name = updated_name,
+                app_version_pemulihan = app_version_pemulihan,
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun updateInspectionDetailForFollowUpById(
+        inspectionDetailId: Int,
+        temuanInspeksi: Double,
+        fotoPemulihan: String?,
+        komentarPemulihan: String?,
+        latPemulihan: Double,
+        lonPemulihan: Double,
+        updatedDate: String,
+        statusPemulihan : Int,
+        updatedName: String,
+        updatedBy: String
+    ): Boolean {
+        return try {
+            inspectionDetailDao.updateInspectionDetailForFollowUpById(
+                inspectionDetailId = inspectionDetailId,
+                temuanInspeksi = temuanInspeksi,
+                fotoPemulihan = fotoPemulihan,
+                komentarPemulihan = komentarPemulihan,
+                latPemulihan = latPemulihan,
+                statusPemulihan = statusPemulihan,
+                lonPemulihan = lonPemulihan,
+                updatedDate = updatedDate,
+                updatedName = updatedName,
+                updatedBy = updatedBy
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun insertInspectionDetails(inspectionDetailList: List<InspectionDetailModel>) {
+        inspectionDao.insertInspectionDetails(inspectionDetailList)
+    }
+
+    suspend fun getAfdelingName(afdelingId: Int): String? {
+        return afdelingDao.getAfdelingNameById(afdelingId)
+    }
+
+    suspend fun getKemandoranByNik(nikList: List<String>): List<KaryawanModel> {
+        return karyawanDao.getKaryawanByNikList(nikList)
+    }
+
+    suspend fun getParameterInspeksiJson(): String? {
+        return parameterDao.getParameterInspeksiJson()
+    }
+
+    suspend fun getInspectionData(
+        datetime: String? = null,
+        isPushedToServer: Int? = null
+    ): List<InspectionWithDetailRelations> {
+        return try {
+            inspectionDao.getInspectionData(datetime, isPushedToServer)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection paths: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun getInspectionCount(
+        datetime: String? = null,
+        isPushedToServer: Int? = null
+    ): Int {
+        return try {
+            inspectionDao.getInspectionCount(datetime, isPushedToServer)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection count: ${e.message}")
+            0
+        }
+    }
+
+
+    suspend fun getInspectionById(inspectionId: String): List<InspectionWithDetailRelations> {
+        return try {
+            inspectionDao.getInspectionById(inspectionId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection by ID: ${e.message}")
+            emptyList()
+        }
     }
 
     suspend fun saveScanMPanen(
@@ -231,49 +347,49 @@ class AppRepository(context: Context) {
                                 totalJjg.add(
                                     MathFun().round(
                                         jjgJson.optInt("TO", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 unripe.add(
                                     MathFun().round(
                                         jjgJson.optInt("UN", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 overripe.add(
                                     MathFun().round(
                                         jjgJson.optInt("OV", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 emptyBunch.add(
                                     MathFun().round(
                                         jjgJson.optInt("EM", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 abnormal.add(
                                     MathFun().round(
                                         jjgJson.optInt("AB", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 ripe.add(
                                     MathFun().round(
                                         jjgJson.optInt("RI", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 kirimPabrik.add(
                                     MathFun().round(
                                         jjgJson.optInt("KP", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 dibayar.add(
                                     MathFun().round(
                                         jjgJson.optInt("PA", 0)
-                                            .toFloat() / entity.jumlah_pemanen.toFloat(),2
+                                            .toFloat() / entity.jumlah_pemanen.toFloat(), 2
                                     ).toString()
                                 )
                                 tphIds.add(entity.tph_id)
@@ -807,6 +923,16 @@ class AppRepository(context: Context) {
         }
     }
 
+
+    suspend fun updateStatusUploadInspeksiPanen(ids: List<Int>, statusUpload: Int) {
+        inspectionDao.updateStatusUploadInspeksiPanen(ids, statusUpload)
+    }
+
+    suspend fun updateStatusUploadInspeksiDetailPanen(ids: List<Int>, statusUpload: Int) {
+        inspectionDao.updateStatusUploadInspeksiDetailPanen(ids, statusUpload)
+    }
+
+
     suspend fun getAllHektarPanen(): Result<List<HektarPanenEntity>> =
         withContext(Dispatchers.IO) {
             try {
@@ -827,6 +953,10 @@ class AppRepository(context: Context) {
 
     suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int) {
         hektarPanenDao.updateDataIsZippedHP(ids, status)
+    }
+
+    suspend fun updateDataInspeksiIsZippedHP(ids: List<Int>, status: Int) {
+        inspectionDao.updateDataIsZippedHP(ids, status)
     }
 
     suspend fun getBlokKodeByTphId(tphId: Int): String? = withContext(Dispatchers.IO) {
@@ -977,6 +1107,36 @@ class AppRepository(context: Context) {
         return millDao.getMillByAbbr(abbr)
     }
 
+    suspend fun getAllTPHinWeek(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllTPHinWeek()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getTPHHasBeenInspect(): Result<List<InspectionModel>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = inspectionDao.getTPHHasBeenInspect()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAllPanenForInspection(): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllPanenForInspection()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
@@ -1056,9 +1216,10 @@ class AppRepository(context: Context) {
         espbDao.deleteByID(id)
     }
 
-    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String) = withContext(Dispatchers.IO) {
-        espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
-    }
+    suspend fun updateTPH1AndBlokJjg(noespb: String, newTph1: String, newBlokJjg: String) =
+        withContext(Dispatchers.IO) {
+            espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
+        }
 
 
     suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
@@ -1079,10 +1240,6 @@ class AppRepository(context: Context) {
 
     suspend fun getMillList() = withContext(Dispatchers.IO) {
         millDao.getAll()
-    }
-
-    suspend fun getMillByAbbr(abbr: String): MillModel? {
-        return millDao.getMillByAbbr(abbr)
     }
 
     suspend fun getNopolList() = withContext(Dispatchers.IO) {
@@ -1248,42 +1405,42 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun addPathDataInspection(data: InspectionPathModel): Result<Long> {
-        return try {
-            val insertedId = inspectionPathDao.insert(data)
-            if (insertedId != -1L) {
-                Result.success(insertedId)
-            } else {
-                Result.failure(Exception("Insert failed"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+//    suspend fun addPathDataInspection(data: InspectionDetailModel): Result<Long> {
+//        return try {
+//            val insertedId = inspectionPathDao.insert(data)
+//            if (insertedId != -1L) {
+//                Result.success(insertedId)
+//            } else {
+//                Result.failure(Exception("Insert failed"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
 
-    fun deleteInspectionDatas(ids: List<String>): Result<Unit> {
-        return try {
-            val deletedPath = inspectionPathDao.deleteByID(ids)
-            if (deletedPath > 0) {
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception("Failed to delete one or both records"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+//    fun deleteInspectionDatas(ids: List<String>): Result<Unit> {
+//        return try {
+//            val deletedPath = inspectionPathDao.deleteByID(ids)
+//            if (deletedPath > 0) {
+//                Result.success(Unit)
+//            } else {
+//                Result.failure(Exception("Failed to delete one or both records"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
 
-    suspend fun getInspectionCountCard(archive: Int): Int {
-        return inspectionDao.countCard(archive)
-    }
+//    suspend fun getInspectionCountCard(archive: Int): Int {
+//        return inspectionDao.countCard(archive)
+//    }
 
-    suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations> {
-        return inspectionPathDao.getInspectionPathsWithTphAndCount(archive)
-    }
-
-    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
-        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
-    }
+//    suspend fun getInspectionPathsWithTphAndCount(archive: Int): List<PathWithInspectionTphRelations> {
+//        return inspectionPathDao.getInspectionPathsWithTphAndCount(archive)
+//    }
+//
+//    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
+//        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
+//    }
 
 }

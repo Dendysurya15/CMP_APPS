@@ -264,6 +264,19 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getAllTPHinWeek() {
+        viewModelScope.launch {
+            repository.getAllTPHinWeek()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+
     fun getAllJenisTPH() {
         viewModelScope.launch {
             repository.getAllJenisTPH()

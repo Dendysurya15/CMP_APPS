@@ -20,6 +20,7 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -51,12 +52,16 @@ class DatasetRepository(
     private val blokDao = database.blokDao()
     private val afdelingDao = database.afdelingDao()
     private val jenisTPHDao = database.jenisTPHDao()
+    private val parameterDao = database.parameterDao()
 
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
         karyawanDao.updateOrInsertKaryawan(karyawans)
 
     suspend fun updateOrInsertMill(mills: List<MillModel>) = millDao.updateOrInsertMill(mills)
+
+    suspend fun updateOrInsertParameter(parameter: List<ParameterModel>) = parameterDao.updateOrInsertParameter(parameter)
+
     suspend fun InsertKendaraan(kendaraan: List<KendaraanModel>) =
         kendaraanDao.InsertKendaraan(kendaraan)
 
@@ -150,6 +155,18 @@ class DatasetRepository(
         return tphDao.getLatLonByDivisi(idEstate, idDivisi)
     }
 
+    suspend fun getLatLonDivisiByTPHIds(
+        idEstate: Int,
+        idDivisi: Int,
+        tphIds: List<Int>
+    ): List<TPHNewModel> {
+        return if (tphIds.isEmpty()) {
+            emptyList()
+        } else {
+            tphDao.getLatLonByDivisiAndTPHIds(idEstate, idDivisi, tphIds)
+        }
+    }
+
     suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray)
     }
@@ -206,6 +223,27 @@ class DatasetRepository(
 
     suspend fun downloadDataset(request: DatasetRequest): Response<ResponseBody> {
         return apiService.downloadDataset(request)
+    }
+
+    suspend fun getParameter(): Response<ResponseBody> {
+        // Create the JSON request using JSONObject
+        val jsonObject = JSONObject().apply {
+            put("table", "parameter")
+            put("select", JSONArray().apply {
+                put("id")
+                put("isjson")
+                put("param_val")
+                put("keterangan")
+            })
+        }
+
+        // Convert JSONObject to RequestBody
+        val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("Parameter API Request: ${jsonObject.toString()}")
+
+        // Make the API call
+        return TestingApiService.getDataRaw(requestBody)
     }
 
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {
