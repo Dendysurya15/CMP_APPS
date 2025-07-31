@@ -1896,9 +1896,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 detailInspeksiList = currentInspectionData?.detailInspeksi
                                                     ?: emptyList(),
                                                 formData = formData,
-                                                jumBrdTglPath = jumBrdTglPath,
-                                                jumBuahTglPath = jumBuahTglPath,
-                                                parameterInspeksi = parameterInspeksi,
+                                                latTPH = lat ?: 0.0,
+                                                lonTPH = lon ?: 0.0,
+                                                photoTPHFollowUp = photoTPHFollowUp  ?: "",
+                                                komentarTPHFollowUp = komentarTPHFollowUp ?: "",
                                                 createdDateStart = dateStartInspection,
                                                 createdName = prefManager?.nameUserLogin ?: "",
                                                 createdBy = userId.toString()
@@ -6419,12 +6420,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             when {
                 isForSelfie -> {
-                    AppLogger.d("ddddd jasldkfja")
                     photoSelfie = fname
                 }
 
                 isInTPH && isForFollowUp -> {
-                    AppLogger.d("asldkfjlaksd jflaksjdflkasdfkl j")
                     photoTPHFollowUp = fname
                 }
 

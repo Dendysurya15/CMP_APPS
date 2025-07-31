@@ -253,9 +253,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun updateDataInspectionDetailsForFollowUp(
         detailInspeksiList: List<InspectionDetailModel>,
         formData: Map<Int, FormAncakViewModel.PageData>,
-        jumBrdTglPath: Int,
-        jumBuahTglPath: Int,
-        parameterInspeksi: List<InspectionParameterItem>,
+        latTPH: Double,
+        lonTPH: Double,
+        photoTPHFollowUp : String,
+        komentarTPHFollowUp : String,
         createdDateStart: String,
         createdName: String,
         createdBy: String
@@ -266,7 +267,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
             var updatedCount = 0
 
-            // Main loop through each detail inspection
             detailInspeksiList.forEach { detail ->
                 AppLogger.d("Processing detail ID: ${detail.id}, no_pokok: ${detail.no_pokok}, kode_inspeksi: ${detail.kode_inspeksi}, nama: ${detail.nama}, nik: ${detail.nik}")
 
@@ -279,12 +279,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             val updateSuccess = repository.updateInspectionDetailForFollowUpById(
                                 inspectionDetailId = detail.id,
                                 temuanInspeksi = detail.temuan_inspeksi, // Keep original value
-                                fotoPemulihan = matchingPageData?.foto_pemulihan,
-                                komentarPemulihan = matchingPageData?.komentar_pemulihan,
-                                latPemulihan = matchingPageData?.latIssue ?: 0.0,
-                                lonPemulihan = matchingPageData?.lonIssue ?: 0.0,
+                                fotoPemulihan = if (photoTPHFollowUp.isNotEmpty()) photoTPHFollowUp else "",
+                                komentarPemulihan = if (photoTPHFollowUp.isNotEmpty()) komentarTPHFollowUp else "",
+                                latPemulihan = latTPH ?: 0.0,
+                                lonPemulihan = lonTPH ?: 0.0,
                                 updatedDate = createdDateStart,
-                                statusPemulihan = if (!matchingPageData?.foto_pemulihan.isNullOrEmpty()) 1 else 0,
+                                statusPemulihan = if (photoTPHFollowUp.isNotEmpty()) 1 else 0,
                                 updatedName = createdName,
                                 updatedBy = createdBy
                             )
@@ -300,12 +300,12 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             val updateSuccess = repository.updateInspectionDetailForFollowUpById(
                                 inspectionDetailId = detail.id,
                                 temuanInspeksi = detail.temuan_inspeksi, // Keep original value
-                                fotoPemulihan = matchingPageData?.foto_pemulihan,
-                                komentarPemulihan = matchingPageData?.komentar_pemulihan,
-                                latPemulihan = matchingPageData?.latIssue ?: 0.0,
-                                lonPemulihan = matchingPageData?.lonIssue ?: 0.0,
+                                fotoPemulihan = if (photoTPHFollowUp.isNotEmpty()) photoTPHFollowUp else "",
+                                komentarPemulihan = if (photoTPHFollowUp.isNotEmpty()) komentarTPHFollowUp else "",
+                                latPemulihan = latTPH ?: 0.0,
+                                lonPemulihan = lonTPH ?: 0.0,
                                 updatedDate = createdDateStart,
-                                statusPemulihan = if (!matchingPageData?.foto_pemulihan.isNullOrEmpty()) 1 else 0,
+                                statusPemulihan = if (photoTPHFollowUp.isNotEmpty()) 1 else 0,
                                 updatedName = createdName,
                                 updatedBy = createdBy
                             )
@@ -320,7 +320,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         }
                     }
                 } else {
-                    // Handle regular pokok (no_pokok > 0)
                     val matchingPageData = validFormData.values.find {
                         it.pokokNumber == detail.no_pokok
                     }
