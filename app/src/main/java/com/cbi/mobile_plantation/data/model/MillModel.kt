@@ -12,4 +12,5 @@ data class MillModel(
     val nama: String?,
     val ip_address:String?,
     val ip_client:String?,
+    val sinkronisasi_pks:String?,
 )
