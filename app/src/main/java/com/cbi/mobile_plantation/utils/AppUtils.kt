@@ -308,6 +308,8 @@ object AppUtils {
         return numericVersion.replace(".", "")
     }
 
+
+
     fun clearTempJsonFiles(context: Context) {
         try {
             val tempDir = File(context.getExternalFilesDir(null), "TEMP")
