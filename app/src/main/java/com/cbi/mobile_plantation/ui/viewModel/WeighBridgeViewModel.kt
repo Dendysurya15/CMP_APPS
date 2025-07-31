@@ -29,7 +29,7 @@ sealed class SaveDataESPBKraniTimbangState {
 
 class WeighBridgeViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: WeighBridgeRepository = WeighBridgeRepository(application)
+    val repository: WeighBridgeRepository = WeighBridgeRepository(application)
 
     private val _savedESPBByKrani = MutableLiveData<List<ESPBEntity>>()
     val savedESPBByKrani: LiveData<List<ESPBEntity>> = _savedESPBByKrani
@@ -150,7 +150,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: $millIP")
 
                 // Update base URL with mill IP
-                StagingApiClient.updateBaseUrl("http://$millIP:8000")
+                StagingApiClient.updateBaseUrl("http://$millIP:3005")
 //                StagingApiClient.updateBaseUrl("http://10.9.116.175:8000")
 
                 // Create request body with raw JSON
@@ -205,6 +205,9 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     private val _tphData = MutableLiveData<TPHNewModel?>()
     val tphData: LiveData<TPHNewModel?> = _tphData
 
+    private val _blokData = MutableLiveData<BlokModel?>()
+    val blokData: LiveData<BlokModel?> = _blokData
+
 
     // Function to fetch TPH data by block ID
     fun fetchTPHByBlockId(blockId: Int) {
@@ -218,6 +221,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 }
         }
     }
+
+    fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?) {
+        viewModelScope.launch {
+            repository.fetchBlokbyParams(blockId, est, afd)
+                .onSuccess { blokModel  ->
+                    _blokData.postValue(blokModel )
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load TPH data")
+                }
+        }
+    }
+
+
 
     fun checkEspbExists(noEspb: String) {
         viewModelScope.launch {

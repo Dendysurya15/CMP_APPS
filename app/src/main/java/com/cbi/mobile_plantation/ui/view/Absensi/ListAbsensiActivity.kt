@@ -43,6 +43,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataRekap
 import com.cbi.mobile_plantation.ui.adapter.ListAbsensiAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -53,6 +54,7 @@ import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.playSound
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -162,61 +164,61 @@ class ListAbsensiActivity : AppCompatActivity() {
         dateButton = findViewById(R.id.calendarPickerAbsensi)
         dateButton.text = AppUtils.getTodaysDate()
 
-        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
-
-        filterAllData.setOnCheckedChangeListener { _, isChecked ->
-            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
-            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
-            if (isChecked) {
-                filterDateContainer.visibility = View.VISIBLE
-                nameFilterDate.text = "Semua Data"
-
-                dateButton.isEnabled = false
-                dateButton.alpha = 0.5f
-
-                if (currentState == 0) {
-                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
-                } else if (currentState == 1) {
-                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
-                }
-            } else {
-                // For line 136 (use date from date picker)
-                val displayDate = formatGlobalDate(globalFormattedDate)
-
-                nameFilterDate.text = displayDate
-                dateButton.isEnabled = true
-                dateButton.alpha = 1f // Make the button appear darker
-                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
-                if (currentState == 0) {
-                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
-                } else if (currentState == 1) {
-                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
-                }
-            }
-
-            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
-
-            removeFilterDate.setOnClickListener {
-                if (filterAllData.isChecked) {
-                    filterAllData.isChecked = false
-                }
-
-                filterDateContainer.visibility = View.GONE
-
-                val todayBackendDate = AppUtils.formatDateForBackend(
-                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
-                    Calendar.getInstance().get(Calendar.MONTH) + 1,
-                    Calendar.getInstance().get(Calendar.YEAR)
-                )
-                // Reset the selected date in your utils
-                AppUtils.setSelectedDate(todayBackendDate)
-
-                // Update the dateButton to show today's date
-                val todayDisplayDate = AppUtils.getTodaysDate()
-                dateButton.text = todayDisplayDate
-
-            }
-        }
+//        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
+//
+//        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+//            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+//            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+//            if (isChecked) {
+//                filterDateContainer.visibility = View.VISIBLE
+//                nameFilterDate.text = "Semua Data"
+//
+//                dateButton.isEnabled = false
+//                dateButton.alpha = 0.5f
+//
+//                if (currentState == 0) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
+//                } else if (currentState == 1) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
+//                }
+//            } else {
+//                // For line 136 (use date from date picker)
+//                val displayDate = formatGlobalDate(globalFormattedDate)
+//
+//                nameFilterDate.text = displayDate
+//                dateButton.isEnabled = true
+//                dateButton.alpha = 1f // Make the button appear darker
+//                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+//                if (currentState == 0) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
+//                } else if (currentState == 1) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
+//                }
+//            }
+//
+//            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+//
+//            removeFilterDate.setOnClickListener {
+//                if (filterAllData.isChecked) {
+//                    filterAllData.isChecked = false
+//                }
+//
+//                filterDateContainer.visibility = View.GONE
+//
+//                val todayBackendDate = AppUtils.formatDateForBackend(
+//                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+//                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+//                    Calendar.getInstance().get(Calendar.YEAR)
+//                )
+//                // Reset the selected date in your utils
+//                AppUtils.setSelectedDate(todayBackendDate)
+//
+//                // Update the dateButton to show today's date
+//                val todayDisplayDate = AppUtils.getTodaysDate()
+//                dateButton.text = todayDisplayDate
+//
+//            }
+//        }
 
         setupHeader()
         initViewModel()
@@ -282,56 +284,6 @@ class ListAbsensiActivity : AppCompatActivity() {
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
-    fun generateHighQualityQRCode(
-        content: String,
-        imageView: ImageView,
-        sizePx: Int = 1000
-    ) {
-        try {
-            // Create encoding hints for better quality
-            val hints = hashMapOf<EncodeHintType, Any>().apply {
-                put(
-                    EncodeHintType.ERROR_CORRECTION,
-                    ErrorCorrectionLevel.M
-                ) // Change to M for balance
-                put(EncodeHintType.MARGIN, 1) // Smaller margin
-                put(EncodeHintType.CHARACTER_SET, "UTF-8")
-                // Remove fixed QR version to allow automatic scaling
-            }
-
-            // Create QR code writer with hints
-            val writer = QRCodeWriter()
-            val bitMatrix = writer.encode(
-                content,
-                BarcodeFormat.QR_CODE,
-                sizePx,
-                sizePx,
-                hints
-            )
-
-            // Create bitmap with appropriate size
-            val width = bitMatrix.width
-            val height = bitMatrix.height
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-
-            // Fill the bitmap
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
-                }
-            }
-
-            // Set the bitmap to ImageView with high quality scaling
-            imageView.apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
     fun getGeneratedDate(): String {
         val sharedPreferences = getSharedPreferences("QR_PREFS", MODE_PRIVATE)
         val savedDate = sharedPreferences.getString("generated_date", "")
@@ -384,25 +336,47 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+            // First dialog: Check if employee status has been filled
+            AlertDialogUtility.withSingleAction(
+                this,
+                "OKE",
+                "Peringatan",
+                "Pastikan sudah mengisi status karyawan yang tidak hadir",
+                "warning.json",
+                R.color.colorRedDark,
+                function = {
+                    // After confirming the status check, show the QR generation dialog
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Generate QR",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.al_confirm_generate_qr),
+                        "warning.json",
+                        ContextCompat.getColor(this, R.color.bluedarklight),
+                        function = {
+                            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
+                            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
-            // Log tanggal
-            AppLogger.d("Generated Date: '$generatedDate'")
-            AppLogger.d("Today Date: '$todayDate'")
+                            // Log tanggal
+                            AppLogger.d("Generated Date: '$generatedDate'")
+                            AppLogger.d("Today Date: '$todayDate'")
 
-            if (generatedDate.isEmpty() || generatedDate != todayDate) {
-                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
-                // Berarti ini adalah generate baru untuk hari ini
-                playSound(R.raw.berhasil_generate_qr)
-                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
-                generateData()  // Generate data baru
-            } else {
-                // Jika sudah pernah generate di hari yang sama
-                // Tampilkan QR yang sudah ada
-                showBottomSheetQR()
-            }
+                            if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                                // Berarti ini adalah generate baru untuk hari ini
+                                playSound(R.raw.berhasil_generate_qr)
+                                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                                generateData()  // Generate data baru
+                            } else {
+                                // Jika sudah pernah generate di hari yang sama
+                                // Tampilkan QR yang sudah ada
+                                showBottomSheetQR()
+                            }
+                        }
+                    )
+                }
+            )
         }
     }
 
@@ -419,11 +393,21 @@ class ListAbsensiActivity : AppCompatActivity() {
         // Get references to views
         val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
         val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-        val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
-        tvTitleQRGenerate.text = "Generate QR Absensi"
+        val tvTitleQRGenerate: TextView =
+            view.findViewById(R.id.textTitleQRGenerate)
+        tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
+        val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+        tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
         val dashedLine: View = view.findViewById(R.id.dashedLine)
         val loadingContainer: LinearLayout =
             view.findViewById(R.id.loadingDotsContainerBottomSheet)
+        val titleQRConfirm: TextView = view.findViewById(R.id.titleAfterScanQR)
+        val descQRConfirm: TextView = view.findViewById(R.id.descAfterScanQR)
+        // Initial setup for text elements
+        titleQRConfirm.setResponsiveTextSizeWithConstraints(21F, 17F, 25F)
+        descQRConfirm.setResponsiveTextSizeWithConstraints(19F, 15F, 23F)
 
         val btnPreviewFullQR: MaterialButton =
             view.findViewById(R.id.btnPreviewFullQR)
@@ -652,7 +636,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                         withContext(Dispatchers.Main) {
                             try {
 
-                                generateHighQualityQRCode(encodedData, qrCodeImageView)
+                                ListPanenTBSActivity().generateHighQualityQRCode(encodedData!!, qrCodeImageView,
+                                    this@ListAbsensiActivity,
+                                    showLogo = false)
                                 // Fade-out the loading elements
                                 val fadeOut =
                                     ObjectAnimator.ofFloat(loadingLogo, "alpha", 1f, 0f)
@@ -840,7 +826,6 @@ class ListAbsensiActivity : AppCompatActivity() {
                     return@launch
                 }
 
-
                 AppLogger.d("mappedData $mappedData")
 
                 // Inflate the correct screenshot layout
@@ -861,6 +846,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val qrCodeImageView = screenshotLayout.findViewById<ImageView>(R.id.qrCodeImageView)
                 val tvFooter = screenshotLayout.findViewById<TextView>(R.id.tvFooter)
 
+
                 // Check that we found the essential views
                 if (tvUserName == null) AppLogger.e("tvUserName not found")
                 if (qrCodeImageView == null) AppLogger.e("qrCodeImageView not found")
@@ -876,21 +862,24 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                 // Let's print the resource IDs to make sure we're looking for the right ones
                 val infoKemandoranId = resources.getIdentifier("infoKemandoran", "id", packageName)
-                val infoTotalTransaksiId =
-                    resources.getIdentifier("infoTotalTransaksi", "id", packageName)
+                val infoTotalTransaksiId = resources.getIdentifier("infoTotalTransaksi", "id", packageName)
 
                 // Try to find the included layout views using resource IDs
-
-
                 val infoKemandoran = screenshotLayout.findViewById<View>(infoKemandoranId)
                     ?: screenshotLayout.findViewById<View>(R.id.infoKemandoran) // Fallback ID
 
                 val infoTotalTransaksi = screenshotLayout.findViewById<View>(infoTotalTransaksiId)
                     ?: screenshotLayout.findViewById<View>(R.id.infoKehadiran) // Fallback ID
 
+                // Add references for new info views
+                val infoUrutanKe = screenshotLayout.findViewById<View>(R.id.infoUrutanKe)
+                val infoJamTanggal = screenshotLayout.findViewById<View>(R.id.infoJamTanggal)
+
                 // Log whether we found the views
                 AppLogger.d("infoKemandoran found: ${infoKemandoran != null}")
                 AppLogger.d("infoTotalTransaksi found: ${infoTotalTransaksi != null}")
+                AppLogger.d("infoUrutanKe found: ${infoUrutanKe != null}")
+                AppLogger.d("infoJamTanggal found: ${infoJamTanggal != null}")
 
                 if (infoKemandoran == null || infoTotalTransaksi == null) {
                     AppLogger.e("One or more info layout views not found - falling back to direct search")
@@ -1016,31 +1005,36 @@ class ListAbsensiActivity : AppCompatActivity() {
                 }
 
                 val totalKaryawan = totalMasuk + totalTidakMasuk
-
-
                 val totalAttendance = "$totalMasuk / $totalKaryawan"
                 AppLogger.d("Total attendance: $totalAttendance")
 
-
-                // Set user info
-                tvUserName.text =
-                    "Hasil QR dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
-
-                // Set footer with date/time
+                // Generate current date and time for footer and counter
                 val currentDate = Date()
                 val indonesianLocale = Locale("id", "ID")
                 val dateFormat = SimpleDateFormat("dd MMM yyyy", indonesianLocale)
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-                val formattedDate = dateFormat.format(currentDate).toUpperCase(indonesianLocale)
+                val formattedDate = dateFormat.format(currentDate).uppercase(indonesianLocale)
                 val formattedTime = timeFormat.format(currentDate)
 
+                // Get and increment screenshot counter for this specific feature
+                val screenshotNumber = getAndIncrementScreenshotCounter()
+
+                // Set user info
+                tvUserName.text =
+                    "Hasil QR ${featureName} dari ${prefManager?.jabatanUserLogin ?: "Unknown"} - ${estateAfdeling}"
+
+                // Set footer with date/time
                 tvFooter.text =
                     "GENERATED ON $formattedDate, $formattedTime | ${stringXML(R.string.name_app)}"
 
-
+                // Set info data
                 setInfoData(infoKemandoran, "Kemandoran", kemandoranValue)
                 setInfoData(infoTotalTransaksi, "Kehadiran", ": $totalAttendance")
+
+                // Add new info data with counter and timestamp
+                setInfoData(infoUrutanKe, "Urutan Ke", ": $screenshotNumber")
+                setInfoData(infoJamTanggal, "Jam & Tanggal", ": $formattedTime, $formattedDate")
 
                 // Take the screenshot
                 val displayMetrics = resources.displayMetrics
@@ -1096,6 +1090,24 @@ class ListAbsensiActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun getAndIncrementScreenshotCounter(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastDate = prefManager!!.getScreenshotDate(featureName!!)
+        val currentCounter = prefManager!!.getScreenshotCounter(featureName!!)
+
+        return if (lastDate != today) {
+            // Reset counter for new day
+            prefManager!!.setScreenshotDate(featureName!!, today)
+            prefManager!!.setScreenshotCounter(featureName!!, 1)
+            1
+        } else {
+            // Increment counter for same day
+            val newCounter = currentCounter + 1
+            prefManager!!.setScreenshotCounter(featureName!!, newCounter)
+            newCounter
         }
     }
 
@@ -1343,8 +1355,8 @@ class ListAbsensiActivity : AppCompatActivity() {
         // Set background color of the layout to white using your color resource
         fotoLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.white))
 
-        // Set close button background color to green using your color resource
-        closeZoomCard.setCardBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
+        val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
+        closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.greenDarker))
 
         // Change the text color to white
         tvCardCloseButton.setTextColor(ContextCompat.getColor(context, R.color.white))
@@ -1444,10 +1456,15 @@ class ListAbsensiActivity : AppCompatActivity() {
             val divisiAbbrSet = mutableSetOf<String>()
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
-            val karyawanMskSet = mutableSetOf<String>()
-            val karyawanTdkMskSet = mutableSetOf<String>()
-            val karyawanMskIdSet = mutableSetOf<String>()
-            val karyawanTdkMskIdSet = mutableSetOf<String>()
+
+            // Changed to use JSONObject for proper structure
+            val mergedKaryawanMskNik = JSONObject()
+            val mergedKaryawanTdkMskNik = JSONObject()
+            val mergedKaryawanMskId = JSONObject()
+            val mergedKaryawanTdkMskId = JSONObject()
+            val mergedKaryawanMskNama = JSONObject()
+            val mergedKaryawanTdkMskNama = JSONObject()
+
             val infoSet = mutableSetOf<String>()
 
             mappedData.forEach { data ->
@@ -1467,16 +1484,20 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
                 val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
+                val karyawanTdkMskNama = data["karyawan_tdk_msk_nama"]?.toString() ?: ""
 
                 // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Extract values from JSON strings and concatenate them
-                extractAndAddFromJson(karyawanMskNik, karyawanMskSet)
-                extractAndAddFromJson(karyawanTdkMskNik, karyawanTdkMskSet)
-                extractAndAddFromJson(karyawanMskId, karyawanMskIdSet)
-                extractAndAddFromJson(karyawanTdkMskId, karyawanTdkMskIdSet)
+                // Merge JSON objects properly using the correct function
+                mergeJsonObjects(karyawanMskNik, mergedKaryawanMskNik)
+                mergeJsonObjects(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
+                mergeJsonObjects(karyawanMskId, mergedKaryawanMskId)
+                mergeJsonObjects(karyawanTdkMskId, mergedKaryawanTdkMskId)
+                mergeJsonObjects(karyawanMskNama, mergedKaryawanMskNama)
+                mergeJsonObjects(karyawanTdkMskNama, mergedKaryawanTdkMskNama)
 
                 // Add other data
                 if (dept.isNotEmpty()) deptSet.add(dept)
@@ -1494,7 +1515,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON with concatenated values (not JSON structure)
+            // Final JSON with proper structure
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
@@ -1503,10 +1524,15 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi", JSONArray(divisiSet))
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
-                put("karyawan_msk_nik", JSONArray(karyawanMskSet))
-                put("karyawan_tdk_msk_nik", JSONArray(karyawanTdkMskSet))
-                put("karyawan_msk_id", JSONArray(karyawanMskIdSet))
-                put("karyawan_tdk_msk_id", JSONArray(karyawanTdkMskIdSet))
+
+                // Store as JSON objects, not arrays
+                put("karyawan_msk_nik", mergedKaryawanMskNik)
+                put("karyawan_tdk_msk_nik", mergedKaryawanTdkMskNik)
+                put("karyawan_msk_id", mergedKaryawanMskId)
+                put("karyawan_tdk_msk_id", mergedKaryawanTdkMskId)
+                put("karyawan_msk_nama", mergedKaryawanMskNama)
+                put("karyawan_tdk_msk_nama", mergedKaryawanTdkMskNama)
+
                 put("info", JSONArray(infoSet))
             }
 
@@ -1518,18 +1544,87 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
+    // Helper function to merge JSON objects
+    private fun mergeJsonObjects(jsonString: String, targetObject: JSONObject) {
+        if (jsonString.isNotEmpty()) {
+            try {
+                val sourceJson = JSONObject(jsonString)
+                val statusKeys = sourceJson.keys()
+
+                while (statusKeys.hasNext()) {
+                    val statusKey = statusKeys.next()
+                    val statusValue = sourceJson.opt(statusKey)
+
+                    when (statusValue) {
+                        is JSONObject -> {
+                            // Handle nested structure: {"status": {"kemandoran": "values"}}
+                            if (!targetObject.has(statusKey)) {
+                                targetObject.put(statusKey, JSONObject())
+                            }
+
+                            val targetStatusObject = targetObject.getJSONObject(statusKey)
+                            val kemandoranKeys = statusValue.keys()
+
+                            while (kemandoranKeys.hasNext()) {
+                                val kemandoranKey = kemandoranKeys.next()
+                                val kemandoranValue = statusValue.getString(kemandoranKey)
+
+                                if (targetStatusObject.has(kemandoranKey)) {
+                                    // Merge values if key already exists
+                                    val existingValue = targetStatusObject.getString(kemandoranKey)
+                                    val mergedValue = "$existingValue,$kemandoranValue"
+                                    targetStatusObject.put(kemandoranKey, mergedValue)
+                                } else {
+                                    targetStatusObject.put(kemandoranKey, kemandoranValue)
+                                }
+                            }
+                        }
+                        is String -> {
+                            // Handle flat structure: {"kemandoran": "values"}
+                            if (targetObject.has(statusKey)) {
+                                val existingValue = targetObject.getString(statusKey)
+                                val mergedValue = "$existingValue,$statusValue"
+                                targetObject.put(statusKey, mergedValue)
+                            } else {
+                                targetObject.put(statusKey, statusValue)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error merging JSON objects: ${e.message}")
+            }
+        }
+    }
+
     // Helper function to extract values from JSON string and add to set
     private fun extractAndAddFromJson(jsonString: String, targetSet: MutableSet<String>) {
         try {
             if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
                 val jsonObj = JSONObject(jsonString)
 
-                // Extract all values from all kemandoran and concatenate them
-                jsonObj.keys().forEach { kemandoranId ->
-                    val values = jsonObj.optString(kemandoranId, "")
-                    if (values.isNotEmpty()) {
-                        values.split(",").filter { it.trim().isNotEmpty() }
-                            .forEach { targetSet.add(it.trim()) }
+                // Handle nested JSON structure: {"status": {"kemandoran": "values"}}
+                jsonObj.keys().forEach { statusKey ->
+                    val statusValue = jsonObj.opt(statusKey)
+
+                    when (statusValue) {
+                        is JSONObject -> {
+                            // This is a nested object (status -> kemandoran -> values)
+                            statusValue.keys().forEach { kemandoranKey ->
+                                val kemandoranValue = statusValue.optString(kemandoranKey, "")
+                                if (kemandoranValue.isNotEmpty()) {
+                                    kemandoranValue.split(",").filter { it.trim().isNotEmpty() }
+                                        .forEach { targetSet.add(it.trim()) }
+                                }
+                            }
+                        }
+                        is String -> {
+                            // This is a direct string value (old format)
+                            if (statusValue.isNotEmpty()) {
+                                statusValue.split(",").filter { it.trim().isNotEmpty() }
+                                    .forEach { targetSet.add(it.trim()) }
+                            }
+                        }
                     }
                 }
             } else {
@@ -1891,7 +1986,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                     ?: "",
                                                 karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
-                                                    ?: ""
+                                                    ?: "",
+                                                status_upload = absensiWithRelations.absensi.status_upload
                                             )
                                         } catch (e: Exception) {
                                             AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
@@ -1909,7 +2005,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_nama = "",
                                                 karyawan_tdk_msk_nama = "",
                                                 karyawan_msk_nik = "",
-                                                karyawan_tdk_msk_nik = ""
+                                                karyawan_tdk_msk_nik = "",
+                                                status_upload = 0
                                             )
                                         }
                                     }
@@ -2058,7 +2155,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                 ?: "",
                                             karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
-                                                ?: ""
+                                                ?: "",
+                                            status_upload = absensiWithRelations.absensi.status_upload
                                         )
                                     } catch (e: Exception) {
                                         AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
@@ -2075,7 +2173,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_nama = "",
                                             karyawan_tdk_msk_nama = "",
                                             karyawan_msk_nik = "",
-                                            karyawan_tdk_msk_nik = ""
+                                            karyawan_tdk_msk_nik = "",
+                                            status_upload = 0
                                         )
                                     }
                                 }

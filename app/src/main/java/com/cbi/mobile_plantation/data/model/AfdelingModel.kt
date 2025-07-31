@@ -10,5 +10,6 @@ data class AfdelingModel(
     val id_ppro: Int?,
     val abbr: String?,
     val nama: String?,
-    val estate_id: Int // This will be the foreign key to link with Estate
+    val estate_id: Int,
+    val sinkronisasi_otomatis: Int
 )

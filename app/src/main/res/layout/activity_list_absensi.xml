@@ -55,33 +55,14 @@
                         android:id="@+id/calendarPickerAbsensi"
                         style="@style/Widget.MaterialComponents.Button.TextButton"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="10dp"
-                        android:layout_marginVertical="5dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginHorizontal="5dp"
                         android:backgroundTint="@color/white"
                         android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
                         android:onClick="openDatePicker"
                         android:textColor="@color/black"
                         tools:ignore="MissingConstraints,OnClick" />
                 </com.google.android.material.card.MaterialCardView>
-
-                <!-- CheckBox with Caption -->
-                <CheckBox
-                    android:id="@+id/calendarCheckboxAbsensi"
-                    style="@style/defaultBoxColor"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp" />
-
-                <TextView
-                    android:id="@+id/calendarCheckboxCaptionAbsensi"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:gravity="center_vertical"
-                    android:text="Filter Semua Tanggal"
-                    android:textColor="@color/black"
-                    android:textSize="@dimen/m" />
             </LinearLayout>
 
 
@@ -328,104 +309,113 @@
 
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/list_menu_upload_dataAbsensi"
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:layout_marginVertical="5dp"
-                android:orientation="horizontal"
+                android:layout_marginTop="8dp"
+                android:scrollbars="none"
+                tools:ignore="MissingConstraints"
+                android:id="@+id/list_menu_upload_dataAbsensi"
                 app:layout_constraintTop_toBottomOf="@id/total_sectionAbsensi">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_item_tersimpanAbsensi"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardBackgroundColor="@color/bgSelectWorkerGreen"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/strokeSelectWorkerGreen">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="10dp"
+                    android:layout_marginVertical="5dp"
+                    android:orientation="horizontal">
 
-                    <LinearLayout
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_item_tersimpanAbsensi"
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:layout_marginVertical="10dp"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="10dp">
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardBackgroundColor="@color/bgSelectWorkerGreen"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/strokeSelectWorkerGreen">
 
-                        <TextView
-                            android:id="@+id/list_item_tersimpanAbsensi"
+                        <LinearLayout
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:text="Tersimpan"
-                            android:textColor="@color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
+                            android:layout_height="match_parent"
+                            android:layout_marginVertical="10dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="10dp">
 
-                        <TextView
-                            android:id="@+id/counter_item_tersimpanAbsensi"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:paddingHorizontal="10dp"
-                            android:text="0"
-                            android:textColor="@color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                            <TextView
+                                android:id="@+id/list_item_tersimpanAbsensi"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:fontFamily="@font/manrope_semibold"
+                                android:text="Tersimpan"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
 
-                </com.google.android.material.card.MaterialCardView>
+                            <TextView
+                                android:id="@+id/counter_item_tersimpanAbsensi"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:fontFamily="@font/manrope_semibold"
+                                android:paddingHorizontal="10dp"
+                                android:text="0"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
 
 
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_item_terscanAbsensi"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_marginLeft="5dp"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardBackgroundColor="@color/graylight"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/graylightDarker">
-
-                    <LinearLayout
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_item_terscanAbsensi"
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:layout_marginVertical="10dp"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="10dp">
+                        android:layout_marginLeft="5dp"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardBackgroundColor="@color/graylight"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/graylightDarker">
 
-                        <TextView
-                            android:id="@+id/list_item_terscanAbsensi"
+                        <LinearLayout
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:text="Sudah Scan"
-                            android:textColor="@color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
+                            android:layout_height="match_parent"
+                            android:layout_marginVertical="10dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="10dp">
 
-                        <TextView
-                            android:id="@+id/counter_item_terscanAbsensi"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFamily="@font/manrope_semibold"
-                            android:paddingHorizontal="10dp"
-                            android:text="0"
-                            android:textColor="@color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                            <TextView
+                                android:id="@+id/list_item_terscanAbsensi"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:fontFamily="@font/manrope_semibold"
+                                android:text="Sudah Scan"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
 
-                </com.google.android.material.card.MaterialCardView>
+                            <TextView
+                                android:id="@+id/counter_item_terscanAbsensi"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:fontFamily="@font/manrope_semibold"
+                                android:paddingHorizontal="10dp"
+                                android:text="0"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
 
-            </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
+            </HorizontalScrollView>
 
             <LinearLayout
                 android:id="@+id/filterSectionAbsensi"

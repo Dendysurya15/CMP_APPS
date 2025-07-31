@@ -258,7 +258,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                     // Prepare the data including counts before switching to Main thread
                     val blokDataWithCounts = blokData.map { blok ->
                         val count0 = try {
-                            hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateAndBlok(blok.blok!!,globalFormattedDate)
+                            hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateAndBlok(blok.id!!,globalFormattedDate)
                         } catch (e: Exception) {
                             Log.d("BlokIds", "Error getting count: ${e.message}")
                             -1 // Use a sentinel value to indicate error
@@ -278,7 +278,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                         blokDataWithCounts.forEach { (blok, count0) ->
                             val chip = Chip(this@ListHistoryESPBActivity).apply {
                                 id = View.generateViewId() // Generate unique ID for each chip
-                                val blokText = "${blok.blok_kode}($count0)"
+                                val blokText = "${blok.kode}($count0)"
 
                                 text = blokText
                                 isClickable = true
@@ -286,7 +286,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                                 isCheckedIconVisible = true
 
                                 // Store the blok ID as tag
-                                tag = blok.blok // Store the actual blok ID
+                                tag = blok.kode // Store the actual blok ID
 
                                 // Store first chip ID if not set yet
                                 if (firstChipId == -1) {
@@ -296,7 +296,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                                 // Add listener to detect when chip is checked/unchecked
                                 setOnCheckedChangeListener { _, isChecked ->
                                     if (isChecked) {
-                                        selectedBlokId = blok.blok!!
+                                        selectedBlokId = blok.kode?.toInt()
                                         Log.d("SelectedChip", "Selected ID: $selectedBlokId")
                                     } else {
                                         selectedBlokId = null
@@ -460,7 +460,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
 
                 // Get blok information
                 val blokInfo = if (blokData.isNotEmpty()) {
-                    blokData.first().blok_kode ?: item.blok.toString()
+                    blokData.first().kode ?: item.blok.toString()
                 } else {
                     item.blok?.toString() ?: "-"
                 }
@@ -502,7 +502,10 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                                     val tphEntries = item.tph1.split(";").filter { it.isNotEmpty() }
                                     val tphCount = tphEntries.size
 
+                                    AppLogger.d("tph Entries $tphEntries")
                                     // Process blok_jjg data to get janjang sum
+
+                                    AppLogger.d("itemBLOK ${item.blok_jjg}")
                                     val blokJjgList = item.blok_jjg
                                         .split(";")
                                         .mapNotNull {
@@ -525,9 +528,10 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                                         emptyList()
                                     }
 
+                                    AppLogger.d("blokData $blokData")
                                     // Extract blok_kode values for display
                                     val blokDisplay = if (blokData.isNotEmpty()) {
-                                        blokData.mapNotNull { it.blok_kode }.distinct()
+                                        blokData.mapNotNull { it.kode }.distinct()
                                             .joinToString(", ")
                                     } else {
                                         // Fallback to just listing the blok IDs if we can't get the names
@@ -566,7 +570,7 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
         recyclerView = findViewById(R.id.wbTableData)
         recyclerView.layoutManager = LinearLayoutManager(this)
         if (featureName == AppUtils.ListFeatureNames.RekapESPB){
-            val headers = listOf("WAKTU", "BLOK", "JANJANG", "TPH", "SCAN")
+            val headers = listOf("WAKTU", "BLOK", "KIRIM PABRIK", "TPH", "SCAN")
             updateTableHeaders(headers)
             adapterESPB = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
             recyclerView.adapter = adapterESPB

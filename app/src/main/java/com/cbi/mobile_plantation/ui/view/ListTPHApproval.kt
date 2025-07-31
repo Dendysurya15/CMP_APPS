@@ -475,7 +475,7 @@ class ListTPHApproval : AppCompatActivity() {
 
                                 totalSection.visibility = View.VISIBLE
                                 blokSection.visibility = View.VISIBLE
-                                titleTotalJjg.text = "Kirim Pabrik: "
+                                titleTotalJjg.text = if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) "Kirim Pabrik: " else "Jjg Bayar: "
                                 totalJjgTextView.text = totalJjg.toString()
                                 totalTphTextView.text = totalTphCount.toString()
                                 listBlokTextView.text = blokSummary
@@ -596,7 +596,10 @@ class ListTPHApproval : AppCompatActivity() {
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
 
+
+                    AppLogger.d(tph0String.toString())
                     val parts = entry.split(",")
+
                     if (parts.size != 4 && featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                         Log.e(
                             TAG,
@@ -676,8 +679,15 @@ class ListTPHApproval : AppCompatActivity() {
                             idtph = parts[2].toInt()         // TPH ID
                             dateIndex = parts[0]             // Date index
                             time = parts[1]                  // Time
-                            jjg =
-                                parts[4].toInt() + parts[5].toInt() + parts[6].toInt() + parts[7].toInt() + parts[8].toInt()
+                            val un = parts[4].toInt() // UN = buah mentah
+                            val ov = parts[5].toInt() // OV = overripe
+                            val em = parts[6].toInt() // EM = empty bunches
+                            val ab = parts[7].toInt() // AB = abnormal
+                            val ri = parts[8].toInt() // RI = ripe
+
+                            val tbsDibayar = ov + ab + ri
+
+                            jjg = tbsDibayar
 
                             // Get the full date from the date map
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"

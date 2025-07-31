@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
     private fun showMainContent() {
         if (!showingSplash) return
         showingSplash = false
-        startActivity(Intent(this, ListFollowUpInspeksi::class.java))
+        startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }
 

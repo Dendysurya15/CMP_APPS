@@ -5,7 +5,6 @@
     android:layout_height="wrap_content"
     android:background="@android:color/white">
 
-    <!-- Background logo with opacity -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -19,11 +18,10 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:alpha="0.95"
+            android:alpha="0.9"
             android:background="@android:color/white" />
     </FrameLayout>
 
-    <!-- Content container -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -32,21 +30,23 @@
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="280dp"
+            android:layout_height="330dp"
             android:layout_gravity="center"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="8dp"
+            android:layout_marginTop="10dp"
+            >
 
-            <!-- Regular ImageView for QR code -->
+
             <ImageView
                 android:id="@+id/qrCodeImageView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_gravity="center"
                 android:adjustViewBounds="true"
-                android:scaleType="fitCenter" />
+                android:layout_gravity="center"
+                android:scaleType="fitXY" />
+
         </FrameLayout>
 
-        <!-- User information section -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -58,15 +58,31 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/tvUserName"
                 android:textColor="@color/black"
-                android:textSize="@dimen/l"
+                android:textSize="@dimen/mLarge"
                 android:fontFamily="@font/manrope_bold"
                 android:layout_marginBottom="8dp" />
+
+            <include
+                android:id="@+id/infoUrutanKe"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                />
+
+            <include
+                android:id="@+id/infoJamTanggal"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                />
 
             <include
                 android:id="@+id/infoBlokList"
                 layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"/>
 
             <include
                 android:id="@+id/infoTotalJjg"
@@ -83,6 +99,12 @@
                 android:layout_marginTop="8dp" />
             <include
                 android:id="@+id/infoNoESPB"
+                layout="@layout/layout_wb_data_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+            <include
+                android:id="@+id/infoTransporter"
                 layout="@layout/layout_wb_data_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

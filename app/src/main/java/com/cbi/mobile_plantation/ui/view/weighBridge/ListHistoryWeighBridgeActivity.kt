@@ -28,6 +28,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.database.TPHDao
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
@@ -1218,28 +1220,86 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.joinToString(", ") ?: "-"
 
-                                    val blokData = withContext(Dispatchers.IO) {
-                                        try {
-                                            weightBridgeViewModel.getDataByIdInBlok(idBlokList)
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error fetching Blok Data: ${e.message}")
-                                            null
+                                    val tph1Entries = item.tph1?.split(";")
+                                    val tphSample = tph1Entries?.firstOrNull()
+
+                                    var tphDetails: TPHDao.TPHDetails? = null
+
+                                    val blokData = if (!tphSample.isNullOrEmpty()) {
+                                        val parts = tphSample.split(",")
+                                        if (parts.isNotEmpty()) {
+                                            val tphId = parts[0].toIntOrNull()
+                                            if (tphId != null) {
+                                                // Get TPH details first
+                                                tphDetails = withContext(Dispatchers.IO) {
+                                                    try {
+                                                        datasetViewModel.getTPHDetailsByID(tphId)
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error fetching TPH details: ${e.message}")
+                                                        null
+                                                    }
+                                                }
+
+                                                val est = tphDetails?.dept_abbr
+                                                val afd = tphDetails?.divisi_abbr
+
+                                                AppLogger.d("est $est")
+                                                AppLogger.d("afd $afd")
+                                                AppLogger.d("idBlokList $idBlokList")
+
+                                                // Fetch blocks using the dynamic method
+                                                val allBlokData = mutableListOf<BlokModel>()
+
+                                                for (blockId in idBlokList) {
+                                                    try {
+                                                        val result = withContext(Dispatchers.IO) {
+                                                            weightBridgeViewModel.repository.fetchBlokbyParams(blockId, est, afd)
+                                                        }
+
+                                                        result.getOrNull()?.let { blokModel ->
+                                                            allBlokData.add(blokModel)
+                                                            AppLogger.d("Added block $blockId: ${blokModel.kode}")
+                                                        } ?: AppLogger.w("Block $blockId returned null")
+
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error fetching block $blockId: ${e.message}")
+                                                    }
+                                                }
+
+                                                AppLogger.d("Successfully fetched ${allBlokData.size} blocks")
+                                                allBlokData
+                                            } else {
+                                                emptyList()
+                                            }
+                                        } else {
+                                            emptyList()
                                         }
+                                    } else {
+                                        emptyList()
                                     }
 
-                                    val deptAbbr = blokData?.firstOrNull()?.dept_abbr ?: "-"
-                                    val divisiAbbr = blokData?.firstOrNull()?.divisi_abbr ?: "-"
-                                    val deptPPRO = blokData?.firstOrNull()?.dept_ppro ?: 0
-                                    val divisiPPRO = blokData?.firstOrNull()?.dept_ppro ?: 0
+// Rest of your existing code for deptAbbr, divisiAbbr, etc.
+                                    val deptAbbr = blokData.firstOrNull()?.dept_abbr ?: "-"
+                                    val divisiAbbr = blokData.firstOrNull()?.divisi_abbr ?: "-"
+                                    val deptPPRO = blokData.firstOrNull()?.dept_ppro ?: 0
+                                    val divisiPPRO = blokData.firstOrNull()?.divisi_ppro ?: 0
 
-                                    val formattedBlokList =
-                                        blokJjgList.mapNotNull { (idBlok, totalJjg) ->
-                                            val blokKode =
-                                                blokData?.find { it.id == idBlok }?.nama
-                                            if (blokKode != null && totalJjg != null) {
-                                                "• $blokKode ($totalJjg jjg)"
-                                            } else null
-                                        }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+                                    AppLogger.d("blokData $blokData")
+
+// Updated formattedBlokList with the same dual search logic
+                                    val formattedBlokList = blokJjgList.mapNotNull { (blockKey, totalJjg) ->
+                                        // Try to find by id_ppro first, then by id
+                                        val blokModel = blokData.find { it.id_ppro == blockKey }
+                                            ?: blokData.find { it.id == blockKey }
+
+                                        if (blokModel != null && totalJjg != null) {
+                                            "• ${blokModel.kode} ($totalJjg jjg)"
+                                        } else {
+                                            AppLogger.w("Block $blockKey not found in blokData")
+                                            null
+                                        }
+                                    }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
+
 
                                     val millId = item.mill_id ?: 0
                                     val transporterId = item.transporter_id ?: 0

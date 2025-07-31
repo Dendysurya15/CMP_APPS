@@ -31,6 +31,9 @@ abstract class MillDao {
     @Query("SELECT COUNT(*) FROM mill")
     abstract suspend fun getCount(): Int
 
+    @Query("SELECT * FROM mill WHERE UPPER(:username) LIKE '%' || UPPER(abbr)")
+    abstract suspend fun getMillByAbbr(username: String): MillModel?
+
     @Query(
         """
     SELECT * FROM mill 

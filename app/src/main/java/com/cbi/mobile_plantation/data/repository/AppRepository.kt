@@ -8,11 +8,13 @@ import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
@@ -45,6 +47,7 @@ class AppRepository(context: Context) {
 
     private val panenDao = database.panenDao()
     private val espbDao = database.espbDao()
+    private val blokDao = database.blokDao()
     private val tphDao = database.tphDao()
     private val millDao = database.millDao()
     private val karyawanDao = database.karyawanDao()
@@ -196,8 +199,8 @@ class AppRepository(context: Context) {
                 val hektarPanenDao = database.hektarPanenDao()
 
                 val kemandoranId = tphDataList.first().kemandoran_id
-                val kemandoranNama = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt()).nama
-                val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt()).kode
+                val kemandoranNama = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.nama
+                val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.kode
 
                 // Step 1: First, save all PanenEntity records to the panen table
                 for (tphData in tphDataList) {
@@ -827,7 +830,7 @@ class AppRepository(context: Context) {
                                 status_espb = 0,
                                 status_restan = 0,
                                 scan_status = 1,
-//                                username = tphData.username
+                                username = tphData.username
                             )
                         )
 
@@ -893,11 +896,12 @@ class AppRepository(context: Context) {
     suspend fun loadESPB(
         archive: Int,
         statusEspb: Int,
+        statusTransferRestan:Int,
         scanStatus: Int,
         date: String? = null
     ): List<PanenEntityWithRelations> {
         return try {
-            panenDao.loadESPB(archive, statusEspb, scanStatus, date)
+            panenDao.loadESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             emptyList()  // Return empty list if there's an error
@@ -907,11 +911,12 @@ class AppRepository(context: Context) {
     suspend fun countESPB(
         archive: Int,
         statusEspb: Int,
+        statusTransferRestan:Int,
         scanStatus: Int,
         date: String? = null
     ): Int {
         return try {
-            panenDao.countESPB(archive, statusEspb, scanStatus, date)
+            panenDao.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
             0  // Return 0 if there's an error
@@ -1098,6 +1103,10 @@ class AppRepository(context: Context) {
             }
         }
 
+    suspend fun getMillByAbbr(abbr: String): MillModel? {
+        return millDao.getMillByAbbr(abbr)
+    }
+
     suspend fun getAllTPHinWeek(): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
@@ -1159,6 +1168,10 @@ class AppRepository(context: Context) {
 
     suspend fun archivePanenById(id: Int) = withContext(Dispatchers.IO) {
         panenDao.archiveByID(id)
+    }
+
+    suspend fun changeStatusTransferRestan(id: Int) = withContext(Dispatchers.IO) {
+        panenDao.changeStatusTransferRestan(id)
     }
 
     suspend fun archiveMpanenByID(id: Int) = withContext(Dispatchers.IO) {
@@ -1268,8 +1281,8 @@ class AppRepository(context: Context) {
 
             // Group by block and sum janjang values
             tphModels
-                .filter { it.id != null && it.blok != null }
-                .groupBy { it.blok!! }
+                .filter { it.id != null && it.blok_ppro != null }
+                .groupBy { it.blok_ppro!! }
                 .mapValues { (_, tphsInBlock) ->
                     // Sum janjang values for each TPH in this block
                     tphsInBlock
@@ -1366,8 +1379,8 @@ class AppRepository(context: Context) {
         }
     }
 
-    fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
-        return tphDao.getBlokById(listBlokId)
+    fun getBlokById(listBlokId: List<Int>): List<BlokModel> {
+        return blokDao.getDataByIdInBlok(listBlokId)
     }
 
     suspend fun getTransporterNameById(id: Int): String? {

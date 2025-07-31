@@ -122,7 +122,6 @@
         android:layout_marginTop="15dp"
         android:fontFamily="@font/manrope_extrabold"
         android:gravity="center"
-        android:text="Hasil Generate QR TPH"
         android:textSize="25sp"
 
         android:textColor="@color/black"
@@ -172,7 +171,7 @@
         android:fontFamily="@font/manrope_medium"
         android:gravity="left"
         android:textColor="@color/black"
-        android:text="Jika sudah melakukan scan QR harap konfirmasi dengan tombol berikut!"
+        android:text="Konfirmasi dengan tombol berikut!"
         android:textSize="17sp"
         android:textStyle="italic"
         android:visibility="gone"
@@ -182,10 +181,12 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/descAfterScanQR">
-
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPreviewFullQR"
