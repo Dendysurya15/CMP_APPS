@@ -124,6 +124,20 @@ abstract class TPHDao {
         idDivisi: Int,
     ): List<TPHNewModel>
 
+    @Query(
+        """
+SELECT * FROM tph 
+WHERE dept = :idEstate 
+AND divisi = :idDivisi
+AND id IN (:tphIds)
+"""
+    )
+    abstract fun getLatLonByDivisiAndTPHIds(
+        idEstate: Int,
+        idDivisi: Int,
+        tphIds: List<Int>
+    ): List<TPHNewModel>
+
     // If you need the values separately, keep these queries as well
     @Query("SELECT nomor FROM tph WHERE id = :id")
     abstract suspend fun getNomorTPHbyId(id: Int): String?

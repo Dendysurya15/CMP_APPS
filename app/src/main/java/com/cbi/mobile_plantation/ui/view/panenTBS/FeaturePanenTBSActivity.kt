@@ -349,7 +349,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
         radiusMinimum = prefManager!!.radiusMinimum
-//        radiusMinimum = 100F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
         initViewModel()
@@ -1972,7 +1971,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-            isTriggeredBtnScanned = true
+
             if (currentAccuracy > boundaryAccuracy) {
                 AlertDialogUtility.withTwoActions(
                     this@FeaturePanenTBSActivity, // Replace with your actual Activity name
@@ -1982,6 +1981,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     "warning.json",
                     ContextCompat.getColor(this@FeaturePanenTBSActivity, R.color.greendarkerbutton),
                     function = {
+                        isTriggeredBtnScanned = true
                         selectedTPHIdByScan = null
                         selectedTPHValue = null
                         progressBarScanTPHManual.visibility = View.VISIBLE
@@ -1993,6 +1993,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
                 )
             } else {
+                isTriggeredBtnScanned = true
                 // Reset the selectedTPHIdByScan when manually refreshing
                 selectedTPHIdByScan = null
                 selectedTPHValue = null
@@ -2733,7 +2734,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 descScannedTPHInsideRadius.visibility = View.VISIBLE
                 emptyScannedTPHInsideRadius.visibility = View.GONE
                 tphScannedResultRecyclerView.adapter =
-                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal)
+                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal, true)
 
 
                 val itemHeight = 50

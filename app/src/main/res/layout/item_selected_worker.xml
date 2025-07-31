@@ -10,6 +10,7 @@
     app:strokeColor="@color/strokeSelectWorkerGreen">
 
     <LinearLayout
+        android:id="@+id/worker_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"

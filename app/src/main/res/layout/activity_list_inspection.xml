@@ -16,103 +16,234 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+<!--    <LinearLayout-->
+<!--        android:id="@+id/llOptionCardListInspect"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_marginHorizontal="10dp"-->
+<!--        android:layout_marginVertical="5dp"-->
+<!--        android:orientation="horizontal"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toBottomOf="@+id/headerListInspect">-->
+
+<!--        <com.google.android.material.card.MaterialCardView-->
+<!--            android:id="@+id/mcvSavedListInspect"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="match_parent"-->
+<!--            android:foreground="?attr/selectableItemBackground"-->
+<!--            app:cardBackgroundColor="@color/bgSelectWorkerGreen"-->
+<!--            app:cardCornerRadius="20dp"-->
+<!--            app:cardElevation="0dp"-->
+<!--            app:strokeColor="@color/strokeSelectWorkerGreen">-->
+
+<!--            <LinearLayout-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:layout_marginVertical="10dp"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:paddingHorizontal="10dp">-->
+
+<!--                <TextView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_gravity="center"-->
+<!--                    android:fontFamily="@font/manrope_semibold"-->
+<!--                    android:text="Tersimpan"-->
+<!--                    android:textColor="@color/black"-->
+<!--                    android:textSize="16sp"-->
+<!--                    android:textStyle="bold" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvTotalSavedListInspect"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_gravity="center"-->
+<!--                    android:fontFamily="@font/manrope_semibold"-->
+<!--                    android:paddingHorizontal="10dp"-->
+<!--                    android:text="0"-->
+<!--                    android:textColor="@color/black"-->
+<!--                    android:textSize="16sp"-->
+<!--                    android:textStyle="bold" />-->
+<!--            </LinearLayout>-->
+
+<!--        </com.google.android.material.card.MaterialCardView>-->
+
+<!--        <com.google.android.material.card.MaterialCardView-->
+<!--            android:id="@+id/mcvUploadListInspect"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="match_parent"-->
+<!--            android:layout_marginStart="5dp"-->
+<!--            android:foreground="?attr/selectableItemBackground"-->
+<!--            app:cardBackgroundColor="@color/graylight"-->
+<!--            app:cardCornerRadius="20dp"-->
+<!--            app:cardElevation="0dp"-->
+<!--            app:strokeColor="@color/graylightDarker">-->
+
+<!--            <LinearLayout-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:layout_marginVertical="10dp"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:paddingHorizontal="10dp">-->
+
+<!--                <TextView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_gravity="center"-->
+<!--                    android:fontFamily="@font/manrope_semibold"-->
+<!--                    android:text="Sudah Upload"-->
+<!--                    android:textColor="@color/black"-->
+<!--                    android:textSize="16sp"-->
+<!--                    android:textStyle="bold" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvTotalUploadListInspect"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_gravity="center"-->
+<!--                    android:fontFamily="@font/manrope_semibold"-->
+<!--                    android:paddingHorizontal="10dp"-->
+<!--                    android:text="0"-->
+<!--                    android:textColor="@color/black"-->
+<!--                    android:textSize="16sp"-->
+<!--                    android:textStyle="bold" />-->
+
+<!--            </LinearLayout>-->
+
+<!--        </com.google.android.material.card.MaterialCardView>-->
+
+<!--    </LinearLayout>-->
+
+
     <LinearLayout
-        android:id="@+id/llOptionCardListInspect"
+        android:id="@+id/calendarContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="10dp"
-        android:layout_marginVertical="5dp"
+        android:layout_marginTop="10dp"
         android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/headerListInspect">
+        android:visibility="visible"
 
+        app:layout_constraintTop_toBottomOf="@id/headerListInspect"
+        tools:ignore="MissingConstraints">
+
+        <!-- Material Card with Button -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/mcvSavedListInspect"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:foreground="?attr/selectableItemBackground"
-            app:cardBackgroundColor="@color/bgSelectWorkerGreen"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/strokeSelectWorkerGreen">
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="8dp"
+            app:rippleColor="@color/ripple_material_light">
 
-            <LinearLayout
+            <Button
+                android:id="@+id/calendarPicker"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginVertical="10dp"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:text="Tersimpan"
-                    android:textColor="@color/black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvTotalSavedListInspect"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:paddingHorizontal="10dp"
-                    android:text="0"
-                    android:textColor="@color/black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginVertical="5dp"
+                android:backgroundTint="@color/white"
+                android:drawableEnd="@drawable/baseline_keyboard_arrow_down_24"
+                android:onClick="openDatePicker"
+                android:textColor="@color/black"
+                tools:ignore="MissingConstraints" />
         </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/mcvUploadListInspect"
+        <!-- CheckBox with Caption -->
+        <CheckBox
+            android:id="@+id/calendarCheckbox"
+            style="@style/defaultBoxColor"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp" />
+
+        <TextView
+            android:id="@+id/calendarCheckboxCaption"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:layout_marginStart="5dp"
-            android:foreground="?attr/selectableItemBackground"
-            app:cardBackgroundColor="@color/graylight"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/graylightDarker">
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="center_vertical"
+            android:text="Filter Semua Tanggal"
+            android:textColor="@color/black"
+            android:textSize="@dimen/m" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/filterDateContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/calendarContainer">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/resultFilterDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            app:cardBackgroundColor="@color/bgLightYellow"
+            app:cardCornerRadius="8dp"
+            app:strokeColor="@color/borderYellow"
+            app:strokeWidth="1dp"
+            tools:ignore="MissingConstraints">
 
             <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginVertical="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp">
 
-                <TextView
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top"
+                        android:layout_marginEnd="5dp"
+                        android:fontFamily="@font/manrope_bold"
+                        android:text="Filter aktif: "
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/name_filter_date"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top"
+                        android:layout_marginEnd="8dp"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:maxLines="2"
+                        android:text="23 Mar 2025 "
+                        android:textColor="@color/black"
+                        android:textSize="16sp"
+                        android:textStyle="italic" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/remove_filter_date"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:text="Sudah Upload"
-                    android:textColor="@color/black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvTotalUploadListInspect"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:paddingHorizontal="10dp"
-                    android:text="0"
-                    android:textColor="@color/black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:background="@drawable/rounded_radius_background"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="4dp"
+                    android:src="@drawable/baseline_close_24"
+                    android:tint="@color/colorRedDark"
+                    tools:ignore="UseAppTint" />
 
             </LinearLayout>
-
         </com.google.android.material.card.MaterialCardView>
-
     </LinearLayout>
 
     <LinearLayout
@@ -122,7 +253,7 @@
         android:layout_marginTop="10dp"
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/llOptionCardListInspect">
+        app:layout_constraintTop_toBottomOf="@id/filterDateContainer">
 
         <!-- Fixed Header -->
         <include

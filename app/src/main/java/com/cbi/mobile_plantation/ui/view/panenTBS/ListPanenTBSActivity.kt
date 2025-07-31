@@ -629,7 +629,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 panenViewModel.loadTPHNonESPB(0, 0, 0,1, AppUtils.currentDate)
                 findViewById<HorizontalScrollView>(R.id.horizontalCardFeature).visibility =
                     View.GONE
-            } else if (featureName == "Rekap panen dan restan") {
+            }
+            else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
@@ -643,7 +644,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                 headerCheckBoxPanen.visibility = View.GONE
-            } else if (featureName == "Detail eSPB") {
+            }
+            else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
@@ -859,7 +861,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 btnTambahHapusTPHESPB.visibility = View.VISIBLE
 
 
-            } else {
+
+            }
+            else {
                 counterPerPemanen.visibility = View.GONE
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
@@ -2402,7 +2406,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val firstHalf = base64Encoded.substring(0, midPoint)
                 val secondHalf = base64Encoded.substring(midPoint)
 
-                val finalResult = firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
+                val finalResult = firstHalf + AppUtils.half_json_encrypted + secondHalf
                 val finalSize = finalResult.length
                 AppLogger.d("Final QR data size: $finalSize characters")
 
@@ -2842,6 +2846,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     lifecycleScope.launch {
 
+
                         if (panenList.isNotEmpty()) {
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
@@ -2895,7 +2900,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "tph_id" to (panenWithRelations.panen.tph_id as Any),
                                     "date_created" to (panenWithRelations.panen.date_created as Any),
                                     "blok_name" to (panenWithRelations.tph?.blok_kode ?: "Unknown"),
-                                    "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                    "nomor" to (panenWithRelations.tph.nomor as Any),
                                     "created_by" to (panenWithRelations.panen.created_by as Any),
                                     "jjg_json" to (panenWithRelations.panen.jjg_json as Any),
                                     "foto" to (panenWithRelations.panen.foto as Any),
@@ -3045,7 +3050,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "date_created" to (panenWithRelations.panen.date_created as Any),
                                             "blok_name" to (panenWithRelations.tph?.blok_kode
                                                 ?: "Unknown"),
-                                            "nomor" to (panenWithRelations.tph!!.nomor as Any),
+                                            "nomor" to (panenWithRelations.tph.nomor as Any),
                                             "created_by" to (panenWithRelations.panen.created_by as Any),
                                             "karyawan_id" to (karyawanId as Any),
                                             "kemandoran_id" to (kemandoranId as Any),
@@ -4065,6 +4070,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     private fun takeQRCodeScreenshot(view: View) {
+
         lifecycleScope.launch {
             try {
                 val screenshotLayout: View =

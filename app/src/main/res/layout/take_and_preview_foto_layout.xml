@@ -68,6 +68,7 @@
         android:foreground="?attr/selectableItemBackground"
         android:hint="Tambahkan komentar disini!"
         android:inputType="textMultiLine"
+        android:textColorHint="@color/graytextdark"
         android:maxLines="10"
         android:minLines="1"
         android:padding="16dp"
