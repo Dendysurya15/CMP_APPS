@@ -1214,8 +1214,8 @@ class AppRepository(context: Context) {
         }
     }
 
-    fun getBlokById(listBlokId: List<Int>): List<TPHNewModel> {
-        return tphDao.getBlokById(listBlokId)
+    fun getBlokById(listBlokId: List<Int>): List<BlokModel> {
+        return blokDao.getDataByIdInBlok(listBlokId)
     }
 
     suspend fun getTransporterNameById(id: Int): String? {
