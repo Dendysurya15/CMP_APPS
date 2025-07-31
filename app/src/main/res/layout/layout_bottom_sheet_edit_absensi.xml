@@ -7,58 +7,97 @@
     android:background="@drawable/bottom_sheet_background"
     android:padding="16dp">
 
-    <!-- Title section -->
     <TextView
-        android:id="@+id/titleDialogDetailTable"
+        android:id="@+id/titleDialogEditAbsensi"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
+        android:text="Edit Kehadiran Karyawan"
         android:textColor="@color/black"
         android:textSize="@dimen/l"
         android:textStyle="bold"
+        android:gravity="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <View
-        android:id="@+id/dashedLine"
+        android:id="@+id/dashedLineEditAbsensi"
         android:layout_width="match_parent"
         android:layout_height="10dp"
         android:background="@drawable/dashed_straight_line"
         android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/titleDialogDetailTable" />
+        app:layout_constraintTop_toBottomOf="@+id/titleDialogEditAbsensi" />
+
+    <!-- STICKY TABLE HEADER (outside scroll view) -->
+    <LinearLayout
+        android:id="@+id/stickyTableHeaderEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/greenDarker"
+        android:padding="8dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/dashedLineEditAbsensi">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.5"
+            android:text="Nama Karyawan"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Status"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textSize="12sp" />
+
+    </LinearLayout>
 
     <!-- Scrollable content area -->
     <androidx.core.widget.NestedScrollView
-        android:id="@+id/scrollContent"
+        android:id="@+id/scrollContentEdit"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="0dp"
         android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
+        app:layout_constraintBottom_toTopOf="@+id/buttonContainerEdit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/dashedLine">
+        app:layout_constraintTop_toBottomOf="@+id/stickyTableHeaderEdit">
 
         <LinearLayout
-            android:id="@+id/contentContainer"
+            android:id="@+id/contentContainerEdit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <include
-                android:id="@+id/layoutPemanen"
-                layout="@layout/pertanyaan_spinner_layout" />
-
+            <!-- RecyclerView for Employee attendance list -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewEditAbsensi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:scrollbars="vertical" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
-        android:id="@+id/buttonContainer"
+        android:id="@+id/buttonContainerEdit"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -69,21 +108,21 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <Button
-            android:id="@+id/btnCancel"
+            android:id="@+id/btnCancelEditAbsensi"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:backgroundTint="@color/grayDefault"
+            android:backgroundTint="@color/graytextdark"
             android:fontFamily="@font/manrope_bold"
-            android:text="Tutup"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:text="Batal"
+            android:textColor="@color/white"
+            android:textSize="@dimen/m" />
 
         <Button
-            android:id="@+id/btnUpdatePemanen"
+            android:id="@+id/btnUpdateAbsensi"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"

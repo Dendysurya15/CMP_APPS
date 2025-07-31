@@ -32,6 +32,7 @@ import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.repository.DataPanenInspectionRepository
 import com.cbi.mobile_plantation.data.repository.RestanRepository
+import com.cbi.mobile_plantation.data.repository.SyncDataUserRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -65,6 +66,7 @@ import java.util.Locale
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
     private val restanRepository: RestanRepository = RestanRepository(application)
+    private val syncDataUserRepository: SyncDataUserRepository = SyncDataUserRepository(application)
     private val dataPanenInspectionRepository: DataPanenInspectionRepository =
         DataPanenInspectionRepository(application)
     private val prefManager = PrefManager(application)
@@ -1038,7 +1040,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         response =
                             restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
+                        response = syncDataUserRepository.getDataUser(request.idUser?: 0)
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
                             request.afdeling!!
@@ -2044,6 +2049,162 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppLogger.e("Error processing restan data: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error processing restan data: ${e.message}"
+                }
+            }
+
+            AppUtils.DatasetNames.sinkronisasiDataUser -> {
+                try {
+                    // Parsing - update to 60%
+                    progressMap[itemId] = 60
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    val jsonObject = JSONObject(responseBodyString)
+                    AppLogger.d(jsonObject.toString())
+
+                    // Check if response is successful
+                    if (jsonObject.optBoolean("success", false)) {
+                        val dataArray = jsonObject.optJSONArray("data")
+
+                        if (dataArray != null && dataArray.length() > 0) {
+                            // Update to 75% before processing data
+                            progressMap[itemId] = 75
+                            _itemProgressMap.postValue(progressMap.toMap())
+
+                            val userData = dataArray.getJSONObject(0) // Get first user data
+
+                            // Extract user basic info
+                            val username = userData.optString("username", "")
+                            val nama = userData.optString("nama", "")
+                            val jabatan = userData.optString("jabatan", "")
+                            // Note: kemandoran fields are extracted but not saved to preferences
+
+                            AppLogger.d("laskjdlfksdf")
+                            // Extract kemandoranData for kode (only if exists)
+                            val kemandoranDataObject = userData.optJSONObject("kemandoranData")
+                            var kemandoranKode = ""
+                            if (kemandoranDataObject != null) {
+                                kemandoranKode = kemandoranDataObject.optString("kode", "")
+                            }
+
+                            // Extract userOrg data
+                            val userOrgArray = userData.optJSONArray("userOrg")
+                            var dept = ""
+                            var divisi = ""
+                            if (userOrgArray != null && userOrgArray.length() > 0) {
+                                val userOrg = userOrgArray.getJSONObject(0)
+                                dept = userOrg.optString("dept", "")
+                                divisi = userOrg.optString("divisi", "")
+                            }
+
+                            // Extract Depts data
+                            val deptsArray = userData.optJSONArray("Depts")
+                            var regional = ""
+                            var wilayah = 0
+                            var company = 0
+                            var companyAbbr = ""
+                            var companyNama = ""
+                            var estateAbbr = ""
+                            var estateNama = ""
+
+                            if (deptsArray != null && deptsArray.length() > 0) {
+                                val deptData = deptsArray.getJSONObject(0)
+                                regional = deptData.optString("regional", "")
+                                wilayah = deptData.optInt("wilayah", 0)
+                                company = deptData.optInt("company", 0)
+                                companyAbbr = deptData.optString("company_abbr", "")
+                                companyNama = deptData.optString("company_nama", "")
+                                estateAbbr = deptData.optString("abbr", "")
+                                estateNama = deptData.optString("nama", "")
+                            }
+
+                            // Update to 85% before saving to preferences
+                            progressMap[itemId] = 85
+                            _itemProgressMap.postValue(progressMap.toMap())
+
+                            // Extract kemandoran data (check if they exist)
+                            val kemandoran = userData.optInt("kemandoran", 0)
+                            val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
+                            val kemandoranNama = userData.optString("kemandoran_nama", "")
+
+                            try {
+                                prefManager.apply {
+                                    nameUserLogin = nama
+                                    jabatanUserLogin = jabatan
+                                    estateUserLogin = estateAbbr
+                                    estateUserLengkapLogin = estateNama
+                                    estateIdUserLogin = dept
+                                    regionalIdUserLogin = regional
+                                    companyIdUserLogin = company.toString()
+                                    companyAbbrUserLogin = companyAbbr
+                                    companyNamaUserLogin = companyNama
+                                    afdelingIdUserLogin = divisi
+
+                                    // Only save kemandoran data if kemandoran_ppro exists and is valid
+                                    if (kemandoranPpro > 0) {
+                                        kemandoranPPROUserLogin = kemandoranPpro.toString()
+                                        kemandoranUserLogin = kemandoran.toString()
+                                        kemandoranNamaUserLogin = kemandoranNama
+                                        kemandoranKodeUserLogin = kemandoranKode
+                                        AppLogger.d("Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")
+                                    } else {
+                                        // Clear kemandoran preferences if no valid data
+                                        kemandoranPPROUserLogin = ""
+                                        kemandoranUserLogin = ""
+                                        kemandoranNamaUserLogin = ""
+                                        kemandoranKodeUserLogin = ""
+                                        AppLogger.d("Cleared kemandoran data - no valid kemandoran_ppro found")
+                                    }
+                                }
+
+                                progressMap[itemId] = 95
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                AppLogger.d("Successfully updated user data in preferences")
+
+                                // Final update - 100%
+                                progressMap[itemId] = 100
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                statusMap[itemId] = if (isDownloadDataset) {
+                                    AppUtils.UploadStatusUtils.DOWNLOADED
+                                } else {
+                                    AppUtils.UploadStatusUtils.UPDATED
+                                }
+
+                            } catch (prefException: Exception) {
+                                progressMap[itemId] = 100
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                                AppLogger.e("Error updating preferences: ${prefException.message}")
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] = "Error updating preferences: ${prefException.message}"
+                            }
+
+                        } else {
+                            progressMap[itemId] = 100
+                            _itemProgressMap.postValue(progressMap.toMap())
+
+                            AppLogger.e("No user data found in response")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "No user data found in response"
+                        }
+                    } else {
+                        progressMap[itemId] = 100
+                        _itemProgressMap.postValue(progressMap.toMap())
+
+                        val message = jsonObject.optString("message", "Unknown error")
+                        AppLogger.e("API returned error: $message")
+                        statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                        errorMap[itemId] = "API error: $message"
+                    }
+
+                } catch (e: Exception) {
+                    progressMap[itemId] = 100  // Still show 100% even on error
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    AppLogger.e("Error processing user data: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error processing user data: ${e.message}"
                 }
             }
 

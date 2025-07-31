@@ -169,17 +169,32 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
+
+
         <Button
             android:id="@+id/btnCloseDetailTableAbsensi"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"
             android:text="Tutup"
+            android:layout_marginEnd="8dp"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="@dimen/m" />
+
+        <Button
+            android:id="@+id/btnEditAbsensi"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/bluedarklight"
+            android:fontFamily="@font/manrope_bold"
+            android:text="Edit Absensi"
+            android:textColor="#FFFFFF"
+            android:visibility="visible"
+            android:textSize="@dimen/m" />
 
     </LinearLayout>
 

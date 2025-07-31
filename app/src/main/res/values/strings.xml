@@ -22,6 +22,7 @@
     <string name="al_confirm_asistensi">Menu ini digunakan untuk input panen asistensi ke estate lain, Pastikan pilihan anda benar!</string>
     <string name="al_confirm_download_data_panen_case_inspection">Apakah Anda yakin untuk mengunduh data panen H+1 hingga H+7?</string>
     <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
+    <string name="al_confirm_download_tph_asistensi">Apakah anda yakin untuk mengunduh data TPH Asistensi dari estate tersebut?</string>
     <string name="al_confirm_sinkronisasi_master_dataset">Apakah anda yakin untuk melakukan sinkronisasi master dataset?</string>
     <string name="al_confirm_generate_qr">Apakah anda yakin untuk Generate data menjadi QR?</string>
     <string name="al_confirm_logout">Apakah Anda yakin ingin logout? Semua data akan dihapus secara permanen.</string>
@@ -62,8 +63,8 @@
 
     <string name="generate_qr">Generate QR Panen TPH</string>
     <string name="dial_unselect_item">Batalkan Pilihan</string>
-    <string name="dial_upload_item">Upload Item Terpilih</string>
-    <string name="dial_delete_item">Hapus Item Pilihan</string>
+    <string name="dial_upload_item">Upload Item</string>
+    <string name="dial_delete_item">Hapus Item</string>
 
     <string name="al_delete">Hapus</string>
     <string name="al_make_sure_delete">Apakah anda yakin untuk menghapus</string>
