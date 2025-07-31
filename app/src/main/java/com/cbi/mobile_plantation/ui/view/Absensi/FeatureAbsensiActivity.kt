@@ -273,32 +273,46 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                     // Group by kemandoranId first
                                     val groupedByKemandoran = absensiList.groupBy { it.kemandoranId }
 
-                                    // Create JSON objects for each type of data
-                                    val karyawanMskIdJson = JSONObject()
-                                    val karyawanTdkMskIdJson = JSONObject()
-                                    val karyawanNikMasukJson = JSONObject()
-                                    val karyawanNikTidakMasukJson = JSONObject()
-                                    val karyawanMskNamaJson = JSONObject()
-                                    val karyawanTdkMskNamaJson = JSONObject()
+                                    val hadirIdMap = mutableMapOf<String, List<String>>()
+                                    val mangkirIdMap = mutableMapOf<String, List<String>>()
+                                    val hadirNikMap = mutableMapOf<String, List<String>>()
+                                    val mangkirNikMap = mutableMapOf<String, List<String>>()
+                                    val hadirNamaMap = mutableMapOf<String, List<String>>()
+                                    val mangkirNamaMap = mutableMapOf<String, List<String>>()
 
                                     // Process each kemandoran group
                                     groupedByKemandoran.forEach { (kemandoranId, karyawanList) ->
                                         val (karyawanMasuk, karyawanTidakMasuk) = karyawanList.partition { it.isChecked }
 
-                                        // Create data for this kemandoran
                                         val kemandoranIdStr = kemandoranId.toString()
 
-                                        karyawanMskIdJson.put(kemandoranIdStr, karyawanMasuk.joinToString(",") { it.id.toString() })
-                                        karyawanTdkMskIdJson.put(kemandoranIdStr, karyawanTidakMasuk.joinToString(",") { it.id.toString() })
-                                        karyawanNikMasukJson.put(kemandoranIdStr, karyawanMasuk.joinToString(",") { it.nik })
-                                        karyawanNikTidakMasukJson.put(kemandoranIdStr, karyawanTidakMasuk.joinToString(",") { it.nik })
-                                        karyawanMskNamaJson.put(kemandoranIdStr, karyawanMasuk.joinToString(",") { it.namaOnly })
-                                        karyawanTdkMskNamaJson.put(kemandoranIdStr, karyawanTidakMasuk.joinToString(",") { it.namaOnly })
+                                        // Store hadir (present) employees
+                                        if (karyawanMasuk.isNotEmpty()) {
+                                            hadirIdMap[kemandoranIdStr] = karyawanMasuk.map { it.id.toString() }
+                                            hadirNikMap[kemandoranIdStr] = karyawanMasuk.map { it.nik }
+                                            hadirNamaMap[kemandoranIdStr] = karyawanMasuk.map { it.namaOnly }
+                                        }
+
+                                        // Store mangkir (absent) employees
+                                        if (karyawanTidakMasuk.isNotEmpty()) {
+                                            mangkirIdMap[kemandoranIdStr] = karyawanTidakMasuk.map { it.id.toString() }
+                                            mangkirNikMap[kemandoranIdStr] = karyawanTidakMasuk.map { it.nik }
+                                            mangkirNamaMap[kemandoranIdStr] = karyawanTidakMasuk.map { it.namaOnly }
+                                        }
                                     }
+
+                                    // Create JSON for MSK (Present) - using "h" key for hadir
+                                    val karyawanMskIdJson = createAttendanceJson(hadirEmployees = hadirIdMap)
+                                    val karyawanMskNikJson = createAttendanceJson(hadirEmployees = hadirNikMap)
+                                    val karyawanMskNamaJson = createAttendanceJson(hadirEmployees = hadirNamaMap)
+
+                                    // Create JSON for TDK_MSK (Absent) - using "m" key for mangkir
+                                    val karyawanTdkMskIdJson = createAttendanceJson(mangkirEmployees = mangkirIdMap)
+                                    val karyawanTdkMskNikJson = createAttendanceJson(mangkirEmployees = mangkirNikMap)
+                                    val karyawanTdkMskNamaJson = createAttendanceJson(mangkirEmployees = mangkirNamaMap)
 
                                     val dateAbsen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                                    // For duplicate check, you might want to check all kemandoran or specific ones
                                     // Here's an example checking all present employees across all kemandoran
                                     val allKaryawanMasuk = absensiList.filter { it.isChecked }
                                     val allKaryawanMskIdList = allKaryawanMasuk.map { it.id.toString() }
@@ -329,12 +343,12 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         dept_abbr = prefManager!!.estateUserLogin!!,
                                         divisi = selectedDivisiValue.toString(),
                                         divisi_abbr = selectedAfdeling,
-                                        karyawan_msk_id = karyawanMskIdJson.toString(),      // JSON string
-                                        karyawan_tdk_msk_id = karyawanTdkMskIdJson.toString(), // JSON string
-                                        karyawan_msk_nik = karyawanNikMasukJson.toString(),    // JSON string
-                                        karyawan_tdk_msk_nik = karyawanNikTidakMasukJson.toString(), // JSON string
-                                        karyawan_msk_nama = karyawanMskNamaJson.toString(),    // JSON string
-                                        karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(), // JSON string
+                                        karyawan_msk_id = karyawanMskIdJson.toString(),      // JSON with "h" key
+                                        karyawan_tdk_msk_id = karyawanTdkMskIdJson.toString(), // JSON with "m" key
+                                        karyawan_msk_nik = karyawanMskNikJson.toString(),    // JSON with "h" key
+                                        karyawan_tdk_msk_nik = karyawanTdkMskNikJson.toString(), // JSON with "m" key
+                                        karyawan_msk_nama = karyawanMskNamaJson.toString(),    // JSON with "h" key
+                                        karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(), // JSON with "m" key
                                         foto = photoFilesString,
                                         komentar = komentarFotoString ?: "",
                                         asistensi = asistensi ?: 0,
@@ -406,6 +420,64 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
             }
         }
     }
+
+    fun createAttendanceJson(
+        hadirEmployees: Map<String, List<String>> = emptyMap(),
+        mangkirEmployees: Map<String, List<String>> = emptyMap(),
+        sakitEmployees: Map<String, List<String>> = emptyMap(),
+        izinEmployees: Map<String, List<String>> = emptyMap(),
+        cutiEmployees: Map<String, List<String>> = emptyMap()
+    ): JSONObject {
+        val attendanceJson = JSONObject()
+
+        // Add Hadir (h)
+        if (hadirEmployees.isNotEmpty()) {
+            val hadirJson = JSONObject()
+            hadirEmployees.forEach { (kemandoran, employeeList) ->
+                hadirJson.put(kemandoran, employeeList.joinToString(","))
+            }
+            attendanceJson.put("h", hadirJson)
+        }
+
+        // Add Mangkir (m)
+        if (mangkirEmployees.isNotEmpty()) {
+            val mangkirJson = JSONObject()
+            mangkirEmployees.forEach { (kemandoran, employeeList) ->
+                mangkirJson.put(kemandoran, employeeList.joinToString(","))
+            }
+            attendanceJson.put("m", mangkirJson)
+        }
+
+        // Add Sakit (s)
+        if (sakitEmployees.isNotEmpty()) {
+            val sakitJson = JSONObject()
+            sakitEmployees.forEach { (kemandoran, employeeList) ->
+                sakitJson.put(kemandoran, employeeList.joinToString(","))
+            }
+            attendanceJson.put("s", sakitJson)
+        }
+
+        // Add Izin (i)
+        if (izinEmployees.isNotEmpty()) {
+            val izinJson = JSONObject()
+            izinEmployees.forEach { (kemandoran, employeeList) ->
+                izinJson.put(kemandoran, employeeList.joinToString(","))
+            }
+            attendanceJson.put("i", izinJson)
+        }
+
+        // Add Cuti (c)
+        if (cutiEmployees.isNotEmpty()) {
+            val cutiJson = JSONObject()
+            cutiEmployees.forEach { (kemandoran, employeeList) ->
+                cutiJson.put(kemandoran, employeeList.joinToString(","))
+            }
+            attendanceJson.put("c", cutiJson)
+        }
+
+        return attendanceJson
+    }
+
 
     private fun initUI() {
         backButton = findViewById(R.id.btn_back)

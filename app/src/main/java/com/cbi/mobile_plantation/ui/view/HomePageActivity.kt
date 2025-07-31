@@ -3088,89 +3088,68 @@ class HomePageActivity : AppCompatActivity() {
                                         "created_date" to (absensi.date_absen ?: "")
                                     )
 
-                                    val detailRecords =
-                                        mutableListOf<Map<String, Any>>()
+                                    // Mapping status code to integer value
+                                    val statusMap = mapOf(
+                                        "h" to 1, // Hadir
+                                        "m" to 0, // Mangkir
+                                        "s" to 2, // Sakit
+                                        "i" to 3, // Izin
+                                        "c" to 4  // Cuti
+                                    )
 
-// Extract employees for this specific kemandoran ID from JSON
-                                    val presentEmployeeNiks =
-                                        extractEmployeesFromJson(
-                                            absensi.karyawan_msk_nik,
-                                            singleKemandoranId
-                                        )
-                                    val presentEmployeeIds =
-                                        extractEmployeesFromJson(
-                                            absensi.karyawan_msk_id,
-                                            singleKemandoranId
-                                        )
-                                    val presentEmployeeNames =
-                                        extractEmployeesFromJson(
-                                            absensi.karyawan_msk_nama,
-                                            singleKemandoranId
-                                        )
+                                    // Extract categorized data by status
+                                    val nikByCategory = extractEmployeesByCategory(absensi.karyawan_msk_nik, singleKemandoranId)
+                                    val idByCategory = extractEmployeesByCategory(absensi.karyawan_msk_id, singleKemandoranId)
+                                    val nameByCategory = extractEmployeesByCategory(absensi.karyawan_msk_nama, singleKemandoranId)
 
-                                    val absentEmployeeNiks =
-                                        extractEmployeesFromJson(
-                                            absensi.karyawan_tdk_msk_nik,
-                                            singleKemandoranId
-                                        )
-                                    val absentEmployeeIds =
-                                        extractEmployeesFromJson(
-                                            absensi.karyawan_tdk_msk_id,
-                                            singleKemandoranId
-                                        )
-                                    val absentEmployeeNames =
-                                        extractEmployeesFromJson(
-                                            absensi.karyawan_tdk_msk_nama,
-                                            singleKemandoranId
-                                        )
+                                    val nikByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_nik, singleKemandoranId)
+                                    val idByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_id, singleKemandoranId)
+                                    val nameByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_nama, singleKemandoranId)
 
-//                                                    AppLogger.d("Processing kemandoran $singleKemandoranId:")
-//                                                    AppLogger.d("Present employees: $presentEmployeeNiks")
-//                                                    AppLogger.d("Absent employees: $absentEmployeeNiks")
-
-// Process employees who are present for this kemandoran
-                                    presentEmployeeNiks.forEachIndexed { index, nik ->
-                                        // Try to get employee data from database map first, then fallback to JSON data
-                                        val karyawan = karyawanMap[nik]
-                                        val employeeName = karyawan?.nama
-                                            ?: (if (index < presentEmployeeNames.size) presentEmployeeNames[index] else "")
-
-                                        detailRecords.add(
-                                            mapOf(
-                                                "nik" to nik,
-                                                "nama" to employeeName,
-                                                "status_kehadiran" to 1, // 1 = present
-                                                "date_created" to (absensi.date_absen
-                                                    ?: "")
-                                            )
-                                        )
+                                    // Combine both present and absent maps
+                                    val allNikByCategory = nikByCategory.toMutableMap()
+                                    nikByCategoryAbsent.forEach { (key, value) ->
+                                        allNikByCategory[key] = (allNikByCategory[key] ?: emptyList()) + value
                                     }
 
-// Process employees who are absent for this kemandoran
-                                    absentEmployeeNiks.forEachIndexed { index, nik ->
-                                        // Try to get employee data from database map first, then fallback to JSON data
-                                        val karyawan = karyawanMap[nik]
-                                        val employeeName = karyawan?.nama
-                                            ?: (if (index < absentEmployeeNames.size) absentEmployeeNames[index] else "")
+                                    val allIdByCategory = idByCategory.toMutableMap()
+                                    idByCategoryAbsent.forEach { (key, value) ->
+                                        allIdByCategory[key] = (allIdByCategory[key] ?: emptyList()) + value
+                                    }
 
-                                        detailRecords.add(
-                                            mapOf(
-                                                "nik" to nik,
-                                                "nama" to employeeName,
-                                                "status_kehadiran" to 0, // 0 = absent
-                                                "date_created" to (absensi.date_absen
-                                                    ?: "")
+                                    val allNameByCategory = nameByCategory.toMutableMap()
+                                    nameByCategoryAbsent.forEach { (key, value) ->
+                                        allNameByCategory[key] = (allNameByCategory[key] ?: emptyList()) + value
+                                    }
+
+                                    val detailRecords = mutableListOf<Map<String, Any>>()
+
+                                    // Generate detail records with status_kehadiran
+                                    for ((statusCode, nikList) in allNikByCategory) {
+                                        val statusInt = statusMap[statusCode] ?: -1
+                                        val nameList = allNameByCategory[statusCode] ?: emptyList()
+
+                                        nikList.forEachIndexed { index, nik ->
+                                            val karyawan = karyawanMap[nik]
+                                            val employeeName = karyawan?.nama ?: nameList.getOrNull(index).orEmpty()
+
+                                            detailRecords.add(
+                                                mapOf(
+                                                    "nik" to nik,
+                                                    "nama" to employeeName,
+                                                    "status_kehadiran" to statusInt,
+                                                    "date_created" to (absensi.date_absen ?: "")
+                                                )
                                             )
-                                        )
+                                        }
                                     }
 
                                     AppLogger.d("Created ${detailRecords.size} detail records for kemandoran $singleKemandoranId")
 
-// Add the detail records as a child element to the absensi data
-                                    absensiData[AppUtils.DatabaseTables.ABSENSI_DETAIL] =
-                                        detailRecords
+                                    // Attach detail records
+                                    absensiData[AppUtils.DatabaseTables.ABSENSI_DETAIL] = detailRecords
 
-// Add this complete record to our restructured data
+                                    // Add this complete record to our restructured data
                                     restructuredData.add(absensiData)
                                 }
                             }
@@ -3183,26 +3162,27 @@ class HomePageActivity : AppCompatActivity() {
                             // Convert to JSON
                             absensiJson = Gson().toJson(finalData)
 
+                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
-//                                            try {
-//                                                val tempDir =
-//                                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                                        if (!exists()) mkdirs()
-//                                                    }
-//
-//                                                val filename =
-//                                                    "absensi_data_${System.currentTimeMillis()}.json"
-//                                                val tempFile = File(tempDir, filename)
-//
-//                                                FileOutputStream(tempFile).use { fos ->
-//                                                    fos.write(absensiJson.toByteArray())
-//                                                }
-//
-//                                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                                            } catch (e: Exception) {
-//                                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                                e.printStackTrace()
-//                                            }
+                                            try {
+                                                val tempDir =
+                                                    File(getExternalFilesDir(null), "TEMP").apply {
+                                                        if (!exists()) mkdirs()
+                                                    }
+
+                                                val filename =
+                                                    "absensi_data_${System.currentTimeMillis()}.json"
+                                                val tempFile = File(tempDir, filename)
+
+                                                FileOutputStream(tempFile).use { fos ->
+                                                    fos.write(absensiJson.toByteArray())
+                                                }
+
+                                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+                                                e.printStackTrace()
+                                            }
 
                             AppLogger.d(absensiJson)
 
@@ -3400,6 +3380,75 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
+        }
+    }
+
+    private fun extractEmployeesFromJson(jsonString: String?, kemandoranId: String): List<String> {
+        if (jsonString.isNullOrEmpty()) return emptyList()
+
+        return try {
+            val gson = Gson()
+            val jsonObject = gson.fromJson(jsonString, JsonObject::class.java)
+
+            val employees = mutableListOf<String>()
+
+            // Iterate through all categories (h, m, etc.)
+            for ((category, categoryData) in jsonObject.entrySet()) {
+                if (categoryData.isJsonObject) {
+                    val categoryObject = categoryData.asJsonObject
+
+                    // Check if this category contains data for our kemandoran
+                    if (categoryObject.has(kemandoranId)) {
+                        val employeeData = categoryObject.get(kemandoranId).asString
+                        if (employeeData.isNotEmpty()) {
+                            employees.addAll(
+                                employeeData.split(",")
+                                    .filter { it.isNotEmpty() }
+                                    .map { it.trim() }
+                            )
+                        }
+                    }
+                }
+            }
+
+            employees
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON for kemandoran $kemandoranId: ${e.message}")
+            emptyList()
+        }
+    }
+
+    // Alternative approach if you want to extract employees by category
+    private fun extractEmployeesByCategory(jsonString: String?, kemandoranId: String): Map<String, List<String>> {
+        if (jsonString.isNullOrEmpty()) return emptyMap()
+
+        return try {
+            val gson = Gson()
+            val jsonObject = gson.fromJson(jsonString, JsonObject::class.java)
+
+            val result = mutableMapOf<String, List<String>>()
+
+            // Iterate through all categories (h, m, etc.)
+            for ((category, categoryData) in jsonObject.entrySet()) {
+                if (categoryData.isJsonObject) {
+                    val categoryObject = categoryData.asJsonObject
+
+                    // Check if this category contains data for our kemandoran
+                    if (categoryObject.has(kemandoranId)) {
+                        val employeeData = categoryObject.get(kemandoranId).asString
+                        if (employeeData.isNotEmpty()) {
+                            result[category] = employeeData.split(",")
+                                .filter { it.isNotEmpty() }
+                                .map { it.trim() }
+                        }
+                    }
+                }
+            }
+
+            result
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON by category for kemandoran $kemandoranId: ${e.message}")
+            emptyMap()
         }
     }
 
@@ -4993,16 +5042,16 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractEmployeesFromJson(jsonString: String, kemandoranId: String): List<String> {
-        return try {
-            val jsonObj = JSONObject(jsonString)
-            val employeeArray = jsonObj.optString(kemandoranId, "")
-            employeeArray.split(",").filter { it.trim().isNotEmpty() }
-        } catch (e: Exception) {
-            AppLogger.e("Error: ${e.message}")
-            emptyList()
-        }
-    }
+//    private fun extractEmployeesFromJson(jsonString: String, kemandoranId: String): List<String> {
+//        return try {
+//            val jsonObj = JSONObject(jsonString)
+//            val employeeArray = jsonObj.optString(kemandoranId, "")
+//            employeeArray.split(",").filter { it.trim().isNotEmpty() }
+//        } catch (e: Exception) {
+//            AppLogger.e("Error: ${e.message}")
+//            emptyList()
+//        }
+//    }
 
     private fun startDownloads(previewData: String? = null, titleDialog : String?= null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin

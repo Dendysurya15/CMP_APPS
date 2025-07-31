@@ -376,7 +376,7 @@ class LoginActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 loadingDialog.show()
                 loadingDialog.setMessage(
-                    "Sedang verifikasi kredensial...",
+                    "Verifikasi Username & Password...",
                     true
                 ) // Checking credentials
                 delay(1000)

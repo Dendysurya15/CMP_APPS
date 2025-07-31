@@ -54,6 +54,7 @@ import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
 import com.cbi.mobile_plantation.utils.playSound
+import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -163,61 +164,61 @@ class ListAbsensiActivity : AppCompatActivity() {
         dateButton = findViewById(R.id.calendarPickerAbsensi)
         dateButton.text = AppUtils.getTodaysDate()
 
-        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
-
-        filterAllData.setOnCheckedChangeListener { _, isChecked ->
-            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
-            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
-            if (isChecked) {
-                filterDateContainer.visibility = View.VISIBLE
-                nameFilterDate.text = "Semua Data"
-
-                dateButton.isEnabled = false
-                dateButton.alpha = 0.5f
-
-                if (currentState == 0) {
-                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
-                } else if (currentState == 1) {
-                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
-                }
-            } else {
-                // For line 136 (use date from date picker)
-                val displayDate = formatGlobalDate(globalFormattedDate)
-
-                nameFilterDate.text = displayDate
-                dateButton.isEnabled = true
-                dateButton.alpha = 1f // Make the button appear darker
-                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
-                if (currentState == 0) {
-                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
-                } else if (currentState == 1) {
-                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
-                }
-            }
-
-            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
-
-            removeFilterDate.setOnClickListener {
-                if (filterAllData.isChecked) {
-                    filterAllData.isChecked = false
-                }
-
-                filterDateContainer.visibility = View.GONE
-
-                val todayBackendDate = AppUtils.formatDateForBackend(
-                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
-                    Calendar.getInstance().get(Calendar.MONTH) + 1,
-                    Calendar.getInstance().get(Calendar.YEAR)
-                )
-                // Reset the selected date in your utils
-                AppUtils.setSelectedDate(todayBackendDate)
-
-                // Update the dateButton to show today's date
-                val todayDisplayDate = AppUtils.getTodaysDate()
-                dateButton.text = todayDisplayDate
-
-            }
-        }
+//        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
+//
+//        filterAllData.setOnCheckedChangeListener { _, isChecked ->
+//            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
+//            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
+//            if (isChecked) {
+//                filterDateContainer.visibility = View.VISIBLE
+//                nameFilterDate.text = "Semua Data"
+//
+//                dateButton.isEnabled = false
+//                dateButton.alpha = 0.5f
+//
+//                if (currentState == 0) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
+//                } else if (currentState == 1) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
+//                }
+//            } else {
+//                // For line 136 (use date from date picker)
+//                val displayDate = formatGlobalDate(globalFormattedDate)
+//
+//                nameFilterDate.text = displayDate
+//                dateButton.isEnabled = true
+//                dateButton.alpha = 1f // Make the button appear darker
+//                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
+//                if (currentState == 0) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
+//                } else if (currentState == 1) {
+//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
+//                }
+//            }
+//
+//            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
+//
+//            removeFilterDate.setOnClickListener {
+//                if (filterAllData.isChecked) {
+//                    filterAllData.isChecked = false
+//                }
+//
+//                filterDateContainer.visibility = View.GONE
+//
+//                val todayBackendDate = AppUtils.formatDateForBackend(
+//                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+//                    Calendar.getInstance().get(Calendar.MONTH) + 1,
+//                    Calendar.getInstance().get(Calendar.YEAR)
+//                )
+//                // Reset the selected date in your utils
+//                AppUtils.setSelectedDate(todayBackendDate)
+//
+//                // Update the dateButton to show today's date
+//                val todayDisplayDate = AppUtils.getTodaysDate()
+//                dateButton.text = todayDisplayDate
+//
+//            }
+//        }
 
         setupHeader()
         initViewModel()
@@ -335,37 +336,47 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            AlertDialogUtility.withTwoActions(
+            // First dialog: Check if employee status has been filled
+            AlertDialogUtility.withSingleAction(
                 this,
-                "Generate QR",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_confirm_generate_qr),
+                "OKE",
+                "Peringatan",
+                "Pastikan sudah mengisi status karyawan yang tidak hadir",
                 "warning.json",
-                ContextCompat.getColor(this, R.color.bluedarklight),
+                R.color.colorRedDark,
                 function = {
-                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                    val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-                    val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+                    // After confirming the status check, show the QR generation dialog
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Generate QR",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.al_confirm_generate_qr),
+                        "warning.json",
+                        ContextCompat.getColor(this, R.color.bluedarklight),
+                        function = {
+                            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
+                            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
-                    // Log tanggal
-                    AppLogger.d("Generated Date: '$generatedDate'")
-                    AppLogger.d("Today Date: '$todayDate'")
+                            // Log tanggal
+                            AppLogger.d("Generated Date: '$generatedDate'")
+                            AppLogger.d("Today Date: '$todayDate'")
 
-                    if (generatedDate.isEmpty() || generatedDate != todayDate) {
-                        // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
-                        // Berarti ini adalah generate baru untuk hari ini
-                        playSound(R.raw.berhasil_generate_qr)
-                        saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
-                        generateData()  // Generate data baru
-                    } else {
-                        // Jika sudah pernah generate di hari yang sama
-                        // Tampilkan QR yang sudah ada
-                        showBottomSheetQR()
-                    }
+                            if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                                // Berarti ini adalah generate baru untuk hari ini
+                                playSound(R.raw.berhasil_generate_qr)
+                                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                                generateData()  // Generate data baru
+                            } else {
+                                // Jika sudah pernah generate di hari yang sama
+                                // Tampilkan QR yang sudah ada
+                                showBottomSheetQR()
+                            }
+                        }
+                    )
                 }
             )
-
-
         }
     }
 
@@ -382,14 +393,21 @@ class ListAbsensiActivity : AppCompatActivity() {
         // Get references to views
         val loadingLogo: ImageView = view.findViewById(R.id.loading_logo)
         val qrCodeImageView: ImageView = view.findViewById(R.id.qrCodeImageView)
-        val tvTitleQRGenerate: TextView = view.findViewById(R.id.textTitleQRGenerate)
+        val tvTitleQRGenerate: TextView =
+            view.findViewById(R.id.textTitleQRGenerate)
+        tvTitleQRGenerate.setResponsiveTextSizeWithConstraints(23F, 22F, 25F)
         val capitalizedFeatureName = featureName!!.split(" ").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
-        tvTitleQRGenerate.text = "Generate QR $capitalizedFeatureName"
+        tvTitleQRGenerate.text = "Hasil QR $capitalizedFeatureName"
         val dashedLine: View = view.findViewById(R.id.dashedLine)
         val loadingContainer: LinearLayout =
             view.findViewById(R.id.loadingDotsContainerBottomSheet)
+        val titleQRConfirm: TextView = view.findViewById(R.id.titleAfterScanQR)
+        val descQRConfirm: TextView = view.findViewById(R.id.descAfterScanQR)
+        // Initial setup for text elements
+        titleQRConfirm.setResponsiveTextSizeWithConstraints(21F, 17F, 25F)
+        descQRConfirm.setResponsiveTextSizeWithConstraints(19F, 15F, 23F)
 
         val btnPreviewFullQR: MaterialButton =
             view.findViewById(R.id.btnPreviewFullQR)
@@ -1438,10 +1456,15 @@ class ListAbsensiActivity : AppCompatActivity() {
             val divisiAbbrSet = mutableSetOf<String>()
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
-            val karyawanMskSet = mutableSetOf<String>()
-            val karyawanTdkMskSet = mutableSetOf<String>()
-            val karyawanMskIdSet = mutableSetOf<String>()
-            val karyawanTdkMskIdSet = mutableSetOf<String>()
+
+            // Changed to use JSONObject for proper structure
+            val mergedKaryawanMskNik = JSONObject()
+            val mergedKaryawanTdkMskNik = JSONObject()
+            val mergedKaryawanMskId = JSONObject()
+            val mergedKaryawanTdkMskId = JSONObject()
+            val mergedKaryawanMskNama = JSONObject()
+            val mergedKaryawanTdkMskNama = JSONObject()
+
             val infoSet = mutableSetOf<String>()
 
             mappedData.forEach { data ->
@@ -1461,16 +1484,20 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
                 val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
+                val karyawanTdkMskNama = data["karyawan_tdk_msk_nama"]?.toString() ?: ""
 
                 // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Extract values from JSON strings and concatenate them
-                extractAndAddFromJson(karyawanMskNik, karyawanMskSet)
-                extractAndAddFromJson(karyawanTdkMskNik, karyawanTdkMskSet)
-                extractAndAddFromJson(karyawanMskId, karyawanMskIdSet)
-                extractAndAddFromJson(karyawanTdkMskId, karyawanTdkMskIdSet)
+                // Merge JSON objects properly using the correct function
+                mergeJsonObjects(karyawanMskNik, mergedKaryawanMskNik)
+                mergeJsonObjects(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
+                mergeJsonObjects(karyawanMskId, mergedKaryawanMskId)
+                mergeJsonObjects(karyawanTdkMskId, mergedKaryawanTdkMskId)
+                mergeJsonObjects(karyawanMskNama, mergedKaryawanMskNama)
+                mergeJsonObjects(karyawanTdkMskNama, mergedKaryawanTdkMskNama)
 
                 // Add other data
                 if (dept.isNotEmpty()) deptSet.add(dept)
@@ -1488,7 +1515,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON with concatenated values (not JSON structure)
+            // Final JSON with proper structure
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
@@ -1497,10 +1524,15 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi", JSONArray(divisiSet))
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
-                put("karyawan_msk_nik", JSONArray(karyawanMskSet))
-                put("karyawan_tdk_msk_nik", JSONArray(karyawanTdkMskSet))
-                put("karyawan_msk_id", JSONArray(karyawanMskIdSet))
-                put("karyawan_tdk_msk_id", JSONArray(karyawanTdkMskIdSet))
+
+                // Store as JSON objects, not arrays
+                put("karyawan_msk_nik", mergedKaryawanMskNik)
+                put("karyawan_tdk_msk_nik", mergedKaryawanTdkMskNik)
+                put("karyawan_msk_id", mergedKaryawanMskId)
+                put("karyawan_tdk_msk_id", mergedKaryawanTdkMskId)
+                put("karyawan_msk_nama", mergedKaryawanMskNama)
+                put("karyawan_tdk_msk_nama", mergedKaryawanTdkMskNama)
+
                 put("info", JSONArray(infoSet))
             }
 
@@ -1512,18 +1544,87 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
+    // Helper function to merge JSON objects
+    private fun mergeJsonObjects(jsonString: String, targetObject: JSONObject) {
+        if (jsonString.isNotEmpty()) {
+            try {
+                val sourceJson = JSONObject(jsonString)
+                val statusKeys = sourceJson.keys()
+
+                while (statusKeys.hasNext()) {
+                    val statusKey = statusKeys.next()
+                    val statusValue = sourceJson.opt(statusKey)
+
+                    when (statusValue) {
+                        is JSONObject -> {
+                            // Handle nested structure: {"status": {"kemandoran": "values"}}
+                            if (!targetObject.has(statusKey)) {
+                                targetObject.put(statusKey, JSONObject())
+                            }
+
+                            val targetStatusObject = targetObject.getJSONObject(statusKey)
+                            val kemandoranKeys = statusValue.keys()
+
+                            while (kemandoranKeys.hasNext()) {
+                                val kemandoranKey = kemandoranKeys.next()
+                                val kemandoranValue = statusValue.getString(kemandoranKey)
+
+                                if (targetStatusObject.has(kemandoranKey)) {
+                                    // Merge values if key already exists
+                                    val existingValue = targetStatusObject.getString(kemandoranKey)
+                                    val mergedValue = "$existingValue,$kemandoranValue"
+                                    targetStatusObject.put(kemandoranKey, mergedValue)
+                                } else {
+                                    targetStatusObject.put(kemandoranKey, kemandoranValue)
+                                }
+                            }
+                        }
+                        is String -> {
+                            // Handle flat structure: {"kemandoran": "values"}
+                            if (targetObject.has(statusKey)) {
+                                val existingValue = targetObject.getString(statusKey)
+                                val mergedValue = "$existingValue,$statusValue"
+                                targetObject.put(statusKey, mergedValue)
+                            } else {
+                                targetObject.put(statusKey, statusValue)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error merging JSON objects: ${e.message}")
+            }
+        }
+    }
+
     // Helper function to extract values from JSON string and add to set
     private fun extractAndAddFromJson(jsonString: String, targetSet: MutableSet<String>) {
         try {
             if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
                 val jsonObj = JSONObject(jsonString)
 
-                // Extract all values from all kemandoran and concatenate them
-                jsonObj.keys().forEach { kemandoranId ->
-                    val values = jsonObj.optString(kemandoranId, "")
-                    if (values.isNotEmpty()) {
-                        values.split(",").filter { it.trim().isNotEmpty() }
-                            .forEach { targetSet.add(it.trim()) }
+                // Handle nested JSON structure: {"status": {"kemandoran": "values"}}
+                jsonObj.keys().forEach { statusKey ->
+                    val statusValue = jsonObj.opt(statusKey)
+
+                    when (statusValue) {
+                        is JSONObject -> {
+                            // This is a nested object (status -> kemandoran -> values)
+                            statusValue.keys().forEach { kemandoranKey ->
+                                val kemandoranValue = statusValue.optString(kemandoranKey, "")
+                                if (kemandoranValue.isNotEmpty()) {
+                                    kemandoranValue.split(",").filter { it.trim().isNotEmpty() }
+                                        .forEach { targetSet.add(it.trim()) }
+                                }
+                            }
+                        }
+                        is String -> {
+                            // This is a direct string value (old format)
+                            if (statusValue.isNotEmpty()) {
+                                statusValue.split(",").filter { it.trim().isNotEmpty() }
+                                    .forEach { targetSet.add(it.trim()) }
+                            }
+                        }
                     }
                 }
             } else {
@@ -1885,7 +1986,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                     ?: "",
                                                 karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
-                                                    ?: ""
+                                                    ?: "",
+                                                status_upload = absensiWithRelations.absensi.status_upload
                                             )
                                         } catch (e: Exception) {
                                             AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
@@ -1903,7 +2005,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_msk_nama = "",
                                                 karyawan_tdk_msk_nama = "",
                                                 karyawan_msk_nik = "",
-                                                karyawan_tdk_msk_nik = ""
+                                                karyawan_tdk_msk_nik = "",
+                                                status_upload = 0
                                             )
                                         }
                                     }
@@ -2052,7 +2155,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_nik = absensiWithRelations.absensi.karyawan_msk_nik
                                                 ?: "",
                                             karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
-                                                ?: ""
+                                                ?: "",
+                                            status_upload = absensiWithRelations.absensi.status_upload
                                         )
                                     } catch (e: Exception) {
                                         AppLogger.e("Error processing item ${absensiWithRelations.absensi.id}: ${e.message}")
@@ -2069,7 +2173,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             karyawan_msk_nama = "",
                                             karyawan_tdk_msk_nama = "",
                                             karyawan_msk_nik = "",
-                                            karyawan_tdk_msk_nik = ""
+                                            karyawan_tdk_msk_nik = "",
+                                            status_upload = 0
                                         )
                                     }
                                 }
