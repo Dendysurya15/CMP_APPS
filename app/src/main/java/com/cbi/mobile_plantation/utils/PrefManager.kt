@@ -73,6 +73,23 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    // Add these methods to your PrefManager class
+    fun getScreenshotCounter(featureName: String): Int {
+        return pref.getInt("screenshot_counter_$featureName", 0)
+    }
+
+    fun setScreenshotCounter(featureName: String, counter: Int) {
+        pref.edit().putInt("screenshot_counter_$featureName", counter).apply()
+    }
+
+    fun getScreenshotDate(featureName: String): String {
+        return pref.getString("screenshot_date_$featureName", "") ?: ""
+    }
+
+    fun setScreenshotDate(featureName: String, date: String) {
+        pref.edit().putString("screenshot_date_$featureName", date).apply()
+    }
+
     // Fix 1: Update your PrefManager to handle mixed types
     var afdelingIdUserLogin: String?
         get() {
@@ -174,6 +191,13 @@ class PrefManager(_context: Context) {
         get() = pref.getString("kemandoranUserLogin", "")
         set(kemandoranUserLogin) {
             editor.putString("kemandoranUserLogin", kemandoranUserLogin)
+            editor.commit()
+        }
+
+    var kemandoranPPROUserLogin: String?
+        get() = pref.getString("kemandoranPPROUserLogin", "")
+        set(kemandoranPPROUserLogin) {
+            editor.putString("kemandoranPPROUserLogin", kemandoranPPROUserLogin)
             editor.commit()
         }
 

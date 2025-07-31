@@ -3,6 +3,7 @@ package com.cbi.mobile_plantation.ui.adapter
 import android.content.Context
 import android.text.TextUtils
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -196,6 +197,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                     gravity = Gravity.START
                     typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
                     setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
@@ -240,6 +242,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
                     gravity = Gravity.START
                     typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
                     setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT

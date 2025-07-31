@@ -103,9 +103,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun loadTPHNonESPB(archive: Int, statusEspb: Int, statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            val list = repository.loadESPB(archive, statusEspb, statusTransferRestan, scanStatus, date)
             _activePanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -113,9 +113,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllPanenDataDetailESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun getAllPanenDataDetailESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            val list = repository.loadESPB(archive, statusEspb, statusTransferRestan, scanStatus, date)
             _detailNonESPBTPH.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -123,9 +123,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countTPHNonESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun countTPHNonESPB(archive: Int, statusEspb: Int,  statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            val count = repository.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
             _panenCountActive.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -133,9 +133,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countHasBeenESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun countHasBeenESPB(archive: Int, statusEspb: Int, statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            val count = repository.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
             _panenCountHasBeenESPB.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -144,9 +144,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    fun loadTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun loadTPHESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusEspb, scanStatus, date)
+            val list = repository.loadESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
             _archivedPanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -154,9 +154,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun countTPHESPB(archive: Int, statusEspb: Int, statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusEspb, scanStatus, date)
+            val count = repository.countESPB(archive, statusEspb, statusTransferRestan,scanStatus, date)
             _panenCountArchived.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -289,13 +289,26 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch {
+
+//    fun getAllScanMPanenByDate(status_mpanen: Int, date: String) {
+//        viewModelScope.launch {
+//            repository.getAllScanMPanenByDate(status_mpanen, date)
+//                .onSuccess { panenList ->
+//                    _activePanenList.value = panenList
+//                }
+//                .onFailure { exception ->
+//                    _error.postValue(exception.message ?: "Failed to load data")
+//                }
+//        }
+//    }
+
+    fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) = viewModelScope.launch(Dispatchers.IO) {
         try {
             val list = repository.getAllScanMPanenByDate(archiveMpanen, date)
-            _activePanenList.value = list
+            _activePanenList.postValue(list) // Use postValue when calling from background thread
         } catch (e: Exception) {
             AppLogger.e("Error loading getAllScanMPanenByDate: ${e.message}")
-            _activePanenList.value = emptyList()  // Return empty list if there's an error
+            _activePanenList.postValue(emptyList())  // Use postValue here too
         }
     }
 
@@ -398,6 +411,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun archivePanenById(id: Int) {
         viewModelScope.launch {
             repository.archivePanenById(id)
+            loadAllPanen() // Refresh the data
+        }
+    }
+
+    fun changeStatusTransferRestan(id: Int) {
+        viewModelScope.launch {
+            repository.changeStatusTransferRestan(id)
             loadAllPanen() // Refresh the data
         }
     }

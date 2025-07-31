@@ -167,6 +167,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
+                        android:visibility="gone"
                         android:orientation="horizontal"
                         >
 
@@ -190,29 +191,33 @@
 
                     <LinearLayout
                         android:id="@+id/layoutAutoScan"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:orientation="horizontal"
                         android:visibility="gone">
 
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="match_parent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="3"
                             android:fontFamily="@font/manrope_semibold"
-                            android:gravity="center|left"
+                            android:gravity="center_vertical"
                             android:text="Auto-Refresh (setiap 5 detik)"
                             android:textColor="@color/black"
                             android:textSize="@dimen/m" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchAutoScan"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_gravity="center_vertical"
                             android:layout_marginStart="8dp"
                             app:thumbTint="@color/switch_thumb_selector"
                             app:trackTint="@color/switch_track_selector" />
                     </LinearLayout>
+
 
 
                     <include

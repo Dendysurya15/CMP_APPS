@@ -104,7 +104,6 @@
             </LinearLayout>
         </LinearLayout>
 
-
         <TextView
             android:id="@+id/feature_function_description"
             android:layout_width="wrap_content"
@@ -113,7 +112,10 @@
             android:textColor="@color/black"
             android:text="Pencatatan panen TBS di TPH oleh kerani panen"
             android:textAlignment="center"
-            android:textSize="@dimen/s" />
+            android:textSize="@dimen/s"
+            android:maxLines="4"
+            android:ellipsize="end"
+            android:maxWidth="200dp" />
 
     </LinearLayout>
 

@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
@@ -33,6 +34,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.LocationSettingsResponse
 import com.google.android.gms.location.LocationSettingsStatusCodes
+import com.google.android.gms.location.Priority
 import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.tasks.Task
 import com.google.android.material.snackbar.Snackbar
@@ -73,6 +75,9 @@ class LocationViewModel(
         LocationServices.getSettingsClient(application)
     private var mLocationSettingsRequest: LocationSettingsRequest? = null
     private var mLocationRequest: LocationRequest? = null
+
+    private var startTime: Long = 0L
+    private var isFirstLocationReceived = false
 
     init {
         _locationPermissions.value = checkLocationPermission()
@@ -163,8 +168,7 @@ class LocationViewModel(
         val locationManager = getApplication<Application>()
             .getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
 
         if (!isLocationEnabled) {
             imageView.setImageResource(R.drawable.baseline_wrong_location_24)
@@ -217,8 +221,7 @@ class LocationViewModel(
         val locationManager =
             getApplication<Application>().getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
 
         return ContextCompat.checkSelfPermission(
             getApplication(),
@@ -232,10 +235,24 @@ class LocationViewModel(
             return
         }
 
-        mLocationRequest = LocationRequest.create().apply {
-            interval = AppUtils.UPDATE_INTERVAL_IN_MILLISECONDS
-            fastestInterval = AppUtils.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        // Set start time when location updates begin
+        startTime = System.currentTimeMillis()
+
+        // Alternative for older Android versions
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            mLocationRequest = LocationRequest.create().apply {
+                interval = AppUtils.UPDATE_INTERVAL_IN_MILLISECONDS
+                fastestInterval = AppUtils.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
+                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+                smallestDisplacement = 2f
+            }
+        }else{
+            mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, AppUtils.UPDATE_INTERVAL_IN_MILLISECONDS)
+                .setWaitForAccurateLocation(false)
+                .setMinUpdateIntervalMillis(AppUtils.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS)
+                .setMaxUpdateDelayMillis(AppUtils.UPDATE_INTERVAL_IN_MILLISECONDS * 2)
+                .setMinUpdateDistanceMeters(2f)
+                .build()
         }
 
         val builder = LocationSettingsRequest.Builder()
@@ -243,6 +260,45 @@ class LocationViewModel(
         mLocationSettingsRequest = builder.build()
 
         checkLocationSettings()
+    }
+
+    private fun handleLocationUpdate(location: Location) {
+        val currentTime = System.currentTimeMillis()
+        val timeSinceStart = currentTime - startTime
+
+        Log.d("LocationViewModel", "Location received: accuracy=${location.accuracy}m, time_since_start=${timeSinceStart}ms")
+
+        // Skip poor accuracy locations in the first 20 seconds
+        if (!isFirstLocationReceived && location.accuracy > 100f && timeSinceStart < 20000) {
+            Log.d("LocationViewModel", "Skipping initial poor accuracy location")
+            return
+        }
+
+        // Accept first reasonable location or any good location after initial period
+        if (isLocationValid(location)) {
+            isFirstLocationReceived = true
+            _locationData.value = location
+            _locationAccuracy.value = location.accuracy
+            updateLocationIcon(isFirstLocationReceived)
+
+            Log.d("LocationViewModel", "Location accepted: lat=${location.latitude}, lon=${location.longitude}, accuracy=${location.accuracy}m")
+        }
+    }
+
+    private fun isLocationValid(location: Location): Boolean {
+        val currentTime = System.currentTimeMillis()
+        val timeSinceStart = currentTime - startTime
+
+        return location.hasAccuracy() &&
+                location.latitude != 0.0 &&
+                location.longitude != 0.0 &&
+                isLocationFresh(location) &&
+                (timeSinceStart > 20000 || location.accuracy <= 50f) // After 20s accept any reasonable accuracy, before that only good accuracy
+    }
+
+    private fun isLocationFresh(location: Location): Boolean {
+        val locationAge = System.currentTimeMillis() - location.time
+        return locationAge < 60000 // Location is less than 60 seconds old
     }
 
     private fun checkLocationSettings() {
@@ -259,28 +315,7 @@ class LocationViewModel(
                         locationCallback = object : LocationCallback() {
                             override fun onLocationResult(locationResult: LocationResult) {
                                 locationResult.lastLocation?.let { location ->
-                                    if (location.latitude.toString().isNotEmpty()) {
-                                        _locationData.value = location
-                                        _locationAccuracy.value = location.accuracy
-
-                                        val locationManager = getApplication<Application>()
-                                            .getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-                                        val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                                                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
-                                        if (isLocationEnabled && !isAirplaneModeOn()) {
-                                            imageView.setImageResource(R.drawable.baseline_location_on_24)
-                                            imageView.imageTintList = ColorStateList.valueOf(
-                                                activity.resources.getColor(R.color.greenbutton)
-                                            )
-                                        } else {
-                                            imageView.setImageResource(R.drawable.baseline_wrong_location_24)
-                                            imageView.imageTintList = ColorStateList.valueOf(
-                                                activity.resources.getColor(R.color.colorRedDark)
-                                            )
-                                        }
-                                    }
+                                    handleLocationUpdate(location)
                                 }
                             }
                         }
@@ -351,6 +386,9 @@ class LocationViewModel(
                     mFusedLocationClient.removeLocationUpdates(it)
                     locationCallback = null
                 }
+                // Reset timing variables
+                startTime = 0L
+                isFirstLocationReceived = false
                 Log.i(AppUtils.LOG_LOC, "Location updates stopped.")
             } finally {
                 isStartLocations = false

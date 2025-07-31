@@ -210,95 +210,6 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-//    fun uploadMultipleZipsV2(items: List<UploadCMPItem>) {
-//        viewModelScope.launch {
-//            // Reset counters
-//            _completedCount.value = 0
-//            _totalCount.value = items.size
-//
-//            val progressMap = items.associate { it.id to 0 }
-//            val statusMap = items.associate {
-//                // First item should be UPLOADING, others WAITING
-//                if (it.id == items.firstOrNull()?.id) {
-//                    it.id to AppUtils.UploadStatusUtils.UPLOADING
-//                } else {
-//                    it.id to AppUtils.UploadStatusUtils.WAITING
-//                }
-//            }
-//            val errorMap = items.associate { it.id to null as String? }
-//            val responseMap = items.associate { it.id to null as UploadV3Response? }
-//
-//            _itemProgressMap.value = progressMap
-//            _itemStatusMap.value = statusMap
-//            _itemErrorMap.value = errorMap
-//            _itemResponseMap.value = responseMap
-//
-//            // Generate a unique batch UUID for this upload session
-//            val batchUuid = UUID.randomUUID().toString()
-//            AppLogger.d("Generated batch UUID: $batchUuid for ${items.size} files")
-//
-//            // For each item, upload sequentially
-//            for (item in items) {
-//
-//                if (item.id != items.firstOrNull()?.id) {
-//                    // Update current item status to UPLOADING
-//                    AppLogger.d("masuk broo update to uploading")
-//                    updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
-//                }
-//
-//                // For current item, also update the original LiveData
-//                _uploadProgressCMP.value = 0
-//                _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
-//                _uploadErrorCMP.value = null
-//                _uploadResponseCMP.value = null
-//
-//                AppLogger.d("Uploading file ${item.title} as part ${item.partNumber} of ${item.totalParts}, UUID: $batchUuid")
-//
-//
-//                val result = repository.uploadZipToServerV2(
-//                    fileZipPath = item.fullPath,
-//                    batchUuid = batchUuid,
-//                    partNumber = item.partNumber,
-//                    totalParts = item.totalParts
-//                ) { progress, isSuccess, error ->
-//                    // Update item's progress
-//                    // Update item's progress
-//                    updateItemProgress(item.id, progress)
-//
-//                    // Determine status - FIXED LOGIC HERE
-//                    val status = when {
-//                        !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
-//                        isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
-//                        else -> AppUtils.UploadStatusUtils.UPLOADING  // Keep as UPLOADING for any progress including 0
-//                    }
-//
-//                    // Update item's status and error
-//                    updateItemStatus(item.id, status)
-//                    updateItemError(item.id, error)
-//
-//                    // Also update the original LiveData for current item
-//                    _uploadProgressCMP.postValue(progress)
-//                    _uploadStatusCMP.postValue(status)
-//                    _uploadErrorCMP.postValue(error)
-//                }
-//
-//                // Process result
-//                result?.let {
-//                    if (it.isSuccess) {
-//                        val response = it.getOrNull()
-//                        // Update item's response
-//                        updateItemResponse(item.id, response)
-//                    }
-//                }
-//
-//                // Increase completed count regardless of success or failure
-//                _completedCount.value = (_completedCount.value ?: 0) + 1
-//            }
-//        }
-//    }
-
-
-
     fun uploadMultipleJsonsV3(items: List<UploadCMPItem>) {
         viewModelScope.launch {
             // Reset counters - these operations are safe as they're in the viewModelScope
@@ -453,6 +364,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
     }
+
 
     // Helper functions for updating individual items
     private fun updateItemProgress(id: Int, progress: Int) {

@@ -219,6 +219,7 @@ object AppUtils {
         const val RekapAbsensiPanen = "Rekap Absensi Panen"
         const val ScanAbsensiPanen = "Scan Absensi Panen"
         const val SinkronisasiData = "Sinkronisasi data"
+        const val UnduhTPHAsistensi = "Unduh TPH Asistensi"
         const val UploadDataCMP = "Upload Data CMP"
         const val ListFollowUpInspeksi = "List Follow Up Inspeksi"
 
@@ -237,6 +238,8 @@ object AppUtils {
         const val WMFUInspeksiPokok = "FU_INSPEKSI_POKOK"
         const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
+        const val WMTransferHektarPanen = "TRANSFER HEKTAR PANEN"
+        const val WMRekapPanenDanRestan = "REKAP PANEN DAN RESTAN"
     }
 
 
@@ -261,6 +264,7 @@ object AppUtils {
         const val kendaraan = "kendaraan"
         const val updateSyncLocalData = "Update & Sinkronisasi Lokal Data"
         const val sinkronisasiRestan = "Sinkronisasi Data Restan"
+        const val sinkronisasiDataUser = "Sinkronisasi Data User"
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
         const val sinkronisasiFollowUpInspeksi = "Data Inspeksi (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
@@ -1190,19 +1194,24 @@ object AppUtils {
     /**
      * Get blok display information based on featureName
      */
+
     fun getBlokDisplay(mappedData: List<Map<String, Any?>>, featureName: String?): String {
         return if (featureName == ListFeatureNames.RekapHasilPanen ||
-            featureName == ListFeatureNames.RekapPanenDanRestan || featureName == ListFeatureNames.DetailESPB) {
-            val fieldToExtract = if (featureName == ListFeatureNames.RekapPanenDanRestan || featureName == ListFeatureNames.DetailESPB) "KP" else "TO"
+            featureName == ListFeatureNames.RekapPanenDanRestan ||
+            featureName == ListFeatureNames.DetailESPB ||
+            featureName == ListFeatureNames.TransferHektarPanen) {
+
+            val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
+
             mappedData
                 .filter { it["blok_name"].toString() != "-" }
                 .groupBy { it["blok_name"].toString() }
                 .mapValues { (_, items) ->
                     val count = items.size
-                    val toSum = items.sumOf { item ->
+                    val paSum = items.sumOf { item ->
                         extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
                     }
-                    "${toSum.toInt()}/$count"  // Convert double sum to integer for display
+                    "${paSum.toInt()}/$count"  // Convert double sum to integer for display
                 }
                 .toSortedMap() // Sort by blok_name
                 .map { (blokName, summary) -> "$blokName ($summary)" }
@@ -1221,8 +1230,7 @@ object AppUtils {
             try {
                 val jjgJsonString = data["jjg_json"].toString()
                 val jjgJson = JSONObject(jjgJsonString)
-                val key = if (featureName == ListFeatureNames.RekapPanenDanRestan ||
-                    featureName == "Detail eSPB") "KP" else "TO"
+                val key = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
                 totalJjgCount += jjgJson.optInt(key, 0)
             } catch (e: Exception) {
