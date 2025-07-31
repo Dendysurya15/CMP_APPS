@@ -1892,6 +1892,7 @@ class HomePageActivity : AppCompatActivity() {
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
                                 // Add debug logging
+                                AppLogger.d("User role: ${prefManager!!.jabatanUserLogin}")
                                 AppLogger.d("afdelingIdString: $afdelingIdString")
                                 AppLogger.d("isMandor1: $isMandor1")
                                 AppLogger.d("isAsisten: $isAsisten")
@@ -7139,7 +7140,6 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         if (isKeraniTimbang) {
-            AppLogger.d("aslkdjfaklsdjf")
             datasets.add(
                 DatasetRequest(
                     regional = regionalUser,
@@ -7149,14 +7149,7 @@ class HomePageActivity : AppCompatActivity() {
             )
             datasets.add(
                 DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetEstate,
-                    dataset = AppUtils.DatasetNames.estate
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalId,
+                    estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
                 ),

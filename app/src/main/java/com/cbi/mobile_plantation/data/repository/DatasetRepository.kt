@@ -15,7 +15,6 @@ import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.DepartmentInfo
-import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
@@ -31,9 +30,6 @@ import okhttp3.ResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Response
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 class DatasetRepository(
     context: Context,
@@ -145,10 +141,6 @@ class DatasetRepository(
 
     suspend fun getBlokList(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
-    }
-
-    suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? = withContext(Dispatchers.IO) {
-        tphDao.getTPHDetailsByID(tphId)
     }
 
     suspend fun getLatLonDivisi(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
@@ -264,7 +256,10 @@ class DatasetRepository(
         return apiService.downloadSettingJson(requestBody)
     }
 
-    // Add this to your repository - with pagination
+    suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
+        return tphDao.getTPHsByIds(tphIds)
+    }
+
     suspend fun getTPHEstate(estateAbbr: String): Response<ResponseBody> {
         // Build the JSON object for the request
         val jsonObject = JSONObject().apply {
@@ -303,10 +298,5 @@ class DatasetRepository(
 
         // Perform API call
         return apiService.getDataRaw(requestBody)
-    }
-
-
-    suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
-        return tphDao.getTPHsByIds(tphIds)
     }
 }

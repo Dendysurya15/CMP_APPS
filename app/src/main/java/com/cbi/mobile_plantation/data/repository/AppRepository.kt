@@ -151,6 +151,10 @@ class AppRepository(context: Context) {
         return parameterDao.getParameterInspeksiJson()
     }
 
+    suspend fun getMillByAbbr(abbr: String): MillModel? {
+        return millDao.getMillByAbbr(abbr)
+    }
+
     suspend fun getInspectionData(
         datetime: String? = null,
         isPushedToServer: Int? = null
@@ -1103,9 +1107,6 @@ class AppRepository(context: Context) {
             }
         }
 
-    suspend fun getMillByAbbr(abbr: String): MillModel? {
-        return millDao.getMillByAbbr(abbr)
-    }
 
     suspend fun getAllTPHinWeek(): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {

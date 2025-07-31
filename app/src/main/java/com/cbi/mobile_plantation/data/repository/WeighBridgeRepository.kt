@@ -104,45 +104,6 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-    suspend fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?): Result<BlokModel?> = withContext(Dispatchers.IO) {
-        try {
-            // First try to match with kode if available
-            var blokData: BlokModel? = null
-
-            if (!est.isNullOrEmpty() && !afd.isNullOrEmpty()) {
-                // Convert blockId to String for the kode parameter
-                blokData = blokDao.getBlokByEstAfdKode(est, afd, blockId.toString())
-                if (blokData != null) {
-                    AppLogger.d("Blok found using id_ppro search - est: $est, afd: $afd, kode: $blockId")
-                    AppLogger.d("Found BlokModel: ${blokData.nama} (id_ppro: ${blokData.id_ppro})")
-                } else {
-                    AppLogger.d("No blok found using id_ppro search - est: $est, afd: $afd, kode: $blockId")
-                }
-            }
-
-            if (blokData == null && !est.isNullOrEmpty() && !afd.isNullOrEmpty()) {
-                blokData = blokDao.getBlokByIdEstAfd(blockId, est, afd)
-                if (blokData != null) {
-                    AppLogger.d("Blok found using ID search - blockId: $blockId, est: $est, afd: $afd")
-                    AppLogger.d("Found BlokModel: ${blokData.nama} (id: ${blokData.id})")
-                } else {
-                    AppLogger.d("No blok found using ID search - blockId: $blockId, est: $est, afd: $afd")
-                }
-            }
-
-            if (blokData == null) {
-                AppLogger.d("No blok found with any search method")
-            }
-
-            Result.success(blokData)
-        } catch (e: Exception) {
-            AppLogger.e("Error in fetchBlokbyParams: ${e.message}")
-            Result.failure(e)
-        }
-    }
-
-
-
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
         return try {
             espbDao.getAllESPBS(date)
