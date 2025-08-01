@@ -425,16 +425,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 "warning.json",
                 R.color.greenDarker
             ) {
-                val intent = Intent(
-                    this@ListFollowUpInspeksi,
-                    FormInspectionActivity::class.java
-                )
-                intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.FollowUpInspeksi)
-                intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
-                intent.putExtra("CHECK_ONLY", true)
 
-                AppLogger.d("Opening CHECK_ONLY mode for inspection ${inspectionPath.inspeksi.id} with status_upload=${inspectionPath.inspeksi.status_upload}")
-                startActivity(intent)
             }
         } else {
             // Show two actions dialog for normal edit mode (not uploaded yet)

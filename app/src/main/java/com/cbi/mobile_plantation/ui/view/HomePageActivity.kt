@@ -788,6 +788,15 @@ class HomePageActivity : AppCompatActivity() {
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.MandorPanen
 
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.ASKEP, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.ASKEP
+
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.Manager, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.Manager
+
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.GM
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.IT, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.IT
 
@@ -820,8 +829,6 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
 
                 )
@@ -834,8 +841,6 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
 
@@ -851,6 +856,27 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
 
+                    )
+
+                AppUtils.ListFeatureByRoleUser.GM -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                    )
+
+                AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                    )
+
+                AppUtils.ListFeatureByRoleUser.ASKEP -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                     )
 
                 AppUtils.ListFeatureByRoleUser.IT -> features

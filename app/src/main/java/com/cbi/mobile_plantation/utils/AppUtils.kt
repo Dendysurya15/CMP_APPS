@@ -191,6 +191,9 @@ object AppUtils {
     }
 
     object ListFeatureByRoleUser {
+        const val Manager = "Manager"
+        const val GM = "GM"
+        const val ASKEP = "ASKEP"
         const val MandorPanen = "Mandor Panen"
         const val KeraniTimbang = "Kerani Timbang"
         const val Asisten = "Asisten"
