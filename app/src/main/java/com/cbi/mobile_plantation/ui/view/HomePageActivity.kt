@@ -1,6 +1,5 @@
 package com.cbi.mobile_plantation.ui.view
 
-import android.os.Bundle
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
@@ -15,6 +14,7 @@ import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.provider.Settings
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
@@ -31,11 +31,9 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupWindow
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -56,15 +54,12 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
-import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
-import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
-import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
@@ -74,23 +69,22 @@ import com.cbi.mobile_plantation.ui.adapter.DownloadItem
 import com.cbi.mobile_plantation.ui.adapter.DownloadProgressDatasetAdapter
 import com.cbi.mobile_plantation.ui.adapter.FeatureCard
 import com.cbi.mobile_plantation.ui.adapter.FeatureCardAdapter
+import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
+import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.Absensi.FeatureAbsensiActivity
 import com.cbi.mobile_plantation.ui.view.Absensi.ListAbsensiActivity
-import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
-import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.view.Absensi.ScanAbsensiActivity
+import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
-import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
-
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
@@ -105,6 +99,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.formatToCamelCase
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.NotificationScheduler
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.worker.DataCleanupWorker
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -139,6 +134,12 @@ import java.util.Locale
 import java.util.TimeZone
 
 class HomePageActivity : AppCompatActivity() {
+
+    private lateinit var notificationScheduler: NotificationScheduler
+
+    companion object {
+        private const val ALL_PERMISSIONS_REQUEST_CODE = 1001
+    }
 
     private lateinit var featureAdapter: FeatureCardAdapter
     private lateinit var binding: ActivityHomePageBinding
@@ -194,8 +195,6 @@ class HomePageActivity : AppCompatActivity() {
     private var globalImageUploadError: List<String> = emptyList()
     private var globalImageNameError: List<String> = emptyList()
 
-    // PDF-related variables
-//    private lateinit var pdfManager: PDFManager
     private val pdfFileName = "User_Manual_CMP.pdf"
     private val pdfUrl =
         "https://cmp.citraborneo.co.id/apkcmp/MANUALBOOK/User_Manual_CMP.pdf" // Replace with your actual PDF URL
@@ -226,6 +225,9 @@ class HomePageActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize notification scheduler
+        notificationScheduler = NotificationScheduler(this)
+
         binding = ActivityHomePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -240,6 +242,10 @@ class HomePageActivity : AppCompatActivity() {
         initializePDFManager()
     }
 
+    private fun setupNotifications() {
+        // Schedule daily notifications
+        notificationScheduler.scheduleDailyNotifications()
+    }
 
     private fun initializePDFManager() {
         // Check if PDF is already downloaded locally
@@ -949,6 +955,7 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
+    // Update setupUI method
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
@@ -960,6 +967,7 @@ class HomePageActivity : AppCompatActivity() {
         setupLogout()
         datasetViewModel.getAllEstates()
         checkPermissions()
+        checkPermissions() // This will now handle all permissions at once
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
         setupObserver()
@@ -3450,7 +3458,7 @@ class HomePageActivity : AppCompatActivity() {
                                 val kemandoranNamaDeferred =
                                     CompletableDeferred<KemandoranModel?>()
 
-// Fetch blok data from database using absensi fields
+                                // Fetch blok data from database using absensi fields
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     try {
                                         val blokData =
@@ -3465,7 +3473,7 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                 }
 
-// Wait for the blok data
+                                // Wait for the blok data
                                 val blokData = try {
                                     kemandoranNamaDeferred.await()
                                 } catch (e: Exception) {
@@ -6376,7 +6384,6 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupDownloadDialog() {
 
         dialog = Dialog(this)
@@ -6391,12 +6398,10 @@ class HomePageActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-
         val recyclerView = view.findViewById<RecyclerView>(R.id.features_recycler_view)
         adapter = DownloadProgressDatasetAdapter()
         recyclerView.adapter = adapter
         recyclerView.layoutManager = LinearLayoutManager(this)
-
 
         val titleTV = view.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
         titleTV.text = "Progress Import Dataset..."
@@ -8027,7 +8032,6 @@ class HomePageActivity : AppCompatActivity() {
 
     }
 
-
     private fun initViewModel() {
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
@@ -8058,45 +8062,62 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
+    // Updated checkPermissions method - removed notification permission from here
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Add notification permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // Add other permissions based on Android version
+        val otherPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.CAMERA,
                 Manifest.permission.READ_MEDIA_IMAGES
             )
         } else {
-            arrayOf(
+            mutableListOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.CAMERA,
                 Manifest.permission.READ_EXTERNAL_STORAGE
             ).apply {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
-                    permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 }
-            }
+            }.toTypedArray()
         }
 
-        permissions.forEach {
-            if (ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(it)
+        otherPermissions.forEach { permission ->
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(permission)
             }
         }
 
         if (permissionsToRequest.isNotEmpty()) {
+            AppLogger.d("Requesting ${permissionsToRequest.size} permissions: $permissionsToRequest")
             ActivityCompat.requestPermissions(
                 this,
                 permissionsToRequest.toTypedArray(),
-                permissionRequestCode
+                ALL_PERMISSIONS_REQUEST_CODE
             )
         } else {
+            // All permissions are already granted
+            setupNotifications()
             startDownloads()
         }
     }
 
 
+    // Updated onRequestPermissionsResult to handle both permission types
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -8104,17 +8125,56 @@ class HomePageActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (requestCode == permissionRequestCode) {
-            val deniedPermissions =
-                permissions.filterIndexed { i, _ -> grantResults[i] != PackageManager.PERMISSION_GRANTED }
+        when (requestCode) {
+            ALL_PERMISSIONS_REQUEST_CODE -> {
+                val deniedPermissions = mutableListOf<String>()
+                var notificationPermissionGranted = true
 
-            if (deniedPermissions.isNotEmpty()) {
-                showStackedSnackbar(deniedPermissions)
-            } else {
-                startDownloads()
+                permissions.forEachIndexed { index, permission ->
+                    if (grantResults[index] != PackageManager.PERMISSION_GRANTED) {
+                        if (permission == Manifest.permission.POST_NOTIFICATIONS) {
+                            notificationPermissionGranted = false
+                            AppLogger.w("Notification permission denied - daily reminders won't work")
+                        } else {
+                            deniedPermissions.add(permission)
+                        }
+                    }
+                }
+
+                // Setup notifications if permission is granted (or not needed for older Android)
+                if (notificationPermissionGranted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    setupNotifications()
+                } else {
+                    // Optionally show message about notification feature being disabled
+                    showNotificationPermissionDeniedMessage()
+                }
+
+                // Handle other denied permissions
+                if (deniedPermissions.isNotEmpty()) {
+                    showStackedSnackbar(deniedPermissions)
+                } else {
+                    // All essential permissions granted, proceed with app initialization
+                    startDownloads()
+                }
             }
         }
     }
+
+    private fun showNotificationPermissionDeniedMessage() {
+        // Optional: Show a subtle message about notification feature being disabled
+        Snackbar.make(
+            findViewById(android.R.id.content),
+            "Pengingat harian tidak akan berfungsi tanpa izin notifikasi",
+            Snackbar.LENGTH_LONG
+        ).setAction("Pengaturan") {
+            // Open app settings
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
+            startActivity(intent)
+        }.show()
+    }
+
 
     private fun showStackedSnackbar(deniedPermissions: List<String>) {
         val message = buildString {
