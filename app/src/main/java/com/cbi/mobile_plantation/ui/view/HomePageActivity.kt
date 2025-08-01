@@ -193,7 +193,7 @@ class HomePageActivity : AppCompatActivity() {
     private var trackingIdsUpload: List<String> = emptyList()
     private var globalImageUploadError: List<String> = emptyList()
     private var globalImageNameError: List<String> = emptyList()
-
+    private val processedTrackingIds = mutableSetOf<Int>()
     // PDF-related variables
 //    private lateinit var pdfManager: PDFManager
     private val pdfFileName = "User_Manual_CMP.pdf"
@@ -5110,47 +5110,47 @@ class HomePageActivity : AppCompatActivity() {
                 }
 
                 // Process Inspeksi batches (add this after the ESPB processing block)
-//                val inspeksiBatches = dataMap[AppUtils.DatabaseTables.INSPEKSI] as? Map<*, *>
-//                if (inspeksiBatches != null) {
-//                    AppLogger.d("Found inspeksi batches: ${inspeksiBatches.keys}")
-//
-//                    inspeksiBatches.entries.forEachIndexed { index, entry ->
-//                        val batchKey = entry.key as? String ?: ""
-//                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
-//
-//                        val inspeksiData = batchInfo["data"] as? String
-//                        val inspeksiFilename = batchInfo["filename"] as? String
-//                        val inspeksiIds = batchInfo["ids"] as? List<Int> ?: emptyList()
-//                        val detailIds = batchInfo["detail_ids"] as? List<Int> ?: emptyList()
-//
-//                        if (inspeksiData != null && inspeksiData.isNotEmpty() && inspeksiFilename != null) {
-//                            val batchNumber = batchKey.replace("batch_", "")
-//                            val dataSize = inspeksiData.length.toLong()
-//
-//                            val tableIdsJson = JSONObject().apply {
-//                                put(AppUtils.DatabaseTables.INSPEKSI, JSONArray(inspeksiIds))
-//                                put(AppUtils.DatabaseTables.INSPEKSI_DETAIL, JSONArray(detailIds))
-//                            }.toString()
-//                            val uploadItem = UploadCMPItem(
-//                                id = itemId++,
-//                                title = inspeksiFilename,
-//                                fullPath = "",
-//                                baseFilename = inspeksiFilename,
-//                                data = inspeksiData,
-//                                type = "json",
-//                                tableIds = tableIdsJson,
-//                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
-//                            )
-//
-//                            uploadItems.add(uploadItem)
-//                            adapter.setFileSize(uploadItem.id, dataSize)
-//                            AppLogger.d("Added inspeksi batch $batchNumber to upload items (size: $dataSize bytes)")
-//                            AppLogger.d("Inspeksi IDs: $inspeksiIds, Detail IDs: $detailIds")
-//                        } else {
-//                            AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
-//                        }
-//                    }
-//                }
+                val inspeksiBatches = dataMap[AppUtils.DatabaseTables.INSPEKSI] as? Map<*, *>
+                if (inspeksiBatches != null) {
+                    AppLogger.d("Found inspeksi batches: ${inspeksiBatches.keys}")
+
+                    inspeksiBatches.entries.forEachIndexed { index, entry ->
+                        val batchKey = entry.key as? String ?: ""
+                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
+
+                        val inspeksiData = batchInfo["data"] as? String
+                        val inspeksiFilename = batchInfo["filename"] as? String
+                        val inspeksiIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+                        val detailIds = batchInfo["detail_ids"] as? List<Int> ?: emptyList()
+
+                        if (inspeksiData != null && inspeksiData.isNotEmpty() && inspeksiFilename != null) {
+                            val batchNumber = batchKey.replace("batch_", "")
+                            val dataSize = inspeksiData.length.toLong()
+
+                            val tableIdsJson = JSONObject().apply {
+                                put(AppUtils.DatabaseTables.INSPEKSI, JSONArray(inspeksiIds))
+                                put(AppUtils.DatabaseTables.INSPEKSI_DETAIL, JSONArray(detailIds))
+                            }.toString()
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = inspeksiFilename,
+                                fullPath = "",
+                                baseFilename = inspeksiFilename,
+                                data = inspeksiData,
+                                type = "json",
+                                tableIds = tableIdsJson,
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
+                            )
+
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, dataSize)
+                            AppLogger.d("Added inspeksi batch $batchNumber to upload items (size: $dataSize bytes)")
+                            AppLogger.d("Inspeksi IDs: $inspeksiIds, Detail IDs: $detailIds")
+                        } else {
+                            AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
+                        }
+                    }
+                }
 
                 if (fotoPanen != null && fotoPanen.isNotEmpty()) {
                     AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
@@ -5536,7 +5536,7 @@ class HomePageActivity : AppCompatActivity() {
             titleTV.text = "Upload Data CMP"
 
             val itemsToUpload = uploadItems.toList()
-
+            processedTrackingIds.clear()
             // Start the upload process
             uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
 
@@ -6139,6 +6139,11 @@ class HomePageActivity : AppCompatActivity() {
 
         // Process each successful upload (status codes 1, 2, 3)
         for (responseInfo in globalResponseJsonUploadList) {
+
+            if (processedTrackingIds.contains(responseInfo.trackingId)) {
+                AppLogger.d("Already processed tracking ID ${responseInfo.trackingId}, skipping")
+                continue
+            }
 
             if (responseInfo.type == "image") {
                 AppLogger.d("Detected image type for response, returning true early")
