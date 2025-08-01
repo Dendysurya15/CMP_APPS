@@ -2097,6 +2097,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         val watermarkType = when {
+            isForSelfie == true && featureName == AppUtils.ListFeatureNames.FollowUpInspeksi -> WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser
             isForSelfie == true -> WaterMarkFotoDanFolder.WMBuktiInspeksiUser
             isInTPH == true && isForFollowUp == true -> WaterMarkFotoDanFolder.WMFUInspeksiTPH
             isForFollowUp == true -> WaterMarkFotoDanFolder.WMFUInspeksiPokok

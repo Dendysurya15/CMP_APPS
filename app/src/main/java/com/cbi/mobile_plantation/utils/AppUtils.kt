@@ -232,6 +232,7 @@ object AppUtils {
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
         const val WMBuktiInspeksiUser = "INSPEKSI_BY_USER"
+        const val WMBuktiFUInspeksiUser = "INSPEKSI_FU_BY_USER"
         const val WMInspeksiTPH = "INSPEKSI_TPH"
         const val WMInspeksiPokok = "INSPEKSI_POKOK"
         const val WMFUInspeksiTPH = "FU_INSPEKSI_TPH"
@@ -626,7 +627,7 @@ object AppUtils {
                     addPhotoToZip(
                         photoPath.trim(),
                         photoFileName,
-                        "inspeksi/photos/${AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser}",
+                        "inspeksi/photos/${AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser}",
                         allCmpDirectories,
                         zip,
                         zipParams,

@@ -3897,8 +3897,9 @@ class HomePageActivity : AppCompatActivity() {
                                             "path" to photoFile.absolutePath,
                                             "size" to photoFile.length().toString(),
                                             "table_ids" to (inspeksiWithRelations.inspeksi.id ?: 0).toString(),
+                                            "table" to AppUtils.DatabaseTables.INSPEKSI,
                                             "base_path" to basePathImage,
-                                            "database" to AppUtils.DatabaseTables.INSPEKSI,
+                                            "database" to AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser,
                                             "photo_type" to "selfie",
                                             "no_pokok" to "0"
                                         )
@@ -3986,8 +3987,9 @@ class HomePageActivity : AppCompatActivity() {
                                             "path" to photoFile.absolutePath,
                                             "size" to photoFile.length().toString(),
                                             "table_ids" to (inspeksiWithRelations.inspeksi.id ?: 0).toString(),
+                                            "table" to AppUtils.DatabaseTables.INSPEKSI,
                                             "base_path" to basePathImage,
-                                            "database" to AppUtils.DatabaseTables.INSPEKSI,
+                                            "database" to AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser,
                                             "photo_type" to "selfie_pemulihan",
                                             "no_pokok" to "0"
                                         )
@@ -4000,213 +4002,129 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             // Process detail inspection photos
+                            // Build lookup map for already uploaded photos (status 200)
+                            val alreadyUploadedPhotosMap = mutableMapOf<Pair<Int, String>, Boolean>()
+
                             inspeksiWithRelations.detailInspeksi.forEach { detail ->
-                                // Process regular inspection photos (foto)
-                                val detailPhotoNames = detail.foto?.split(";") ?: listOf()
+                                val noPokok = detail.no_pokok
+                                val fotoNames = detail.foto?.split(";")?.map { it.trim() } ?: listOf()
+                                val followUpNames = detail.foto_pemulihan?.split(";")?.map { it.trim() } ?: listOf()
 
-                                for (photoName in detailPhotoNames) {
-                                    val trimmedName = photoName.trim()
-                                    if (trimmedName.isEmpty()) continue
-
-                                    if (trimmedName in uniquePhotos) continue
-
-                                    // Check detail status
-                                    var shouldSkip = false
-                                    if (detail.status_uploaded_image == "200") {
-                                        shouldSkip = true
-                                    }
-
-                                    if (shouldSkip) {
-                                        AppLogger.d("Skipping detail photo $trimmedName - fully uploaded (status 200)")
-                                        continue
-                                    }
-
-                                    val photoFile = findPhotoInDirectories(trimmedName, "regular", detail.no_pokok)
-                                    if (photoFile != null) {
-                                        var shouldAdd = false
-
-                                        // Check if photo needs upload based on detail status
-                                        if (detail.status_uploaded_image == "0") {
-                                            shouldAdd = true
-                                            AppLogger.d("Detail photo $trimmedName hasn't been uploaded (status 0)")
-                                        } else if (detail.status_uploaded_image!!.startsWith("{")) {
-                                            try {
-                                                val errorJson = Gson().fromJson(
-                                                    detail.status_uploaded_image,
-                                                    JsonObject::class.java
-                                                )
-                                                val errorArray = errorJson?.get("error")?.asJsonArray
-
-                                                errorArray?.forEach { errorItem ->
-                                                    if (errorItem.asString == trimmedName) {
-                                                        shouldAdd = true
-                                                        AppLogger.d("Photo $trimmedName is marked as error in detail ${detail.id}")
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error parsing detail upload status JSON: ${e.message}")
-                                            }
-                                        }
-
-                                        val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
-                                        val formattedDate = try {
-                                            val dateFormat = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            )
-                                            val date = dateFormat.parse(createdDate)
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(date ?: Date())
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error formatting date: ${e.message}")
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(Date())
-                                        }
-
-                                        val basePathImage = formattedDate + prefManager!!.estateUserLogin
-
-                                        if (shouldAdd) {
-                                            uniquePhotos[trimmedName] = mapOf(
-                                                "name" to trimmedName,
-                                                "path" to photoFile.absolutePath,
-                                                "size" to photoFile.length().toString(),
-                                                "table_ids" to (detail.id ?: 0).toString(),
-                                                "base_path" to basePathImage,
-                                                "database" to AppUtils.DatabaseTables.INSPEKSI_DETAIL,
-                                                "photo_type" to "regular",
-                                                "no_pokok" to detail.no_pokok.toString()
-                                            )
-
-                                            val photoType = if (detail.no_pokok == 0) "TPH" else "Pokok"
-                                            AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath} (detail id: ${detail.id}, no_pokok: ${detail.no_pokok})")
-                                        }
-                                    } else {
-                                        val photoType = if (detail.no_pokok == 0) "TPH" else "Pokok"
-                                        AppLogger.w("$photoType photo not found: $trimmedName")
+                                if (detail.status_uploaded_image == "200") {
+                                    fotoNames.forEach { name ->
+                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] = true
                                     }
                                 }
 
-                                // Process follow-up/recovery photos (foto_pemulihan)
-                                // Process follow-up/recovery photos (foto_pemulihan)
-                                val detailFollowUpPhotoNames = detail.foto_pemulihan?.split(";") ?: listOf()
-
-                                AppLogger.d("list detail follow up photo : $detailFollowUpPhotoNames")
-                                AppLogger.d("Detail ID: ${detail.id}, no_pokok: ${detail.no_pokok}")
-                                AppLogger.d("status_uploaded_image_pemulihan: '${detail.status_uploaded_image_pemulihan}'")
-
-                                for (photoName in detailFollowUpPhotoNames) {
-                                    val trimmedName = photoName.trim()
-                                    if (trimmedName.isEmpty()) continue
-
-                                    if (trimmedName in uniquePhotos) {
-                                        AppLogger.d("Photo $trimmedName already in uniquePhotos - skipping")
-                                        continue
-                                    }
-
-                                    // Check follow-up photo status
-                                    var shouldSkip = false
-                                    if (detail.status_uploaded_image_pemulihan == "200") {
-                                        shouldSkip = true
-                                        AppLogger.d("shouldSkip = true because status_uploaded_image_pemulihan == '200'")
-                                    }
-
-                                    if (shouldSkip) {
-                                        AppLogger.d("Skipping follow-up photo $trimmedName - fully uploaded (status 200)")
-                                        continue
-                                    }
-
-                                    val photoFile = findPhotoInDirectories(trimmedName, "followup", detail.no_pokok)
-                                    if (photoFile != null) {
-                                        var shouldAdd = false
-                                        AppLogger.d("Photo file found: ${photoFile.absolutePath}")
-                                        AppLogger.d("Checking upload status: '${detail.status_uploaded_image_pemulihan}'")
-
-                                        // Check if follow-up photo needs upload
-                                        if (detail.status_uploaded_image_pemulihan == "0") {
-                                            shouldAdd = true
-                                            AppLogger.d("Follow-up photo $trimmedName hasn't been uploaded (status 0) - shouldAdd = true")
-                                        } else if (detail.status_uploaded_image_pemulihan?.startsWith("{") == true) {
-                                            AppLogger.d("Status starts with '{' - checking for errors")
-                                            try {
-                                                val errorJson = Gson().fromJson(
-                                                    detail.status_uploaded_image_pemulihan,
-                                                    JsonObject::class.java
-                                                )
-                                                val errorArray = errorJson?.get("error")?.asJsonArray
-                                                AppLogger.d("Error array: $errorArray")
-
-                                                errorArray?.forEach { errorItem ->
-                                                    if (errorItem.asString == trimmedName) {
-                                                        shouldAdd = true
-                                                        AppLogger.d("Follow-up photo $trimmedName is marked as error in detail ${detail.id} - shouldAdd = true")
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error parsing follow-up upload status JSON: ${e.message}")
-                                            }
-                                        } else if (detail.status_uploaded_image_pemulihan == null) {
-                                            // Handle null case
-                                            shouldAdd = true
-                                            AppLogger.d("status_uploaded_image_pemulihan is null - shouldAdd = true")
-                                        } else {
-                                            AppLogger.d("Status '${detail.status_uploaded_image_pemulihan}' doesn't match any condition for upload")
-                                        }
-
-                                        AppLogger.d("Final shouldAdd decision: $shouldAdd")
-
-                                        val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
-                                        val formattedDate = try {
-                                            val dateFormat = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            )
-                                            val date = dateFormat.parse(createdDate)
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(date ?: Date())
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error formatting date: ${e.message}")
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(Date())
-                                        }
-
-                                        val basePathImage = formattedDate + prefManager!!.estateUserLogin
-
-                                        if (shouldAdd) {
-                                            uniquePhotos[trimmedName] = mapOf(
-                                                "name" to trimmedName,
-                                                "path" to photoFile.absolutePath,
-                                                "size" to photoFile.length().toString(),
-                                                "table_ids" to (detail.id ?: 0).toString(),
-                                                "base_path" to basePathImage,
-                                                "database" to AppUtils.DatabaseTables.INSPEKSI_DETAIL,
-                                                "photo_type" to "followup",
-                                                "no_pokok" to detail.no_pokok.toString()
-                                            )
-
-                                            val photoType = if (detail.no_pokok == 0) "Follow-up TPH" else "Follow-up Pokok"
-                                            AppLogger.d("✅ ADDED $photoType photo for upload: $trimmedName at ${photoFile.absolutePath} (detail id: ${detail.id}, no_pokok: ${detail.no_pokok})")
-                                        } else {
-                                            val photoType = if (detail.no_pokok == 0) "Follow-up TPH" else "Follow-up Pokok"
-                                            AppLogger.d("❌ NOT ADDED $photoType photo: $trimmedName - shouldAdd was false")
-                                        }
-                                    } else {
-                                        val photoType = if (detail.no_pokok == 0) "Follow-up TPH" else "Follow-up Pokok"
-                                        AppLogger.w("$photoType photo not found: $trimmedName")
+                                if (detail.status_uploaded_image_pemulihan == "200") {
+                                    followUpNames.forEach { name ->
+                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] = true
                                     }
                                 }
                             }
+
+                            inspeksiWithRelations.detailInspeksi.forEach { detail ->
+                                val noPokok = detail.no_pokok
+
+                                // ✅ Regular Photos
+                                val detailPhotoNames = detail.foto?.split(";") ?: listOf()
+                                for (photoName in detailPhotoNames) {
+                                    val trimmedName = photoName.trim()
+                                    if (trimmedName.isEmpty() || trimmedName in uniquePhotos) continue
+
+                                    if ((noPokok to trimmedName) in alreadyUploadedPhotosMap) {
+                                        AppLogger.d("⏩ Skipping regular photo $trimmedName for no_pokok $noPokok - already uploaded elsewhere")
+                                        continue
+                                    }
+
+                                    var shouldAdd = false
+                                    if (detail.status_uploaded_image == "0") {
+                                        shouldAdd = true
+                                    } else if (detail.status_uploaded_image?.startsWith("{") == true) {
+                                        try {
+                                            val errorJson = Gson().fromJson(detail.status_uploaded_image, JsonObject::class.java)
+                                            val errorArray = errorJson?.get("error")?.asJsonArray
+                                            errorArray?.forEach { if (it.asString == trimmedName) shouldAdd = true }
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error parsing JSON: ${e.message}")
+                                        }
+                                    }
+
+                                    val photoFile = findPhotoInDirectories(trimmedName, "regular", noPokok)
+                                    if (shouldAdd && photoFile != null) {
+                                        val formattedDate = try {
+                                            val input = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                            val output = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+                                            output.format(input.parse(inspeksiWithRelations.inspeksi.created_date) ?: Date())
+                                        } catch (e: Exception) {
+                                            SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault()).format(Date())
+                                        }
+
+                                        uniquePhotos[trimmedName] = mapOf(
+                                            "name" to trimmedName,
+                                            "path" to photoFile.absolutePath,
+                                            "size" to photoFile.length().toString(),
+                                            "table_ids" to (detail.id ?: 0).toString(),
+                                            "table" to AppUtils.DatabaseTables.INSPEKSI_DETAIL,
+                                            "base_path" to formattedDate + prefManager!!.estateUserLogin,
+                                            "database" to if (noPokok == 0) AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH else AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok,
+                                            "photo_type" to "regular",
+                                            "no_pokok" to noPokok.toString()
+                                        )
+                                        AppLogger.d("✅ Added regular photo: $trimmedName for detail ${detail.id}")
+                                    }
+                                }
+
+                                // ✅ Follow-up Photos
+                                val followUpPhotoNames = detail.foto_pemulihan?.split(";") ?: listOf()
+                                for (photoName in followUpPhotoNames) {
+                                    val trimmedName = photoName.trim()
+                                    if (trimmedName.isEmpty() || trimmedName in uniquePhotos) continue
+
+                                    if ((noPokok to trimmedName) in alreadyUploadedPhotosMap) {
+                                        AppLogger.d("⏩ Skipping follow-up photo $trimmedName for no_pokok $noPokok - already uploaded elsewhere")
+                                        continue
+                                    }
+
+                                    var shouldAdd = false
+                                    if (detail.status_uploaded_image_pemulihan == "0" || detail.status_uploaded_image_pemulihan == null) {
+                                        shouldAdd = true
+                                    } else if (detail.status_uploaded_image_pemulihan?.startsWith("{") == true) {
+                                        try {
+                                            val errorJson = Gson().fromJson(detail.status_uploaded_image_pemulihan, JsonObject::class.java)
+                                            val errorArray = errorJson?.get("error")?.asJsonArray
+                                            errorArray?.forEach { if (it.asString == trimmedName) shouldAdd = true }
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error parsing JSON (follow-up): ${e.message}")
+                                        }
+                                    }
+
+                                    val photoFile = findPhotoInDirectories(trimmedName, "followup", noPokok)
+                                    if (shouldAdd && photoFile != null) {
+                                        val formattedDate = try {
+                                            val input = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                            val output = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+                                            output.format(input.parse(inspeksiWithRelations.inspeksi.created_date) ?: Date())
+                                        } catch (e: Exception) {
+                                            SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault()).format(Date())
+                                        }
+
+                                        uniquePhotos[trimmedName] = mapOf(
+                                            "name" to trimmedName,
+                                            "path" to photoFile.absolutePath,
+                                            "size" to photoFile.length().toString(),
+                                            "table_ids" to (detail.id ?: 0).toString(),
+                                            "table" to AppUtils.DatabaseTables.INSPEKSI_DETAIL,
+                                            "base_path" to formattedDate + prefManager!!.estateUserLogin,
+                                            "database" to if (noPokok == 0) AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH else AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok,
+                                            "photo_type" to "followup",
+                                            "no_pokok" to noPokok.toString()
+                                        )
+                                        AppLogger.d("✅ Added follow-up photo: $trimmedName for detail ${detail.id}")
+                                    }
+                                }
+                            }
+
 
                             // Continue with the rest of your existing code for building mappedInspeksiData...
                             val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
@@ -4392,12 +4310,6 @@ class HomePageActivity : AppCompatActivity() {
                         val allPhotosFollowUpTPH = mutableListOf<Map<String, String>>()
                         val allPhotosFollowUpPokok = mutableListOf<Map<String, String>>()
 
-                        // Track unique photos to avoid duplicates
-                        val processedPhotosInspeksiPokok = mutableSetOf<Int>() // Track by no_pokok
-                        val processedPhotosInspeksiTph = mutableSetOf<Int>() // Track by no_pokok (should be 0 for TPH)
-                        val processedPhotosFollowUpTph = mutableSetOf<Int>() // Track by no_pokok (should be 0 for TPH)
-                        val processedPhotosFollowUpPokok = mutableSetOf<Int>() // Track by no_pokok
-
                         uniquePhotos.values.forEach { photoMap ->
                             val databaseField = photoMap["database"] ?: ""
                             val photoType = photoMap["photo_type"] ?: ""
@@ -4406,44 +4318,28 @@ class HomePageActivity : AppCompatActivity() {
 
                             when {
                                 // Selfie photos from main inspection
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI && photoType == "selfie" -> {
+                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> {
                                     selfiePhotos.add(photoMap)
                                 }
 
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI && photoType == "selfie_pemulihan" -> {
+                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
                                     selfiePhotosPemulihan.add(photoMap)
                                 }
 
-                                // TPH photos (no_pokok = 0) - Regular inspection
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI_DETAIL && photoType == "regular" && noPokok == 0 -> {
-                                    if (!processedPhotosInspeksiTph.contains(noPokok)) {
-                                        allPhotosInspeksiTph.add(photoMap)
-                                        processedPhotosInspeksiTph.add(noPokok)
-                                    }
+                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
+                                    allPhotosInspeksiTph.add(photoMap)
                                 }
 
-                                // TPH photos (no_pokok = 0) - Follow-up
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI_DETAIL && photoType == "followup" && noPokok == 0 -> {
-                                    if (!processedPhotosFollowUpTph.contains(noPokok)) {
-                                        allPhotosFollowUpTPH.add(photoMap)
-                                        processedPhotosFollowUpTph.add(noPokok)
-                                    }
+                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
+                                    allPhotosInspeksiPokok.add(photoMap)
                                 }
 
-                                // Pokok photos (no_pokok > 0) - Regular inspection
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI_DETAIL && photoType == "regular" && noPokok > 0 -> {
-                                    if (!processedPhotosInspeksiPokok.contains(noPokok)) {
-                                        allPhotosInspeksiPokok.add(photoMap)
-                                        processedPhotosInspeksiPokok.add(noPokok)
-                                    }
+                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
+                                    allPhotosFollowUpTPH.add(photoMap)
                                 }
 
-                                // Pokok photos (no_pokok > 0) - Follow-up
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI_DETAIL && photoType == "followup" && noPokok > 0 -> {
-                                    if (!processedPhotosFollowUpPokok.contains(noPokok)) {
-                                        allPhotosFollowUpPokok.add(photoMap)
-                                        processedPhotosFollowUpPokok.add(noPokok)
-                                    }
+                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
+                                    allPhotosFollowUpPokok.add(photoMap)
                                 }
 
                                 else -> {
@@ -5214,47 +5110,47 @@ class HomePageActivity : AppCompatActivity() {
                 }
 
                 // Process Inspeksi batches (add this after the ESPB processing block)
-                val inspeksiBatches = dataMap[AppUtils.DatabaseTables.INSPEKSI] as? Map<*, *>
-                if (inspeksiBatches != null) {
-                    AppLogger.d("Found inspeksi batches: ${inspeksiBatches.keys}")
-
-                    inspeksiBatches.entries.forEachIndexed { index, entry ->
-                        val batchKey = entry.key as? String ?: ""
-                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
-
-                        val inspeksiData = batchInfo["data"] as? String
-                        val inspeksiFilename = batchInfo["filename"] as? String
-                        val inspeksiIds = batchInfo["ids"] as? List<Int> ?: emptyList()
-                        val detailIds = batchInfo["detail_ids"] as? List<Int> ?: emptyList()
-
-                        if (inspeksiData != null && inspeksiData.isNotEmpty() && inspeksiFilename != null) {
-                            val batchNumber = batchKey.replace("batch_", "")
-                            val dataSize = inspeksiData.length.toLong()
-
-                            val tableIdsJson = JSONObject().apply {
-                                put(AppUtils.DatabaseTables.INSPEKSI, JSONArray(inspeksiIds))
-                                put(AppUtils.DatabaseTables.INSPEKSI_DETAIL, JSONArray(detailIds))
-                            }.toString()
-                            val uploadItem = UploadCMPItem(
-                                id = itemId++,
-                                title = inspeksiFilename,
-                                fullPath = "",
-                                baseFilename = inspeksiFilename,
-                                data = inspeksiData,
-                                type = "json",
-                                tableIds = tableIdsJson,
-                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
-                            )
-
-                            uploadItems.add(uploadItem)
-                            adapter.setFileSize(uploadItem.id, dataSize)
-                            AppLogger.d("Added inspeksi batch $batchNumber to upload items (size: $dataSize bytes)")
-                            AppLogger.d("Inspeksi IDs: $inspeksiIds, Detail IDs: $detailIds")
-                        } else {
-                            AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
-                        }
-                    }
-                }
+//                val inspeksiBatches = dataMap[AppUtils.DatabaseTables.INSPEKSI] as? Map<*, *>
+//                if (inspeksiBatches != null) {
+//                    AppLogger.d("Found inspeksi batches: ${inspeksiBatches.keys}")
+//
+//                    inspeksiBatches.entries.forEachIndexed { index, entry ->
+//                        val batchKey = entry.key as? String ?: ""
+//                        val batchInfo = entry.value as? Map<*, *> ?: mapOf<String, Any>()
+//
+//                        val inspeksiData = batchInfo["data"] as? String
+//                        val inspeksiFilename = batchInfo["filename"] as? String
+//                        val inspeksiIds = batchInfo["ids"] as? List<Int> ?: emptyList()
+//                        val detailIds = batchInfo["detail_ids"] as? List<Int> ?: emptyList()
+//
+//                        if (inspeksiData != null && inspeksiData.isNotEmpty() && inspeksiFilename != null) {
+//                            val batchNumber = batchKey.replace("batch_", "")
+//                            val dataSize = inspeksiData.length.toLong()
+//
+//                            val tableIdsJson = JSONObject().apply {
+//                                put(AppUtils.DatabaseTables.INSPEKSI, JSONArray(inspeksiIds))
+//                                put(AppUtils.DatabaseTables.INSPEKSI_DETAIL, JSONArray(detailIds))
+//                            }.toString()
+//                            val uploadItem = UploadCMPItem(
+//                                id = itemId++,
+//                                title = inspeksiFilename,
+//                                fullPath = "",
+//                                baseFilename = inspeksiFilename,
+//                                data = inspeksiData,
+//                                type = "json",
+//                                tableIds = tableIdsJson,
+//                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
+//                            )
+//
+//                            uploadItems.add(uploadItem)
+//                            adapter.setFileSize(uploadItem.id, dataSize)
+//                            AppLogger.d("Added inspeksi batch $batchNumber to upload items (size: $dataSize bytes)")
+//                            AppLogger.d("Inspeksi IDs: $inspeksiIds, Detail IDs: $detailIds")
+//                        } else {
+//                            AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
+//                        }
+//                    }
+//                }
 
                 if (fotoPanen != null && fotoPanen.isNotEmpty()) {
                     AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
@@ -5400,6 +5296,8 @@ class HomePageActivity : AppCompatActivity() {
                     }
 
                     AppLogger.d("Found $foundPhotoCount inspeksi Pokok photos with a total size of $totalPhotoSize bytes")
+
+                    AppLogger.d("gson.toJson(fotoInspeksiPokok) ${gson.toJson(fotoInspeksiPokok)}")
                     if (foundPhotoCount > 0) {
                         val photoTitle = "Foto Inspeksi Pokok ($foundPhotoCount file)"
                         val uploadItem = UploadCMPItem(
