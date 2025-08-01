@@ -833,6 +833,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
@@ -843,8 +844,10 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.DaftarHektarPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
 
@@ -1275,6 +1278,7 @@ class HomePageActivity : AppCompatActivity() {
                         cancelText = "Lanjutkan Isi Form Inspeksi",
                         function = {
                             isTriggerFeatureInspection = true
+                            AppLogger.d("alkskljd")
                             loadingDialog.show()
                             loadingDialog.setMessage("Sedang mempersiapkan data...")
                             lifecycleScope.launch {
@@ -1427,6 +1431,7 @@ class HomePageActivity : AppCompatActivity() {
                         ContextCompat.getColor(this, R.color.greenDarker),
                         cancelText = "Lanjutkan Follow Up",
                         function = {
+                            isTriggerFeatureInspection = false
                             isTriggerFollowUp = true
                             loadingDialog.show()
                             loadingDialog.setMessage("Sedang mempersiapkan data...")
@@ -4273,7 +4278,7 @@ class HomePageActivity : AppCompatActivity() {
                                     "foto_user" to (inspeksiWithRelations.inspeksi.foto_user
                                         ?: 0),
                                     "foto_user_pemulihan" to (inspeksiWithRelations.inspeksi.foto_user_pemulihan
-                                        ?: 0),
+                                        ?: ""),
                                     "created_name" to (inspeksiWithRelations.inspeksi.created_name
                                         ?: ""),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
@@ -4294,6 +4299,8 @@ class HomePageActivity : AppCompatActivity() {
                                         ?: ""),
                                     "status_upload" to (inspeksiWithRelations.inspeksi.status_upload
                                         ?: ""),
+                                    "isPushedToServer" to (inspeksiWithRelations.inspeksi.isPushedToServer
+                                        ?: 0),
                                     "inspeksi_detail" to inspeksiDetailArray
                                 )
                             } catch (e: Exception) {
@@ -4302,7 +4309,7 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }.toMutableList()
 
-                        // Now categorize all photos into 5 different lists
+// Now categorize all photos into 5 different lists
                         val allPhotosInspeksiTph = mutableListOf<Map<String, String>>()
                         val allPhotosInspeksiPokok = mutableListOf<Map<String, String>>()
                         val selfiePhotos = mutableListOf<Map<String, String>>()
@@ -4350,7 +4357,7 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-                        // Add photos to upload data with proper logging
+// Add photos to upload data with proper logging
                         if (selfiePhotos.isNotEmpty()) {
                             AppLogger.d("Adding ${selfiePhotos.size} unique selfie photos to upload data")
                             combinedUploadData["foto_selfie"] = selfiePhotos
@@ -4359,10 +4366,10 @@ class HomePageActivity : AppCompatActivity() {
                         }
 
                         if (selfiePhotosPemulihan.isNotEmpty()) {
-                            AppLogger.d("Adding ${selfiePhotos.size} unique selfie pemulihan photos to upload data")
-                            combinedUploadData["foto_selfie_pemulihan"] = selfiePhotos
+                            AppLogger.d("Adding ${selfiePhotosPemulihan.size} unique selfie pemulihan photos to upload data")
+                            combinedUploadData["foto_selfie_pemulihan"] = selfiePhotosPemulihan
                         } else {
-                            AppLogger.w("No selfie photos found to upload")
+                            AppLogger.w("No selfie pemulihan photos found to upload")
                         }
 
                         if (allPhotosInspeksiTph.isNotEmpty()) {
@@ -4393,7 +4400,7 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.w("No follow-up Pokok photos found to upload")
                         }
 
-                        // Keep the original combined list if needed elsewhere
+// Keep the original combined list if needed elsewhere
                         allPhotosInspeksi = (selfiePhotos + selfiePhotosPemulihan + allPhotosInspeksiTph + allPhotosInspeksiPokok + allPhotosFollowUpTPH + allPhotosFollowUpPokok).toMutableList()
 
                         val wrappedInspeksiData = mapOf(
@@ -4419,14 +4426,53 @@ class HomePageActivity : AppCompatActivity() {
                             e.printStackTrace()
                         }
 
-                        // Filter data to upload (status_upload == 0)
+// ENHANCED FILTER: Filter data to upload with improved logic
                         val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
                             val statusUpload = inspeksiMap["status_upload"] as? String
-                            statusUpload == "0"
+                            val isPushedToServer = inspeksiMap["isPushedToServer"] as? Int ?: 0
+                            val updatedDateStart = inspeksiMap["updated_date"] as? String
+                            val updatedBy = inspeksiMap["updated_by"] as? String
+                            val updatedName = inspeksiMap["updated_name"] as? String
+
+                            when {
+                                // Skip if status_upload is not "0"
+                                statusUpload != "0" -> {
+                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - status_upload is $statusUpload (not 0)")
+                                    false
+                                }
+
+                                // Case 1: isPushedToServer = 0 - Allow upload (new local data)
+                                isPushedToServer == 0 -> {
+                                    AppLogger.d("Including inspection ${inspeksiMap["id"]} - new local data (isPushedToServer = 0)")
+                                    true
+                                }
+
+                                // Case 2: isPushedToServer = 1 - Only allow if update fields are not null
+                                isPushedToServer == 1 -> {
+                                    val hasUpdateData = !updatedDateStart.isNullOrEmpty() &&
+                                            !updatedBy.isNullOrEmpty() &&
+                                            !updatedName.isNullOrEmpty()
+
+                                    if (hasUpdateData) {
+                                        AppLogger.d("Including inspection ${inspeksiMap["id"]} - downloaded data with updates (isPushedToServer = 1, has update data)")
+                                        true
+                                    } else {
+                                        AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - downloaded data without updates (isPushedToServer = 1, no update data)")
+                                        false
+                                    }
+                                }
+
+                                // Default case - skip
+                                else -> {
+                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - unknown isPushedToServer value: $isPushedToServer")
+                                    false
+                                }
+                            }
                         }
 
-                        AppLogger.d("mappedInspeksiData $mappedInspeksiData")
-                        // Only create the inspeksi JSON file if there's data to upload
+                        AppLogger.d("Filtered ${inspeksiDataToUpload.size} inspections for upload out of ${mappedInspeksiData.size} total")
+
+
                         if (inspeksiDataToUpload.isNotEmpty()) {
                             val inspeksiBatches = inspeksiDataToUpload.chunked(25)
                             val inspeksiBatchMap = mutableMapOf<String, Any>()
@@ -4466,13 +4512,17 @@ class HomePageActivity : AppCompatActivity() {
                                     "ids" to batchIds,
                                     "detail_ids" to inspeksiDetailIds
                                 )
+
+                                AppLogger.d("Created batch ${batchIndex + 1} with ${batch.size} inspections for upload")
                             }
 
                             AppLogger.d("inspeksiBatchMap $inspeksiBatchMap")
                             if (inspeksiBatchMap.isNotEmpty()) {
-                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] =
-                                    inspeksiBatchMap
+                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] = inspeksiBatchMap
+                                AppLogger.d("Added ${inspeksiBatchMap.size} inspection batches to combinedUploadData")
                             }
+                        } else {
+                            AppLogger.w("No inspection data qualified for upload after filtering")
                         }
 
                         unzippedInspeksiData = mappedInspeksiData.filter { item ->
@@ -6450,6 +6500,7 @@ class HomePageActivity : AppCompatActivity() {
         titleDialog: String? = "Sinkronisasi Restan & Dataset"
     ) {
 
+        AppLogger.d("aksjdlfkajsd lklj alksdjf lsldka jflks")
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
         titleTV.text = titleDialog
@@ -6818,23 +6869,6 @@ class HomePageActivity : AppCompatActivity() {
             return
         }
 
-        AppLogger.d("=== Current User Preferences Before Sync ===")
-        AppLogger.d("nameUserLogin: ${prefManager!!.nameUserLogin}")
-        AppLogger.d("jabatanUserLogin: ${prefManager!!.jabatanUserLogin}")
-        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
-        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
-        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
-        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
-        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
-        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
-        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
-        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
-        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
-        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
-        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
-        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
-        AppLogger.d("=== End Current User Preferences Before Sync ===")
-
         try {
             val estateId = estateIdString.toInt()
             if (estateId <= 0) {
@@ -6881,9 +6915,8 @@ class HomePageActivity : AppCompatActivity() {
             if (isTriggerButtonSinkronisasiData) {
                 loadingDialog.dismiss()
             }
-
             if (filteredRequests.isNotEmpty()) {
-                if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection) {
+                if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
                     startDownloadsV2(filteredRequests, previewData, titleDialog)
                 } else {
                     dialog.show()
@@ -6932,6 +6965,8 @@ class HomePageActivity : AppCompatActivity() {
         val isMandorPanen =
             jabatan!!.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true)
 
+
+        AppLogger.d(" isTriggerFeatureInspection $isTriggerFeatureInspection")
         if (isTriggerFeatureInspection && !isKeraniPanen) {
             AppLogger.d("Inspection triggered - downloading only parameter dataset")
             datasets.add(
@@ -6994,6 +7029,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
 
+        AppLogger.d("gass ")
         if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
             AppLogger.d(isTriggerFeatureInspection.toString())
             datasets.add(

@@ -1628,26 +1628,35 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
         fabPhotoFormAncak.setOnClickListener {
+            AppLogger.d("fabPhotoFormAncak Triggered")
             isForSelfie = false
+            isInTPH = false
+            isForFollowUp = false
             showViewPhotoBottomSheet(null, false, false, false) // Form photo
         }
 
         fabPhotoUser.setOnClickListener {
+            AppLogger.d("fabPhotoUser Triggered")
             isForSelfie = true
+            isInTPH = false
+            isForFollowUp = false
             showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
         }
 
         fabFollowUpTPH.setOnClickListener {
-            isForSelfie = false
+            AppLogger.d("fabFollowUpTPH Triggered")
             isInTPH = true
+            isForSelfie = false
             isForFollowUp = true
             showViewPhotoBottomSheet(null, true, false, true) // TPH Follow-up photo
         }
 
 
         fabPhotoInfoBlok.setOnClickListener {
+            AppLogger.d("fabPhotoInfoBlok Triggered")
             isForSelfie = false
             isInTPH = true
+            isForFollowUp = false
             showViewPhotoBottomSheet(null, true, false, false) // TPH photo
         }
 
@@ -6425,19 +6434,24 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             when {
                 isForSelfie -> {
+                    AppLogger.d("selfie")
                     photoSelfie = fname
                 }
 
                 isInTPH && isForFollowUp -> {
+                    AppLogger.d("in tph and follow up")
                     photoTPHFollowUp = fname
                 }
 
 
                 isInTPH -> {
+                    AppLogger.d("isInTPH ....")
                     photoInTPH = fname
                 }
 
                 isForFollowUp -> {
+
+                    AppLogger.d("is for follow up ")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(
