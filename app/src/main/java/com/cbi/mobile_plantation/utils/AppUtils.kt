@@ -556,15 +556,155 @@ object AppUtils {
         dataList.forEach { data ->
             when {
                 featureKey.lowercase().contains("inspeksi") -> {
-                    // Handle main inspeksi photos
-                    processInspeksiMainPhotos(data, allCmpDirectories, zip, zipParams, context)
-
-                    // Handle inspeksi detail photos
-                    processInspeksiDetailPhotos(data, allCmpDirectories, zip, zipParams, context)
+                    // Handle inspeksi photos with proper folder organization
+                    processInspeksiPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
                 else -> {
                     // Handle other features normally
                     processRegularPhotos(data, featureKey, allCmpDirectories, zip, zipParams, context)
+                }
+            }
+        }
+    }
+
+    private fun processInspeksiPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        AppLogger.d("Processing all inspeksi photos for id: ${data["id"]}")
+
+        // Process main inspeksi selfie photos
+        processInspeksiSelfiePhotos(data, allCmpDirectories, zip, zipParams, context)
+
+        // Process inspeksi detail photos
+        processInspeksiDetailPhotos(data, allCmpDirectories, zip, zipParams, context)
+    }
+
+    private fun processInspeksiSelfiePhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        // Handle main header selfie photos (foto) - these go to INSPEKSI_BY_USER folder
+        val foto = data["foto_user"] as? String
+
+        if (!foto.isNullOrBlank()) {
+            val photoPaths = foto.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "inspeksi/photos/${AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser}",
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+
+        // Handle main header follow-up selfie photos (foto_pemulihan) - also go to INSPEKSI_BY_USER folder
+        val fotoPemulihan = data["foto_user_pemulihan"] as? String
+
+        if (!fotoPemulihan.isNullOrBlank()) {
+            val photoPaths = fotoPemulihan.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "inspeksi/photos/${AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser}",
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+    }
+
+    private fun processInspeksiDetailPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        val inspeksiDetailList = data["inspeksi_detail"] as? List<Map<String, Any>>
+
+        inspeksiDetailList?.forEach { detailData ->
+            // Process regular detail photos
+            val detailPhotoPathString = detailData["foto"] as? String
+            val detailFollowUpPhotoString = detailData["foto_pemulihan"] as? String
+            val noPokok = detailData["no_pokok"] as? Int ?: 0
+
+            // Process regular detail photos
+            if (!detailPhotoPathString.isNullOrBlank()) {
+                val detailPhotoPaths = detailPhotoPathString.split(";")
+
+                detailPhotoPaths.forEach { photoPath ->
+                    if (photoPath.isNotBlank()) {
+                        val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                        // Determine folder based on no_pokok and photo content
+                        val targetFolder = if (noPokok == 0) {
+                            AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH
+                        } else {
+                            AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok
+                        }
+
+                        addPhotoToZip(
+                            photoPath.trim(),
+                            photoFileName,
+                            "inspeksi/photos/$targetFolder",
+                            allCmpDirectories,
+                            zip,
+                            zipParams,
+                            context
+                        )
+                    }
+                }
+            }
+
+            // Process follow-up/recovery photos
+            if (!detailFollowUpPhotoString.isNullOrBlank()) {
+                val followUpPhotoPaths = detailFollowUpPhotoString.split(";")
+
+                followUpPhotoPaths.forEach { photoPath ->
+                    if (photoPath.isNotBlank()) {
+                        val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                        // Determine folder based on no_pokok for follow-up photos
+                        val targetFolder = if (noPokok == 0) {
+                            AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH
+                        } else {
+                            AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok
+                        }
+
+                        addPhotoToZip(
+                            photoPath.trim(),
+                            photoFileName,
+                            "inspeksi/photos/$targetFolder",
+                            allCmpDirectories,
+                            zip,
+                            zipParams,
+                            context
+                        )
+                    }
                 }
             }
         }
@@ -635,39 +775,6 @@ object AppUtils {
         }
     }
 
-    private fun processInspeksiDetailPhotos(
-        data: Map<String, Any>,
-        allCmpDirectories: List<File>,
-        zip: ZipFile,
-        zipParams: ZipParameters,
-        context: Context
-    ) {
-        val inspeksiDetailList = data["inspeksi_detail"] as? List<Map<String, Any>>
-        AppLogger.d("Processing inspeksi detail photos for id: ${data["id"]}")
-
-        inspeksiDetailList?.forEach { detailData ->
-            val detailPhotoPathString = detailData["foto"] as? String
-
-            if (!detailPhotoPathString.isNullOrBlank()) {
-                val detailPhotoPaths = detailPhotoPathString.split(";")
-
-                detailPhotoPaths.forEach { photoPath ->
-                    if (photoPath.isNotBlank()) {
-                        val photoFileName = photoPath.trim().substringAfterLast("/")
-                        addPhotoToZip(
-                            photoPath.trim(),
-                            photoFileName,
-                            "inspeksi/photos/inspeksi_detail", // Detail photos folder
-                            allCmpDirectories,
-                            zip,
-                            zipParams,
-                            context
-                        )
-                    }
-                }
-            }
-        }
-    }
 
     private fun processRegularPhotos(
         data: Map<String, Any>,

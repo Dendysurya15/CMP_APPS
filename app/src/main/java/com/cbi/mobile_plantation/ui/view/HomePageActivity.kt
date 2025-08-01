@@ -4313,6 +4313,7 @@ class HomePageActivity : AppCompatActivity() {
 
                             try {
                                 mapOf<String, Any>(
+                                    "id" to (inspeksiWithRelations.inspeksi.id ?: ""),
                                     "id_panen" to (inspeksiWithRelations.inspeksi.id_panen ?: ""),
                                     "regional" to (inspeksiWithRelations.tph?.regional?.toString()
                                         ?: ""),
@@ -4350,6 +4351,10 @@ class HomePageActivity : AppCompatActivity() {
                                         ?: 0),
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
+                                        ?: 0),
+                                    "foto_user" to (inspeksiWithRelations.inspeksi.foto_user
+                                        ?: 0),
+                                    "foto_user_pemulihan" to (inspeksiWithRelations.inspeksi.foto_user_pemulihan
                                         ?: 0),
                                     "created_name" to (inspeksiWithRelations.inspeksi.created_name
                                         ?: ""),
@@ -4539,8 +4544,6 @@ class HomePageActivity : AppCompatActivity() {
                                 val batchKey = "batch_${batchIndex + 1}"
 
                                 val batchIds = batch.mapNotNull { it["id"] as? Int }
-
-                                val inspeksiIds = batch.mapNotNull { it["id"] as? Int }
 
                                 // Collect inspeksi_detail IDs from nested arrays
                                 val inspeksiDetailIds = mutableListOf<Int>()

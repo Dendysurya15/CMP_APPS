@@ -1343,7 +1343,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             fabPhotoFormAncak.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
             labelPhotoFormInspect.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
-            badgePhotoInspect.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
+//            badgePhotoInspect.visibility = if (showFabFormPhoto) View.VISIBLE else View.GONE
 
             if (showFabPhotoUser) {
                 val layoutParams = fabPhotoUser.layoutParams as ConstraintLayout.LayoutParams
