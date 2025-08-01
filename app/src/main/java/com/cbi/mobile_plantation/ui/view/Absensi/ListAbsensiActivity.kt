@@ -27,6 +27,7 @@ import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.CheckBox
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -810,6 +811,24 @@ class ListAbsensiActivity : AppCompatActivity() {
         errorCard.visibility = View.VISIBLE
     }
 
+    private fun makeQRLayoutSquare(screenshotLayout: View) {
+        val qrLayout = findViewById<FrameLayout>(R.id.fLayoutQR)
+
+        // Get screen width
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+
+        // Calculate square size (80% of screen width with padding)
+        val padding = (32 * resources.displayMetrics.density).toInt() // 32dp padding
+        val squareSize = screenWidth - padding
+
+        // Set equal width and height
+        val layoutParams = qrLayout.layoutParams
+        layoutParams.width = squareSize
+        layoutParams.height = squareSize
+        qrLayout.layoutParams = layoutParams
+    }
+
     private fun takeQRCodeScreenshot(view: View) {
         lifecycleScope.launch {
             try {
@@ -833,6 +852,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                     layoutInflater.inflate(R.layout.layout_screenshot_qr_absensi, null)
 
                 AppLogger.d("Inflated layout_screenshot_qr_absensi layout")
+
+                makeQRLayoutSquare(screenshotLayout)
 
                 // Get QR code from the bottom sheet view
                 val originalQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
