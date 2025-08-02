@@ -812,7 +812,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     }
 
     private fun makeQRLayoutSquare(screenshotLayout: View) {
-        val qrLayout = findViewById<FrameLayout>(R.id.fLayoutQR)
+        val qrLayout = screenshotLayout.findViewById<FrameLayout>(R.id.fLayoutQR)
 
         // Get screen width
         val displayMetrics = resources.displayMetrics
