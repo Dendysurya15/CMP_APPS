@@ -235,7 +235,7 @@ class DatasetRepository(
         AppLogger.d("Parameter API Request: ${jsonObject.toString()}")
 
         // Make the API call
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {
