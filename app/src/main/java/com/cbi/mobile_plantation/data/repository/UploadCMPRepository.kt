@@ -1607,8 +1607,6 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request...")
 
-                AppLogger.d("lkasjdflkjasdklfasdf")
-
                 val response = CMPApiClient.instance.uploadZip(filePart)
 
                 AppLogger.d(response.toString())

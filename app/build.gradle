@@ -9,7 +9,7 @@ android {
 
     def versionMajor = 1
     def versionMinor = 4
-    def versionPatch = 0
+    def versionPatch = 1
 
     namespace 'com.cbi.mobile_plantation'
     compileSdk 34
