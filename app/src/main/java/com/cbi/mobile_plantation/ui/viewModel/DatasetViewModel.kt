@@ -282,6 +282,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
 
 
+    suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? {
+        return try {
+            repository.getTPHDetailsByID(tphId)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading TPH details: ${e.message}")
+            null
+        }
+    }
+
     fun updateOrInsertJenisTPH(jenisTPH: List<JenisTPHModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {
