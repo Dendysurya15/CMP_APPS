@@ -264,6 +264,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val kemandoranIdMap: MutableMap<String, Int> = mutableMapOf()
 
     private var totalPokokInspection = 0
+    private var totalHarvestTree = 0
     private var jumBrdTglPath = 0
     private var jumBuahTglPath = 0
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
@@ -424,7 +425,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         layoutAutoScan.visibility = View.VISIBLE
 
-        val radiusText = "${radiusMinimum.toInt()} m"
+        val radiusText = "${boundaryAccuracy.toInt()} m"
         val text =
             "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
         val asterisk = "*"
@@ -459,74 +460,74 @@ open class FormInspectionActivity : AppCompatActivity(),
         alertTvScannedRadius.text = spannableScanTPHTitle
     }
 
-    private fun setupUI() {
-        loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.boundaryAccuracy
-        initViewModel()
-        initUI()
-        dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
-        divisi_abbr_pasar_tengah = intent.getStringExtra("DIVISI_ABBR").toString()
-        blok_kode_pasar_tengah = intent.getStringExtra("BLOK_KODE").toString()
-        last_pokok_before_pasar_tengah = intent.getIntExtra("LAST_NUMBER_POKOK", 1)
+        private fun setupUI() {
+            loadingDialog = LoadingDialog(this)
+            prefManager = PrefManager(this)
+            radiusMinimum = prefManager!!.radiusMinimum
+            boundaryAccuracy = prefManager!!.boundaryAccuracy
+            initViewModel()
+            initUI()
+            dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
+            divisi_abbr_pasar_tengah = intent.getStringExtra("DIVISI_ABBR").toString()
+            blok_kode_pasar_tengah = intent.getStringExtra("BLOK_KODE").toString()
+            last_pokok_before_pasar_tengah = intent.getIntExtra("LAST_NUMBER_POKOK", 1)
 
-        featureName = intent.getStringExtra("FEATURE_NAME").toString()
-        val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
-        inspectionId = if (inspectionIdInt != -1) {
-            inspectionIdInt.toString()
-        } else {
-            null
-        }
-        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
-                View.VISIBLE
-            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
-            map = findViewById(R.id.map)
-            setupMapTouchHandling()
-            setupMap()
-            setupButtonListeners()
-            updateSatelliteButtonAppearance()
-            updateButtonSelection("default")
-        }
-        setupAutoScanSwitch()
-        setKeyboardVisibilityListener()
-        regionalId = prefManager!!.regionalIdUserLogin
-        estateId = prefManager!!.estateIdUserLogin
-        estateName = prefManager!!.estateUserLogin
-        userName = prefManager!!.nameUserLogin
-        userId = prefManager!!.idUserLogin
-        jabatanUser = prefManager!!.jabatanUserLogin
-        infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
-        setupHeader()
-        val backButton = findViewById<ImageView>(R.id.btn_back)
-        backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                loadingDialog.show()
-                loadingDialog.setMessage("Loading data...")
-                delay(1000)
+            featureName = intent.getStringExtra("FEATURE_NAME").toString()
+            val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
+            inspectionId = if (inspectionIdInt != -1) {
+                inspectionIdInt.toString()
+            } else {
+                null
             }
+            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
+                    View.VISIBLE
+                findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
+                map = findViewById(R.id.map)
+                setupMapTouchHandling()
+                setupMap()
+                setupButtonListeners()
+                updateSatelliteButtonAppearance()
+                updateButtonSelection("default")
+            }
+            setupAutoScanSwitch()
+            setKeyboardVisibilityListener()
+            regionalId = prefManager!!.regionalIdUserLogin
+            estateId = prefManager!!.estateIdUserLogin
+            estateName = prefManager!!.estateUserLogin
+            userName = prefManager!!.nameUserLogin
+            userId = prefManager!!.idUserLogin
+            jabatanUser = prefManager!!.jabatanUserLogin
+            infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
+            setupHeader()
+            val backButton = findViewById<ImageView>(R.id.btn_back)
+            backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-            try {
-                val estateIdStr = estateId?.trim()
 
-                if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
-                    val estateIdInt = estateIdStr.toInt()
+            lifecycleScope.launch(Dispatchers.IO) {
+                withContext(Dispatchers.Main) {
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Loading data...")
+                    delay(1000)
+                }
 
-                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+                try {
+                    val estateIdStr = estateId?.trim()
 
-                    panenViewModel.getAllTPHinWeek()
-                    delay(100)
+                    if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
+                        val estateIdInt = estateIdStr.toInt()
 
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-                            panenTPH = list ?: emptyList()
-                            panenDeferred.complete(list ?: emptyList())
+                        val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+
+                        panenViewModel.getAllTPHinWeek()
+                        delay(100)
+
+                        withContext(Dispatchers.Main) {
+                            panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                                panenTPH = list ?: emptyList()
+                                panenDeferred.complete(list ?: emptyList())
+                            }
                         }
-                    }
 
                     if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
 
@@ -1816,6 +1817,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
                                     foto_user = "",
+                                    jjg_panen = currentInspectionData?.inspeksi?.jjg_panen ?: 0 ,
                                     foto_user_pemulihan = photoSelfie,
                                     app_version = currentInspectionData?.inspeksi?.app_version
                                         ?: "",
@@ -1845,6 +1847,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     id_panen = selectedIdPanenByScan ?: "0",
                                     date_panen = selectedTanggalPanenByScan!!,
                                     foto_user = photoSelfie ?: "",
+                                    jjg_panen = totalHarvestTree,
                                     jalur_masuk = selectedJalurMasuk,
                                     jenis_kondisi = selectedKondisiValue.toInt(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
@@ -2496,7 +2499,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        val radiusText = "${radiusMinimum.toInt()} m"
+        val radiusText = "${boundaryAccuracy.toInt()} m"
         val fullText =
             "Berikut adalah daftar lokasi TPH yang berada dalam radius $radiusText dari lokasi anda:"
         val spannableString = SpannableString(fullText)
@@ -3242,6 +3245,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             emptyTreeValue == 1 || emptyTreeValue == 2
         }
 
+        totalHarvestTree = (1..totalPages).sumOf { pageNumber ->
+            formData[pageNumber]?.harvestTree ?: 0
+        }
 
         // Get container for dynamic cards
         val containerTemuanCards = findViewById<LinearLayout>(R.id.containerTemuanCards)
@@ -3254,6 +3260,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 SummaryItem(AppUtils.kodeInspeksi.buahTinggalTPH, jumBuahTglPath.toString())
             ),
             "Path / Pokok" to listOf(
+                SummaryItem("Jumlah Janjang Panen", totalHarvestTree.toString()),
                 SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
                 SummaryItem(
                     AppUtils.kodeInspeksi.buahMasakTidakDipotong,
@@ -4304,9 +4311,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedAfdeling = selectedItem
                 selectedAfdelingIdSpinner = position
 
-
                 isTriggeredBtnScanned = false
                 AppLogger.d("masuk coba $isTriggeredBtnScanned")
+
                 val selectedDivisiId = try {
                     divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
                 } catch (e: Exception) {
@@ -4332,7 +4339,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     withContext(Dispatchers.Main) {
                         setupScanTPHTrigger()
                         animateLoadingDots(linearLayout)
-                        delay(200) // 1 second delay
+                        // ❌ REMOVED: delay(200) // 1 second delay
                     }
 
                     try {
@@ -4347,24 +4354,54 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 val estateIdToUse = estateId!!.toInt()
                                 val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
 
-                                // Original logic for normal case
                                 AppLogger.d("Loading TPHs from database - normal flow")
-                                AppLogger.d("panenTPH $panenTPH")
-                                // Group panen records by TPH ID
-                                val panenGroupedByTPH =
-                                    panenTPH.groupBy { panenWithRelationship ->
-                                        panenWithRelationship.panen.tph_id?.toIntOrNull()
-                                    }.filterKeys { it != null }
+                                AppLogger.d("panenTPH size: ${panenTPH.size}")
 
-                                val selectedTPHIds = panenGroupedByTPH.keys.filterNotNull()
-                                AppLogger.d("Selected TPH IDs from panenTPH: $selectedTPHIds (count: ${selectedTPHIds.size})")
+                                // 🚀 OPTIMIZED: Process in background thread with progress logging
+                                AppLogger.d("Starting groupBy operation for ${panenTPH.size} records...")
 
-                                val tphList = datasetViewModel.getLatLonDivisiByTPHIds(
-                                    estateIdToUse,
-                                    selectedDivisiId,
-                                    selectedTPHIds.distinct()
-                                )
+                                val panenGroupedByTPH = panenTPH
+                                    .asSequence() // Use sequence for lazy evaluation
+                                    .mapNotNull { panenWithRelationship ->
+                                        val tphId = panenWithRelationship.panen.tph_id?.toIntOrNull()
+                                        if (tphId != null) tphId to panenWithRelationship else null
+                                    }
+                                    .groupBy({ it.first }, { it.second }) // Group by TPH ID
 
+                                AppLogger.d("GroupBy completed. Found ${panenGroupedByTPH.size} unique TPH groups")
+
+                                val selectedTPHIds = panenGroupedByTPH.keys.toList()
+                                AppLogger.d("Selected TPH IDs from panenTPH: ${selectedTPHIds.size} unique TPHs")
+
+                                // 🚀 OPTIMIZED: Batch the database query if needed
+                                AppLogger.d("Fetching TPH data from database...")
+                                val tphList = if (selectedTPHIds.size > 1000) {
+                                    // If too many TPH IDs, process in batches
+                                    val batchSize = 500
+                                    val allResults = mutableListOf<TPHNewModel>()
+
+                                    selectedTPHIds.chunked(batchSize).forEachIndexed { index, batch ->
+                                        AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
+                                        val batchResults = datasetViewModel.getLatLonDivisiByTPHIds(
+                                            estateIdToUse,
+                                            selectedDivisiId,
+                                            batch
+                                        )
+                                        allResults.addAll(batchResults)
+                                    }
+                                    allResults
+                                } else {
+                                    // Normal single query
+                                    datasetViewModel.getLatLonDivisiByTPHIds(
+                                        estateIdToUse,
+                                        selectedDivisiId,
+                                        selectedTPHIds
+                                    )
+                                }
+
+                                AppLogger.d("TPH data fetched. Processing ${tphList.size} TPH records...")
+
+                                // 🚀 OPTIMIZED: Process TPH results efficiently
                                 tphList.forEach { tph ->
                                     val tphId = tph.id
                                     val lat = tph.lat?.toDoubleOrNull()
@@ -4375,15 +4412,11 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                     if (tphId != null && lat != null && lon != null) {
                                         // Get all panen records for this TPH ID
-                                        val matchingPanenList =
-                                            panenGroupedByTPH[tphId] ?: emptyList()
+                                        val matchingPanenList = panenGroupedByTPH[tphId] ?: emptyList()
 
                                         if (matchingPanenList.isNotEmpty()) {
-                                            AppLogger.d("TPH ID $tphId has ${matchingPanenList.size} panen records to merge")
-
                                             // Merge all data from this TPH
-                                            val mergedData =
-                                                mergePanenRecordsForTPH(matchingPanenList)
+                                            val mergedData = mergePanenRecordsForTPH(matchingPanenList)
 
                                             // Create description with merged info
                                             val blokKode = if (mergedData.dateList.size > 1) {
@@ -4400,16 +4433,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 blokKode,
                                                 jenisTPHId
                                             )
-
-                                            AppLogger.d("Merged TPH $tphId: ${mergedData.workerCount} workers, ${mergedData.dateList.size} transactions")
-                                        } else {
-                                            AppLogger.w("No matching panen records found for TPH ID: $tphId")
                                         }
-                                    } else {
-                                        AppLogger.w("Skipping invalid TPH: ID=$tphId, lat=$lat, lon=$lon")
                                     }
                                 }
-
 
                                 AppLogger.d("Final resultMap size: ${resultMap.size}")
                                 resultMap
@@ -4420,11 +4446,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             }
                         }
 
-
                         try {
-
                             latLonMap = latLonResult.await()
-
                         } catch (e: Exception) {
                             AppLogger.e("Error awaiting latLonResult: ${e.message}", e.toString())
                             withContext(Dispatchers.Main) {
@@ -4440,36 +4463,30 @@ open class FormInspectionActivity : AppCompatActivity(),
                             latLonMap = emptyMap()
                         }
 
-
+                        // Continue with other deferred operations in parallel
                         val blokDeferred = async {
                             try {
-                                datasetViewModel.getBlokList(
-                                    estateId!!.toInt(),
-                                    selectedDivisiId
-                                )
+                                datasetViewModel.getBlokList(estateId!!.toInt(), selectedDivisiId)
                             } catch (e: Exception) {
+                                AppLogger.e("Error fetching blok list: ${e.message}")
                                 emptyList()
                             }
                         }
 
                         val kemandoranDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
-                                    estateId!!.toInt(),
-                                    selectedDivisiIdList
-                                )
+                                datasetViewModel.getKemandoranList(estateId!!.toInt(), selectedDivisiIdList)
                             } catch (e: Exception) {
+                                AppLogger.e("Error fetching kemandoran list: ${e.message}")
                                 emptyList()
                             }
                         }
 
                         val kemandoranLainDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
-                                    estateId!!.toInt(),
-                                    nonSelectedIdAfdeling as List<Int>
-                                )
+                                datasetViewModel.getKemandoranList(estateId!!.toInt(), nonSelectedIdAfdeling as List<Int>)
                             } catch (e: Exception) {
+                                AppLogger.e("Error fetching kemandoran lain list: ${e.message}")
                                 emptyList()
                             }
                         }
@@ -4479,8 +4496,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         kemandoranLainList = kemandoranLainDeferred.await()
 
                     } catch (e: Exception) {
-
-                        AppLogger.d("Error loading afdeling data: ${e.message}")
+                        AppLogger.e("Error loading afdeling data: ${e.message}", e.toString())
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 this@FormInspectionActivity,

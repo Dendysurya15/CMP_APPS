@@ -136,6 +136,7 @@ class DataPanenInspectionRepository(
                 put("tph")
                 put("tgl_inspeksi")
                 put("tgl_panen")
+                put("jjg_panen")
                 put("inspeksi_putaran")
                 put("jenis_inspeksi")
                 put("rute_masuk")

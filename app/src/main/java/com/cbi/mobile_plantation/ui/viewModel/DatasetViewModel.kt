@@ -2863,6 +2863,7 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         val tphId = item.optInt("tph", 0)
                                         val tglInspeksi = item.optString("tgl_inspeksi", "")
                                         val tglPanen = item.optString("tgl_panen", "")
+                                        val jjgPanen = item.optInt("jjg_panen", 0)
                                         val jalurMasuk = item.optString("rute_masuk", "")
                                         val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
                                         val baris = item.optString("baris", "")
@@ -2909,6 +2910,7 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                             tph_nomor = tphNomor,
                                             ancak = ancak,
                                             foto_user = "",
+                                            jjg_panen = jjgPanen,
                                             date_panen = tglPanen,
                                             jalur_masuk = jalurMasuk,
                                             jenis_kondisi = jenisInspeksi,

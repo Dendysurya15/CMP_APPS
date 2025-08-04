@@ -1320,6 +1320,11 @@ class HomePageActivity : AppCompatActivity() {
                                         ignoreCase = true
                                     )
 
+                                    val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                        AppUtils.ListFeatureByRoleUser.KeraniPanen,
+                                        ignoreCase = true
+                                    )
+
                                     var previewDataPanenInspeksi = ""
                                     val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
                                     val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -1327,8 +1332,7 @@ class HomePageActivity : AppCompatActivity() {
                                     // Validate afdelingId and get valid integer value
                                     var validAfdelingId: Int? = null
 
-                                    if (isMandor1 || isAsisten) {
-                                        AppLogger.d("Validation triggered for Mandor Panen or Asisten")
+                                    if (!isKeraniPanen) {
 
                                         // Check if afdelingId is null or empty
                                         if (afdelingIdString.isNullOrEmpty()) {
@@ -1362,7 +1366,7 @@ class HomePageActivity : AppCompatActivity() {
                                     }
 
                                     // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                    if ((isMandor1 || isAsisten) && validAfdelingId != null) {
+                                    if ((!isKeraniPanen) && validAfdelingId != null) {
                                         // Create a deferred result that will be completed when data is received
                                         val dataPanenInspeksiDeffered =
                                             CompletableDeferred<String>()
