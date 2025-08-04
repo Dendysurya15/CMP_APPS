@@ -763,7 +763,8 @@
                 android:visibility="gone"
                 android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabFollowUpTPH"
-                app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH" />
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH"
+                tools:ignore="UseAppTint" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabPhotoInfoBlok"

@@ -18,81 +18,82 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-    class FormAncakViewModel : ViewModel() {
-            data class PageData(
-                val pokokNumber: Int = 0,
-                val emptyTree: Int = 0,
-                val harvestTree: Int = 0,
-                val neatPelepah: Int = 0, // 7
-                val pelepahSengkleh: Int = 0, // 8
-                val kondisiPruning: Int = 0,
-                val buahMasakTdkDipotong: Int = 0, /// 3
-                val btPiringanGawangan: Int = 0, // 4
-                val brdKtpGawangan: Int = 0,   //1
-                val brdKtpPiringanPikulKetiak: Int = 0, //2
-                val photo: String? = null,
-                val comment: String? = null,
-                val latIssue: Double? = null,
-                val lonIssue: Double? = null,
-                val createdDate: String? = null,
-                val createdBy: Int? = null,
-                val createdName: String? = null,
-                val foto_pemulihan: String? = null,
-                val komentar_pemulihan: String? = null,
-                val status_pemulihan: Int? = 0,
-            )
+class FormAncakViewModel : ViewModel() {
+    data class PageData(
+        val pokokNumber: Int = 0,
+        val emptyTree: Int = 0,
+        val harvestTree: Int = 0,
+        val harvestJjg: Int = 0,
+        val neatPelepah: Int = 0, // 7
+        val pelepahSengkleh: Int = 0, // 8
+        val kondisiPruning: Int = 0,
+        val buahMasakTdkDipotong: Int = 0, /// 3
+        val btPiringanGawangan: Int = 0, // 4
+        val brdKtpGawangan: Int = 0,   //1
+        val brdKtpPiringanPikulKetiak: Int = 0, //2
+        val photo: String? = null,
+        val comment: String? = null,
+        val latIssue: Double? = null,
+        val lonIssue: Double? = null,
+        val createdDate: String? = null,
+        val createdBy: Int? = null,
+        val createdName: String? = null,
+        val foto_pemulihan: String? = null,
+        val komentar_pemulihan: String? = null,
+        val status_pemulihan: Int? = 0,
+    )
 
-        data class ValidationResult(
-            val isValid: Boolean,
-            val fieldId: Int? = null,
-            val errorMessage: String? = null
-        )
+    data class ValidationResult(
+        val isValid: Boolean,
+        val fieldId: Int? = null,
+        val errorMessage: String? = null
+    )
 
-        private val _currentPage = MutableLiveData<Int>(1)
-        val currentPage: LiveData<Int> = _currentPage
+    private val _currentPage = MutableLiveData<Int>(1)
+    val currentPage: LiveData<Int> = _currentPage
 
-        private val _startingPage = MutableLiveData<Int>(1)
-        val startingPage: LiveData<Int> = _startingPage
+    private val _startingPage = MutableLiveData<Int>(1)
+    val startingPage: LiveData<Int> = _startingPage
 
-        private val _totalPages = MutableLiveData<Int>(AppUtils.TOTAL_MAX_TREES_INSPECTION)
-        val totalPages: LiveData<Int> = _totalPages
+    private val _totalPages = MutableLiveData<Int>(AppUtils.TOTAL_MAX_TREES_INSPECTION)
+    val totalPages: LiveData<Int> = _totalPages
 
-        private val _estName = MutableLiveData<String>("-")
-        val estName: LiveData<String> = _estName
+    private val _estName = MutableLiveData<String>("-")
+    val estName: LiveData<String> = _estName
 
-        private val _afdName = MutableLiveData<String>("-")
-        val afdName: LiveData<String> = _afdName
+    private val _afdName = MutableLiveData<String>("-")
+    val afdName: LiveData<String> = _afdName
 
-        private val _blokName = MutableLiveData<String>("-")
-        val blokName: LiveData<String> = _blokName
+    private val _blokName = MutableLiveData<String>("-")
+    val blokName: LiveData<String> = _blokName
 
-        private val _isInspection = MutableLiveData<Boolean>(true)
-        val isInspection: LiveData<Boolean> = _isInspection
+    private val _isInspection = MutableLiveData<Boolean>(true)
+    val isInspection: LiveData<Boolean> = _isInspection
 
-        private val _formData = MutableLiveData<MutableMap<Int, PageData>>(mutableMapOf())
-        val formData: LiveData<MutableMap<Int, PageData>> = _formData
+    private val _formData = MutableLiveData<MutableMap<Int, PageData>>(mutableMapOf())
+    val formData: LiveData<MutableMap<Int, PageData>> = _formData
 
-        private val _fieldValidationError = MutableLiveData<Map<Int, String>>(emptyMap())
-        val fieldValidationError: LiveData<Map<Int, String>> = _fieldValidationError
+    private val _fieldValidationError = MutableLiveData<Map<Int, String>>(emptyMap())
+    val fieldValidationError: LiveData<Map<Int, String>> = _fieldValidationError
 
-        fun nextPage() {
-            _currentPage.value = (_currentPage.value ?: 1) + 1
-        }
+    fun nextPage() {
+        _currentPage.value = (_currentPage.value ?: 1) + 1
+    }
 
-        fun previousPage() {
-            _currentPage.value = (_currentPage.value ?: 1) - 1
-        }
+    fun previousPage() {
+        _currentPage.value = (_currentPage.value ?: 1) - 1
+    }
 
-        fun updateTotalPages(totalPages: Int) {
-            _totalPages.value = totalPages
-            AppLogger.d("Total pages updated to: $totalPages")
-        }
+    fun updateTotalPages(totalPages: Int) {
+        _totalPages.value = totalPages
+        AppLogger.d("Total pages updated to: $totalPages")
+    }
 
-        fun setStartingPage(pageNumber: Int) {
-            _startingPage.value = pageNumber
-            _currentPage.value = pageNumber
-            AppLogger.d("Starting page set to: $pageNumber")
-        }
+    fun setStartingPage(pageNumber: Int) {
+        _startingPage.value = pageNumber
+        _currentPage.value = pageNumber
+        AppLogger.d("Starting page set to: $pageNumber")
+    }
 
     fun getPageData(pageNumber: Int): PageData? {
         val currentData = _formData.value ?: mutableMapOf()
@@ -118,18 +119,33 @@ import java.util.Locale
         _blokName.value = blok
     }
 
+
     fun shouldSetLatLonIssue(pageData: PageData): Boolean {
+        // If emptyTree is not 1, no issue should be tracked
         if (pageData.emptyTree != 1) {
             return false
         }
 
+        // Check if there are actual issues that warrant location tracking
         val hasRipeFruit = pageData.buahMasakTdkDipotong > 0 || pageData.btPiringanGawangan > 0
+        val hasSignificantBrondolan =
+            (pageData.brdKtpGawangan + pageData.brdKtpPiringanPikulKetiak) > 50
 
-        if (hasRipeFruit) {
-            return true
-        } else {
-            return (pageData.brdKtpGawangan + pageData.brdKtpPiringanPikulKetiak) > 50
+        val hasIssues = hasRipeFruit || hasSignificantBrondolan
+
+        if (!hasIssues) {
+            // No issues found, should not track location
+            return false
         }
+
+        // ✅ NEW: Check if lat/lon already exists - if yes, don't update
+        if (pageData.latIssue != null && pageData.lonIssue != null) {
+            AppLogger.d("Lat/Lon already exists for pokok ${pageData.pokokNumber}, skipping update")
+            return false // Don't update existing location
+        }
+
+        // Issues found and no existing location, should set new location
+        return true
     }
 
     fun setCurrentPage(pageNumber: Int) {
@@ -145,26 +161,42 @@ import java.util.Locale
         context: Context
     ): Boolean {
         val currentData = getPageData(pokokNumber) ?: PageData()
-
-        // Always allow user to save/update data when this function is called
         val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
         if (shouldSetLatLonIssue(currentData)) {
-            // Conditions are met: Set the lat/lon issue for this pokok
-            val updatedData = currentData.copy(
-                latIssue = lat,
-                lonIssue = lon,
-                createdDate = currentDate,
-                createdBy = prefManager.idUserLogin,
-                createdName = prefManager.nameUserLogin
-            )
-            savePageData(pokokNumber, updatedData)
-            AppLogger.d("Saved/Updated location data for pokok $pokokNumber")
+            // ✅ NEW: Check if location already exists
+            if (currentData.latIssue != null && currentData.lonIssue != null) {
+                AppLogger.d("Location already exists for pokok $pokokNumber, keeping existing location")
 
-            // Show success toast with saved location
-            Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
+                // Just update metadata without changing location
+                val updatedData = currentData.copy(
+                    createdDate = currentDate,
+                    createdBy = prefManager.idUserLogin,
+                    createdName = prefManager.nameUserLogin
+                )
+                savePageData(pokokNumber, updatedData)
 
-            return true // Should track this location
+                // Show toast with existing location
+                Toasty.info(context, "Lokasi sudah tersimpan: Lat:${currentData.latIssue} Lon:${currentData.lonIssue}", Toast.LENGTH_SHORT, true).show()
+
+                return true // Still should track this location
+            } else {
+                // Set new location since none exists
+                val updatedData = currentData.copy(
+                    latIssue = lat,
+                    lonIssue = lon,
+                    createdDate = currentDate,
+                    createdBy = prefManager.idUserLogin,
+                    createdName = prefManager.nameUserLogin
+                )
+                savePageData(pokokNumber, updatedData)
+                AppLogger.d("Saved new location data for pokok $pokokNumber")
+
+                // Show success toast with new location
+                Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
+
+                return true // Should track this location
+            }
         } else {
             // Conditions are NOT met: Save metadata but clear location
             val updatedData = currentData.copy(
@@ -175,11 +207,12 @@ import java.util.Locale
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
-            AppLogger.d("Saved/Updated metadata for pokok $pokokNumber without location (no issues)")
+            AppLogger.d("Cleared location data for pokok $pokokNumber (no issues)")
 
             return false // Should remove tracking for this location
         }
     }
+
     fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
         val data = getPageData(pageNumber)

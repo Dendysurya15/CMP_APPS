@@ -328,7 +328,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var badgePhotoInspect: ImageView
 
 
-
     private lateinit var fabPhotoInfoBlok: FloatingActionButton
     private lateinit var clInfoBlokSection: ConstraintLayout
     private lateinit var clFormInspection: ConstraintLayout
@@ -460,74 +459,74 @@ open class FormInspectionActivity : AppCompatActivity(),
         alertTvScannedRadius.text = spannableScanTPHTitle
     }
 
-        private fun setupUI() {
-            loadingDialog = LoadingDialog(this)
-            prefManager = PrefManager(this)
-            radiusMinimum = prefManager!!.radiusMinimum
-            boundaryAccuracy = prefManager!!.boundaryAccuracy
-            initViewModel()
-            initUI()
-            dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
-            divisi_abbr_pasar_tengah = intent.getStringExtra("DIVISI_ABBR").toString()
-            blok_kode_pasar_tengah = intent.getStringExtra("BLOK_KODE").toString()
-            last_pokok_before_pasar_tengah = intent.getIntExtra("LAST_NUMBER_POKOK", 1)
+    private fun setupUI() {
+        loadingDialog = LoadingDialog(this)
+        prefManager = PrefManager(this)
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.boundaryAccuracy
+        initViewModel()
+        initUI()
+        dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
+        divisi_abbr_pasar_tengah = intent.getStringExtra("DIVISI_ABBR").toString()
+        blok_kode_pasar_tengah = intent.getStringExtra("BLOK_KODE").toString()
+        last_pokok_before_pasar_tengah = intent.getIntExtra("LAST_NUMBER_POKOK", 1)
 
-            featureName = intent.getStringExtra("FEATURE_NAME").toString()
-            val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
-            inspectionId = if (inspectionIdInt != -1) {
-                inspectionIdInt.toString()
-            } else {
-                null
+        featureName = intent.getStringExtra("FEATURE_NAME").toString()
+        val inspectionIdInt = intent.getIntExtra("id_inspeksi", -1)
+        inspectionId = if (inspectionIdInt != -1) {
+            inspectionIdInt.toString()
+        } else {
+            null
+        }
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
+                View.VISIBLE
+            findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
+            map = findViewById(R.id.map)
+            setupMapTouchHandling()
+            setupMap()
+            setupButtonListeners()
+            updateSatelliteButtonAppearance()
+            updateButtonSelection("default")
+        }
+        setupAutoScanSwitch()
+        setKeyboardVisibilityListener()
+        regionalId = prefManager!!.regionalIdUserLogin
+        estateId = prefManager!!.estateIdUserLogin
+        estateName = prefManager!!.estateUserLogin
+        userName = prefManager!!.nameUserLogin
+        userId = prefManager!!.idUserLogin
+        jabatanUser = prefManager!!.jabatanUserLogin
+        infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
+        setupHeader()
+        val backButton = findViewById<ImageView>(R.id.btn_back)
+        backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                loadingDialog.show()
+                loadingDialog.setMessage("Loading data...")
+                delay(1000)
             }
-            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                findViewById<TextView>(R.id.titleDetailTrackingMap).visibility =
-                    View.VISIBLE
-                findViewById<CardView>(R.id.cardMap).visibility = View.VISIBLE
-                map = findViewById(R.id.map)
-                setupMapTouchHandling()
-                setupMap()
-                setupButtonListeners()
-                updateSatelliteButtonAppearance()
-                updateButtonSelection("default")
-            }
-            setupAutoScanSwitch()
-            setKeyboardVisibilityListener()
-            regionalId = prefManager!!.regionalIdUserLogin
-            estateId = prefManager!!.estateIdUserLogin
-            estateName = prefManager!!.estateUserLogin
-            userName = prefManager!!.nameUserLogin
-            userId = prefManager!!.idUserLogin
-            jabatanUser = prefManager!!.jabatanUserLogin
-            infoApp = AppUtils.getDeviceInfo(this@FormInspectionActivity).toString()
-            setupHeader()
-            val backButton = findViewById<ImageView>(R.id.btn_back)
-            backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
+            try {
+                val estateIdStr = estateId?.trim()
 
-            lifecycleScope.launch(Dispatchers.IO) {
-                withContext(Dispatchers.Main) {
-                    loadingDialog.show()
-                    loadingDialog.setMessage("Loading data...")
-                    delay(1000)
-                }
+                if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
+                    val estateIdInt = estateIdStr.toInt()
 
-                try {
-                    val estateIdStr = estateId?.trim()
+                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
-                        val estateIdInt = estateIdStr.toInt()
+                    panenViewModel.getAllTPHinWeek()
+                    delay(100)
 
-                        val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
-
-                        panenViewModel.getAllTPHinWeek()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-                                panenTPH = list ?: emptyList()
-                                panenDeferred.complete(list ?: emptyList())
-                            }
+                    withContext(Dispatchers.Main) {
+                        panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                            panenTPH = list ?: emptyList()
+                            panenDeferred.complete(list ?: emptyList())
                         }
+                    }
 
                     if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
 
@@ -822,7 +821,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 //            showFormInspectionScreen()
 //        } else {
 //            // For other flows, show info blok screen first
-            showInfoBlokScreen()
+        showInfoBlokScreen()
 //        }
     }
 
@@ -895,7 +894,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun showInfoBlokScreen() {
         clInfoBlokSection.visibility = View.VISIBLE
 
-        if(featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+        if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
             // Normal inspection - show both FABs in their normal positions
             fabPhotoInfoBlok.visibility = View.VISIBLE
             labelPhotoInfoBlok.visibility = View.VISIBLE
@@ -1319,7 +1318,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         formAncakViewModel.formData.observe(this) { formData ->
             updatePhotoBadgeVisibility()
-
+            AppLogger.d("klajsd lkfakls jdlfka jsdfklj")
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val pageData = formData[currentPage]
             val emptyTreeValue = pageData?.emptyTree ?: 0
@@ -1453,9 +1452,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
             if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
-                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
                     showViewPhotoBottomSheet(null, isInTPH, false, false)
-                }else{
+                } else {
                     isForFollowUp = true
                     showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
                 }
@@ -1490,14 +1489,28 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
-            pokokData?.let {
-                formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
-                    currentPokok,
-                    lat,
-                    lon,
-                    prefManager!!,
-                    this@FormInspectionActivity
-                )
+            pokokData?.let { data ->
+                // Check if location update is actually needed
+                if (formAncakViewModel.shouldSetLatLonIssue(data)) {
+                    // Only call if there are issues that need tracking
+                    formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                        currentPokok,
+                        lat,
+                        lon,
+                        prefManager!!,
+                        this@FormInspectionActivity
+                    )
+                } else {
+                    // Just update metadata without location
+                    val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val updatedData = data.copy(
+                        createdDate = currentDate,
+                        createdBy = prefManager!!.idUserLogin,
+                        createdName = prefManager!!.nameUserLogin
+                    )
+                    formAncakViewModel.savePageData(currentPokok, updatedData)
+                    AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
+                }
             }
 
             if (nextPokok <= totalPokok) {
@@ -1578,9 +1591,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
             if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
                 vibrate(500)
-                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
                     showViewPhotoBottomSheet(null, isInTPH, false, false)
-                }else{
+                } else {
                     isForFollowUp = true
                     showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
                 }
@@ -1598,14 +1611,28 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
-            pokokData?.let {
-                formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
-                    currentPokok,
-                    lat,
-                    lon,
-                    prefManager!!,
-                    this@FormInspectionActivity
-                )
+            pokokData?.let { data ->
+                // Check if location update is actually needed
+                if (formAncakViewModel.shouldSetLatLonIssue(data)) {
+                    // Only call if there are issues that need tracking
+                    formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                        currentPokok,
+                        lat,
+                        lon,
+                        prefManager!!,
+                        this@FormInspectionActivity
+                    )
+                } else {
+                    // Just update metadata without location
+                    val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val updatedData = data.copy(
+                        createdDate = currentDate,
+                        createdBy = prefManager!!.idUserLogin,
+                        createdName = prefManager!!.nameUserLogin
+                    )
+                    formAncakViewModel.savePageData(currentPokok, updatedData)
+                    AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
+                }
             }
 
             if (prevPage >= 1) {
@@ -1663,10 +1690,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         fabNextToFormAncak.setOnClickListener {
             if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    if (!validateAndShowErrors()) {
-                        vibrate(500)
-                        return@setOnClickListener
-                    }
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnClickListener
+                }
             }
 
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
@@ -1817,7 +1844,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     tracking_path = currentInspectionData?.inspeksi?.tracking_path
                                         ?: "",
                                     foto_user = "",
-                                    jjg_panen = currentInspectionData?.inspeksi?.jjg_panen ?: 0 ,
+                                    jjg_panen = currentInspectionData?.inspeksi?.jjg_panen ?: 0,
                                     foto_user_pemulihan = photoSelfie,
                                     app_version = currentInspectionData?.inspeksi?.app_version
                                         ?: "",
@@ -1886,8 +1913,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 lonTPH = lon ?: 0.0,
                                                 foto = photoInTPH,
                                                 komentar = komentarInTPH ?: "",
-                                                foto_pemulihan_tph = photoTPHFollowUp ?:"",
-                                                komentar_pemulihan_tph = komentarTPHFollowUp?:""
+                                                foto_pemulihan_tph = photoTPHFollowUp ?: "",
+                                                komentar_pemulihan_tph = komentarTPHFollowUp ?: ""
                                             )
 
                                         when (detailResult) {
@@ -1910,7 +1937,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 formData = formData,
                                                 latTPH = lat ?: 0.0,
                                                 lonTPH = lon ?: 0.0,
-                                                photoTPHFollowUp = photoTPHFollowUp  ?: "",
+                                                photoTPHFollowUp = photoTPHFollowUp ?: "",
                                                 komentarTPHFollowUp = komentarTPHFollowUp ?: "",
                                                 createdDateStart = dateStartInspection,
                                                 createdName = prefManager?.nameUserLogin ?: "",
@@ -2054,11 +2081,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         when {
             isForSelfie == true -> {
                 // Selfie photo case
-                titlePhotoTemuan.text = if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    "Lampiran Foto Selfie User"
-                } else {
-                    "Lampiran Foto Selfie Pemulihan User"
-                }
+                titlePhotoTemuan.text =
+                    if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                        "Lampiran Foto Selfie User"
+                    } else {
+                        "Lampiran Foto Selfie Pemulihan User"
+                    }
                 titleComment.visibility = View.GONE
                 etPhotoComment.visibility = View.GONE
             }
@@ -2120,6 +2148,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     WaterMarkFotoDanFolder.WMFUInspeksiPokok
                 }
             }
+
             else -> {
                 if (isInTPH == true) {
                     WaterMarkFotoDanFolder.WMInspeksiTPH
@@ -2187,8 +2216,22 @@ open class FormInspectionActivity : AppCompatActivity(),
                 // TPH Follow-up comment - NEW CASE
                 etPhotoComment.setText(komentarTPHFollowUp)
                 etPhotoComment.addTextChangedListener(object : TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun beforeTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        count: Int,
+                        after: Int
+                    ) {
+                    }
+
+                    override fun onTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        before: Int,
+                        count: Int
+                    ) {
+                    }
+
                     override fun afterTextChanged(s: Editable?) {
                         komentarTPHFollowUp = s?.toString() ?: ""
                     }
@@ -2198,8 +2241,22 @@ open class FormInspectionActivity : AppCompatActivity(),
             isInTPH == true -> {
                 etPhotoComment.setText(komentarInTPH)
                 etPhotoComment.addTextChangedListener(object : TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun beforeTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        count: Int,
+                        after: Int
+                    ) {
+                    }
+
+                    override fun onTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        before: Int,
+                        count: Int
+                    ) {
+                    }
+
                     override fun afterTextChanged(s: Editable?) {
                         komentarInTPH = s?.toString() ?: ""
                     }
@@ -2209,8 +2266,22 @@ open class FormInspectionActivity : AppCompatActivity(),
             isForFollowUp == true -> {
                 etPhotoComment.setText(currentData.komentar_pemulihan)
                 etPhotoComment.addTextChangedListener(object : TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun beforeTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        count: Int,
+                        after: Int
+                    ) {
+                    }
+
+                    override fun onTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        before: Int,
+                        count: Int
+                    ) {
+                    }
+
                     override fun afterTextChanged(s: Editable?) {
                         formAncakViewModel.savePageData(
                             currentPage,
@@ -2223,8 +2294,22 @@ open class FormInspectionActivity : AppCompatActivity(),
             else -> {
                 etPhotoComment.setText(currentData.comment)
                 etPhotoComment.addTextChangedListener(object : TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun beforeTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        count: Int,
+                        after: Int
+                    ) {
+                    }
+
+                    override fun onTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        before: Int,
+                        count: Int
+                    ) {
+                    }
+
                     override fun afterTextChanged(s: Editable?) {
                         formAncakViewModel.savePageData(
                             currentPage,
@@ -2622,17 +2707,23 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 (btPiringanGawangan > 0) ||
                                 (btPiringanGawangan > 0) ||
                                 ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
-                        val hasValidPhoto = photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
+                        val hasValidPhoto =
+                            photoValue.isNotEmpty() && photoValue.trim().isNotEmpty()
 
                         AppLogger.d("emptyTree: $emptyTreeValue, hasFindings: $hasFindings, hasValidPhoto: $hasValidPhoto")
 
                         if (hasFindings && !hasValidPhoto) {
                             vibrate(500)
-                            if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi){
+                            if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
                                 showViewPhotoBottomSheet(null, isInTPH, false, false)
-                            }else{
+                            } else {
                                 isForFollowUp = true
-                                showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+                                showViewPhotoBottomSheet(
+                                    null,
+                                    false,
+                                    false,
+                                    true
+                                ) // Follow-up photo
                             }
                             AlertDialogUtility.withSingleAction(
                                 this,
@@ -2683,8 +2774,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                             clFormInspection.visibility = View.GONE
                             clInfoBlokSection.visibility = View.VISIBLE
                             infoBlokView.visibility = View.VISIBLE
-                            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi){
+                            if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                                 fabPhotoInfoBlok.visibility = View.GONE
+
+                            } else {
+                                fabPhotoInfoBlok.visibility = View.VISIBLE
+                                labelPhotoInfoBlok.visibility = View.VISIBLE
                             }
 
                             formInspectionView.visibility = View.GONE
@@ -3246,7 +3341,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         totalHarvestTree = (1..totalPages).sumOf { pageNumber ->
-            formData[pageNumber]?.harvestTree ?: 0
+            formData[pageNumber]?.harvestJjg ?: 0
         }
 
         // Get container for dynamic cards
@@ -4226,7 +4321,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 //                            Toast.LENGTH_SHORT
 //                        ).show()
 
-                        Toasty.error(this, "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!", Toast.LENGTH_SHORT, true).show()
+                        Toasty.error(
+                            this,
+                            "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!",
+                            Toast.LENGTH_SHORT,
+                            true
+                        ).show()
                         return
                     }
 
@@ -4242,7 +4342,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show automatic RecyclerView if it's hidden
-                    val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+                    val rvSelectedPemanenOtomatis =
+                        findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
                     rvSelectedPemanenOtomatis.visibility = View.VISIBLE
 
                     // Update automatic spinner to remove selected worker
@@ -4276,7 +4377,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                     if (isDuplicate) {
                         AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
 
-                        Toasty.error(this, "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!", Toast.LENGTH_SHORT, true).show()
+                        Toasty.error(
+                            this,
+                            "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!",
+                            Toast.LENGTH_SHORT,
+                            true
+                        ).show()
                         return
                     }
 
@@ -4292,7 +4398,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
 
                     // Show manual RecyclerView if it's hidden
-                    val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+                    val rvSelectedPemanenManual =
+                        findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
                     rvSelectedPemanenManual.visibility = View.VISIBLE
 
                     // Update manual spinner to remove selected worker
@@ -4363,7 +4470,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 val panenGroupedByTPH = panenTPH
                                     .asSequence() // Use sequence for lazy evaluation
                                     .mapNotNull { panenWithRelationship ->
-                                        val tphId = panenWithRelationship.panen.tph_id?.toIntOrNull()
+                                        val tphId =
+                                            panenWithRelationship.panen.tph_id?.toIntOrNull()
                                         if (tphId != null) tphId to panenWithRelationship else null
                                     }
                                     .groupBy({ it.first }, { it.second }) // Group by TPH ID
@@ -4380,15 +4488,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     val batchSize = 500
                                     val allResults = mutableListOf<TPHNewModel>()
 
-                                    selectedTPHIds.chunked(batchSize).forEachIndexed { index, batch ->
-                                        AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
-                                        val batchResults = datasetViewModel.getLatLonDivisiByTPHIds(
-                                            estateIdToUse,
-                                            selectedDivisiId,
-                                            batch
-                                        )
-                                        allResults.addAll(batchResults)
-                                    }
+                                    selectedTPHIds.chunked(batchSize)
+                                        .forEachIndexed { index, batch ->
+                                            AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
+                                            val batchResults =
+                                                datasetViewModel.getLatLonDivisiByTPHIds(
+                                                    estateIdToUse,
+                                                    selectedDivisiId,
+                                                    batch
+                                                )
+                                            allResults.addAll(batchResults)
+                                        }
                                     allResults
                                 } else {
                                     // Normal single query
@@ -4412,11 +4522,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                     if (tphId != null && lat != null && lon != null) {
                                         // Get all panen records for this TPH ID
-                                        val matchingPanenList = panenGroupedByTPH[tphId] ?: emptyList()
+                                        val matchingPanenList =
+                                            panenGroupedByTPH[tphId] ?: emptyList()
 
                                         if (matchingPanenList.isNotEmpty()) {
                                             // Merge all data from this TPH
-                                            val mergedData = mergePanenRecordsForTPH(matchingPanenList)
+                                            val mergedData =
+                                                mergePanenRecordsForTPH(matchingPanenList)
 
                                             // Create description with merged info
                                             val blokKode = if (mergedData.dateList.size > 1) {
@@ -4475,7 +4587,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         val kemandoranDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(estateId!!.toInt(), selectedDivisiIdList)
+                                datasetViewModel.getKemandoranList(
+                                    estateId!!.toInt(),
+                                    selectedDivisiIdList
+                                )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoran list: ${e.message}")
                                 emptyList()
@@ -4484,7 +4599,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         val kemandoranLainDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(estateId!!.toInt(), nonSelectedIdAfdeling as List<Int>)
+                                datasetViewModel.getKemandoranList(
+                                    estateId!!.toInt(),
+                                    nonSelectedIdAfdeling as List<Int>
+                                )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoran lain list: ${e.message}")
                                 emptyList()
@@ -6445,7 +6563,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             bottomNavInspect.visibility = View.VISIBLE
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1
-            val currentData = formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
+            val currentData =
+                formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
 
             when {

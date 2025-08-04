@@ -178,8 +178,8 @@ class FormAncakFragment : Fragment() {
                 R.id.lyHarvestTreeNumber,
                 "", // You can change this title or leave empty ""
                 InputType.EDITTEXT,
-                { currentData, value -> currentData.copy(harvestTree = value) }, // Assuming you have this field
-                { it.harvestTree } // Assuming you have this field
+                { currentData, value -> currentData.copy(harvestJjg = value) }, // Assuming you have this field
+                { it.harvestJjg } // Assuming you have this field
             ),
             InputMapping(
                 R.id.lyNeatPelepahInspect,
