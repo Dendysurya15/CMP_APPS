@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
+import com.cbi.mobile_plantation.data.database.HektarPanenDao
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -999,8 +1000,8 @@ class AppRepository(context: Context) {
         return hektarPanenDao.getLuasBlokByBlok(blok)
     }
 
-    suspend fun getDistinctBlokByDate(date: String): List<Int> {
-        return hektarPanenDao.getDistinctBlokByDate(date)
+    suspend fun getDistinctBlokParamsByDate(date: String): List<HektarPanenDao.BlokParams> {
+        return hektarPanenDao.getDistinctBlokParamsByDate(date)
     }
 
     suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(
@@ -1384,26 +1385,35 @@ class AppRepository(context: Context) {
         return blokDao.getDataByIdInBlok(listBlokId)
     }
 
-    suspend fun fetchBlokListbyIdorIdPpro(blockIds: List<Int>): List<BlokModel> = withContext(Dispatchers.IO) {
-        val blokList = mutableListOf<BlokModel>()
+    suspend fun fetchBlokbyParams(blockId: Int, blokPpro: Int?, dept: String?, divisi: String?): Result<BlokModel?> = withContext(Dispatchers.IO) {
+        try {
+            var blokData: BlokModel? = null
 
-        blockIds.forEach { blockId ->
-            try {
-                var blokData: BlokModel? = null
-
-                blokData = blokDao.getBlokByIdPPRO(blockId)
-
-                if (blokData == null) {
-                    blokData = blokDao.getBlokById(blockId)
+            // Try with blok_ppro first if available
+            if (blokPpro != null && dept != null && divisi != null) {
+                blokData = blokDao.getBlokByEstAfdKode(blokPpro.toString(), dept, divisi)
+                if (blokData != null) {
+                    AppLogger.d("Blok found using blok_ppro: $blokPpro, dept: $dept, divisi: $divisi")
                 }
-
-                blokData?.let { blokList.add(it) }
-            } catch (e: Exception) {
-                AppLogger.e("Error fetching blok with id $blockId: ${e.message}")
             }
-        }
 
-        return@withContext blokList
+            // If not found and we have blockId, try with blockId
+            if (blokData == null && dept != null && divisi != null) {
+                blokData = blokDao.getBlokByIdEstAfd(blockId, dept, divisi)
+                if (blokData != null) {
+                    AppLogger.d("Blok found using blockId: $blockId, dept: $dept, divisi: $divisi")
+                }
+            }
+
+            if (blokData == null) {
+                AppLogger.d("No blok found with any parameter combination")
+            }
+
+            Result.success(blokData)
+        } catch (e: Exception) {
+            AppLogger.e("Error in fetchBlokbyParams: ${e.message}")
+            Result.failure(e)
+        }
     }
 
     suspend fun getTransporterNameById(id: Int): String? {

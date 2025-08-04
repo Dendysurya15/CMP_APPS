@@ -105,8 +105,6 @@ class CameraRepository(
     private var isCameraOpen = false
     private var isFlashlightOn = false
 
-    private var captureSession: CameraCaptureSession? = null
-    private lateinit var previewRequestBuilder: CaptureRequest.Builder
 
     fun setPhotoCallback(callback: PhotoCallback) {
         this.photoCallback = callback
@@ -115,94 +113,24 @@ class CameraRepository(
     private fun rotateBitmapWithOrientation(photoFilePath: String?, cameraId: Int, orientationHandler: CameraOrientationHandler): Bitmap {
         val TAG = "BitmapRotation"
 
-        Log.d(TAG, "=== BITMAP ROTATION START ===")
-        Log.d(TAG, "📸 Photo capture initiated")
-        Log.d(TAG, "Photo file: $photoFilePath")
+        val originalBitmap = BitmapFactory.decodeFile(photoFilePath)
 
-        val bounds = BitmapFactory.Options()
-        bounds.inJustDecodeBounds = true
-        BitmapFactory.decodeFile(photoFilePath, bounds)
-
-        val opts = BitmapFactory.Options()
-        val originalBitmap = BitmapFactory.decodeFile(photoFilePath, opts)
-
-        Log.d(TAG, "Original bitmap size: ${originalBitmap.width}x${originalBitmap.height}")
-
-        // Get the required rotation from orientation handler
+        // Let the orientation handler do ALL the work
         val rotationAngle = orientationHandler.getImageRotation(cameraId)
-
-        // Log hand detection details
-        val deviceOrientation = orientationHandler.getCurrentOrientation()
         val isLeftHanded = orientationHandler.isLikelyLeftHanded()
 
-        Log.d(TAG, "=== 🤚 HAND DETECTION AT CAPTURE ===")
-        Log.d(TAG, "Current device orientation: $deviceOrientation°")
-        Log.d(TAG, "Camera rotation angle: $rotationAngle°")
-        Log.d(TAG, "Hand detection result: ${if (isLeftHanded) "🤚 LEFT HAND" else "👋 RIGHT HAND"}")
-        Log.d(TAG, "Detection logic:")
-        when (deviceOrientation) {
-            270 -> Log.d(TAG, "  → 270° = Landscape Left = LEFT HAND grip")
-            90 -> Log.d(TAG, "  → 90° = Landscape Right = RIGHT HAND grip")
-            0 -> Log.d(TAG, "  → 0° = Portrait = NOT ALLOWED")
-            180 -> Log.d(TAG, "  → 180° = Portrait Upside Down = NOT ALLOWED")
-            else -> Log.d(TAG, "  → ${deviceOrientation}° = Unknown orientation")
-        }
-        Log.d(TAG, "=================================")
+        Log.d(TAG, "Using CameraOrientationHandler rotation: $rotationAngle°")
+        Log.d(TAG, "Hand detection: ${if (isLeftHanded) "LEFT" else "RIGHT"}")
 
-        // UPDATED: Only handle landscape orientations, portrait should be prevented
-        val finalRotation = when (deviceOrientation) {
-            270 -> {
-                // Left hand landscape - apply 180° to fix upside down
-                Log.d(TAG, "🤚 LEFT HAND LANDSCAPE - Applying 180° rotation to fix upside down")
-                180
-            }
-            90 -> {
-                // Right hand landscape - no rotation needed (already correct)
-                Log.d(TAG, "👋 RIGHT HAND LANDSCAPE - No rotation needed")
-                0
-            }
-            else -> {
-                // This should not happen as portrait capture is now prevented
-                Log.d(TAG, "❓ UNEXPECTED ORIENTATION - Using standard camera rotation: $rotationAngle°")
-                rotationAngle
-            }
-        }
-
-        Log.d(TAG, "=== FINAL ROTATION DECISION ===")
-        Log.d(TAG, "Final rotation to apply: $finalRotation°")
-        Log.d(TAG, "Target: All photos will be in LANDSCAPE format")
-        Log.d(TAG, "==============================")
-
-        if (finalRotation == 0) {
-            Log.d(TAG, "✅ No rotation needed - returning original bitmap")
-            Log.d(TAG, "=== BITMAP ROTATION END ===")
+        if (rotationAngle == 0) {
             return originalBitmap
         }
 
-        Log.d(TAG, "🔄 Applying rotation: $finalRotation°")
-
-        // Apply rotation
+        // Apply the rotation calculated by the handler
         val matrix = Matrix()
-        matrix.setRotate(
-            finalRotation.toFloat(),
-            originalBitmap.width.toFloat() / 2,
-            originalBitmap.height.toFloat() / 2
-        )
+        matrix.setRotate(rotationAngle.toFloat(), originalBitmap.width / 2f, originalBitmap.height / 2f)
 
-        val rotatedBitmap = Bitmap.createBitmap(
-            originalBitmap,
-            0,
-            0,
-            originalBitmap.width,
-            originalBitmap.height,
-            matrix,
-            true
-        )
-
-        Log.d(TAG, "✅ Rotation complete! Rotated bitmap size: ${rotatedBitmap.width}x${rotatedBitmap.height}")
-        Log.d(TAG, "=== BITMAP ROTATION END ===")
-
-        return rotatedBitmap
+        return Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.width, originalBitmap.height, matrix, true)
     }
 
     // 2. Add helper function to check if device is in portrait mode:
