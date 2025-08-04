@@ -412,24 +412,44 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
     @SuppressLint("InflateParams", "SetTextI18n", "MissingInflatedId", "Recycle")
     private fun showDetailData(inspectionPath: InspectionWithDetailRelations) {
-        AlertDialogUtility.withTwoActions(
-            this,
-            "Telusuri",
-            getString(R.string.confirmation_dialog_title),
-            "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date}",
-            "warning.json",
-            ContextCompat.getColor(this, R.color.bluedarklight),
-            function = {
-                val intent = Intent(
-                    this@ListFollowUpInspeksi,
-                    FormInspectionActivity::class.java
-                )
-                intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.FollowUpInspeksi)
-                intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
-                startActivity(intent)
-            },
-            cancelFunction = { }
-        )
+        val fullMessage = "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date}"
+
+        // Check status_upload to determine which alert dialog to show
+        if (inspectionPath.inspeksi.status_upload != "0") {
+            // Show single action dialog for CHECK_ONLY mode (already uploaded)
+            AlertDialogUtility.withSingleAction(
+                this@ListFollowUpInspeksi,
+                "Lihat Detail Follow Up", // or use stringXML(R.string.al_back)
+                "Detail Inspeksi (Read-Only)", // or use stringXML(R.string.al_failed_fetch_data)
+                "$fullMessage\n\nData ini sudah terupload dan hanya dapat dilihat.",
+                "warning.json",
+                R.color.greenDarker
+            ) {
+
+            }
+        } else {
+            // Show two actions dialog for normal edit mode (not uploaded yet)
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Telusuri",
+                getString(R.string.confirmation_dialog_title),
+                fullMessage,
+                "warning.json",
+                ContextCompat.getColor(this, R.color.bluedarklight),
+                function = {
+                    val intent = Intent(
+                        this@ListFollowUpInspeksi,
+                        FormInspectionActivity::class.java
+                    )
+                    intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.FollowUpInspeksi)
+                    intent.putExtra("id_inspeksi", inspectionPath.inspeksi.id)
+
+                    AppLogger.d("Opening normal edit mode for inspection ${inspectionPath.inspeksi.id} with status_upload=${inspectionPath.inspeksi.status_upload}")
+                    startActivity(intent)
+                },
+                cancelFunction = { }
+            )
+        }
     }
 
 

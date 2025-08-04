@@ -72,10 +72,16 @@ abstract class InspectionDao {
 
 
     @Query("UPDATE inspeksi SET status_uploaded_image = :status WHERE id IN (:ids)")
-    abstract suspend fun updateStatusUploadedImageInspeksi(ids: List<Int>, status: String): Int
+    abstract suspend fun updateStatusUploadedImageFotoUser(ids: List<Int>, status: String): Int
+
+    @Query("UPDATE inspeksi SET status_uploaded_image_pemulihan = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImageFotoUserPemulihan(ids: List<Int>, status: String): Int
 
     @Query("UPDATE inspeksi_detail SET status_uploaded_image = :status WHERE id IN (:ids)")
-    abstract suspend fun updateStatusUploadedImageInspeksiDetail(ids: List<Int>, status: String): Int
+    abstract suspend fun updateStatusUploadedImageInspeksi(ids: List<Int>, status: String): Int
+
+    @Query("UPDATE inspeksi_detail SET status_uploaded_image_pemulihan = :status WHERE id IN (:ids)")
+    abstract suspend fun updateStatusUploadedImagePemulihanInspeksi(ids: List<Int>, status: String): Int
 
     @Transaction
     @Query("SELECT * FROM inspeksi")

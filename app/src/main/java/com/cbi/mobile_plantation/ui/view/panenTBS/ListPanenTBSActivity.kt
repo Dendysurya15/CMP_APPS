@@ -4068,6 +4068,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
+    private fun makeQRLayoutSquare(screenshotLayout: View) {
+        val qrLayout = screenshotLayout.findViewById<FrameLayout>(R.id.fLayoutQR)
+
+        // Get screen width
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+
+        // Calculate square size (80% of screen width with padding)
+        val padding = (32 * resources.displayMetrics.density).toInt() // 32dp padding
+        val squareSize = screenWidth - padding
+
+        // Set equal width and height
+        val layoutParams = qrLayout.layoutParams
+        layoutParams.width = squareSize
+        layoutParams.height = squareSize
+        qrLayout.layoutParams = layoutParams
+    }
 
     private fun takeQRCodeScreenshot(view: View) {
 
@@ -4079,6 +4096,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     } else {
                         layoutInflater.inflate(R.layout.layout_screenshot_qr_kpanen, null)
                     }
+
+                makeQRLayoutSquare(screenshotLayout)
 
                 // Get references to views in the custom layout
                 val tvUserName = screenshotLayout.findViewById<TextView>(R.id.tvUserName)

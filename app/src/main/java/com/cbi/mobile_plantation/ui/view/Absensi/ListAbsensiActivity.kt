@@ -27,6 +27,7 @@ import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.CheckBox
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -810,6 +811,24 @@ class ListAbsensiActivity : AppCompatActivity() {
         errorCard.visibility = View.VISIBLE
     }
 
+    private fun makeQRLayoutSquare(screenshotLayout: View) {
+        val qrLayout = screenshotLayout.findViewById<FrameLayout>(R.id.fLayoutQR)
+
+        // Get screen width
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+
+        // Calculate square size (80% of screen width with padding)
+        val padding = (32 * resources.displayMetrics.density).toInt() // 32dp padding
+        val squareSize = screenWidth - padding
+
+        // Set equal width and height
+        val layoutParams = qrLayout.layoutParams
+        layoutParams.width = squareSize
+        layoutParams.height = squareSize
+        qrLayout.layoutParams = layoutParams
+    }
+
     private fun takeQRCodeScreenshot(view: View) {
         lifecycleScope.launch {
             try {
@@ -833,6 +852,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                     layoutInflater.inflate(R.layout.layout_screenshot_qr_absensi, null)
 
                 AppLogger.d("Inflated layout_screenshot_qr_absensi layout")
+
+                makeQRLayoutSquare(screenshotLayout)
 
                 // Get QR code from the bottom sheet view
                 val originalQrImageView = view.findViewById<ImageView>(R.id.qrCodeImageView)
@@ -1457,13 +1478,13 @@ class ListAbsensiActivity : AppCompatActivity() {
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
 
-            // Changed to use JSONObject for proper structure
-            val mergedKaryawanMskNik = JSONObject()
-            val mergedKaryawanTdkMskNik = JSONObject()
-            val mergedKaryawanMskId = JSONObject()
-            val mergedKaryawanTdkMskId = JSONObject()
-            val mergedKaryawanMskNama = JSONObject()
-            val mergedKaryawanTdkMskNama = JSONObject()
+            // Changed to use Sets to collect all unique values directly
+            val mergedKaryawanMskNik = mutableSetOf<String>()
+            val mergedKaryawanTdkMskNik = mutableSetOf<String>()
+            val mergedKaryawanMskId = mutableSetOf<String>()
+            val mergedKaryawanTdkMskId = mutableSetOf<String>()
+            val mergedKaryawanMskNama = mutableSetOf<String>()
+            val mergedKaryawanTdkMskNama = mutableSetOf<String>()
 
             val infoSet = mutableSetOf<String>()
 
@@ -1484,20 +1505,17 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
                 val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
-                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
-                val karyawanTdkMskNama = data["karyawan_tdk_msk_nama"]?.toString() ?: ""
+
 
                 // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Merge JSON objects properly using the correct function
-                mergeJsonObjects(karyawanMskNik, mergedKaryawanMskNik)
-                mergeJsonObjects(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
-                mergeJsonObjects(karyawanMskId, mergedKaryawanMskId)
-                mergeJsonObjects(karyawanTdkMskId, mergedKaryawanTdkMskId)
-                mergeJsonObjects(karyawanMskNama, mergedKaryawanMskNama)
-                mergeJsonObjects(karyawanTdkMskNama, mergedKaryawanTdkMskNama)
+                // Extract values from nested JSON and add to sets
+                extractValuesFromNestedJson(karyawanMskNik, mergedKaryawanMskNik)
+                extractValuesFromNestedJson(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
+                extractValuesFromNestedJson(karyawanMskId, mergedKaryawanMskId)
+                extractValuesFromNestedJson(karyawanTdkMskId, mergedKaryawanTdkMskId)
 
                 // Add other data
                 if (dept.isNotEmpty()) deptSet.add(dept)
@@ -1515,7 +1533,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON with proper structure
+            // Final JSON with flattened arrays
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
@@ -1525,13 +1543,11 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
 
-                // Store as JSON objects, not arrays
-                put("karyawan_msk_nik", mergedKaryawanMskNik)
-                put("karyawan_tdk_msk_nik", mergedKaryawanTdkMskNik)
-                put("karyawan_msk_id", mergedKaryawanMskId)
-                put("karyawan_tdk_msk_id", mergedKaryawanTdkMskId)
-                put("karyawan_msk_nama", mergedKaryawanMskNama)
-                put("karyawan_tdk_msk_nama", mergedKaryawanTdkMskNama)
+                // Store as flat arrays instead of nested objects
+                put("karyawan_msk_nik", JSONArray(mergedKaryawanMskNik))
+                put("karyawan_tdk_msk_nik", JSONArray(mergedKaryawanTdkMskNik))
+                put("karyawan_msk_id", JSONArray(mergedKaryawanMskId))
+                put("karyawan_tdk_msk_id", JSONArray(mergedKaryawanTdkMskId))
 
                 put("info", JSONArray(infoSet))
             }
@@ -1541,6 +1557,44 @@ class ListAbsensiActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             throw IllegalArgumentException("formatPanenDataForQR Error: ${e.message}")
+        }
+    }
+
+    // Helper function to extract values from nested JSON structure
+    private fun extractValuesFromNestedJson(jsonString: String, targetSet: MutableSet<String>) {
+        if (jsonString.isEmpty()) return
+
+        try {
+            val jsonObject = JSONObject(jsonString)
+
+            // Iterate through all keys in the JSON object
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.get(outerKey)
+
+                if (outerValue is JSONObject) {
+                    // If it's a nested object, iterate through its keys
+                    outerValue.keys().forEach { innerKey ->
+                        val innerValue = outerValue.getString(innerKey)
+                        // Split comma-separated values and add to set
+                        innerValue.split(",").forEach { value ->
+                            val trimmedValue = value.trim()
+                            if (trimmedValue.isNotEmpty()) {
+                                targetSet.add(trimmedValue)
+                            }
+                        }
+                    }
+                } else {
+                    // If it's a direct value, split and add
+                    outerValue.toString().split(",").forEach { value ->
+                        val trimmedValue = value.trim()
+                        if (trimmedValue.isNotEmpty()) {
+                            targetSet.add(trimmedValue)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON: $jsonString", e.toString())
         }
     }
 

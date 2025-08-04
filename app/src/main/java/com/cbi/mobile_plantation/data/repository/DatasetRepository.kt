@@ -15,6 +15,7 @@ import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.DepartmentInfo
+import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
@@ -143,6 +144,11 @@ class DatasetRepository(
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
     }
 
+    suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? = withContext(Dispatchers.IO) {
+        tphDao.getTPHDetailsByID(tphId)
+    }
+
+
     suspend fun getLatLonDivisi(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
         return tphDao.getLatLonByDivisi(idEstate, idDivisi)
     }
@@ -235,7 +241,7 @@ class DatasetRepository(
         AppLogger.d("Parameter API Request: ${jsonObject.toString()}")
 
         // Make the API call
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {

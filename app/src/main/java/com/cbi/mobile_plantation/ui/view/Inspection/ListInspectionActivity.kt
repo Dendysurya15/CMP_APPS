@@ -439,29 +439,6 @@ class ListInspectionActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun formatDateRange(startDate: String, endDate: String): String {
-        return try {
-            // Parse the input dates (assuming they're in ISO format like "2024-01-15 10:30:00")
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("HH:mm:ss", Locale("id", "ID")) // Indonesian locale
-
-            val startParsed = inputFormat.parse(startDate)
-            val endParsed = inputFormat.parse(endDate)
-
-            val formattedStart = outputFormat.format(startParsed)
-            val formattedEnd = outputFormat.format(endParsed)
-
-            "$formattedStart s.d\n$formattedEnd"
-
-        } catch (e: Exception) {
-            AppLogger.e("Error formatting date range: ${e.message}")
-            // Fallback: just show the raw dates
-            "$startDate\ns.d\n$endDate"
-        }
-    }
-
-
-
     private fun populateTPHData(container: LinearLayout, inspection: InspectionModel, tph: TPHNewModel, panen: PanenEntity?, parentView: View, detailInspeksi: List<InspectionDetailModel>) {
         parentView.findViewById<TextView>(R.id.tvEstAfdBlok)?.text = "${tph.dept_abbr} ${tph.divisi_abbr!!.takeLast(2)} ${tph.blok_kode}"
         parentView.findViewById<TextView>(R.id.tvJamMulaiSelesai)?.text = formatToIndonesianDate(inspection.created_date)
@@ -587,6 +564,7 @@ class ListInspectionActivity : AppCompatActivity() {
         } ?: 0
 
         val tphData = listOf(
+            SummaryItem("Jumlah Janjang Panen", inspection.jjg_panen.toString()),
             SummaryItem("Jumlah Pokok Inspeksi", inspection.jml_pkk_inspeksi.toString()),
             SummaryItem(AppUtils.kodeInspeksi.buahTinggalTPH, buahTinggalTPH.toString()),
             SummaryItem(AppUtils.kodeInspeksi.brondolanTinggalTPH, brondolanTinggalTPH.toString()),

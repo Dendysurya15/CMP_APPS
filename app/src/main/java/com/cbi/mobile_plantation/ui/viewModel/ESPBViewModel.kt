@@ -189,6 +189,10 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         return repository.getBlokById(listBlokId)
     }
 
+    suspend fun getBlokByIdOrIdPPRO(listBlokId: List<Int>): List<BlokModel> {
+        return repository.fetchBlokListbyIdorIdPpro(listBlokId)
+    }
+
     suspend fun getTransporterNameById(transporterId: Int): String? {
         // Implement this method to retrieve the transporter name from your repository or database
         return repository.getTransporterNameById(transporterId)

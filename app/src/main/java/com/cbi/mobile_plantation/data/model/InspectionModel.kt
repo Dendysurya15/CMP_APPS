@@ -37,6 +37,7 @@ data class InspectionModel(
     val blok_nama:String? = null,
     val tph_nomor:Int? = null,
     val ancak:String? = null,
+    val jjg_panen: Int,
     val jalur_masuk: String,
     val jenis_kondisi: Int,
     val inspeksi_putaran: Int? = 1,

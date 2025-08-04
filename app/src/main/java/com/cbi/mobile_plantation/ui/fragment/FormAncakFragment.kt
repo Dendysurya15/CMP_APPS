@@ -175,6 +175,13 @@ class FormAncakFragment : Fragment() {
                 { it.harvestTree }
             ),
             InputMapping(
+                R.id.lyHarvestTreeNumber,
+                "", // You can change this title or leave empty ""
+                InputType.EDITTEXT,
+                { currentData, value -> currentData.copy(harvestTree = value) }, // Assuming you have this field
+                { it.harvestTree } // Assuming you have this field
+            ),
+            InputMapping(
                 R.id.lyNeatPelepahInspect,
                 "Susunan Pelepah?",
                 InputType.RADIO,
@@ -250,6 +257,9 @@ class FormAncakFragment : Fragment() {
                 else -> {}
             }
         }
+
+        val harvestTreeValue = currentPageData.harvestTree
+        updateHarvestTreeNumberVisibility(harvestTreeValue)
     }
 
 
@@ -319,7 +329,6 @@ class FormAncakFragment : Fragment() {
                 titleTextView.text = if (isInspection) "Terdapat Temuan?" else "Pokok Dipanen?"
 
                 val currentData = viewModel.getPageData(pageNumber)
-
                 if (currentData != null) {
                     updateDependentLayoutVisibility(currentData.emptyTree)
                 }
@@ -328,11 +337,9 @@ class FormAncakFragment : Fragment() {
 
         mcvSpinner.visibility = View.GONE
         fblRadioComponents.visibility = View.VISIBLE
-
         fblRadioComponents.removeAllViews()
 
         var lastSelectedRadioButton: RadioButton? = null
-
         val pageData = viewModel.getPageData(pageNumber) ?: return
         val fieldValue = currentValue
 
@@ -344,14 +351,12 @@ class FormAncakFragment : Fragment() {
                 textSize = 18f
                 setTextColor(Color.BLACK)
                 setPadding(10, 0, 30, 0)
-                buttonTintList =
-                    ContextCompat.getColorStateList(layoutView.context, R.color.greenDefault)
+                buttonTintList = ContextCompat.getColorStateList(layoutView.context, R.color.greenDefault)
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
 
-                // Restore saved state
                 isChecked = idValue == fieldValue
                 if (isChecked) {
                     lastSelectedRadioButton = this
@@ -371,6 +376,11 @@ class FormAncakFragment : Fragment() {
                     if (layoutId == R.id.lyExistsTreeInspect) {
                         updateDependentLayoutVisibility(idValue)
                     }
+
+                    // ADD THIS: Handle lyHarvestTreeNumber visibility
+                    if (layoutId == R.id.lyHarvestTreeInspect) {
+                        updateHarvestTreeNumberVisibility(idValue)
+                    }
                 }
             }
 
@@ -383,13 +393,26 @@ class FormAncakFragment : Fragment() {
         }
     }
 
+    private fun updateHarvestTreeNumberVisibility(selectedValue: Int) {
+        val harvestTreeNumberLayout = view?.findViewById<View>(R.id.lyHarvestTreeNumber)
+
+        // Show lyHarvestTreeNumber only when "Ya" (value = 1) is selected
+        harvestTreeNumberLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
+    }
+
+
 
     fun updatePageData() {
-        isUpdatingData = true  // 🚨 Disable TextWatchers
+        isUpdatingData = true
 
-        setupAllInputs()  // Re-setup all inputs with fresh data
+        setupAllInputs()
 
-        // Re-enable TextWatchers after a short delay
+        val currentPageData = viewModel.getPageData(pageNumber)
+        if (currentPageData != null) {
+            updateHarvestTreeNumberVisibility(currentPageData.harvestTree)
+            updateDependentLayoutVisibility(currentPageData.emptyTree)
+        }
+
         view?.post {
             isUpdatingData = false
         }

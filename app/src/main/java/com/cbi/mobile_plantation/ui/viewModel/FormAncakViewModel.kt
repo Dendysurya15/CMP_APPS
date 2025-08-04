@@ -18,29 +18,29 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class FormAncakViewModel : ViewModel() {
-        data class PageData(
-            val pokokNumber: Int = 0,
-            val emptyTree: Int = 0,
-            val harvestTree: Int = 0,
-            val neatPelepah: Int = 0, // 7
-            val pelepahSengkleh: Int = 0, // 8
-            val kondisiPruning: Int = 0,
-            val buahMasakTdkDipotong: Int = 0, /// 3
-            val btPiringanGawangan: Int = 0, // 4
-            val brdKtpGawangan: Int = 0,   //1
-            val brdKtpPiringanPikulKetiak: Int = 0, //2
-            val photo: String? = null,
-            val comment: String? = null,
-            val latIssue: Double? = null,
-            val lonIssue: Double? = null,
-            val createdDate: String? = null,
-            val createdBy: Int? = null,
-            val createdName: String? = null,
-            val foto_pemulihan: String? = null,
-            val komentar_pemulihan: String? = null,
-            val status_pemulihan: Int? = 0,
-        )
+    class FormAncakViewModel : ViewModel() {
+            data class PageData(
+                val pokokNumber: Int = 0,
+                val emptyTree: Int = 0,
+                val harvestTree: Int = 0,
+                val neatPelepah: Int = 0, // 7
+                val pelepahSengkleh: Int = 0, // 8
+                val kondisiPruning: Int = 0,
+                val buahMasakTdkDipotong: Int = 0, /// 3
+                val btPiringanGawangan: Int = 0, // 4
+                val brdKtpGawangan: Int = 0,   //1
+                val brdKtpPiringanPikulKetiak: Int = 0, //2
+                val photo: String? = null,
+                val comment: String? = null,
+                val latIssue: Double? = null,
+                val lonIssue: Double? = null,
+                val createdDate: String? = null,
+                val createdBy: Int? = null,
+                val createdName: String? = null,
+                val foto_pemulihan: String? = null,
+                val komentar_pemulihan: String? = null,
+                val status_pemulihan: Int? = 0,
+            )
 
         data class ValidationResult(
             val isValid: Boolean,

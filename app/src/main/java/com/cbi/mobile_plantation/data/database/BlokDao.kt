@@ -30,6 +30,18 @@ abstract class BlokDao {
     @Query("DELETE FROM blok")
     abstract fun deleteAll()
 
+    @Query("SELECT * FROM blok WHERE dept_abbr = :est AND divisi_abbr = :afd AND id_ppro = :blokId LIMIT 1")
+    abstract suspend fun getBlokByEstAfdKode(est: String, afd: String, blokId: String): BlokModel?
+
+    @Query("SELECT * FROM blok WHERE dept_abbr = :est AND divisi_abbr = :afd AND id = :blockId LIMIT 1")
+    abstract suspend fun getBlokByIdEstAfd(blockId: Int, est: String, afd: String): BlokModel?
+
+    @Query("SELECT * FROM blok WHERE id_ppro = :blokId LIMIT 1")
+    abstract suspend fun getBlokByIdPPRO(blokId: Int): BlokModel?
+
+    @Query("SELECT * FROM blok WHERE id = :blockId LIMIT 1")
+    abstract suspend fun getBlokById(blockId: Int): BlokModel?
+
     @Query("SELECT COUNT(*) FROM blok")
     abstract suspend fun getCount(): Int
 

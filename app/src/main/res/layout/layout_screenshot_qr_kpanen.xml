@@ -33,13 +33,12 @@
         android:padding="16dp">
 
         <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="330dp"
+            android:id="@+id/fLayoutQR"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginBottom="8dp"
-            android:layout_marginTop="10dp"
-            >
-
+            android:layout_marginTop="10dp">
 
             <ImageView
                 android:id="@+id/qrCodeImageView"
@@ -47,9 +46,10 @@
                 android:layout_height="match_parent"
                 android:adjustViewBounds="true"
                 android:layout_gravity="center"
-                android:scaleType="fitXY" />
+                android:scaleType="fitCenter" />
 
         </FrameLayout>
+
 
         <!-- User information section -->
         <LinearLayout
