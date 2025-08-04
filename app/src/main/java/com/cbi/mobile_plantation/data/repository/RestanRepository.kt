@@ -21,19 +21,25 @@ class RestanRepository(
 ){
 
     suspend fun getDataRestan(estate: Int, afdeling: String): Response<ResponseBody> {
-        // Calculate date range - from yesterday to 7 days ago (excluding today)
-        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        // Calculate date range - from today 23:59:59 to 7 days ago 00:00:00
+        val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val dateTimeFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
 
-        // Yesterday (1 day ago)
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        val yesterday = formatter.format(calendar.time)
+        // Today at 23:59:59
+        calendar.set(Calendar.HOUR_OF_DAY, 23)
+        calendar.set(Calendar.MINUTE, 59)
+        calendar.set(Calendar.SECOND, 59)
+        val today = dateTimeFormatter.format(calendar.time)
 
-        // 7 days ago from today (which is 6 days from yesterday)
-        calendar.add(Calendar.DAY_OF_YEAR, -6)
-        val sevenDaysAgo = formatter.format(calendar.time)
+        // 7 days ago at 00:00:00
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        val sevenDaysAgo = dateTimeFormatter.format(calendar.time)
 
-        AppLogger.d("Date range: $sevenDaysAgo to $yesterday (inclusive, excluding today)")
+        AppLogger.d("Date range: $sevenDaysAgo to $today (inclusive)")
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -57,11 +63,11 @@ class RestanRepository(
                     put("divisi", afdeling)
                 }
 
-                // Date range condition using BETWEEN
-                put("tanggal", JSONObject().apply {
+                // Date range condition using BETWEEN with full datetime
+                put("created_date", JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(sevenDaysAgo)
-                        put(yesterday)
+                        put(today)
                     })
                 })
             })

@@ -1318,7 +1318,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         formAncakViewModel.formData.observe(this) { formData ->
             updatePhotoBadgeVisibility()
-            AppLogger.d("klajsd lkfakls jdlfka jsdfklj")
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val pageData = formData[currentPage]
             val emptyTreeValue = pageData?.emptyTree ?: 0
@@ -1690,10 +1689,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         fabNextToFormAncak.setOnClickListener {
             if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnClickListener
-                }
+//                if (!validateAndShowErrors()) {
+//                    vibrate(500)
+//                    return@setOnClickListener
+//                }
             }
 
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
@@ -2331,13 +2330,20 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val filePath = File(rootApp, resultFileName)
         ivAddPhoto.setOnClickListener {
+
             bottomNavInspect.visibility = View.GONE
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
+            etPhotoComment.clearFocus()
+
+
             when {
                 ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.CAMERA
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    bottomNavInspect.visibility = View.GONE
+
                     bottomSheetDialog.dismiss()
 
                     if (resultFileName.isNotEmpty()) {
@@ -2349,6 +2355,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     shouldReopenBottomSheet = true
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         headerFormInspection.visibility = View.GONE
+                                        bottomNavInspect.visibility = View.GONE
                                         cameraViewModel.takeCameraPhotos(
                                             this,
                                             currentPage.toString(),
@@ -2486,10 +2493,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             object : SoftKeyboardStateWatcher.OnSoftKeyboardStateChangedListener {
                 override fun onSoftKeyboardOpened(keyboardHeight: Int) {
                     bottomNavInspect.post {
-                        hideWithAnimation(bottomNavInspect, 100)
-                        hideWithAnimation(fabPrevFormAncak, 100)
-                        hideWithAnimation(fabNextFormAncak, 100)
-//                        hideWithAnimation(fabPhotoFormAncak, 100)
+                        hideWithAnimation(bottomNavInspect, 50)
+                        hideWithAnimation(fabPrevFormAncak, 50)
+                        hideWithAnimation(fabNextFormAncak, 50)
+//                        hideWithAnimation(fabPhotoFormAncak, 50)
                     }
                 }
 
@@ -2756,10 +2763,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             if (activeBottomNavId == R.id.navMenuBlokInspect) {
                 if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    if (!validateAndShowErrors()) {
-                        vibrate(500)
-                        return@setOnItemSelectedListener false
-                    }
+//                    if (!validateAndShowErrors()) {
+//                        vibrate(500)
+//                        return@setOnItemSelectedListener false
+//                    }
                 }
 
             }
