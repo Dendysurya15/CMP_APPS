@@ -22,20 +22,25 @@ class DataPanenInspectionRepository(
 
     suspend fun getDataPanen(estate: Int, afdeling: String): Response<ResponseBody> {
         // Calculate date range - from yesterday to 7 days ago (excluding today)
-        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
 
-        // Yesterday (1 day ago)
+        // End of yesterday (23:59:59 yesterday)
         calendar.set(Calendar.HOUR_OF_DAY, 23)
         calendar.set(Calendar.MINUTE, 59)
         calendar.set(Calendar.SECOND, 59)
-        val today = formatter.format(calendar.time)
+        calendar.set(Calendar.MILLISECOND, 999)
+        val endDate = formatter.format(calendar.time)
 
-        // 7 days ago from today (which is 6 days from yesterday)
-        calendar.add(Calendar.DAY_OF_YEAR, -6)
-        val sevenDaysAgo = formatter.format(calendar.time)
+        // Start of 7 days ago (00:00:00 seven days ago)
+        calendar.add(Calendar.DAY_OF_YEAR, -6) // Go back 6 more days (total 7 days from today)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $sevenDaysAgo to $today (inclusive, excluding today)")
+        AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -67,16 +72,12 @@ class DataPanenInspectionRepository(
                 // Estate condition
                 put("dept", estate)
 
-                // Afdeling/divisi condition (if provided)
-//                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
-//                    put("divisi", afdeling)
-//                }
 
-                // Date range condition using BETWEEN
+                // Date range condition using BETWEEN with full datetime
                 put("created_date", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(sevenDaysAgo)
-                        put(today)
+                        put(startDate)
+                        put(endDate)
                     })
                 })
             })
@@ -85,6 +86,7 @@ class DataPanenInspectionRepository(
         // Convert JSONObject to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
 
+        AppLogger.d("kljasldkfjalskf j")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
         return apiService.getDataRaw(requestBody)
@@ -154,9 +156,9 @@ class DataPanenInspectionRepository(
                 put("dept", estate)
 
                 // Afdeling/divisi condition (if provided)
-                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
-                    put("divisi", afdeling)
-                }
+//                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
+//                    put("divisi", afdeling)
+//                }
 
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
