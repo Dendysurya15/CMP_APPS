@@ -450,11 +450,12 @@ class ListHistoryESPBActivity : AppCompatActivity(), ListHektarPanenAdapter.OnLu
                     hektarPanenViewModel.getKaryawanByNik(item.nik.toString())
                 }
 
+                AppLogger.d("${item.blok}")
                 // Process blok data
                 val blokData = withContext(Dispatchers.IO) {
                     // Get blok details if item has blok information
                     item.blok.let { blokId ->
-                        espbViewModel.getBlokById(listOf(blokId))
+                        espbViewModel.getBlokByIdOrIdPPRO(listOf(blokId))
                     }
                 }
 

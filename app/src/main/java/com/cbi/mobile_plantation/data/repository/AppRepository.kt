@@ -1384,6 +1384,28 @@ class AppRepository(context: Context) {
         return blokDao.getDataByIdInBlok(listBlokId)
     }
 
+    suspend fun fetchBlokListbyIdorIdPpro(blockIds: List<Int>): List<BlokModel> = withContext(Dispatchers.IO) {
+        val blokList = mutableListOf<BlokModel>()
+
+        blockIds.forEach { blockId ->
+            try {
+                var blokData: BlokModel? = null
+
+                blokData = blokDao.getBlokByIdPPRO(blockId)
+
+                if (blokData == null) {
+                    blokData = blokDao.getBlokById(blockId)
+                }
+
+                blokData?.let { blokList.add(it) }
+            } catch (e: Exception) {
+                AppLogger.e("Error fetching blok with id $blockId: ${e.message}")
+            }
+        }
+
+        return@withContext blokList
+    }
+
     suspend fun getTransporterNameById(id: Int): String? {
         return transporterDao.getTransporterNameById(id)
     }

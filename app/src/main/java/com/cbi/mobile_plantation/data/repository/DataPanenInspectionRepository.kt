@@ -68,9 +68,9 @@ class DataPanenInspectionRepository(
                 put("dept", estate)
 
                 // Afdeling/divisi condition (if provided)
-                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
-                    put("divisi", afdeling)
-                }
+//                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
+//                    put("divisi", afdeling)
+//                }
 
                 // Date range condition using BETWEEN
                 put("created_date", JSONObject().apply {
