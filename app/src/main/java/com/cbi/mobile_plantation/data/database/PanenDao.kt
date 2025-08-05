@@ -4,6 +4,7 @@ import androidx.room.*
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 
 @Dao
 abstract class PanenDao {
@@ -23,6 +24,23 @@ abstract class PanenDao {
             Result.failure(e)
         }
     }
+
+    @Query("""
+        SELECT * FROM ${AppUtils.DatabaseTables.PANEN} 
+        WHERE tph_id = :tphId 
+        AND date_created = :createdDate 
+        AND created_by = :createdBy 
+        AND no_espb = :spbKode 
+        AND ancak = :ancak 
+        LIMIT 1
+    """)
+    abstract suspend fun checkExistingRecord(
+        tphId: String,
+        createdDate: String,
+        createdBy: Int,
+        spbKode: String,
+        ancak: Int
+    ): PanenEntity?
 
     @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
