@@ -98,6 +98,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.formatToCamelCase
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
+import com.cbi.mobile_plantation.utils.DownloadDatasetUtility
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.NotificationScheduler
 import com.cbi.mobile_plantation.utils.PrefManager
@@ -214,7 +215,7 @@ class HomePageActivity : AppCompatActivity() {
     )
     private var estateList: List<EstateModel> = emptyList()
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
-
+    private lateinit var downloadDatasetUtility: DownloadDatasetUtility
     private lateinit var datasetViewModel: DatasetViewModel
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
@@ -991,6 +992,8 @@ class HomePageActivity : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
         initViewModel()
+        downloadDatasetUtility = DownloadDatasetUtility(prefManager!!, datasetViewModel)
+
         _globalLastSync.value = prefManager!!.lastSyncDate
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
@@ -6873,17 +6876,6 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-//    private fun extractEmployeesFromJson(jsonString: String, kemandoranId: String): List<String> {
-//        return try {
-//            val jsonObj = JSONObject(jsonString)
-//            val employeeArray = jsonObj.optString(kemandoranId, "")
-//            employeeArray.split(",").filter { it.trim().isNotEmpty() }
-//        } catch (e: Exception) {
-//            AppLogger.e("Error: ${e.message}")
-//            emptyList()
-//        }
-//    }
-
     private fun startDownloads(previewData: String? = null, titleDialog: String? = null) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
@@ -6912,44 +6904,43 @@ class HomePageActivity : AppCompatActivity() {
                 return
             }
 
+            // Set the trigger flags in the utility
+            downloadDatasetUtility.apply {
+                isTriggerFeatureInspection = this@HomePageActivity.isTriggerFeatureInspection
+                isTriggerFollowUp = this@HomePageActivity.isTriggerFollowUp
+                isTriggerButtonSinkronisasiData = this@HomePageActivity.isTriggerButtonSinkronisasiData
+            }
 
-            val filteredRequests = if (isTriggerButtonSinkronisasiData) {
+            // Use the utility to get datasets
+            val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
+                regionalIdString!!.toInt(),
+                estateId,
+                afdelingIdString!!,
+                lastModifiedDatasetEstate,
+                lastModifiedDatasetTPH,
+                lastModifiedDatasetJenisTPH,
+                lastModifiedDatasetBlok,
+                lastModifiedDatasetPemanen,
+                lastModifiedDatasetKemandoran,
+                lastModifiedDatasetTransporter,
+                lastModifiedDatasetKendaraan,
+                lastModifiedSettingJSON
+            )
 
-                getDatasetsToDownload(
-                    regionalIdString!!.toInt(),
-                    estateId,
-                    afdelingIdString!!,
-                    lastModifiedDatasetEstate,
-                    lastModifiedDatasetTPH,
-                    lastModifiedDatasetJenisTPH,
-                    lastModifiedDatasetBlok,
-                    lastModifiedDatasetPemanen,
-                    lastModifiedDatasetKemandoran,
-                    lastModifiedDatasetTransporter,
-                    lastModifiedDatasetKendaraan,
-                    lastModifiedSettingJSON
-                )
+
+            AppLogger.d("allDatasets $allDatasets")
+
+            val filteredRequests = if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
+                allDatasets
             } else {
-                getDatasetsToDownload(
-                    regionalIdString!!.toInt(),
-                    estateId,
-                    afdelingIdString!!,
-                    lastModifiedDatasetEstate,
-                    lastModifiedDatasetTPH,
-                    lastModifiedDatasetJenisTPH,
-                    lastModifiedDatasetBlok,
-                    lastModifiedDatasetPemanen,
-                    lastModifiedDatasetKemandoran,
-                    lastModifiedDatasetTransporter,
-                    lastModifiedDatasetKendaraan,
-                    lastModifiedSettingJSON
-                ).filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
+                allDatasets.filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
             }
 
             // Dismiss loading dialog if it was shown
             if (isTriggerButtonSinkronisasiData) {
                 loadingDialog.dismiss()
             }
+
             if (filteredRequests.isNotEmpty()) {
                 if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
                     startDownloadsV2(filteredRequests, previewData, titleDialog)
@@ -6965,236 +6956,6 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
         }
-    }
-
-    private fun getDatasetsToDownload(
-        regionalId: Int,
-        estateId: Int,
-        afdelingId: String,
-        lastModifiedDatasetEstate: String?,
-        lastModifiedDatasetTPH: String?,
-        lastModifiedDatasetJenisTPH: String?,
-        lastModifiedDatasetBlok: String?,
-        lastModifiedDatasetPemanen: String?,
-        lastModifiedDatasetKemandoran: String?,
-        lastModifiedDatasetTransporter: String?,
-        lastModifiedDatasetKendaraan: String?,
-        lastModifiedSettingJSON: String?
-    ): List<DatasetRequest> {
-        val datasets = mutableListOf<DatasetRequest>()
-
-        val jabatan = prefManager!!.jabatanUserLogin
-        val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
-        val isKeraniTimbang =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
-
-        val isKeraniPanen =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true)
-
-        val isMandor1 =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true)
-
-        val isAsisten =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true)
-
-        val isMandorPanen =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true)
-
-
-        AppLogger.d(" isTriggerFeatureInspection $isTriggerFeatureInspection")
-        if (isTriggerFeatureInspection && !isKeraniPanen) {
-            AppLogger.d("Inspection triggered - downloading only parameter dataset")
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-                )
-            )
-            return datasets
-        }
-
-        if (isTriggerFollowUp && !isKeraniPanen) {
-            AppLogger.d("Inspection triggered - downloading only parameter dataset")
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
-                )
-            )
-            return datasets
-        }
-
-        if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
-            // Get all estate timestamps directly from prefManager
-            val estateTimestamps = prefManager!!.getMasterTPHEstateLastModifiedMap()
-            AppLogger.d("Estate timestamps (${estateTimestamps.size} estates):")
-
-            // Check if estateTimestamps is not empty before proceeding
-            if (estateTimestamps.isNotEmpty()) {
-                // For each estate in the timestamps map
-                estateTimestamps.forEach { (abbr, timestamp) ->
-                    AppLogger.d("  $abbr: $timestamp")
-
-                    // Find the estate ID from the allEstatesList
-                    val estate = datasetViewModel.allEstatesList.value?.find { it.abbr == abbr }
-                    val estateId = estate?.id?.toInt()
-                    val estateName = estate?.nama ?: "Unknown Estate"
-
-                    if (estateId != null) {
-                        AppLogger.d("Adding estate dataset: $abbr ($estateName)")
-                        datasets.add(
-                            DatasetRequest(
-                                estate = estateId,
-                                estateAbbr = abbr,
-                                lastModified = timestamp,
-                                dataset = AppUtils.DatasetNames.tph
-                            )
-                        )
-                    } else {
-                        AppLogger.d("Skipping estate $abbr - could not find estate ID")
-                    }
-                }
-            } else {
-                AppLogger.d("No estate timestamps found to process")
-            }
-        }
-
-
-        if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
-            AppLogger.d(isTriggerFeatureInspection.toString())
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-                )
-            )
-            datasets.add(
-                DatasetRequest(
-                    regional = null,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.parameter
-                ),
-            )
-        }
-
-        if (!isTriggerButtonSinkronisasiData) {
-
-            datasets.add(
-                DatasetRequest(
-                    regional = null,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.parameter
-                ),
-            )
-        }
-
-
-        if (isTriggerButtonSinkronisasiData) {
-            datasets.add(
-                DatasetRequest(
-                    lastModified = null,
-                    idUser = prefManager!!.idUserLogin,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataUser
-                )
-            )
-        }
-
-        if (isMandorPanen || isMandor1) {
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                ),
-            )
-        }
-
-        if (isKeraniTimbang) {
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                )
-            )
-        } else {
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-            )
-
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                ),
-            )
-
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetEstate,
-                    dataset = AppUtils.DatasetNames.estate
-                ),
-            )
-        }
-
-        datasets.addAll(
-            listOf(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetJenisTPH,
-                    dataset = AppUtils.DatasetNames.jenisTPH
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetTransporter,
-                    dataset = AppUtils.DatasetNames.transporter
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetKendaraan,
-                    dataset = AppUtils.DatasetNames.kendaraan
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedSettingJSON,
-                    dataset = AppUtils.DatasetNames.settingJSON
-                )
-            )
-        )
-
-        return datasets
     }
 
     private fun resetEstateSelection(successfulEstates: List<String>) {

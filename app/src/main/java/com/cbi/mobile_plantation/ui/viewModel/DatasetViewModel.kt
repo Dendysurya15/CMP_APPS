@@ -472,7 +472,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         // Direct conversion from TPH regional API response
                         val model = TPHNewModel(
                             id = safeGetInt("id"),
-                            regional = safeGetString("regional") ?: safeGetInt("regional")?.toString() ?: "0",
+                            regional = safeGetString("regional")
+                                ?: safeGetInt("regional")?.toString() ?: "0",
                             company = safeGetInt("company"),
                             company_abbr = safeGetString("company_abbr"),
                             company_nama = safeGetString("company_nama"),
@@ -499,7 +500,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             lon = safeGetString("lon"),
                             update_date = safeGetString("update_date"),
                             status = safeGetString("status") ?: safeGetInt("status")?.toString(),
-                            jenis_tph_id = safeGetString("jenis_tph_id") ?: safeGetInt("jenis_tph_id")?.toString(),
+                            jenis_tph_id = safeGetString("jenis_tph_id")
+                                ?: safeGetInt("jenis_tph_id")?.toString(),
                             limit_tph = safeGetString("limit_tph"),
                         )
 
@@ -562,7 +564,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         // Manual conversion to TPHNewModel with proper null handling
                         val model = TPHNewModel(
                             id = safeGetInt("id"),
-                            regional = safeGetString("regional") ?: safeGetInt("regional")?.toString() ?: "0",
+                            regional = safeGetString("regional")
+                                ?: safeGetInt("regional")?.toString() ?: "0",
                             company = safeGetInt("company"),
                             company_abbr = safeGetString("company_abbr"),
                             company_nama = safeGetString("company_nama"),
@@ -876,7 +879,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 AppUtils.DatabaseTables.HEKTAR_PANEN -> {
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.MandorPanen -> {
-                                                            hektarPanenDao.updateStatusUploadHektarPanen(idList, statusCode)
+                                                            hektarPanenDao.updateStatusUploadHektarPanen(
+                                                                idList,
+                                                                statusCode
+                                                            )
                                                             AppLogger.d("Updated hektar_panen_table successfully")
                                                         }
                                                     }
@@ -885,21 +891,33 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     when (jabatan) {
                                                         AppUtils.ListFeatureByRoleUser.MandorPanen -> {
-                                                            absensiDao.updateStatusUploadAbsensiPanen(idList, statusCode)
+                                                            absensiDao.updateStatusUploadAbsensiPanen(
+                                                                idList,
+                                                                statusCode
+                                                            )
                                                             AppLogger.d("Updated absensi_table successfully")
                                                         }
                                                     }
                                                 }
+
                                                 AppUtils.DatabaseTables.INSPEKSI -> {
                                                     // Add inspeksi update logic
-                                                    inspeksiDao.updateStatusUploadInspeksiPanen(idList, statusCode)
+                                                    inspeksiDao.updateStatusUploadInspeksiPanen(
+                                                        idList,
+                                                        statusCode
+                                                    )
                                                     AppLogger.d("Updated inspeksi_table successfully")
                                                 }
+
                                                 AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
                                                     // Add inspeksi detail update logic
-                                                    inspeksiDao.updateStatusUploadInspeksiDetailPanen(idList, statusCode)
+                                                    inspeksiDao.updateStatusUploadInspeksiDetailPanen(
+                                                        idList,
+                                                        statusCode
+                                                    )
                                                     AppLogger.d("Updated inspeksi_detail_table successfully")
                                                 }
+
                                                 else -> {
                                                     AppLogger.w("Unknown table name: $tableName")
                                                 }
@@ -1160,20 +1178,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response =
                             restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
-                        response = syncDataUserRepository.getDataUser(request.idUser?: 0)
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                        response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
                             request.afdeling!!
                         )
-                    }
-                    else if(request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi){
-                        response = dataPanenInspectionRepository.getDataInspeksi(request.estate!!, request.afdeling!!)
-                    }else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                        response = dataPanenInspectionRepository.getDataInspeksi(
+                            request.estate!!,
+                            request.afdeling!!
+                        )
+                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
-                    }
-else if(request.dataset == AppUtils.DatasetNames.parameter){
+                    } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
                     }
                     // Add this after the existing API calls but before the response processing
@@ -1201,7 +1219,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                 estate.abbr?.let { estateAbbr ->
                                     try {
                                         // Calculate progress based on estate processing (0-90% for API calls, 90-100% for database)
-                                        val apiProgress = ((processedEstates.toFloat() / totalEstates) * 90).toInt()
+                                        val apiProgress =
+                                            ((processedEstates.toFloat() / totalEstates) * 90).toInt()
                                         progressMap[itemId] = apiProgress
                                         statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
                                         _itemProgressMap.postValue(progressMap.toMap())
@@ -1226,7 +1245,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         processedEstates++
 
                                         // Update progress after each estate
-                                        val currentProgress = ((processedEstates.toFloat() / totalEstates) * 90).toInt()
+                                        val currentProgress =
+                                            ((processedEstates.toFloat() / totalEstates) * 90).toInt()
                                         progressMap[itemId] = currentProgress
                                         _itemProgressMap.postValue(progressMap.toMap())
 
@@ -1242,7 +1262,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
 
                             // Set progress to 90% and update status to storing
                             progressMap[itemId] = 90
-                            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING // or create a new status for storing
+                            statusMap[itemId] =
+                                AppUtils.UploadStatusUtils.DOWNLOADING // or create a new status for storing
                             _itemProgressMap.postValue(progressMap.toMap())
                             _itemStatusMap.postValue(statusMap.toMap())
 
@@ -1276,7 +1297,10 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                 }
 
                                 // Set lastModified to current datetime
-                                val currentDateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                                val currentDateTime = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date())
                                 prefManager.lastModifiedDatasetTPH = currentDateTime
 
                                 AppLogger.d("TPH regional download completed successfully - ${allTphData.size} records from $totalEstates estates")
@@ -1295,7 +1319,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                             continue
                         } else {
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                            errorMap[itemId] = "Failed to get estates: ${estatesResult.exceptionOrNull()?.message}"
+                            errorMap[itemId] =
+                                "Failed to get estates: ${estatesResult.exceptionOrNull()?.message}"
                             progressMap[itemId] = 0
                             _itemProgressMap.postValue(progressMap.toMap())
                             _itemStatusMap.postValue(statusMap.toMap())
@@ -1303,8 +1328,7 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                             incrementCompletedCount()
                             continue
                         }
-                    }
-                    else {
+                    } else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
 
@@ -2285,7 +2309,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
 
                                                     if (recordId > 0) {
                                                         // Get the existing record to check current status_espb
-                                                        val existingRecord = panenDao.getById(recordId)
+                                                        val existingRecord =
+                                                            panenDao.getById(recordId)
 
                                                         if (existingRecord != null) {
                                                             // Check if existing record has status_espb = 1 and new record has status_espb = 0
@@ -2298,7 +2323,10 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                                 val updatedRecord = panen.copy(
                                                                     id = recordId,
                                                                     // Preserve local status_espb if it's higher than incoming status
-                                                                    status_espb = maxOf(existingRecord.status_espb, panen.status_espb),
+                                                                    status_espb = maxOf(
+                                                                        existingRecord.status_espb,
+                                                                        panen.status_espb
+                                                                    ),
                                                                     // Preserve other local fields that shouldn't be overwritten
                                                                     status_upload = existingRecord.status_upload,
                                                                     status_uploaded_image = existingRecord.status_uploaded_image,
@@ -2318,7 +2346,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                         } else {
                                                             AppLogger.e("Existing record not found for ID $recordId: ${panen.tph_id}, ${panen.date_created}")
                                                             // Fallback: insert as new
-                                                            val result = panenDao.insertWithTransaction(panen)
+                                                            val result =
+                                                                panenDao.insertWithTransaction(panen)
                                                             if (result.isSuccess) {
                                                                 successCount++
                                                                 AppLogger.d("Inserted as new after existing record not found: ${panen.tph_id}, ${panen.date_created}")
@@ -2537,7 +2566,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
 
                                 AppLogger.e("Error updating preferences: ${prefException.message}")
                                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                errorMap[itemId] = "Error updating preferences: ${prefException.message}"
+                                errorMap[itemId] =
+                                    "Error updating preferences: ${prefException.message}"
                             }
 
                         } else {
@@ -2743,7 +2773,10 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
 
                                             val updatedRecord = panen.copy(
                                                 // Preserve local status if higher
-                                                status_espb = maxOf(existingRecord.status_espb, panen.status_espb),
+                                                status_espb = maxOf(
+                                                    existingRecord.status_espb,
+                                                    panen.status_espb
+                                                ),
                                                 status_upload = existingRecord.status_upload,
                                                 status_uploaded_image = existingRecord.status_uploaded_image,
                                                 // Preserve local photos and comments if they exist
@@ -2872,20 +2905,62 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         val app_version = item.optString("app_version", "")
                                         val createdBy = item.optInt("created_by", 0)
                                         val trackingPath = item.optString("tracking_path", "")
-                                        val dept = if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
-                                        val deptPpro = if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
-                                        val deptAbbr = if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
-                                        val deptNama = if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
-                                        val divisi = if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
-                                        val divisiPpro = if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
-                                        val divisiAbbr = if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
-                                        val divisiNama = if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
-                                        val blok = if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
-                                        val blokPpro = if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
-                                        val blokKode = if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
-                                        val blokNama = if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
-                                        val tphNomor = if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
-                                        val ancak = if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
+                                        val dept =
+                                            if (item.has("dept") && !item.isNull("dept")) item.optInt(
+                                                "dept"
+                                            ) else null
+                                        val deptPpro =
+                                            if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt(
+                                                "dept_ppro"
+                                            ) else null
+                                        val deptAbbr =
+                                            if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString(
+                                                "dept_abbr"
+                                            ) else null
+                                        val deptNama =
+                                            if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString(
+                                                "dept_nama"
+                                            ) else null
+                                        val divisi =
+                                            if (item.has("divisi") && !item.isNull("divisi")) item.optInt(
+                                                "divisi"
+                                            ) else null
+                                        val divisiPpro =
+                                            if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt(
+                                                "divisi_ppro"
+                                            ) else null
+                                        val divisiAbbr =
+                                            if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString(
+                                                "divisi_abbr"
+                                            ) else null
+                                        val divisiNama =
+                                            if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString(
+                                                "divisi_nama"
+                                            ) else null
+                                        val blok =
+                                            if (item.has("blok") && !item.isNull("blok")) item.optInt(
+                                                "blok"
+                                            ) else null
+                                        val blokPpro =
+                                            if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt(
+                                                "blok_ppro"
+                                            ) else null
+                                        val blokKode =
+                                            if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString(
+                                                "blok_kode"
+                                            ) else null
+                                        val blokNama =
+                                            if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString(
+                                                "blok_nama"
+                                            ) else null
+                                        val tphNomor =
+                                            if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt(
+                                                "tph_nomor"
+                                            ) else null
+                                        val ancak =
+                                            if (item.has("ancak") && !item.isNull("ancak")) item.optString(
+                                                "ancak"
+                                            ) else null
 
                                         // Create InspectionModel
                                         val inspectionEntity = InspectionModel(
@@ -2933,12 +3008,12 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         )
 
 
-
                                         var localInspectionId: Int
 
                                         if (existingRecord == null) {
                                             // Record doesn't exist -> INSERT
-                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
+                                            val result =
+                                                inspectionDao.insertWithTransaction(inspectionEntity)
                                             if (result.isSuccess) {
                                                 // Get the newly inserted ID
                                                 localInspectionId = inspectionDao.getDataInspeksi(
@@ -2964,7 +3039,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                 AppLogger.d("Found local inspection record, creating new server record: TPH=${inspectionEntity.tph_id}")
 
                                                 // Insert as new record since local and server data should coexist
-                                                val insertResult = inspectionDao.insert(inspectionEntity)
+                                                val insertResult =
+                                                    inspectionDao.insert(inspectionEntity)
                                                 if (insertResult > 0) {
                                                     // Use the returned ID from insert operation
                                                     localInspectionId = insertResult.toInt()
@@ -2998,16 +3074,24 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                 val noPokPok = detail.optInt("no_pokok", 0)
                                                 val pokokPanen = detail.optInt("pokok_panen", 0)
                                                 val kodeInspeksi = detail.optInt("kode_inspeksi", 0)
-                                                val temuanInspeksi = detail.optDouble("temuan_inspeksi", 0.0)
-                                                val statusPemulihan = detail.optInt("status_pemulihan", 0)
+                                                val temuanInspeksi =
+                                                    detail.optDouble("temuan_inspeksi", 0.0)
+                                                val statusPemulihan =
+                                                    detail.optInt("status_pemulihan", 0)
                                                 val nik = detail.optString("nik", "")
                                                 val nama = detail.optString("nama", "")
                                                 val catatan = detail.optString("catatan", null)
-                                                val createdDate = detail.optString("created_date", tglInspeksi)
-                                                val createdName = detail.optString("created_name", "")
+                                                val createdDate =
+                                                    detail.optString("created_date", tglInspeksi)
+                                                val createdName =
+                                                    detail.optString("created_name", "")
                                                 val createdBy = detail.optString("created_by", "")
-                                                val latDetail = detail.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
-                                                val lonDetail = detail.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
+                                                val latDetail =
+                                                    detail.optString("lat", "0.0").toDoubleOrNull()
+                                                        ?: 0.0
+                                                val lonDetail =
+                                                    detail.optString("lon", "0.0").toDoubleOrNull()
+                                                        ?: 0.0
 
                                                 val inspectionDetailEntity = InspectionDetailModel(
                                                     id = 0, // Always 0 for auto-increment
@@ -3033,17 +3117,21 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                 )
 
                                                 // Check if detail record exists by business key
-                                                val existingDetail = inspectionDetailDao.getDataInspeksiDetail(
-                                                    inspectionDetailEntity.created_date,
-                                                    inspectionDetailEntity.nik,
-                                                    inspectionDetailEntity.nama,
-                                                    inspectionDetailEntity.kode_inspeksi,
-                                                    inspectionDetailEntity.temuan_inspeksi
-                                                )
+                                                val existingDetail =
+                                                    inspectionDetailDao.getDataInspeksiDetail(
+                                                        inspectionDetailEntity.created_date,
+                                                        inspectionDetailEntity.nik,
+                                                        inspectionDetailEntity.nama,
+                                                        inspectionDetailEntity.kode_inspeksi,
+                                                        inspectionDetailEntity.temuan_inspeksi
+                                                    )
 
                                                 if (existingDetail == null) {
                                                     // Record doesn't exist -> INSERT
-                                                    val result = inspectionDetailDao.insertWithTransaction(inspectionDetailEntity)
+                                                    val result =
+                                                        inspectionDetailDao.insertWithTransaction(
+                                                            inspectionDetailEntity
+                                                        )
                                                     if (result.isSuccess) {
                                                         successCount++
                                                         AppLogger.d("Inserted new inspection detail: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
@@ -3058,7 +3146,10 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                         AppLogger.d("Found local detail record, creating new server record: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
 
                                                         // Insert as new record since local and server data should coexist
-                                                        val result = inspectionDetailDao.insertWithTransaction(inspectionDetailEntity)
+                                                        val result =
+                                                            inspectionDetailDao.insertWithTransaction(
+                                                                inspectionDetailEntity
+                                                            )
                                                         if (result.isSuccess) {
                                                             successCount++
                                                             AppLogger.d("Created new server detail record: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
@@ -3068,12 +3159,17 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                         }
                                                     } else {
                                                         // This is server data (isPushedToServer = 1) -> UPDATE it
-                                                        val updatedDetail = inspectionDetailEntity.copy(
-                                                            id = existingDetail.id, // Keep local auto-increment ID
-                                                            status_upload = existingDetail.status_upload,
-                                                            status_uploaded_image = existingDetail.status_uploaded_image
+                                                        val updatedDetail =
+                                                            inspectionDetailEntity.copy(
+                                                                id = existingDetail.id, // Keep local auto-increment ID
+                                                                status_upload = existingDetail.status_upload,
+                                                                status_uploaded_image = existingDetail.status_uploaded_image
+                                                            )
+                                                        inspectionDetailDao.update(
+                                                            listOf(
+                                                                updatedDetail
+                                                            )
                                                         )
-                                                        inspectionDetailDao.update(listOf(updatedDetail))
                                                         successCount++
                                                         AppLogger.d("Updated existing server detail: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
                                                     }
@@ -3114,11 +3210,13 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                 } else if (successCount > 0) {
                                     // Partial success
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
-                                    errorMap[itemId] = "Partial success: $failCount/${dataArray.length()} records failed"
+                                    errorMap[itemId] =
+                                        "Partial success: $failCount/${dataArray.length()} records failed"
                                 } else {
                                     // Complete failure
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                    errorMap[itemId] = "Failed to process inspection data: $failCount/${dataArray.length()} records failed"
+                                    errorMap[itemId] =
+                                        "Failed to process inspection data: $failCount/${dataArray.length()} records failed"
                                 }
                             } catch (e: Exception) {
                                 progressMap[itemId] = 100  // Still show 100% even on error
@@ -3169,7 +3267,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter =
+                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
                 val calendar = Calendar.getInstance()
 
                 // Today
@@ -3218,13 +3317,15 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                     }
 
                     // Increment record count for this date
-                    recordCountByDate[inspeksiDate] = recordCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                    recordCountByDate[inspeksiDate] =
+                        recordCountByDate.getOrDefault(inspeksiDate, 0) + 1
 
                     // Simply increment the inspection count for this date
                     // Only count if inspection ID is greater than 0
                     val inspeksiId = item.optInt("id", 0)
                     if (inspeksiId > 0) {
-                        inspeksiCountByDate[inspeksiDate] = inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                        inspeksiCountByDate[inspeksiDate] =
+                            inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
                     }
                 }
 
@@ -3706,7 +3807,10 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         divisiObject.get("nama").asString else null
 
                                 val sinkronisasi_otomatis =
-                                    if (divisiObject.has("sinkronisasi_otomatis") && !divisiObject.get("sinkronisasi_otomatis").isJsonNull)
+                                    if (divisiObject.has("sinkronisasi_otomatis") && !divisiObject.get(
+                                            "sinkronisasi_otomatis"
+                                        ).isJsonNull
+                                    )
                                         divisiObject.get("sinkronisasi_otomatis").asInt else 0
 
                                 val afdeling = AfdelingModel(
@@ -3782,7 +3886,8 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                     AppUtils.DatasetNames.tph,
                     AppUtils.DatasetNames.transporter,
                     AppUtils.DatasetNames.jenisTPH,
-                    AppUtils.DatasetNames.parameter
+                    AppUtils.DatasetNames.parameter,
+                    AppUtils.DatasetNames.sinkronisasiDataPanen
                 )
                 val datasetName = request.dataset
                 var modifiedRequest = request  // Create a mutable copy of the request
@@ -3813,11 +3918,14 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                             restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
-                    }
-                else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                    } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                        response = dataPanenInspectionRepository.getDataPanen(
+                            request.estate!!,
+                            request.afdeling!!
+                        )
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         val estatesResult = repository.getAllEstates()
                         if (estatesResult.isSuccess) {
                             val estates = estatesResult.getOrNull() ?: emptyList()
@@ -3853,34 +3961,41 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                             if (allTphData.isNotEmpty()) {
 
 
-
-                                    updateOrInsertTPH(allTphData, false).join()
+                                updateOrInsertTPH(allTphData, false).join()
 
 
                                 if (tphStatus.value.isSuccess) {
-                                    results[request.dataset] = Resource.Success(lastSuccessResponse!!, "TPH data processed successfully")
+                                    results[request.dataset] = Resource.Success(
+                                        lastSuccessResponse!!,
+                                        "TPH data processed successfully"
+                                    )
                                     prefManager!!.addDataset(request.dataset)
 
                                     // Set lastModified to current datetime
-                                    val currentDateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                                    val currentDateTime = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date())
                                     prefManager.lastModifiedDatasetTPH = currentDateTime
                                 } else {
                                     val error = tphStatus.value.exceptionOrNull()
-                                    results[request.dataset] = Resource.Error("Database error: ${error?.message ?: "Unknown error"}")
+                                    results[request.dataset] =
+                                        Resource.Error("Database error: ${error?.message ?: "Unknown error"}")
                                 }
                             } else {
-                                results[request.dataset] = Resource.Error("No TPH data found for any estate")
+                                results[request.dataset] =
+                                    Resource.Error("No TPH data found for any estate")
                             }
 
                             _downloadStatuses.postValue(results.toMap())
                             return@forEach
                         } else {
-                            results[request.dataset] = Resource.Error("Failed to get estates: ${estatesResult.exceptionOrNull()?.message}")
+                            results[request.dataset] =
+                                Resource.Error("Failed to get estates: ${estatesResult.exceptionOrNull()?.message}")
                             _downloadStatuses.postValue(results.toMap())
                             return@forEach
                         }
-                    }
-                    else {
+                    } else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
 
@@ -4122,6 +4237,248 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                 ) {
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
                                 }
+                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                                    // Process sinkronisasiDataPanen JSON data
+                                    try {
+                                        results[request.dataset] = Resource.Loading(60)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Parse the JSON response to extract the panen data
+                                        val jsonObject = JSONObject(responseBodyString)
+
+                                        if (jsonObject.optBoolean("success", false)) {
+                                            val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+                                            val panenList = mutableListOf<PanenEntity>()
+
+                                            results[request.dataset] = Resource.Loading(70)
+                                            _downloadStatuses.postValue(results.toMap())
+
+                                            AppLogger.d("Processing ${dataArray.length()} panen records...")
+
+                                            for (i in 0 until dataArray.length()) {
+                                                val item = dataArray.getJSONObject(i)
+
+                                                // Extract required fields
+                                                val idPanen = item.optInt("id", 0)
+                                                val tphId = item.optString("tph", "")
+                                                val createdDate = item.optString("created_date", "")
+                                                val createdBy = item.optInt("created_by", 0)
+                                                val spb_kode = item.optString("spb_kode", "")
+                                                val ancak = item.optInt("ancak", 0)
+
+                                                // Extract jjg values for jjg_json
+                                                val jjgPanen = item.optInt("jjg_panen", 0)
+                                                val jjgMentah = item.optInt("jjg_mentah", 0)
+                                                val jjgLewatMasak = item.optInt("jjg_lewat_masak", 0)
+                                                val jjgKosong = item.optInt("jjg_kosong", 0)
+                                                val jjgAbnormal = item.optInt("jjg_abnormal", 0)
+                                                val jjgSeranganTikus = item.optInt("jjg_serangan_tikus", 0)
+                                                val jjgPanjang = item.optInt("jjg_panjang", 0)
+                                                val jjgTidakVcut = item.optInt("jjg_tidak_vcut", 0)
+                                                val jjgBayar = item.optInt("jjg_bayar", 0)
+                                                val jjgKirim = item.optInt("jjg_kirim", 0)
+                                                val jjgMasak = item.optInt("jjg_masak", 0)
+
+                                                // Build jjg_json
+                                                val jjgJson =
+                                                    "{\"TO\":$jjgPanen,\"UN\":$jjgMentah,\"OV\":$jjgLewatMasak,\"EM\":$jjgKosong,\"AB\":$jjgAbnormal,\"RA\":$jjgSeranganTikus,\"LO\":$jjgPanjang,\"TI\":$jjgTidakVcut,\"RI\":$jjgMasak,\"KP\":$jjgKirim,\"PA\":$jjgBayar}"
+
+                                                // Parse kemandoran JSON to extract kemandoran_id and karyawan info
+                                                val kemandoranString = item.optString("kemandoran", "")
+                                                var kemandoranId = ""
+                                                var karyawanNikList = mutableListOf<String>()
+                                                var karyawanNamaList = mutableListOf<String>()
+
+                                                if (kemandoranString.isNotEmpty()) {
+                                                    try {
+                                                        val kemandoranArray = JSONArray(kemandoranString)
+                                                        if (kemandoranArray.length() > 0) {
+                                                            val kemandoranObj = kemandoranArray.getJSONObject(0)
+                                                            kemandoranId = kemandoranObj.optString("id", "")
+
+                                                            val pemanenArray = kemandoranObj.optJSONArray("pemanen")
+                                                            if (pemanenArray != null) {
+                                                                for (j in 0 until pemanenArray.length()) {
+                                                                    val pemanenObj = pemanenArray.getJSONObject(j)
+                                                                    val nik = pemanenObj.optString("nik", "")
+                                                                    val nama = pemanenObj.optString("nama", "")
+                                                                    if (nik.isNotEmpty()) {
+                                                                        karyawanNikList.add(nik)
+                                                                        karyawanNamaList.add(nama)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error parsing kemandoran JSON: ${e.message}")
+                                                    }
+                                                }
+
+                                                // Get karyawan_id from database using NIK
+                                                var karyawanIdList = mutableListOf<String>()
+                                                if (karyawanNikList.isNotEmpty()) {
+                                                    try {
+                                                        val karyawanList =
+                                                            karyawanDao.getKaryawanByNikList(karyawanNikList)
+                                                        for (karyawan in karyawanList) {
+                                                            karyawan.id?.let { karyawanIdList.add(it.toString()) }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        AppLogger.e("Error getting karyawan data: ${e.message}")
+                                                    }
+                                                }
+
+                                                // Join multiple values with comma
+                                                val karyawanId = karyawanIdList.joinToString(",")
+                                                val karyawanNik = karyawanNikList.joinToString(",")
+                                                val karyawanNama = karyawanNamaList.joinToString(",")
+
+                                                AppLogger.d("Creating entity: tphId=$tphId, date=$createdDate, kemandoranId=$kemandoranId, karyawanId=$karyawanId, karyawanNik=$karyawanNik")
+
+                                                val panenEntity = PanenEntity(
+                                                    id = idPanen,
+                                                    tph_id = tphId.toString(),
+                                                    date_created = createdDate,
+                                                    created_by = createdBy,
+                                                    karyawan_id = karyawanId,
+                                                    kemandoran_id = kemandoranId,
+                                                    karyawan_nik = karyawanNik,
+                                                    karyawan_nama = karyawanNama,
+                                                    jjg_json = jjgJson,
+                                                    foto = "",
+                                                    komentar = "",
+                                                    asistensi = 0,
+                                                    lat = 0.0,
+                                                    lon = 0.0,
+                                                    jenis_panen = 0,
+                                                    ancak = ancak,
+                                                    info = "",
+                                                    archive = 0,
+                                                    status_banjir = 0,
+                                                    status_espb = 0,
+                                                    status_restan = 0,
+                                                    scan_status = 0,
+                                                    dataIsZipped = 0,
+                                                    no_espb = spb_kode,
+                                                    username = "",
+                                                    status_upload = 0,
+                                                    status_uploaded_image = "0",
+                                                    status_pengangkutan = 0,
+                                                    status_insert_mpanen = 0,
+                                                    status_scan_mpanen = 0,
+                                                    jumlah_pemanen = karyawanNikList.size,
+                                                    archive_mpanen = 0,
+                                                    isPushedToServer = 1
+                                                )
+
+                                                panenList.add(panenEntity)
+                                            }
+
+                                            AppLogger.d("=== PANEN PROCESSING SUMMARY ===")
+                                            AppLogger.d("Total records processed: ${dataArray.length()}")
+                                            AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
+                                            AppLogger.d("==================================")
+
+                                            results[request.dataset] = Resource.Loading(80)
+                                            _downloadStatuses.postValue(results.toMap())
+
+                                            withContext(Dispatchers.IO) {
+                                                try {
+                                                    var successCount = 0
+                                                    var failCount = 0
+
+                                                    AppLogger.d("Processing ${panenList.size} records for insert/update...")
+
+                                                    for (panen in panenList) {
+                                                        try {
+                                                            // Check if record exists by ID
+                                                            val existingRecord = panenDao.getById(panen.id)
+
+                                                            if (existingRecord == null) {
+                                                                // Record doesn't exist -> INSERT
+                                                                val result = panenDao.insertWithTransaction(panen)
+                                                                if (result.isSuccess) {
+                                                                    successCount++
+                                                                    AppLogger.d("Inserted new panen record: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
+                                                                } else {
+                                                                    failCount++
+                                                                    AppLogger.e("Failed to insert panen record: ${panen.tph_id}, ${panen.date_created}")
+                                                                }
+                                                            } else {
+                                                                // Record exists -> UPDATE (preserve local-only fields)
+                                                                AppLogger.d("Record exists, updating: ID=${panen.id}")
+
+                                                                val updatedRecord = panen.copy(
+                                                                    // Preserve local status if higher
+                                                                    status_espb = maxOf(
+                                                                        existingRecord.status_espb,
+                                                                        panen.status_espb
+                                                                    ),
+                                                                    status_upload = existingRecord.status_upload,
+                                                                    status_uploaded_image = existingRecord.status_uploaded_image,
+                                                                    // Preserve local photos and comments if they exist
+                                                                    foto = if (existingRecord.foto.isNotEmpty()) existingRecord.foto else panen.foto,
+                                                                    komentar = if (existingRecord.komentar.isNotEmpty()) existingRecord.komentar else panen.komentar,
+                                                                    // Preserve local coordinates if they exist
+                                                                    lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
+                                                                    lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
+                                                                )
+
+                                                                panenDao.update(listOf(updatedRecord))
+                                                                successCount++
+                                                                AppLogger.d("Updated existing record ID ${panen.id}")
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            failCount++
+                                                            AppLogger.e("Error processing panen record: ${e.message}")
+                                                        }
+                                                    }
+
+                                                    // Final summary
+                                                    AppLogger.d("=== PANEN SYNC COMPLETE ===")
+                                                    AppLogger.d("Inserted/Updated: $successCount")
+                                                    AppLogger.d("Failed: $failCount")
+                                                    AppLogger.d("Total records processed: ${panenList.size}")
+                                                    AppLogger.d("============================")
+
+                                                    if (panenList.isEmpty()) {
+                                                        // No records to process - everything is up to date
+                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
+                                                        AppLogger.d("No records to process - dataset is up to date")
+                                                    } else if (failCount == 0) {
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Panen data processed successfully: $successCount records"
+                                                        )
+                                                        prefManager!!.addDataset(request.dataset)
+                                                    } else if (successCount > 0) {
+                                                        // Partial success
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Partial success: $successCount processed, $failCount failed"
+                                                        )
+                                                        prefManager!!.addDataset(request.dataset)
+                                                    } else {
+                                                        // Complete failure
+                                                        results[request.dataset] = Resource.Error(
+                                                            "Failed to process panen data: $failCount/${panenList.size} records failed"
+                                                        )
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error processing panen data: ${e.message}")
+                                                    results[request.dataset] = Resource.Error("Error processing panen data: ${e.message}")
+                                                }
+                                            }
+                                        } else {
+                                            val errorMessage = jsonObject.optString("message", "Unknown error")
+                                            results[request.dataset] = Resource.Error("API Error: $errorMessage")
+                                            AppLogger.e("Panen API returned error: $errorMessage")
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error processing panen JSON: ${e.message}")
+                                        results[request.dataset] = Resource.Error("Error processing panen data: ${e.message}")
+                                    }
+                                }
                                 // Handle TPH Regional JSON response
                                 else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                                     if (responseBodyString.isBlank()) {
@@ -4175,13 +4532,15 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         _downloadStatuses.postValue(results.toMap())
                                     }
 
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                                } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                                     try {
                                         // Use your existing parseParameter function
                                         val parameterList = parseParameter(responseBodyString)
 
-                                        Log.d("DownloadResponse", "Parsed ${parameterList.size} parameter records")
+                                        Log.d(
+                                            "DownloadResponse",
+                                            "Parsed ${parameterList.size} parameter records"
+                                        )
 
                                         // Update status to storing
                                         results[request.dataset] = Resource.Storing(request.dataset)
@@ -4208,15 +4567,18 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         _downloadStatuses.postValue(results.toMap())
 
                                     } catch (e: Exception) {
-                                        Log.e("DownloadResponse", "Error processing parameter data: ${e.message}")
+                                        Log.e(
+                                            "DownloadResponse",
+                                            "Error processing parameter data: ${e.message}"
+                                        )
                                         if (!hasShownError) {
-                                            results[request.dataset] = Resource.Error("Error processing parameter data: ${e.message}")
+                                            results[request.dataset] =
+                                                Resource.Error("Error processing parameter data: ${e.message}")
                                             hasShownError = true
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.mill) {
+                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
                                         fun <T> parseMillJsonToList(
@@ -4271,8 +4633,7 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.estate) {
+                                } else if (request.dataset == AppUtils.DatasetNames.estate) {
                                     try {
                                         // Define the lists outside the function
                                         val estateList = mutableListOf<EstateModel>()
@@ -4395,7 +4756,10 @@ else if(request.dataset == AppUtils.DatasetNames.parameter){
                                                                             divisiObject.get("nama").asString else null
 
                                                                     val sinkronisasi_otomatis =
-                                                                        if (divisiObject.has("sinkronisasi_otomatis") && !divisiObject.get("sinkronisasi_otomatis").isJsonNull)
+                                                                        if (divisiObject.has("sinkronisasi_otomatis") && !divisiObject.get(
+                                                                                "sinkronisasi_otomatis"
+                                                                            ).isJsonNull
+                                                                        )
                                                                             divisiObject.get("sinkronisasi_otomatis").asInt else 0
 
                                                                     val afdeling = AfdelingModel(
