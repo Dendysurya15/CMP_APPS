@@ -281,7 +281,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var br1Value: String = ""
     private var br2Value: String = ""
     private var isForFollowUp = false
-    private lateinit var rvSelectedPemanen: RecyclerView
+    private var isBottomSheetOpen = false
+    private var isCameraViewOpen = false
+    private var keyboardOpenedWhileBottomSheetVisible = false
 
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
@@ -636,9 +638,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                         if (shouldReopenBottomSheet) {
                             shouldReopenBottomSheet = false
                             Handler(Looper.getMainLooper()).postDelayed({
-                                bottomNavInspect.visibility = View.VISIBLE
+                              showWithAnimation(bottomNavInspect)
                                 showViewPhotoBottomSheet(null, isInTPH)
                             }, 100)
+                        }
+                    }
+
+                    isCameraViewOpen && !cameraViewModel.statusCamera() -> {
+                        val zoomView = findViewById<View>(R.id.incEditPhotoInspect)
+                        if (zoomView.visibility == View.VISIBLE) {
+                            val cardCloseZoom = zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+                            cardCloseZoom?.performClick()  // This triggers the same logic as clicking close
+                        }
+                        isCameraViewOpen = false
+                        if (!keyboardOpenedWhileBottomSheetVisible) {
+                            showWithAnimation(bottomNavInspect)
                         }
                     }
 
@@ -2017,7 +2031,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         isForSelfie: Boolean? = null,
         isForFollowUp: Boolean? = null
     ) {
-
+        isBottomSheetOpen = true
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -2051,7 +2065,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
                 etPhotoComment.clearFocus()
-                bottomNavInspect.visibility = View.GONE
+//                bottomNavInspect.visibility = View.GONE
                 true
             } else {
                 false
@@ -2062,6 +2076,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             etPhotoComment.requestFocus()
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showSoftInput(etPhotoComment, InputMethodManager.SHOW_IMPLICIT)
+            if (bottomNavInspect.visibility == View.VISIBLE) {
+                hideWithAnimation(bottomNavInspect, 50)
+            }
+
+
         }
 
         bottomSheetDialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -2331,7 +2350,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         val filePath = File(rootApp, resultFileName)
         ivAddPhoto.setOnClickListener {
 
-            bottomNavInspect.visibility = View.GONE
+            if (bottomNavInspect.visibility == View.VISIBLE) {
+                hideWithAnimation(bottomNavInspect, 50)
+            }
 
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
@@ -2343,7 +2364,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     this,
                     Manifest.permission.CAMERA
                 ) == PackageManager.PERMISSION_GRANTED -> {
-
+                    isCameraViewOpen = true
                     bottomSheetDialog.dismiss()
 
                     if (resultFileName.isNotEmpty()) {
@@ -2375,7 +2396,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     performDeleteAction()
                                 },
                                 onClosePhoto = {
-                                    bottomNavInspect.visibility = View.VISIBLE
+                                    isCameraViewOpen = false
+                                    if (!keyboardOpenedWhileBottomSheetVisible) {
+                                        showWithAnimation(bottomNavInspect)
+                                    }
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         showViewPhotoBottomSheet(
                                             null,
@@ -2388,18 +2412,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                             )
                         }, 100)
                     } else {
-
                         shouldReopenBottomSheet = true
                         Handler(Looper.getMainLooper()).postDelayed({
-
-                            bottomNavInspect.visibility = View.GONE
+                            hideWithAnimation(bottomNavInspect, 50)
                             cameraViewModel.takeCameraPhotos(
                                 this,
                                 currentPage.toString(),
                                 ivAddPhoto,
                                 currentPage,
                                 null,
-                                "", // soon assign lat lon
+                                "",
                                 currentPage.toString(),
                                 watermarkType,
                                 lat,
@@ -2455,6 +2477,18 @@ open class FormInspectionActivity : AppCompatActivity(),
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
 
+        bottomSheetDialog.setOnDismissListener {
+            isBottomSheetOpen = false
+
+            // Only show bottom nav if:
+            // 1. Camera view is not open AND
+            // 2. Keyboard was not opened while bottom sheet was visible
+            if (!isCameraViewOpen && !keyboardOpenedWhileBottomSheetVisible) {
+                showWithAnimation(bottomNavInspect)
+            }
+        }
+
+
         bottomSheetDialog.show()
     }
 
@@ -2465,7 +2499,15 @@ open class FormInspectionActivity : AppCompatActivity(),
             } else {
                 komentarInTPH ?: ""
             }
-            "$limitedKomentar\n$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+
+            val locationInfo = "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+
+            // Only add newline if comment exists and is not empty
+            if (limitedKomentar.isNotEmpty()) {
+                "$limitedKomentar\n$locationInfo"
+            } else {
+                locationInfo
+            }
         } else {
             val kondisi = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                 // Use data from currentInspectionData for follow-up
@@ -2481,7 +2523,15 @@ open class FormInspectionActivity : AppCompatActivity(),
             } else {
                 data.comment ?: ""
             }
-            "$limitedComment\n$kondisi #Pokok ${data.pokokNumber}"
+
+            val pokokInfo = "$kondisi #Pokok ${data.pokokNumber}"
+
+            // Only add newline if comment exists and is not empty
+            if (limitedComment.isNotEmpty()) {
+                "$limitedComment\n$pokokInfo"
+            } else {
+                pokokInfo
+            }
         }
     }
 
@@ -2493,19 +2543,34 @@ open class FormInspectionActivity : AppCompatActivity(),
             object : SoftKeyboardStateWatcher.OnSoftKeyboardStateChangedListener {
                 override fun onSoftKeyboardOpened(keyboardHeight: Int) {
                     bottomNavInspect.post {
-                        hideWithAnimation(bottomNavInspect, 50)
-                        hideWithAnimation(fabPrevFormAncak, 50)
-                        hideWithAnimation(fabNextFormAncak, 50)
-//                        hideWithAnimation(fabPhotoFormAncak, 50)
+                        // Always hide bottom nav when keyboard opens
+                        if (bottomNavInspect.visibility == View.VISIBLE) {
+                            hideWithAnimation(bottomNavInspect, 50)
+                            hideWithAnimation(fabPrevFormAncak, 50)
+                            hideWithAnimation(fabNextFormAncak, 50)
+                        }
+
+                        // Track if keyboard opened while bottom sheet is visible
+                        keyboardOpenedWhileBottomSheetVisible = isBottomSheetOpen
                     }
                 }
 
                 override fun onSoftKeyboardClosed() {
                     bottomNavInspect.post {
-                        showWithAnimation(bottomNavInspect)
-                        showWithAnimation(fabPrevFormAncak)
-                        showWithAnimation(fabNextFormAncak)
-//                        showWithAnimation(fabPhotoFormAncak)
+                        // Only show bottom nav if:
+                        // 1. No bottom sheet is open AND
+                        // 2. No camera view is open
+                        AppLogger.d("masuk gess")
+                        // Note: showWithAnimation handles visibility check internally
+                        AppLogger.d(" isBottomSheetOpen $isBottomSheetOpen")
+                        AppLogger.d(" isCameraViewOpen $isCameraViewOpen")
+                        if (!isBottomSheetOpen && !isCameraViewOpen) {
+                            AppLogger.d("masukgak sih  gess")
+                            showWithAnimation(bottomNavInspect)
+                            showWithAnimation(fabPrevFormAncak)
+                            showWithAnimation(fabNextFormAncak)
+                        }
+                        keyboardOpenedWhileBottomSheetVisible = false
                     }
                 }
             })
@@ -6567,7 +6632,12 @@ open class FormInspectionActivity : AppCompatActivity(),
     ) {
         if (shouldReopenBottomSheet) {
             shouldReopenBottomSheet = false
-            bottomNavInspect.visibility = View.VISIBLE
+            isCameraViewOpen = false  // Reset camera state
+
+            // Only show bottom nav if keyboard is not currently open
+            if (!keyboardOpenedWhileBottomSheetVisible) {
+                showWithAnimation(bottomNavInspect)
+            }
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val currentData =
