@@ -1193,7 +1193,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             request.estate!!,
                             request.afdeling!!,
-                            false,
+                            true,
                             parameterDao
                         )
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
@@ -1762,7 +1762,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     dataPanenInspectionRepository.getDataInspeksi(
                         estate = estate,
                         afdeling = afdeling,
-                        joinTable = true, // ✅ Set to true to include inspeksi_detail join
+                        joinTable = false, // ✅ Set to true to include inspeksi_detail join
                         parameterDao = parameterDao // You'll need to inject this
                     )
                 }
@@ -2661,7 +2661,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             var karyawanNikList = mutableListOf<String>()
                             var karyawanNamaList = mutableListOf<String>()
 
-                            if (kemandoranString.isNotEmpty()) {
+// Check if kemandoran is not empty, not "null" string, and not actual null
+                            if (kemandoranString.isNotEmpty() &&
+                                kemandoranString != "null" &&
+                                !item.isNull("kemandoran")) {
                                 try {
                                     val kemandoranArray = JSONArray(kemandoranString)
                                     if (kemandoranArray.length() > 0) {
@@ -2682,8 +2685,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    AppLogger.e("Error parsing kemandoran JSON: ${e.message}")
+                                    AppLogger.e("Error parsing kemandoran JSON for record ${item.optInt("id", 0)}: ${e.message}")
+                                    AppLogger.d("Kemandoran raw value: '$kemandoranString'")
                                 }
+                            } else {
+                                AppLogger.d("Kemandoran data is null or empty for record ${item.optInt("id", 0)}")
                             }
 
                             // Get karyawan_id from database using NIK

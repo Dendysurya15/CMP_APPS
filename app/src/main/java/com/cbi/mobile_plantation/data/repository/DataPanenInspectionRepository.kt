@@ -90,7 +90,7 @@ class DataPanenInspectionRepository(
         AppLogger.d("kljasldkfjalskf j")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return TestingApiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
@@ -201,7 +201,7 @@ class DataPanenInspectionRepository(
                 put("join", JSONArray().apply {
                     put(JSONObject().apply {
                         put("table", "inspeksi_detail")
-                        put("required", true)
+                        put("required", false)
                         put("select", JSONArray().apply {
                             put("id")
                             put("id_inspeksi")
@@ -252,6 +252,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return TestingApiService.getDataRaw(requestBody)
     }
 }
