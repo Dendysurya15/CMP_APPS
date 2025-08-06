@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import com.cbi.mobile_plantation.data.api.ApiService
+import com.cbi.mobile_plantation.data.database.ParameterDao
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -89,14 +90,45 @@ class DataPanenInspectionRepository(
         AppLogger.d("kljasldkfjalskf j")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
         estate: Int,
         afdeling: String,
-        joinTable: Boolean = true
+        joinTable: Boolean = true,
+        parameterDao: ParameterDao // Add parameterDao parameter
     ): Response<ResponseBody> {
+
+        // Get parameter JSON and extract status_ppro = 1 IDs
+        val validKodeInspeksiIds = try {
+            val parameterJson = parameterDao.getParameterInspeksiJson()
+            if (parameterJson != null) {
+                val jsonArray = JSONArray(parameterJson)
+                val validIds = mutableListOf<Int>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val item = jsonArray.getJSONObject(i)
+                    val statusPpro = item.optInt("status_ppro", 0)
+                    if (statusPpro == 1) {
+                        val id = item.optInt("id", 0)
+                        if (id > 0) {
+                            validIds.add(id)
+                        }
+                    }
+                }
+
+                AppLogger.d("Valid kode_inspeksi IDs (status_ppro=1): $validIds")
+                validIds
+            } else {
+                AppLogger.d("No parameter JSON found, will not filter by kode_inspeksi")
+                emptyList<Int>()
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing parameter JSON: ${e.message}")
+            emptyList<Int>()
+        }
+
         // Calculate date range with full datetime
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
@@ -107,14 +139,14 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        // 7 days ago at 00:00:00 (start of day)
-        calendar.add(Calendar.DAY_OF_YEAR, -6)
+        // 1 month ago at 00:00:00 (start of day)
+        calendar.add(Calendar.MONTH, -1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val sevenDaysAgo = formatter.format(calendar.time)
+        val oneMonthAgo = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $sevenDaysAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $oneMonthAgo to $today (inclusive, full datetime)")
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -155,15 +187,10 @@ class DataPanenInspectionRepository(
                 // Estate condition
                 put("dept", estate)
 
-                // Afdeling/divisi condition (if provided)
-//                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
-//                    put("divisi", afdeling)
-//                }
-
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(sevenDaysAgo)
+                        put(oneMonthAgo)
                         put(today)
                     })
                 })
@@ -174,7 +201,7 @@ class DataPanenInspectionRepository(
                 put("join", JSONArray().apply {
                     put(JSONObject().apply {
                         put("table", "inspeksi_detail")
-                        put("required", false)
+                        put("required", true)
                         put("select", JSONArray().apply {
                             put("id")
                             put("id_inspeksi")
@@ -193,11 +220,27 @@ class DataPanenInspectionRepository(
                             put("lat")
                             put("lon")
                         })
-                        // Add WHERE condition to skip records where status_pemulihan == 1
+
+                        // Build WHERE condition for inspeksi_detail
                         put("where", JSONObject().apply {
+                            // Skip records where status_pemulihan == 1
                             put("status_pemulihan", JSONObject().apply {
                                 put("!=", 1)
                             })
+
+                            // ✅ Filter by kode_inspeksi if we have valid IDs
+                            if (validKodeInspeksiIds.isNotEmpty()) {
+                                put("kode_inspeksi", JSONObject().apply {
+                                    put("in", JSONArray().apply {
+                                        validKodeInspeksiIds.forEach { id ->
+                                            put(id)
+                                        }
+                                    })
+                                })
+                                AppLogger.d("Added kode_inspeksi filter: $validKodeInspeksiIds")
+                            } else {
+                                AppLogger.d("No kode_inspeksi filter applied")
+                            }
                         })
                     })
                 })
@@ -209,6 +252,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 }

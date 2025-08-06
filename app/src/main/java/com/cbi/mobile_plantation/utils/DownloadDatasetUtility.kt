@@ -111,6 +111,7 @@ class DownloadDatasetUtility(
         afdelingId: String
     ): Boolean {
 
+        // Only add other datasets if NOT follow-up trigger
         if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
             datasets.add(
                 DatasetRequest(
@@ -118,6 +119,14 @@ class DownloadDatasetUtility(
                     estate = estateId,
                     lastModified = null,
                     dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
                 )
             )
         }
@@ -131,9 +140,24 @@ class DownloadDatasetUtility(
                     dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
                 )
             )
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
+                )
+            )
+            datasets.add(
+                DatasetRequest(
+                    regional = null,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.parameter
+                )
+            )
         }
 
-        if (isTriggerButtonSinkronisasiData && (userRole == UserRole.MANDOR_1 || userRole == UserRole.ASISTEN )) {
+        if (isTriggerButtonSinkronisasiData && (userRole == UserRole.MANDOR_1 || userRole == UserRole.ASISTEN)) {
             datasets.add(
                 DatasetRequest(
                     afdeling = afdelingId,
@@ -155,25 +179,11 @@ class DownloadDatasetUtility(
         }
 
 
-        // Handle follow-up trigger
-        if (isTriggerFollowUp && userRole != UserRole.KERANI_PANEN) {
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
-                )
-            )
-            return true // Early return - stop processing
-        }
-
         // Handle sync data button trigger
         if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_TIMBANG) {
             handleSyncDataButtonTrigger(datasets)
             // Don't return true here - we still want to add other datasets
         }
-
 
         return false // Continue with normal processing
     }

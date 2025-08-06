@@ -89,6 +89,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val hektarPanenDao = database.hektarPanenDao()
     private val inspectionDao = database.inspectionDao()
     private val inspectionDetailDao = database.inspectionDetailDao()
+    private val parameterDao = database.parameterDao()
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
@@ -150,6 +151,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _dataPanenInspeksiPreview = MutableLiveData<String>()
     val dataPanenInspeksiPreview: LiveData<String> = _dataPanenInspeksiPreview
+
+    private val _followUpInspeksiPreview = MutableLiveData<String>()
+    val followUpInspeksiPreview: LiveData<String> = _followUpInspeksiPreview
 
 
     sealed class Resource<T>(
@@ -1188,7 +1192,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             request.estate!!,
-                            request.afdeling!!
+                            request.afdeling!!,
+                            false,
+                            parameterDao
                         )
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
@@ -1748,33 +1754,35 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getPreviewDataInspeksiWeek(estate: Int, afdeling: String) {
+    fun getPreviewDataFollowUpInspeksiWeek(estate: Int, afdeling: String) {
         viewModelScope.launch {
-
             try {
                 val response = withContext(Dispatchers.IO) {
-                    dataPanenInspectionRepository.getDataInspeksi(estate, afdeling, false)
+                    // ✅ Pass parameterDao to the repository method
+                    dataPanenInspectionRepository.getDataInspeksi(
+                        estate = estate,
+                        afdeling = afdeling,
+                        joinTable = true, // ✅ Set to true to include inspeksi_detail join
+                        parameterDao = parameterDao // You'll need to inject this
+                    )
                 }
 
                 AppLogger.d(response.body().toString())
                 if (response.isSuccessful && response.code() == 200) {
                     val jsonString = response.body()?.string() ?: ""
-
                     AppLogger.d(jsonString.toString())
-                    // Process the JSON response to create formatted summary
-                    val formattedData = processPreviewDataInspeksi(jsonString)
 
-                    _dataPanenInspeksiPreview.value = formattedData
+                    val formattedData = processPreviewDataInspeksi(jsonString)
+                    _followUpInspeksiPreview.value = formattedData
                 } else {
-                    _dataPanenInspeksiPreview.value = "Gagal memuat data: ${response.message()}"
+                    _followUpInspeksiPreview.value = "Gagal memuat data: ${response.message()}"
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error loading Restan preview: ${e.message}")
-                _dataPanenInspeksiPreview.value = "Error: ${e.message}"
+                AppLogger.e("Error loading Follow-up Inspeksi preview: ${e.message}")
+                _followUpInspeksiPreview.value = "Error: ${e.message}"
             }
         }
     }
-
     fun getPreviewDataPanenInspeksiWeek(estate: Int, afdeling: String) {
         viewModelScope.launch {
 
@@ -2885,6 +2893,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             try {
                                 var successCount = 0
                                 var failCount = 0
+                                var skippedCount = 0
 
                                 AppLogger.d("Processing ${dataArray.length()} inspection records for insert/update...")
 
@@ -2893,7 +2902,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     val item = dataArray.getJSONObject(i)
 
                                     try {
-
                                         val idPanen = item.optString("id_panen", "0")
                                         val tphId = item.optInt("tph", 0)
                                         val tglInspeksi = item.optString("tgl_inspeksi", "")
@@ -2907,62 +2915,22 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val app_version = item.optString("app_version", "")
                                         val createdBy = item.optInt("created_by", 0)
                                         val trackingPath = item.optString("tracking_path", "")
-                                        val dept =
-                                            if (item.has("dept") && !item.isNull("dept")) item.optInt(
-                                                "dept"
-                                            ) else null
-                                        val deptPpro =
-                                            if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt(
-                                                "dept_ppro"
-                                            ) else null
-                                        val deptAbbr =
-                                            if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString(
-                                                "dept_abbr"
-                                            ) else null
-                                        val deptNama =
-                                            if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString(
-                                                "dept_nama"
-                                            ) else null
-                                        val divisi =
-                                            if (item.has("divisi") && !item.isNull("divisi")) item.optInt(
-                                                "divisi"
-                                            ) else null
-                                        val divisiPpro =
-                                            if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt(
-                                                "divisi_ppro"
-                                            ) else null
-                                        val divisiAbbr =
-                                            if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString(
-                                                "divisi_abbr"
-                                            ) else null
-                                        val divisiNama =
-                                            if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString(
-                                                "divisi_nama"
-                                            ) else null
-                                        val blok =
-                                            if (item.has("blok") && !item.isNull("blok")) item.optInt(
-                                                "blok"
-                                            ) else null
-                                        val blokPpro =
-                                            if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt(
-                                                "blok_ppro"
-                                            ) else null
-                                        val blokKode =
-                                            if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString(
-                                                "blok_kode"
-                                            ) else null
-                                        val blokNama =
-                                            if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString(
-                                                "blok_nama"
-                                            ) else null
-                                        val tphNomor =
-                                            if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt(
-                                                "tph_nomor"
-                                            ) else null
-                                        val ancak =
-                                            if (item.has("ancak") && !item.isNull("ancak")) item.optString(
-                                                "ancak"
-                                            ) else null
+
+                                        // Handle nullable fields
+                                        val dept = if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
+                                        val deptPpro = if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
+                                        val deptAbbr = if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
+                                        val deptNama = if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
+                                        val divisi = if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
+                                        val divisiPpro = if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
+                                        val divisiAbbr = if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
+                                        val divisiNama = if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
+                                        val blok = if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
+                                        val blokPpro = if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
+                                        val blokKode = if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
+                                        val blokNama = if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
+                                        val tphNomor = if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
+                                        val ancak = if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
 
                                         // Create InspectionModel
                                         val inspectionEntity = InspectionModel(
@@ -3001,6 +2969,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             isPushedToServer = 1
                                         )
 
+                                        // Check if inspection has details first - if not, skip the entire inspection
+                                        val inspectionDetails = item.optJSONArray("InspeksiDetails")
+
+                                        if (inspectionDetails == null || inspectionDetails.length() == 0) {
+                                            AppLogger.d("Skipping inspection TPH=${inspectionEntity.tph_id} - no details found")
+                                            skippedCount++
+                                            continue // Skip this entire inspection record
+                                        }
+
+                                        // If we reach here, inspection has details - proceed with processing
+
                                         // Check if inspection record exists by business key
                                         val existingRecord = inspectionDao.getDataInspeksi(
                                             inspectionEntity.created_date,
@@ -3009,13 +2988,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             inspectionEntity.divisi_abbr
                                         )
 
-
                                         var localInspectionId: Int
 
                                         if (existingRecord == null) {
                                             // Record doesn't exist -> INSERT
-                                            val result =
-                                                inspectionDao.insertWithTransaction(inspectionEntity)
+                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
                                             if (result.isSuccess) {
                                                 // Get the newly inserted ID
                                                 localInspectionId = inspectionDao.getDataInspeksi(
@@ -3041,8 +3018,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 AppLogger.d("Found local inspection record, creating new server record: TPH=${inspectionEntity.tph_id}")
 
                                                 // Insert as new record since local and server data should coexist
-                                                val insertResult =
-                                                    inspectionDao.insert(inspectionEntity)
+                                                val insertResult = inspectionDao.insert(inspectionEntity)
                                                 if (insertResult > 0) {
                                                     // Use the returned ID from insert operation
                                                     localInspectionId = insertResult.toInt()
@@ -3066,9 +3042,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             }
                                         }
 
+                                        // Now process inspection details (we know details exist at this point)
+                                        AppLogger.d("Processing ${inspectionDetails.length()} details for inspection TPH=${inspectionEntity.tph_id}")
 
-                                        // Now process inspection details with the correct local inspection ID
-                                        val inspectionDetails = item.optJSONArray("InspeksiDetails")
                                         for (j in 0 until inspectionDetails.length()) {
                                             val detail = inspectionDetails.getJSONObject(j)
 
@@ -3076,24 +3052,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val noPokPok = detail.optInt("no_pokok", 0)
                                                 val pokokPanen = detail.optInt("pokok_panen", 0)
                                                 val kodeInspeksi = detail.optInt("kode_inspeksi", 0)
-                                                val temuanInspeksi =
-                                                    detail.optDouble("temuan_inspeksi", 0.0)
-                                                val statusPemulihan =
-                                                    detail.optInt("status_pemulihan", 0)
+                                                val temuanInspeksi = detail.optDouble("temuan_inspeksi", 0.0)
+                                                val statusPemulihan = detail.optInt("status_pemulihan", 0)
                                                 val nik = detail.optString("nik", "")
                                                 val nama = detail.optString("nama", "")
                                                 val catatan = detail.optString("catatan", null)
-                                                val createdDate =
-                                                    detail.optString("created_date", tglInspeksi)
-                                                val createdName =
-                                                    detail.optString("created_name", "")
+                                                val createdDate = detail.optString("created_date", tglInspeksi)
+                                                val createdName = detail.optString("created_name", "")
                                                 val createdBy = detail.optString("created_by", "")
-                                                val latDetail =
-                                                    detail.optString("lat", "0.0").toDoubleOrNull()
-                                                        ?: 0.0
-                                                val lonDetail =
-                                                    detail.optString("lon", "0.0").toDoubleOrNull()
-                                                        ?: 0.0
+                                                val latDetail = detail.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
+                                                val lonDetail = detail.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
 
                                                 val inspectionDetailEntity = InspectionDetailModel(
                                                     id = 0, // Always 0 for auto-increment
@@ -3119,21 +3087,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 )
 
                                                 // Check if detail record exists by business key
-                                                val existingDetail =
-                                                    inspectionDetailDao.getDataInspeksiDetail(
-                                                        inspectionDetailEntity.created_date,
-                                                        inspectionDetailEntity.nik,
-                                                        inspectionDetailEntity.nama,
-                                                        inspectionDetailEntity.kode_inspeksi,
-                                                        inspectionDetailEntity.temuan_inspeksi
-                                                    )
+                                                val existingDetail = inspectionDetailDao.getDataInspeksiDetail(
+                                                    inspectionDetailEntity.created_date,
+                                                    inspectionDetailEntity.nik,
+                                                    inspectionDetailEntity.nama,
+                                                    inspectionDetailEntity.kode_inspeksi,
+                                                    inspectionDetailEntity.temuan_inspeksi
+                                                )
 
                                                 if (existingDetail == null) {
                                                     // Record doesn't exist -> INSERT
-                                                    val result =
-                                                        inspectionDetailDao.insertWithTransaction(
-                                                            inspectionDetailEntity
-                                                        )
+                                                    val result = inspectionDetailDao.insertWithTransaction(inspectionDetailEntity)
                                                     if (result.isSuccess) {
                                                         successCount++
                                                         AppLogger.d("Inserted new inspection detail: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
@@ -3148,10 +3112,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         AppLogger.d("Found local detail record, creating new server record: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
 
                                                         // Insert as new record since local and server data should coexist
-                                                        val result =
-                                                            inspectionDetailDao.insertWithTransaction(
-                                                                inspectionDetailEntity
-                                                            )
+                                                        val result = inspectionDetailDao.insertWithTransaction(inspectionDetailEntity)
                                                         if (result.isSuccess) {
                                                             successCount++
                                                             AppLogger.d("Created new server detail record: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
@@ -3161,17 +3122,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         }
                                                     } else {
                                                         // This is server data (isPushedToServer = 1) -> UPDATE it
-                                                        val updatedDetail =
-                                                            inspectionDetailEntity.copy(
-                                                                id = existingDetail.id, // Keep local auto-increment ID
-                                                                status_upload = existingDetail.status_upload,
-                                                                status_uploaded_image = existingDetail.status_uploaded_image
-                                                            )
-                                                        inspectionDetailDao.update(
-                                                            listOf(
-                                                                updatedDetail
-                                                            )
+                                                        val updatedDetail = inspectionDetailEntity.copy(
+                                                            id = existingDetail.id, // Keep local auto-increment ID
+                                                            status_upload = existingDetail.status_upload,
+                                                            status_uploaded_image = existingDetail.status_uploaded_image
                                                         )
+                                                        inspectionDetailDao.update(listOf(updatedDetail))
                                                         successCount++
                                                         AppLogger.d("Updated existing server detail: NIK=${inspectionDetailEntity.nik}, Code=${inspectionDetailEntity.kode_inspeksi}")
                                                     }
@@ -3192,6 +3148,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 AppLogger.d("=== INSPECTION SYNC COMPLETE ===")
                                 AppLogger.d("Inserted/Updated: $successCount")
                                 AppLogger.d("Failed: $failCount")
+                                AppLogger.d("Skipped (no details): $skippedCount")
                                 AppLogger.d("Total records processed: ${dataArray.length()}")
                                 AppLogger.d("==================================")
 
@@ -3212,13 +3169,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 } else if (successCount > 0) {
                                     // Partial success
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.UPDATED
-                                    errorMap[itemId] =
-                                        "Partial success: $failCount/${dataArray.length()} records failed"
+                                    errorMap[itemId] = "Partial success: $failCount/${dataArray.length()} records failed, $skippedCount skipped"
                                 } else {
                                     // Complete failure
                                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
-                                    errorMap[itemId] =
-                                        "Failed to process inspection data: $failCount/${dataArray.length()} records failed"
+                                    errorMap[itemId] = "Failed to process inspection data: $failCount/${dataArray.length()} records failed, $skippedCount skipped"
                                 }
                             } catch (e: Exception) {
                                 progressMap[itemId] = 100  // Still show 100% even on error
@@ -3269,23 +3224,24 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter =
-                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
                 // Today
                 val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
+                val todayDisplay = displayFormatter.format(todayDate)
 
-                // 7 days ago
-                calendar.add(Calendar.DAY_OF_YEAR, -6)
-                val sevenDaysAgo = inputFormatter.format(calendar.time)
-                val sevenDaysAgoDate = calendar.time
+                // 1 month ago
+                calendar.add(Calendar.MONTH, -1)
+                val oneMonthAgo = inputFormatter.format(calendar.time)
+                val oneMonthAgoDate = calendar.time
+                val oneMonthAgoDisplay = displayFormatter.format(oneMonthAgoDate)
 
                 // Create a list of all dates in the range
                 val allDates = mutableListOf<String>()
                 val tempCalendar = Calendar.getInstance()
-                tempCalendar.time = sevenDaysAgoDate
+                tempCalendar.time = oneMonthAgoDate
 
                 while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
@@ -3293,12 +3249,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 // Initialize maps for all dates in range with zeros
-                val inspeksiCountByDate = mutableMapOf<String, Int>() // Total inspection count
-                val recordCountByDate = mutableMapOf<String, Int>() // Track record count by date
+                val inspeksiCountByDate = mutableMapOf<String, Int>()
 
                 for (date in allDates) {
                     inspeksiCountByDate[date] = 0
-                    recordCountByDate[date] = 0
                 }
 
                 // Process each item in the array
@@ -3318,44 +3272,42 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         continue
                     }
 
-                    // Increment record count for this date
-                    recordCountByDate[inspeksiDate] =
-                        recordCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                    // Check if this is a valid inspection record
+                    val idPanen = item.optString("id_panen", "")
+                    val tphNomor = item.optString("tph_nomor", "")
+                    val ancak = item.optString("ancak", "")
 
-                    // Simply increment the inspection count for this date
-                    // Only count if inspection ID is greater than 0
-                    val inspeksiId = item.optInt("id", 0)
-                    if (inspeksiId > 0) {
+                    // Count if we have essential inspection data
+                    if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
                         inspeksiCountByDate[inspeksiDate] =
                             inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+
+                        AppLogger.d("Found inspection on $inspeksiDate: idPanen=$idPanen, tph=$tphNomor, ancak=$ancak")
                     }
                 }
 
                 // Build the final string
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Inspeksi dalam 7 hari terakhir\n")
+                resultBuilder.append("Data Inspeksi ($oneMonthAgoDisplay - $todayDisplay)\n")
 
-                // Add each date's inspections, but only if they have data
+                // Add each date's inspections (only show dates with inspections > 0)
                 var hasValidData = false
                 for (date in allDates.sortedDescending()) {
                     val inspeksiCount = inspeksiCountByDate[date] ?: 0
-                    val recordCount = recordCountByDate[date] ?: 0
 
-                    // Skip dates with zero records
-                    if (recordCount == 0) {
-                        continue
+                    // Only show dates with inspections > 0
+                    if (inspeksiCount > 0) {
+                        hasValidData = true
+
+                        // Format date for display (e.g., "11 Juli")
+                        val dateObj = inputFormatter.parse(date)
+                        val dateDisplay = displayFormatter.format(dateObj!!)
+
+                        resultBuilder.append("$dateDisplay - $inspeksiCount Inspeksi\n")
                     }
-
-                    hasValidData = true
-
-                    // Format date for display (e.g., "11 Juli")
-                    val dateObj = inputFormatter.parse(date)
-                    val dateDisplay = displayFormatter.format(dateObj!!)
-
-                    resultBuilder.append("$dateDisplay - $inspeksiCount Inspeksi\n")
                 }
 
-                // If no valid data found
+                // If no inspections found in the date range
                 if (!hasValidData) {
                     resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
                 }
@@ -3365,7 +3317,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 return "Failed to process data: Success flag is false"
             }
         } catch (e: Exception) {
-            Log.e("PreviewDataProcessor", "Error processing data: ${e.message}")
+            AppLogger.e("Error processing data: ${e.message}")
             return "Error processing data: ${e.message}"
         }
     }
@@ -3889,7 +3841,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     AppUtils.DatasetNames.transporter,
                     AppUtils.DatasetNames.jenisTPH,
                     AppUtils.DatasetNames.parameter,
-                    AppUtils.DatasetNames.sinkronisasiDataPanen
+                    AppUtils.DatasetNames.sinkronisasiDataPanen,
+                    AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
                 )
                 val datasetName = request.dataset
                 var modifiedRequest = request  // Create a mutable copy of the request
@@ -3927,7 +3880,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             request.estate!!,
                             request.afdeling!!
                         )
-                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    }else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                        response = dataPanenInspectionRepository.getDataInspeksi(
+                            request.estate!!,
+                            request.afdeling!!,
+                            true,
+                            parameterDao
+                        )
+                    }
+
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         val estatesResult = repository.getAllEstates()
                         if (estatesResult.isSuccess) {
                             val estates = estatesResult.getOrNull() ?: emptyList()
@@ -4238,6 +4200,342 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     )
                                 ) {
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                                    // Process sinkronisasiFollowUpInspeksi JSON data
+                                    try {
+                                        results[request.dataset] = Resource.Loading(60)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Parse the JSON response to extract the inspection data
+                                        val jsonObject = JSONObject(responseBodyString)
+
+                                        if (jsonObject.optBoolean("success", false)) {
+                                            val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+
+                                            results[request.dataset] = Resource.Loading(70)
+                                            _downloadStatuses.postValue(results.toMap())
+
+                                            AppLogger.d("Processing ${dataArray.length()} follow-up inspection records...")
+
+                                            // Prepare lists for batch processing
+                                            val inspectionList = mutableListOf<InspectionModel>()
+                                            val inspectionDetailList = mutableListOf<InspectionDetailModel>()
+
+                                            // Process each inspection record
+                                            for (i in 0 until dataArray.length()) {
+                                                val item = dataArray.getJSONObject(i)
+
+                                                try {
+                                                    val idPanen = item.optString("id_panen", "0")
+                                                    val tphId = item.optInt("tph", 0)
+                                                    val tglInspeksi = item.optString("tgl_inspeksi", "")
+                                                    val tglPanen = item.optString("tgl_panen", "")
+                                                    val jjgPanen = item.optInt("jjg_panen", 0)
+                                                    val jalurMasuk = item.optString("rute_masuk", "")
+                                                    val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
+                                                    val baris = item.optString("baris", "")
+                                                    val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
+                                                    val createdName = item.optString("created_name", "")
+                                                    val app_version = item.optString("app_version", "")
+                                                    val createdBy = item.optInt("created_by", 0)
+                                                    val trackingPath = item.optString("tracking_path", "")
+
+                                                    // Handle nullable fields
+                                                    val dept = if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
+                                                    val deptPpro = if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
+                                                    val deptAbbr = if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
+                                                    val deptNama = if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
+                                                    val divisi = if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
+                                                    val divisiPpro = if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
+                                                    val divisiAbbr = if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
+                                                    val divisiNama = if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
+                                                    val blok = if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
+                                                    val blokPpro = if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
+                                                    val blokKode = if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
+                                                    val blokNama = if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
+                                                    val tphNomor = if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
+                                                    val ancak = if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
+
+                                                    // Create InspectionModel
+                                                    val inspectionEntity = InspectionModel(
+                                                        id = 0, // Always 0 for auto-increment
+                                                        created_date = tglInspeksi,
+                                                        created_by = createdBy.toString(),
+                                                        created_name = createdName,
+                                                        tph_id = tphId,
+                                                        id_panen = idPanen,
+                                                        dept = dept,
+                                                        dept_ppro = deptPpro,
+                                                        dept_abbr = deptAbbr,
+                                                        dept_nama = deptNama,
+                                                        divisi = divisi,
+                                                        divisi_ppro = divisiPpro,
+                                                        divisi_abbr = divisiAbbr,
+                                                        divisi_nama = divisiNama,
+                                                        blok = blok,
+                                                        blok_ppro = blokPpro,
+                                                        blok_kode = blokKode,
+                                                        blok_nama = blokNama,
+                                                        tph_nomor = tphNomor,
+                                                        ancak = ancak,
+                                                        foto_user = "",
+                                                        jjg_panen = jjgPanen,
+                                                        date_panen = tglPanen,
+                                                        jalur_masuk = jalurMasuk,
+                                                        jenis_kondisi = jenisInspeksi,
+                                                        baris = baris,
+                                                        jml_pkk_inspeksi = jmlPokokInspeksi,
+                                                        tracking_path = trackingPath,
+                                                        dataIsZipped = 0,
+                                                        app_version = app_version,
+                                                        status_upload = "0",
+                                                        status_uploaded_image = "0",
+                                                        isPushedToServer = 1
+                                                    )
+
+                                                    inspectionList.add(inspectionEntity)
+
+                                                    // Process inspection details
+                                                    val inspectionDetails = item.optJSONArray("InspeksiDetails")
+                                                    if (inspectionDetails != null) {
+                                                        for (j in 0 until inspectionDetails.length()) {
+                                                            val detail = inspectionDetails.getJSONObject(j)
+
+                                                            try {
+                                                                val noPokPok = detail.optInt("no_pokok", 0)
+                                                                val pokokPanen = detail.optInt("pokok_panen", 0)
+                                                                val kodeInspeksi = detail.optInt("kode_inspeksi", 0)
+                                                                val temuanInspeksi = detail.optDouble("temuan_inspeksi", 0.0)
+                                                                val statusPemulihan = detail.optInt("status_pemulihan", 0)
+                                                                val nik = detail.optString("nik", "")
+                                                                val nama = detail.optString("nama", "")
+                                                                val catatan = detail.optString("catatan", null)
+                                                                val createdDate = detail.optString("created_date", tglInspeksi)
+                                                                val createdName = detail.optString("created_name", "")
+                                                                val createdBy = detail.optString("created_by", "")
+                                                                val latDetail = detail.optString("lat", "0.0").toDoubleOrNull() ?: 0.0
+                                                                val lonDetail = detail.optString("lon", "0.0").toDoubleOrNull() ?: 0.0
+
+                                                                val inspectionDetailEntity = InspectionDetailModel(
+                                                                    id = 0, // Auto-increment
+                                                                    id_inspeksi = "0", // Will be set after inspection insert
+                                                                    created_date = createdDate,
+                                                                    created_name = createdName,
+                                                                    created_by = createdBy,
+                                                                    nik = nik,
+                                                                    nama = nama,
+                                                                    no_pokok = noPokPok,
+                                                                    pokok_panen = if (pokokPanen == 0) null else pokokPanen,
+                                                                    kode_inspeksi = kodeInspeksi,
+                                                                    temuan_inspeksi = temuanInspeksi,
+                                                                    status_pemulihan = statusPemulihan,
+                                                                    foto = null,
+                                                                    foto_pemulihan = null,
+                                                                    komentar = catatan,
+                                                                    latIssue = latDetail,
+                                                                    lonIssue = lonDetail,
+                                                                    status_upload = "0",
+                                                                    status_uploaded_image = "0",
+                                                                    isPushedToServer = 1
+                                                                )
+
+                                                                inspectionDetailList.add(inspectionDetailEntity)
+                                                            } catch (e: Exception) {
+                                                                AppLogger.e("Error processing inspection detail: ${e.message}")
+                                                            }
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error processing inspection record: ${e.message}")
+                                                }
+                                            }
+
+                                            AppLogger.d("=== FOLLOW-UP INSPECTION PROCESSING SUMMARY ===")
+                                            AppLogger.d("Total records processed: ${dataArray.length()}")
+                                            AppLogger.d("Inspection records to process: ${inspectionList.size}")
+                                            AppLogger.d("Detail records to process: ${inspectionDetailList.size}")
+                                            AppLogger.d("================================================")
+
+                                            results[request.dataset] = Resource.Loading(80)
+                                            _downloadStatuses.postValue(results.toMap())
+
+                                            withContext(Dispatchers.IO) {
+                                                try {
+                                                    var successCount = 0
+                                                    var failCount = 0
+
+                                                    AppLogger.d("Processing ${inspectionList.size} inspection records for insert/update...")
+
+                                                    // Process inspections with their details
+                                                    val inspectionDetailIterator = inspectionDetailList.iterator()
+                                                    var currentDetailIndex = 0
+
+                                                    for (inspection in inspectionList) {
+                                                        try {
+                                                            // Check if inspection record exists by business key
+                                                            val existingRecord = inspectionDao.getDataInspeksi(
+                                                                inspection.created_date,
+                                                                inspection.tph_id,
+                                                                inspection.dept_abbr,
+                                                                inspection.divisi_abbr
+                                                            )
+
+                                                            var localInspectionId: Int
+
+                                                            if (existingRecord == null) {
+                                                                // Record doesn't exist -> INSERT
+                                                                val result = inspectionDao.insertWithTransaction(inspection)
+                                                                if (result.isSuccess) {
+                                                                    // Get the newly inserted ID
+                                                                    localInspectionId = inspectionDao.getDataInspeksi(
+                                                                        inspection.created_date,
+                                                                        inspection.tph_id,
+                                                                        inspection.dept_abbr,
+                                                                        inspection.divisi_abbr
+                                                                    )?.id ?: 0
+
+                                                                    successCount++
+                                                                    AppLogger.d("Inserted new inspection record: TPH=${inspection.tph_id}, Local ID=$localInspectionId")
+                                                                } else {
+                                                                    failCount++
+                                                                    AppLogger.e("Failed to insert inspection record: TPH=${inspection.tph_id}")
+                                                                    continue // Skip processing details if inspection failed
+                                                                }
+                                                            } else {
+                                                                // Record exists
+                                                                localInspectionId = existingRecord.id
+
+                                                                if (existingRecord.isPushedToServer == 0) {
+                                                                    // Local data - create new record
+                                                                    val insertResult = inspectionDao.insert(inspection)
+                                                                    if (insertResult > 0) {
+                                                                        localInspectionId = insertResult.toInt()
+                                                                        successCount++
+                                                                        AppLogger.d("Created new server inspection record: TPH=${inspection.tph_id}, Local ID=$localInspectionId")
+                                                                    } else {
+                                                                        failCount++
+                                                                        AppLogger.e("Failed to create new server inspection record: TPH=${inspection.tph_id}")
+                                                                        continue
+                                                                    }
+                                                                } else {
+                                                                    // Server data - update it
+                                                                    val updatedRecord = inspection.copy(
+                                                                        id = existingRecord.id,
+                                                                        status_upload = existingRecord.status_upload,
+                                                                        status_uploaded_image = existingRecord.status_uploaded_image
+                                                                    )
+                                                                    inspectionDao.update(listOf(updatedRecord))
+                                                                    successCount++
+                                                                    AppLogger.d("Updated existing server inspection record: TPH=${inspection.tph_id}, Local ID=$localInspectionId")
+                                                                }
+                                                            }
+
+                                                            // Process details for this inspection (assuming details are in order)
+                                                            // Note: This is a simplified approach - you might need to track detail-inspection relationships more precisely
+                                                            val detailsForThisInspection = inspectionDetailList.filter { detail ->
+                                                                // You might need better logic here to match details to inspections
+                                                                true // Simplified for now
+                                                            }
+
+                                                            for (detail in detailsForThisInspection) {
+                                                                val detailWithInspectionId = detail.copy(id_inspeksi = localInspectionId.toString())
+
+                                                                // Check if detail record exists
+                                                                val existingDetail = inspectionDetailDao.getDataInspeksiDetail(
+                                                                    detailWithInspectionId.created_date,
+                                                                    detailWithInspectionId.nik,
+                                                                    detailWithInspectionId.nama,
+                                                                    detailWithInspectionId.kode_inspeksi,
+                                                                    detailWithInspectionId.temuan_inspeksi
+                                                                )
+
+                                                                if (existingDetail == null) {
+                                                                    // Insert new detail
+                                                                    val result = inspectionDetailDao.insertWithTransaction(detailWithInspectionId)
+                                                                    if (result.isSuccess) {
+                                                                        successCount++
+                                                                        AppLogger.d("Inserted new inspection detail: NIK=${detailWithInspectionId.nik}, Code=${detailWithInspectionId.kode_inspeksi}")
+                                                                    } else {
+                                                                        failCount++
+                                                                        AppLogger.e("Failed to insert inspection detail: NIK=${detailWithInspectionId.nik}")
+                                                                    }
+                                                                } else {
+                                                                    // Update or create new based on isPushedToServer
+                                                                    if (existingDetail.isPushedToServer == 0) {
+                                                                        // Local data - create new
+                                                                        val result = inspectionDetailDao.insertWithTransaction(detailWithInspectionId)
+                                                                        if (result.isSuccess) {
+                                                                            successCount++
+                                                                            AppLogger.d("Created new server detail record: NIK=${detailWithInspectionId.nik}")
+                                                                        } else {
+                                                                            failCount++
+                                                                            AppLogger.e("Failed to create new server detail record: NIK=${detailWithInspectionId.nik}")
+                                                                        }
+                                                                    } else {
+                                                                        // Server data - update
+                                                                        val updatedDetail = detailWithInspectionId.copy(
+                                                                            id = existingDetail.id,
+                                                                            status_upload = existingDetail.status_upload,
+                                                                            status_uploaded_image = existingDetail.status_uploaded_image
+                                                                        )
+                                                                        inspectionDetailDao.update(listOf(updatedDetail))
+                                                                        successCount++
+                                                                        AppLogger.d("Updated existing server detail: NIK=${detailWithInspectionId.nik}")
+                                                                    }
+                                                                }
+                                                            }
+
+                                                        } catch (e: Exception) {
+                                                            failCount++
+                                                            AppLogger.e("Error processing inspection record: ${e.message}")
+                                                        }
+                                                    }
+
+                                                    // Final summary
+                                                    AppLogger.d("=== FOLLOW-UP INSPECTION SYNC COMPLETE ===")
+                                                    AppLogger.d("Inserted/Updated: $successCount")
+                                                    AppLogger.d("Failed: $failCount")
+                                                    AppLogger.d("Total records processed: ${inspectionList.size}")
+                                                    AppLogger.d("===========================================")
+
+                                                    if (inspectionList.isEmpty()) {
+                                                        // No records to process - everything is up to date
+                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
+                                                        AppLogger.d("No records to process - dataset is up to date")
+                                                    } else if (failCount == 0) {
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Follow-up inspection data processed successfully: $successCount records"
+                                                        )
+                                                        prefManager!!.addDataset(request.dataset)
+                                                    } else if (successCount > 0) {
+                                                        // Partial success
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Partial success: $successCount processed, $failCount failed"
+                                                        )
+                                                        prefManager!!.addDataset(request.dataset)
+                                                    } else {
+                                                        // Complete failure
+                                                        results[request.dataset] = Resource.Error(
+                                                            "Failed to process follow-up inspection data: $failCount/${inspectionList.size} records failed"
+                                                        )
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error processing follow-up inspection data: ${e.message}")
+                                                    results[request.dataset] = Resource.Error("Error processing follow-up inspection data: ${e.message}")
+                                                }
+                                            }
+                                        } else {
+                                            val errorMessage = jsonObject.optString("message", "Unknown error")
+                                            results[request.dataset] = Resource.Error("API Error: $errorMessage")
+                                            AppLogger.e("Follow-up Inspection API returned error: $errorMessage")
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error processing follow-up inspection JSON: ${e.message}")
+                                        results[request.dataset] = Resource.Error("Error processing follow-up inspection data: ${e.message}")
+                                    }
                                 }
                                 else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                                     // Process sinkronisasiDataPanen JSON data

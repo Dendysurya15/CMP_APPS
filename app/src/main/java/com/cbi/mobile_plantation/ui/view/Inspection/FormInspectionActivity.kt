@@ -639,6 +639,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             shouldReopenBottomSheet = false
                             Handler(Looper.getMainLooper()).postDelayed({
                               showWithAnimation(bottomNavInspect)
+                                showWithAnimation(fabPrevFormAncak)
+                                showWithAnimation(fabNextFormAncak)
                                 showViewPhotoBottomSheet(null, isInTPH)
                             }, 100)
                         }
@@ -653,6 +655,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         isCameraViewOpen = false
                         if (!keyboardOpenedWhileBottomSheetVisible) {
                             showWithAnimation(bottomNavInspect)
+                            showWithAnimation(fabPrevFormAncak)
+                            showWithAnimation(fabNextFormAncak)
                         }
                     }
 
@@ -1037,7 +1041,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupViewPager() {
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-        formAncakPagerAdapter = FormAncakPagerAdapter(this, totalPages)
+
+        // Pass the featureName to the adapter!
+        formAncakPagerAdapter = FormAncakPagerAdapter(this, totalPages, featureName)
 
         vpFormAncak.apply {
             adapter = formAncakPagerAdapter
@@ -1045,7 +1051,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             setPageTransformer(createPageTransformer())
             offscreenPageLimit = 1
         }
-
     }
 
     private fun createPageTransformer(): ViewPager2.PageTransformer {
@@ -2399,6 +2404,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     isCameraViewOpen = false
                                     if (!keyboardOpenedWhileBottomSheetVisible) {
                                         showWithAnimation(bottomNavInspect)
+                                        showWithAnimation(fabPrevFormAncak)
+                                        showWithAnimation(fabNextFormAncak)
                                     }
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         showViewPhotoBottomSheet(
@@ -2485,6 +2492,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             // 2. Keyboard was not opened while bottom sheet was visible
             if (!isCameraViewOpen && !keyboardOpenedWhileBottomSheetVisible) {
                 showWithAnimation(bottomNavInspect)
+                showWithAnimation(fabPrevFormAncak)
+                showWithAnimation(fabNextFormAncak)
             }
         }
 
@@ -6637,6 +6646,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Only show bottom nav if keyboard is not currently open
             if (!keyboardOpenedWhileBottomSheetVisible) {
                 showWithAnimation(bottomNavInspect)
+                showWithAnimation(fabPrevFormAncak)
+                showWithAnimation(fabNextFormAncak)
             }
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1

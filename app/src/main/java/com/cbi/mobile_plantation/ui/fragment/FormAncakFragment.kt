@@ -30,6 +30,7 @@ import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputT
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.card.MaterialCardView
 
@@ -80,14 +81,17 @@ class FormAncakFragment : Fragment() {
     )
 
     private var pageNumber: Int = 1
+    private var featureName: String? = null
 
     companion object {
         private const val ARG_PAGE_NUMBER = "page_number"
+        private const val ARG_FEATURE_NAME = "feature_name"
 
-        fun newInstance(pageNumber: Int): FormAncakFragment {
+        fun newInstance(pageNumber: Int, featureName: String?): FormAncakFragment {
             return FormAncakFragment().apply {
                 arguments = Bundle().apply {
                     putInt(ARG_PAGE_NUMBER, pageNumber)
+                    putString(ARG_FEATURE_NAME, featureName)
                 }
             }
         }
@@ -97,7 +101,10 @@ class FormAncakFragment : Fragment() {
         super.onCreate(savedInstanceState)
         arguments?.let {
             pageNumber = it.getInt(ARG_PAGE_NUMBER, 1)
+            featureName = it.getString(ARG_FEATURE_NAME)
         }
+
+        AppLogger.d("Fragment created with featureName: $featureName, pageNumber: $pageNumber")
 
         viewModel = ViewModelProvider(requireActivity())[FormAncakViewModel::class.java]
     }
@@ -310,6 +317,7 @@ class FormAncakFragment : Fragment() {
         return 0
     }
 
+
     private fun setupRadioGroup(
         layoutId: Int,
         titleText: String,
@@ -323,6 +331,12 @@ class FormAncakFragment : Fragment() {
         val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
 
         titleTextView.text = titleText
+
+        // Check if this is follow-up inspection
+        val isFollowUpInspection = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
+
+        // Don't disable lyExistsTreeInspect even for follow-up inspections
+        val shouldDisable = isFollowUpInspection && layoutId != R.id.lyExistsTreeInspect
 
         if (layoutId == R.id.lyExistsTreeInspect) {
             viewModel.isInspection.observe(viewLifecycleOwner) { isInspection ->
@@ -349,20 +363,31 @@ class FormAncakFragment : Fragment() {
                 text = label
                 tag = idValue
                 textSize = 18f
-                setTextColor(Color.BLACK)
+                setTextColor(if (shouldDisable) Color.GRAY else Color.BLACK)
                 setPadding(10, 0, 30, 0)
-                buttonTintList = ContextCompat.getColorStateList(layoutView.context, R.color.greenDefault)
+                buttonTintList = ContextCompat.getColorStateList(
+                    layoutView.context,
+                    if (shouldDisable) R.color.graydarker else R.color.greenDefault
+                )
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
 
                 isChecked = idValue == fieldValue
+                isEnabled = !shouldDisable  // Only disable if not lyExistsTreeInspect
+
                 if (isChecked) {
                     lastSelectedRadioButton = this
                 }
 
                 setOnClickListener {
+                    // Skip click handling if disabled (but allow lyExistsTreeInspect)
+                    if (shouldDisable) {
+                        AppLogger.d("Radio button disabled for follow-up inspection")
+                        return@setOnClickListener
+                    }
+
                     clearValidationErrors()
 
                     lastSelectedRadioButton?.isChecked = false
@@ -377,7 +402,6 @@ class FormAncakFragment : Fragment() {
                         updateDependentLayoutVisibility(idValue)
                     }
 
-                    // ADD THIS: Handle lyHarvestTreeNumber visibility
                     if (layoutId == R.id.lyHarvestTreeInspect) {
                         updateHarvestTreeNumberVisibility(idValue)
                     }
@@ -432,66 +456,99 @@ class FormAncakFragment : Fragment() {
         val btnMinus = layoutView.findViewById<CardView>(R.id.btDec)
         val btnPlus = layoutView.findViewById<CardView>(R.id.btInc)
 
+        // Check if this is follow-up inspection
+        val isFollowUpInspection = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
+
         titleTextView.text = titleText
-        editText.setText(currentValue.toString())  // ✅ KEEP THIS
+        editText.setText(currentValue.toString())
+
+        // Disable components for follow-up inspection
+        editText.isEnabled = !isFollowUpInspection
+        btnMinus.isEnabled = !isFollowUpInspection
+        btnPlus.isEnabled = !isFollowUpInspection
+
+        // Change visual appearance when disabled
+        if (isFollowUpInspection) {
+            editText.setTextColor(Color.GRAY)
+            editText.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.graydarker))
+            btnMinus.alpha = 0.5f
+            btnPlus.alpha = 0.5f
+        } else {
+            editText.setTextColor(Color.BLACK)
+            editText.setBackgroundColor(Color.WHITE)
+            btnMinus.alpha = 1.0f
+            btnPlus.alpha = 1.0f
+        }
 
         // Plus button setup
-        handleLongPress(editText, btnPlus, dataField, minValue, maxValue)
-        btnPlus.setOnClickListener {
-            val currentVal = editText.text.toString().toIntOrNull() ?: 0
-            val newValue = if (maxValue != null) {
-                minOf(currentVal + 1, maxValue)
-            } else {
-                currentVal + 1
+        if (!isFollowUpInspection) {
+            handleLongPress(editText, btnPlus, dataField, minValue, maxValue)
+            btnPlus.setOnClickListener {
+                val currentVal = editText.text.toString().toIntOrNull() ?: 0
+                val newValue = if (maxValue != null) {
+                    minOf(currentVal + 1, maxValue)
+                } else {
+                    currentVal + 1
+                }
+                editText.setText(newValue.toString())
+                saveNumericValue(newValue, dataField)
             }
-            editText.setText(newValue.toString())
-            saveNumericValue(newValue, dataField)
+        } else {
+            btnPlus.setOnClickListener {
+                AppLogger.d("Plus button disabled for follow-up inspection")
+            }
         }
 
         // Minus button setup
-        handleLongPress(editText, btnMinus, dataField, minValue, maxValue, false)
-        btnMinus.setOnClickListener {
-            val currentVal = editText.text.toString().toIntOrNull() ?: 0
-            val newValue = maxOf(currentVal - 1, minValue)
-            editText.setText(newValue.toString())
-            saveNumericValue(newValue, dataField)
+        if (!isFollowUpInspection) {
+            handleLongPress(editText, btnMinus, dataField, minValue, maxValue, false)
+            btnMinus.setOnClickListener {
+                val currentVal = editText.text.toString().toIntOrNull() ?: 0
+                val newValue = maxOf(currentVal - 1, minValue)
+                editText.setText(newValue.toString())
+                saveNumericValue(newValue, dataField)
+            }
+        } else {
+            btnMinus.setOnClickListener {
+                AppLogger.d("Minus button disabled for follow-up inspection")
+            }
         }
 
-        // 🚨 ADD TEXTWATCHER WITH INITIALIZATION CHECK
-        editText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        // TextWatcher setup
+        if (!isFollowUpInspection) {
+            editText.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
-            override fun afterTextChanged(s: Editable?) {
-                // 🛡️ GUARD: Skip if fragment is still initializing
-                if (isFragmentInitializing || isUpdatingData) {
-                    return
-                }
+                override fun afterTextChanged(s: Editable?) {
+                    if (isFragmentInitializing || isUpdatingData) {
+                        return
+                    }
 
-                if (!s.isNullOrBlank()) {
-                    try {
-                        val enteredValue = s.toString().toInt()
+                    if (!s.isNullOrBlank()) {
+                        try {
+                            val enteredValue = s.toString().toInt()
 
-                        val validatedValue = when {
-                            enteredValue < minValue -> minValue
-                            maxValue != null && enteredValue > maxValue -> maxValue
-                            else -> enteredValue
+                            val validatedValue = when {
+                                enteredValue < minValue -> minValue
+                                maxValue != null && enteredValue > maxValue -> maxValue
+                                else -> enteredValue
+                            }
+
+                            if (enteredValue != validatedValue) {
+                                editText.setText(validatedValue.toString())
+                                editText.setSelection(editText.text.length)
+                            }
+
+                            saveNumericValue(validatedValue, dataField)
+                        } catch (e: NumberFormatException) {
+                            editText.setText(minValue.toString())
+                            saveNumericValue(minValue, dataField)
                         }
-
-                        if (enteredValue != validatedValue) {
-                            editText.setText(validatedValue.toString())
-                            editText.setSelection(editText.text.length)
-                        }
-
-                        saveNumericValue(validatedValue, dataField)
-                    } catch (e: NumberFormatException) {
-                        editText.setText(minValue.toString())
-                        saveNumericValue(minValue, dataField)
                     }
                 }
-            }
-        })
-
+            })
+        }
     }
 
     private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {
