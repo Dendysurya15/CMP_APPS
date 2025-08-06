@@ -1777,8 +1777,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     fun getPreviewDataPanenInspeksiWeek(estate: Int, afdeling: String) {
         viewModelScope.launch {
+
             try {
-                // First, get data from server
                 val response = withContext(Dispatchers.IO) {
                     dataPanenInspectionRepository.getDataPanen(estate, afdeling)
                 }
@@ -1786,119 +1786,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 AppLogger.d(response.body().toString())
                 if (response.isSuccessful && response.code() == 200) {
                     val jsonString = response.body()?.string() ?: ""
+
                     AppLogger.d(jsonString.toString())
+                    // Process the JSON response to create formatted summary
+                    val formattedData = processPreviewDataPanenInspeksi(jsonString)
 
-                    // Process and store data in local database, get only new records
-                    val newRecords = withContext(Dispatchers.IO) {
-                        getNewRecordsFromServer(jsonString)
-                    }
-
-                    if (newRecords.isEmpty()) {
-                        // If no new records, show message that all data already exists
-                        _dataPanenInspeksiPreview.value = getApplication<Application>().getString(R.string.response_no_data_in_panen)
-                    } else {
-                        // Create JSON response with only NEW records for preview
-                        val newRecordsJsonResponse = createJsonResponseFromNewRecords(newRecords)
-
-                        // Use existing preview function with only new records
-                        val formattedData = processPreviewDataPanenInspeksi(newRecordsJsonResponse)
-                        _dataPanenInspeksiPreview.value = formattedData
-                    }
-
+                    _dataPanenInspeksiPreview.value = formattedData
                 } else {
                     _dataPanenInspeksiPreview.value = "Gagal memuat data: ${response.message()}"
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error loading Panen preview: ${e.message}")
+                AppLogger.e("Error loading Restan preview: ${e.message}")
                 _dataPanenInspeksiPreview.value = "Error: ${e.message}"
             }
         }
-    }
-
-    private suspend fun getNewRecordsFromServer(jsonString: String): List<JSONObject> {
-        return try {
-            AppLogger.d("=== Starting server vs local comparison ===")
-
-            val jsonObject = JSONObject(jsonString)
-            val dataArray = jsonObject.optJSONArray("data") ?: return emptyList()
-
-            AppLogger.d("Server returned ${dataArray.length()} total records")
-
-            val newRecordsJson = mutableListOf<JSONObject>() // Store new records for preview
-            var existingCount = 0
-            var newCount = 0
-
-            for (i in 0 until dataArray.length()) {
-                val item = dataArray.getJSONObject(i)
-
-                val tphId = item.optString("tph", "")
-                val createdDate = item.optString("created_date", "")
-                val createdBy = item.optInt("created_by", 0)
-                val spbKode = item.optString("spb_kode", "")
-                val ancak = item.optInt("ancak", 0)
-
-                AppLogger.d("--- Record ${i + 1} ---")
-                AppLogger.d("Server Record - TPH: '$tphId', Date: '$createdDate', CreatedBy: $createdBy, SPB: '$spbKode', Ancak: $ancak")
-
-                // Check if this record already exists using the 5 key columns
-                val existingRecord = panenDao.checkExistingRecord(
-                    tphId, createdDate, createdBy, spbKode, ancak
-                )
-
-                if (existingRecord == null) {
-                    // This record doesn't exist in local database - add to preview
-                    newRecordsJson.add(item)
-                    newCount++
-                    AppLogger.d("✅ NEW RECORD - Not found in local database")
-                    AppLogger.d("   Adding to preview list")
-                } else {
-                    existingCount++
-                    AppLogger.d("❌ EXISTS - Found in local database")
-                    AppLogger.d("   Local Record ID: ${existingRecord.id}")
-                    AppLogger.d("   Local TPH: '${existingRecord.tph_id}', Date: '${existingRecord.date_created}', CreatedBy: ${existingRecord.created_by}")
-                    AppLogger.d("   Skipping from preview")
-                }
-            }
-
-            AppLogger.d("=== COMPARISON SUMMARY ===")
-            AppLogger.d("Total server records: ${dataArray.length()}")
-            AppLogger.d("New records (not in local): $newCount")
-            AppLogger.d("Existing records (already in local): $existingCount")
-            AppLogger.d("Records to show in preview: ${newRecordsJson.size}")
-
-            if (newRecordsJson.isEmpty()) {
-                AppLogger.d("🎉 All server data already exists locally - nothing new to show")
-            } else {
-                AppLogger.d("📥 Found ${newRecordsJson.size} new records to display in preview")
-                AppLogger.d("New records details:")
-                newRecordsJson.forEachIndexed { index, record ->
-                    AppLogger.d("  ${index + 1}. TPH: ${record.optString("tph")}, Date: ${record.optString("created_date")}, Ancak: ${record.optInt("ancak")}")
-                }
-            }
-
-            AppLogger.d("=== End comparison ===")
-
-            newRecordsJson // Return only the new records for preview
-        } catch (e: Exception) {
-            AppLogger.e("❌ ERROR during server vs local comparison: ${e.message}")
-            AppLogger.e("Stack trace: ${e.stackTrace.contentToString()}")
-            emptyList()
-        }
-    }
-
-    private fun createJsonResponseFromNewRecords(newRecords: List<JSONObject>): String {
-        val responseJson = JSONObject().apply {
-            put("success", true)
-            put("message", "New records only")
-
-            val dataArray = JSONArray()
-            newRecords.forEach { record ->
-                dataArray.put(record)
-            }
-            put("data", dataArray)
-        }
-
-        return responseJson.toString()
     }
 
 

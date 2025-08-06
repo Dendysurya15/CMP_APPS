@@ -126,6 +126,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
+import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -172,6 +173,8 @@ class HomePageActivity : AppCompatActivity() {
     val masterEstateHasBeenChoice = mutableMapOf<String, Boolean>()
     private val _globalLastSync = MutableLiveData<String>()
     private val globalLastSync: LiveData<String> get() = _globalLastSync
+    private val _globalLastSyncDataPanenInspeksi = MutableLiveData<String>()
+    private val globalLastSyncDataPanenInspeksi: LiveData<String> get() = _globalLastSyncDataPanenInspeksi
 
     private var activityInitialized = false
 
@@ -997,6 +1000,7 @@ class HomePageActivity : AppCompatActivity() {
         downloadDatasetUtility = DownloadDatasetUtility(prefManager!!, datasetViewModel)
 
         _globalLastSync.value = prefManager!!.lastSyncDate
+        _globalLastSyncDataPanenInspeksi.value = prefManager!!.lastSyncDataPanenInspeksi
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
         setupName()
@@ -1309,167 +1313,133 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.InspeksiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    if (AppUtils.isNetworkAvailable(this)) {
-                        isTriggerFeatureInspection = true
-                        loadingDialog.show()
-                        loadingDialog.setMessage("Sedang mempersiapkan data...")
-                        lifecycleScope.launch {
+
+                    lifecycleScope.launch {
+                        try {
+                            // Get afdeling ID from preferences
+                            val afdelingId = prefManager!!.afdelingIdUserLogin
+
+                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Afdeling tidak valid",
+                                    "Data afdeling saat ini adalah $afdelingId",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Do nothing on click
+                                }
+                                return@launch
+                            }
+
+                            // Check afdeling data and sinkronisasi_otomatis
+                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+
+                            withContext(Dispatchers.IO) {
+                                val afdelingData =
+                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
+                                afdelingDeferred.complete(afdelingData)
+                            }
+
+                            val afdeling = afdelingDeferred.await()
+
+                            if (afdeling == null) {
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Data Afdeling Tidak Ditemukan",
+                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Do nothing on click
+                                }
+                                return@launch
+                            }
+
+
+                            val lastSyncDateTime = prefManager!!.lastSyncDataPanenInspeksi
+
+                            AppLogger.d("lastSyncDateTimeInspeksi $lastSyncDateTime")
+
+// Check if lastSyncDateTime is null or empty
+                            if (lastSyncDateTime.isNullOrEmpty()) {
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Sinkronisasi Database Diperlukan",
+                                    "Database belum pernah disinkronisasi. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Do nothing on click
+                                }
+                                return@launch
+                            }
+
                             try {
-                                delay(500)
+                                val lastSyncDate =
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                        SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            Locale.getDefault()
+                                        ).parse(lastSyncDateTime)!!
+                                    )
+                                val currentDate = SimpleDateFormat(
+                                    "yyyy-MM-dd",
+                                    Locale.getDefault()
+                                ).format(Date())
 
-                                val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
-                                    AppUtils.ListFeatureByRoleUser.KeraniPanen,
-                                    ignoreCase = true
-                                )
-
-                                var previewDataPanenInspeksi = ""
-                                val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
-                                val afdelingIdString = prefManager!!.afdelingIdUserLogin
-
-                                // Validate afdelingId and get valid integer value
-                                var validAfdelingId: Int? = null
-
-                                if (!isKeraniPanen) {
-
-                                    // Check if afdelingId is null or empty
-                                    if (afdelingIdString.isNullOrEmpty()) {
-                                        AppLogger.d("afdelingId is null or empty - blocking user")
-                                        withContext(Dispatchers.Main) {
-                                            previewDataPanenInspeksi =
-                                                "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
-                                        }
-                                    } else {
-                                        // Try to convert afdelingId to integer
-                                        validAfdelingId = try {
-                                            afdelingIdString.toInt()
-                                        } catch (e: NumberFormatException) {
-                                            AppLogger.d("NumberFormatException caught: ${e.message}")
-                                            null
-                                        }
-
-                                        // If conversion failed, set error message
-                                        if (validAfdelingId == null) {
-                                            AppLogger.d("afdelingId is not a valid integer - blocking user")
-                                            withContext(Dispatchers.Main) {
-                                                previewDataPanenInspeksi =
-                                                    "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
-                                            }
-                                        } else {
-                                            AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
-                                        }
-                                    }
-                                } else {
-                                    AppLogger.d("Validation skipped - user is Kerani Panen")
-                                }
-
-                                // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                if ((!isKeraniPanen) && validAfdelingId != null) {
-                                    // Create a deferred result that will be completed when data is received
-                                    val dataPanenInspeksiDeffered =
-                                        CompletableDeferred<String>()
-
-                                    // Set up the observer for restanPreviewData
-                                    val dataPanenObserver = Observer<String> { data ->
-                                        if (!dataPanenInspeksiDeffered.isCompleted) {
-                                            dataPanenInspeksiDeffered.complete(data)
-                                        }
-                                    }
-
-                                    // Register the observer
-                                    datasetViewModel.dataPanenInspeksiPreview.observe(
+                                if (lastSyncDate != currentDate) {
+                                    AlertDialogUtility.withSingleAction(
                                         this@HomePageActivity,
-                                        dataPanenObserver
-                                    )
-
-                                    // Start the API request with validated afdelingId
-                                    datasetViewModel.getPreviewDataPanenInspeksiWeek(
-                                        estateIdString,
-                                        validAfdelingId.toString(),
-                                    )
-
-                                    try {
-                                        // Wait for the API response with a timeout
-                                        previewDataPanenInspeksi = withTimeout(15000) {
-                                            dataPanenInspeksiDeffered.await()
-                                        }
-
-                                        AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
-
-                                        // Remove the observer to prevent memory leaks
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                dataPanenObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        // Clean up observer in case of timeout or error
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                dataPanenObserver
-                                            )
-                                        }
-                                        AppLogger.e("Error getting restan data: ${e.message}")
-                                        // Don't throw here, we'll continue with empty previewDataPanenInspeksi
+                                        "Kembali",
+                                        "Sinkronisasi Database Diperlukan",
+                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
                                     }
+                                    return@launch
                                 } else {
-                                    AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
-                                }
-
-                                loadingDialog.dismiss()
-//
-
-
-                                val noNewData =
-                                    previewDataPanenInspeksi?.contains(stringXML(R.string.response_no_data_in_panen)) == true
-                                if (noNewData) {
-                                    val intent = Intent(this@HomePageActivity, FormInspectionActivity::class.java)
+                                    val intent = Intent(
+                                        this@HomePageActivity,
+                                        FormInspectionActivity::class.java
+                                    )
                                     intent.putExtra("FEATURE_NAME", feature.featureName)
                                     startActivity(intent)
-                                } else {
-                                    AlertDialogUtility.withTwoActions(
-                                        this@HomePageActivity,
-                                        "Unduh/Perbarui Data Panen",
-                                        getString(R.string.confirmation_dialog_title),
-                                        getString(R.string.al_confirm_download_data_panen_case_inspection),
-                                        "warning.json",
-                                        ContextCompat.getColor(
-                                            this@HomePageActivity,
-                                            R.color.bluedarklight
-                                        ),
-                                        cancelText = "Terdapat Data Panen Baru, Unduh Sekarang",
-                                        function = {
-
-                                            startDownloads(
-                                                previewDataPanenInspeksi,
-                                                "Unduh Data Panen"
-                                            )
-
-                                        },
-                                        cancelFunction = {
-                                            val intent =
-                                                Intent(this@HomePageActivity, FormInspectionActivity::class.java)
-                                            intent.putExtra("FEATURE_NAME", feature.featureName)
-                                            startActivity(intent)
-                                        }
-                                    )
                                 }
-
-                            } catch (e: Exception) {
-                                // Handle any errors
-                                AppLogger.d("Loading estates failed: ${e.message}")
-                                withContext(Dispatchers.Main) {
-                                    loadingDialog.dismiss()
-                                    showErrorDialog("Error loading estates data: ${e.message}")
+                            } catch (e: ParseException) {
+                                AppLogger.e("Error parsing sync date: ${e.message}")
+                                AlertDialogUtility.withSingleAction(
+                                    this@HomePageActivity,
+                                    "Kembali",
+                                    "Sinkronisasi Database Diperlukan",
+                                    "Data sinkronisasi tidak valid. Silakan lakukan sinkronisasi ulang terlebih dahulu sebelum menggunakan fitur ini.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Do nothing on click
                                 }
+                                return@launch
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            AlertDialogUtility.withSingleAction(
+                                this@HomePageActivity,
+                                "Kembali",
+                                "Terjadi Kesalahan",
+                                "Gagal melakukan validasi data. Silakan coba lagi.",
+                                "error.json",
+                                R.color.colorRedDark
+                            ) {
+                                // Do nothing on click
                             }
                         }
-                    } else {
-                        val intent = Intent(this, FormInspectionActivity::class.java)
-                        intent.putExtra("FEATURE_NAME", feature.featureName)
-                        startActivity(intent)
                     }
-
-
                 }
             }
 
@@ -1513,7 +1483,6 @@ class HomePageActivity : AppCompatActivity() {
                                     var validAfdelingId: Int? = null
 
                                     if (!isKeraniPanen) {
-                                        AppLogger.d("Validation triggered for Mandor Panen or Asisten")
 
                                         // Check if afdelingId is null or empty
                                         if (afdelingIdString.isNullOrEmpty()) {
@@ -1665,8 +1634,23 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             if (mill.sinkronisasi_pks == "1") {
+                                val lastSyncDateTime = prefManager!!.lastSyncDate
+
+                                if (lastSyncDateTime.isNullOrEmpty()) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Sinkronisasi Database Diperlukan",
+                                        "Database belum pernah disinkronisasi. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+
                                 try {
-                                    val lastSyncDateTime = prefManager!!.lastSyncDate
                                     val dateFormat =
                                         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                                     val currentDateFormat =
@@ -1691,7 +1675,16 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                 } catch (dateException: Exception) {
                                     AppLogger.e("Error parsing sync date: ${dateException.message}")
-                                    showErrorDialog("Error dalam validasi tanggal sinkronisasi.")
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Sinkronisasi Database Diperlukan",
+                                        "Data sinkronisasi tidak valid. Silakan lakukan sinkronisasi ulang terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
                                     return@launch
                                 }
                             }
@@ -1967,30 +1960,21 @@ class HomePageActivity : AppCompatActivity() {
                                 // Start data loading
                                 datasetViewModel.getAllEstates()
 
-                                val isMandor1 = prefManager!!.jabatanUserLogin!!.contains(
-                                    AppUtils.ListFeatureByRoleUser.Mandor1,
-                                    ignoreCase = true
-                                )
-                                val isAsisten = prefManager!!.jabatanUserLogin!!.contains(
-                                    AppUtils.ListFeatureByRoleUser.Asisten,
-                                    ignoreCase = true
-                                )
-
+                                var previewDataPanenInspeksi = ""
                                 var previewRestanData = ""
                                 val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
                                 // Add debug logging
-                                AppLogger.d("User role: ${prefManager!!.jabatanUserLogin}")
-                                AppLogger.d("afdelingIdString: $afdelingIdString")
-                                AppLogger.d("isMandor1: $isMandor1")
-                                AppLogger.d("isAsisten: $isAsisten")
+                                val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.KeraniPanen,
+                                    ignoreCase = true
+                                )
 
                                 // Validate afdelingId and get valid integer value
                                 var validAfdelingId: Int? = null
 
-                                if (isMandor1 || isAsisten) {
-                                    AppLogger.d("Validation triggered for Mandor Panen or Asisten")
+                                if (!isKeraniPanen) {
 
                                     // Check if afdelingId is null or empty
                                     if (afdelingIdString.isNullOrEmpty()) {
@@ -2024,7 +2008,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                if ((isMandor1 || isAsisten) && validAfdelingId != null) {
+                                if (!isKeraniPanen && validAfdelingId != null) {
                                     // Create a deferred result that will be completed when data is received
                                     val restanDataDeferred = CompletableDeferred<String>()
 
@@ -2071,6 +2055,54 @@ class HomePageActivity : AppCompatActivity() {
                                         AppLogger.e("Error getting restan data: ${e.message}")
                                         // Don't throw here, we'll continue with empty previewRestanData
                                     }
+
+
+                                    val dataPanenInspeksiDeffered =
+                                        CompletableDeferred<String>()
+
+                                    // Set up the observer for restanPreviewData
+                                    val dataPanenObserver = Observer<String> { data ->
+                                        if (!dataPanenInspeksiDeffered.isCompleted) {
+                                            dataPanenInspeksiDeffered.complete(data)
+                                        }
+                                    }
+
+                                    // Register the observer
+                                    datasetViewModel.dataPanenInspeksiPreview.observe(
+                                        this@HomePageActivity,
+                                        dataPanenObserver
+                                    )
+
+                                    // Start the API request with validated afdelingId
+                                    datasetViewModel.getPreviewDataPanenInspeksiWeek(
+                                        estateIdString,
+                                        validAfdelingId.toString(),
+                                    )
+
+                                    try {
+                                        // Wait for the API response with a timeout
+                                        previewDataPanenInspeksi = withTimeout(15000) {
+                                            dataPanenInspeksiDeffered.await()
+                                        }
+
+                                        AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
+
+                                        // Remove the observer to prevent memory leaks
+                                        withContext(Dispatchers.Main) {
+                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                dataPanenObserver
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        // Clean up observer in case of timeout or error
+                                        withContext(Dispatchers.Main) {
+                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                dataPanenObserver
+                                            )
+                                        }
+                                        AppLogger.e("Error getting restan data: ${e.message}")
+                                        // Don't throw here, we'll continue with empty previewDataPanenInspeksi
+                                    }
                                 } else {
                                     AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
                                 }
@@ -2083,7 +2115,11 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 withContext(Dispatchers.Main) {
-                                    startDownloads(previewRestanData, "Sinkronisasi Data")
+                                    startDownloads(
+                                        previewRestanData,
+                                        previewDataPanenInspeksi,
+                                        "Sinkronisasi Data"
+                                    )
                                 }
                             } catch (e: Exception) {
                                 // Handle any errors
@@ -6643,8 +6679,10 @@ class HomePageActivity : AppCompatActivity() {
                     val currentDateTimeIndonesia = simpleDateFormat.format(Date())
 
                     prefManager!!.lastSyncDate = currentDateTimeIndonesia
+                    prefManager!!.lastSyncDataPanenInspeksi = currentDateTimeIndonesia
 
                     _globalLastSync.value = currentDateTimeIndonesia
+                    _globalLastSyncDataPanenInspeksi.value = currentDateTimeIndonesia
                 }
 
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
@@ -6668,7 +6706,8 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun startDownloadsV2(
         datasetRequests: List<DatasetRequest>,
-        previewData: String? = null,
+        previewDataRestan: String? = null,
+        previewDataPanen: String? = null,
         titleDialog: String? = "Sinkronisasi Restan & Dataset"
     ) {
 
@@ -6685,44 +6724,23 @@ class HomePageActivity : AppCompatActivity() {
         val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
         val btnSinkronisasiDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
         val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
-        val containerDownloadDataset =
-            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
         // Update button text to reflect download operation
         btnSinkronisasiDataset.text = "Sinkronisasi Data"
         btnSinkronisasiDataset.setIconResource(R.drawable.baseline_refresh_24) // Assuming you have this icon
 
-        // Check if preview data indicates no new records
-        val noNewData = previewData?.contains(stringXML(R.string.response_no_data_in_panen)) == true
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        containerDownloadDataset.visibility = View.VISIBLE
 
-        AppLogger.d("previewData: $previewData")
-        AppLogger.d("noNewData detected: $noNewData")
-
-        if (noNewData) {
-            // Hide sinkronisasi button when no new data
-            containerDownloadDataset.visibility = View.VISIBLE
-            closeDialogBtn.visibility = View.VISIBLE
-            btnSinkronisasiDataset.visibility = View.GONE  // Hide the sync button
-            btnRetryDownload.visibility = View.GONE
-
-            // Update title to reflect no new data status
-            titleTV.text = "Tidak Ada Data Panen Baru"
-//            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.bluedarklight))
-
-            AppLogger.d("No new data - hiding sinkronisasi button")
-        } else {
-            // Show sinkronisasi button when there's new data
-            closeDialogBtn.visibility = View.VISIBLE
-            btnSinkronisasiDataset.visibility = View.VISIBLE
-            btnRetryDownload.visibility = View.GONE
-
-            AppLogger.d("New data available - showing sinkronisasi button")
-        }
+        // Initially show only close and download buttons
+        closeDialogBtn.visibility = View.VISIBLE
+        btnSinkronisasiDataset.visibility = View.VISIBLE
+        btnRetryDownload.visibility = View.GONE
 
 
         // Create upload items from dataset requests (we'll reuse the existing adapter)
         val downloadItems = mutableListOf<UploadCMPItem>()
 
-        AppLogger.d("previewData $previewData")
         var itemId = 0
         datasetRequests.forEach { request ->
             val itemTitle = if (!request.estateAbbr.isNullOrEmpty()) {
@@ -6731,8 +6749,10 @@ class HomePageActivity : AppCompatActivity() {
                 "${request.dataset}"
             }
             val itemData =
-                if ((request.dataset == AppUtils.DatasetNames.sinkronisasiRestan || request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) && !previewData.isNullOrEmpty()) {
-                    previewData
+                if ((request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) && !previewDataRestan.isNullOrEmpty()) {
+                    previewDataRestan
+                } else if ((request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) && !previewDataPanen.isNullOrEmpty()) {
+                    previewDataPanen
                 } else {
                     ""
                 }
@@ -6743,7 +6763,7 @@ class HomePageActivity : AppCompatActivity() {
                     title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
-                    data = itemData,  // Use the data we just determined
+                    data = itemData,
                     type = "",
                     databaseTable = ""
                 )
@@ -6976,8 +6996,10 @@ class HomePageActivity : AppCompatActivity() {
                             val currentDateTimeIndonesia = simpleDateFormat.format(Date())
 
                             prefManager!!.lastSyncDate = currentDateTimeIndonesia
+                            prefManager!!.lastSyncDataPanenInspeksi = currentDateTimeIndonesia
 
                             _globalLastSync.value = currentDateTimeIndonesia
+                            _globalLastSyncDataPanenInspeksi.value = currentDateTimeIndonesia
                         } else {
                             // Some or all failed
                             AppLogger.d("ada yg error update dataset")
@@ -7029,7 +7051,11 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDownloads(previewData: String? = null, titleDialog: String? = null) {
+    private fun startDownloads(
+        previewDataRestan: String? = null,
+        previewDataPanen: String? = null,
+        titleDialog: String? = null
+    ) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -7098,7 +7124,12 @@ class HomePageActivity : AppCompatActivity() {
 
             if (filteredRequests.isNotEmpty()) {
                 if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
-                    startDownloadsV2(filteredRequests, previewData, titleDialog)
+                    startDownloadsV2(
+                        filteredRequests,
+                        previewDataRestan,
+                        previewDataPanen,
+                        titleDialog
+                    )
                 } else {
                     dialog.show()
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)

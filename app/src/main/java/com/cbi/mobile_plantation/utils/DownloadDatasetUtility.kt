@@ -111,25 +111,16 @@ class DownloadDatasetUtility(
         afdelingId: String
     ): Boolean {
 
-//        if (isTriggerFeatureInspection && userRole != UserRole.KERANI_PANEN) {
-//            AppLogger.d("$TAG - Inspection triggered - downloading only parameter dataset")
-//            datasets.add(
-//                DatasetRequest(
-//                    afdeling = afdelingId,
-//                    estate = estateId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-//                )
-//            )
-////            datasets.add(
-////                DatasetRequest(
-////                    regional = null,S
-////                    lastModified = null,
-////                    dataset = AppUtils.DatasetNames.parameter
-////                )
-////            )
-//            return true
-//        }
+        if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
+        }
 
         if (!isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
             datasets.add(
@@ -140,7 +131,6 @@ class DownloadDatasetUtility(
                     dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
                 )
             )
-            return true
         }
 
         if (isTriggerButtonSinkronisasiData && (userRole == UserRole.MANDOR_1 || userRole == UserRole.ASISTEN )) {
@@ -167,7 +157,6 @@ class DownloadDatasetUtility(
 
         // Handle follow-up trigger
         if (isTriggerFollowUp && userRole != UserRole.KERANI_PANEN) {
-            AppLogger.d("$TAG - Follow-up triggered - downloading only parameter dataset")
             datasets.add(
                 DatasetRequest(
                     afdeling = afdelingId,

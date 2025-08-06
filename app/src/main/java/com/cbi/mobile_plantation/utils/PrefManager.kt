@@ -244,6 +244,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var lastSyncDataPanenInspeksi: String?
+        get() = pref.getString("lastSyncDataPanenInspeksi", "")
+        set(lastSyncDataPanenInspeksi) {
+            editor.putString("lastSyncDataPanenInspeksi", lastSyncDataPanenInspeksi)
+            editor.commit()
+        }
+
     var lastModifiedDatasetBlok: String?
         get() = pref.getString("lastModifiedDatasetBlok", "")
         set(lastModifiedDatasetBlok) {
