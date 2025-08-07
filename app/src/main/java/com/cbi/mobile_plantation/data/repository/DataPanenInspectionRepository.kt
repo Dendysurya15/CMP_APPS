@@ -86,11 +86,9 @@ class DataPanenInspectionRepository(
 
         // Convert JSONObject to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
-
-        AppLogger.d("kljasldkfjalskf j")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
@@ -117,6 +115,10 @@ class DataPanenInspectionRepository(
                         }
                     }
                 }
+
+                //tambahkan kode untuk TPH agar bisa di download
+                validIds.add(5)
+                validIds.add(6)
 
                 AppLogger.d("Valid kode_inspeksi IDs (status_ppro=1): $validIds")
                 validIds
@@ -194,6 +196,11 @@ class DataPanenInspectionRepository(
                         put(today)
                     })
                 })
+
+                // ✅ NEW: Skip records where inspeksi_putaran == 2
+                put("inspeksi_putaran", JSONObject().apply {
+                    put("!=", 2)
+                })
             })
 
             // Add join if requested
@@ -252,6 +259,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 }

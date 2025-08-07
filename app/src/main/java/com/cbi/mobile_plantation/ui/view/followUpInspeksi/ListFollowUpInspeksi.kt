@@ -354,7 +354,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             addItemDecoration(DividerItemDecoration(this.context, LinearLayoutManager.VERTICAL))
         }
 
-        val headers = listOf("BLOK-TPH", "TGL INSPEKSI", "JUMLAH POKOK TEMUAN", "STATUS\nPEMULIHAN")
+        val headers = listOf("BLOK-TPH", "TGL INSPEKSI", "JUMLAH POKOK TEMUAN", "STATUS")
         updateTableHeaders(headers)
     }
 
@@ -415,13 +415,13 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         val fullMessage = "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date}"
 
         // Check status_upload to determine which alert dialog to show
-        if (inspectionPath.inspeksi.status_upload != "0") {
+        if (inspectionPath.inspeksi.inspeksi_putaran == 2) {
             // Show single action dialog for CHECK_ONLY mode (already uploaded)
             AlertDialogUtility.withSingleAction(
                 this@ListFollowUpInspeksi,
-                "Lihat Detail Follow Up", // or use stringXML(R.string.al_back)
-                "Detail Inspeksi (Read-Only)", // or use stringXML(R.string.al_failed_fetch_data)
-                "$fullMessage\n\nData ini sudah terupload dan hanya dapat dilihat.",
+                "Kembali",
+                "Detail Hasil Follow-Up",
+                "$fullMessage\n\nData ini sudah dipulihkan.",
                 "warning.json",
                 R.color.greenDarker
             ) {

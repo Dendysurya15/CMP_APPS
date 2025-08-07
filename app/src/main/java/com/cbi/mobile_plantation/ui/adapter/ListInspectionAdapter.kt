@@ -1,6 +1,9 @@
 package com.cbi.mobile_plantation.ui.adapter
 
 import android.annotation.SuppressLint
+import android.text.SpannableStringBuilder
+import android.text.style.ForegroundColorSpan
+import android.text.style.ImageSpan
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -57,6 +60,7 @@ class ListInspectionAdapter(
             }
         }
 
+        @SuppressLint("SetTextI18n")
         fun bind(item: InspectionWithDetailRelations) {
             binding.apply {
 
@@ -70,26 +74,70 @@ class ListInspectionAdapter(
                 when (featureName) {
                     AppUtils.ListFeatureNames.ListFollowUpInspeksi -> {
                         td1.text = "${item.tph?.blok_kode ?: ""}-${item.tph?.nomor ?: ""}"
-
                         td2.text = item.inspeksi.created_date
                         td3.text = item.inspeksi.jml_pkk_inspeksi.toString()
 
-                        val statusIcon = if (item.inspeksi.status_upload == "0") {
-                            R.drawable.baseline_close_24
-                        } else {
-                            R.drawable.baseline_check_box_24
+                        // Create two-line status display
+                        val pemulihan = "PEMULIHAN"
+                        val upload = "UPLOAD"
+
+                        // Determine PEMULIHAN status - check if inspeksi_putaran == 2
+                        val pemulihanIcon = if (item.inspeksi.inspeksi_putaran == 2) "✓" else "✗"
+
+                        // Determine UPLOAD status
+                        val uploadIcon = if (item.inspeksi.status_upload == "0") "✗" else "✓"
+
+                        // Create two-line text with icons
+                        val statusText = SpannableStringBuilder().apply {
+                            // PEMULIHAN line
+                            append(pemulihan)
+                            append(" ")
+                            val pemulihanStart = length
+                            append(pemulihanIcon)
+                            val pemulihanEnd = length
+
+                            // Set color for PEMULIHAN icon
+                            val pemulihanColor = if (item.inspeksi.inspeksi_putaran == 2) {
+                                ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark)
+                            } else {
+                                ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
+                            }
+
+                            setSpan(
+                                ForegroundColorSpan(pemulihanColor),
+                                pemulihanStart,
+                                pemulihanEnd,
+                                SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+
+                            append("\n")
+
+                            // UPLOAD line
+                            append(upload)
+                            append(" ")
+                            val uploadStart = length
+                            append(uploadIcon)
+                            val uploadEnd = length
+
+                            // Set color for UPLOAD icon
+                            val uploadColor = if (item.inspeksi.status_upload == "0") {
+                                ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
+                            } else {
+                                ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark)
+                            }
+
+                            setSpan(
+                                ForegroundColorSpan(uploadColor),
+                                uploadStart,
+                                uploadEnd,
+                                SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
                         }
 
-                        val iconColor = if (item.inspeksi.status_upload == "0") {
-                            ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
-                        } else {
-                            ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark)
-                        }
-
-                        td4.text = ""
+                        td4.text = statusText
+                        td4.textSize = 12f // Make text smaller
                         td4.gravity = Gravity.CENTER_VERTICAL
-                        td4.setCompoundDrawablesWithIntrinsicBounds(0, statusIcon, 0, 0)
-                        td4.compoundDrawables[1]?.setTint(iconColor)
+                        td4.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0) // Remove drawable icons
                     }
                     else -> {
                         // Default behavior for other features

@@ -133,6 +133,7 @@ class MainActivity : AppCompatActivity() {
     private fun showMainContent() {
         if (!showingSplash) return
         showingSplash = false
+        AppLogger.d("kasjdlfkjasdfl")
         startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }

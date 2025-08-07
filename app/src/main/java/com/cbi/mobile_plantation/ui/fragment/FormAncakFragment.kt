@@ -204,7 +204,7 @@ class FormAncakFragment : Fragment() {
             ),
             InputMapping(
                 R.id.lyKondisiPruningInspect,
-                "Over Pruning?",
+                "Kondisi Pruning?",
                 InputType.RADIO,
                 { currentData, value -> currentData.copy(kondisiPruning = value) },
                 { it.kondisiPruning }
@@ -335,9 +335,6 @@ class FormAncakFragment : Fragment() {
         // Check if this is follow-up inspection
         val isFollowUpInspection = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
 
-        // Don't disable lyExistsTreeInspect even for follow-up inspections
-        val shouldDisable = isFollowUpInspection && layoutId != R.id.lyExistsTreeInspect
-
         if (layoutId == R.id.lyExistsTreeInspect) {
             viewModel.isInspection.observe(viewLifecycleOwner) { isInspection ->
                 titleTextView.text = if (isInspection) "Terdapat Temuan?" else "Pokok Dipanen?"
@@ -359,15 +356,29 @@ class FormAncakFragment : Fragment() {
 
         itemList.forEach { (id, label) ->
             val idValue = id.toInt()
+
+            // Determine if this specific radio button should be disabled
+            val shouldDisableThisButton = if (isFollowUpInspection) {
+                if (layoutId == R.id.lyExistsTreeInspect) {
+                    // For lyExistsTreeInspect: only disable if there's a selection and this isn't it
+                    fieldValue != 0 && idValue != fieldValue
+                } else {
+                    // For other layouts: disable if this isn't the selected value
+                    idValue != fieldValue
+                }
+            } else {
+                false // Not follow-up inspection, don't disable
+            }
+
             val radioButton = RadioButton(layoutView.context).apply {
                 text = label
                 tag = idValue
                 textSize = 18f
-                setTextColor(if (shouldDisable) Color.GRAY else Color.BLACK)
+                setTextColor(if (shouldDisableThisButton) Color.GRAY else Color.BLACK)
                 setPadding(10, 0, 30, 0)
                 buttonTintList = ContextCompat.getColorStateList(
                     layoutView.context,
-                    if (shouldDisable) R.color.graydarker else R.color.greenDefault
+                    if (shouldDisableThisButton) R.color.graydarker else R.color.greenDefault
                 )
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -375,15 +386,15 @@ class FormAncakFragment : Fragment() {
                 )
 
                 isChecked = idValue == fieldValue
-                isEnabled = !shouldDisable  // Only disable if not lyExistsTreeInspect
+                isEnabled = !shouldDisableThisButton
 
                 if (isChecked) {
                     lastSelectedRadioButton = this
                 }
 
                 setOnClickListener {
-                    // Skip click handling if disabled (but allow lyExistsTreeInspect)
-                    if (shouldDisable) {
+                    // Skip click handling if disabled
+                    if (shouldDisableThisButton) {
                         AppLogger.d("Radio button disabled for follow-up inspection")
                         return@setOnClickListener
                     }
@@ -469,8 +480,8 @@ class FormAncakFragment : Fragment() {
 
         // Change visual appearance when disabled
         if (isFollowUpInspection) {
-            editText.setTextColor(Color.GRAY)
-            editText.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.graydarker))
+            editText.setTextColor(Color.BLACK)
+            editText.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.graylight))
             btnMinus.alpha = 0.5f
             btnPlus.alpha = 0.5f
         } else {
