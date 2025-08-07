@@ -115,20 +115,74 @@ class CameraRepository(
 
         val originalBitmap = BitmapFactory.decodeFile(photoFilePath)
 
-        // Let the orientation handler do ALL the work
+        // Get rotation angle and hand detection
         val rotationAngle = orientationHandler.getImageRotation(cameraId)
         val isLeftHanded = orientationHandler.isLikelyLeftHanded()
 
-        Log.d(TAG, "Using CameraOrientationHandler rotation: $rotationAngle°")
+        Log.d(TAG, "Original rotation from handler: $rotationAngle°")
         Log.d(TAG, "Hand detection: ${if (isLeftHanded) "LEFT" else "RIGHT"}")
+        Log.d(TAG, "Camera ID: $cameraId")
 
-        if (rotationAngle == 0) {
+        // Adjust rotation based on hand detection
+        val correctedRotation = when {
+            // Right-handed use - keep the current working logic
+            !isLeftHanded -> {
+                when {
+                    cameraId == 1 -> {
+                        when (rotationAngle) {
+                            180 -> 0    // Don't rotate if handler says 180°
+                            0 -> 180    // Rotate 180° if handler says 0°
+                            90 -> 270   // Invert 90° rotation
+                            270 -> 90   // Invert 270° rotation
+                            else -> rotationAngle
+                        }
+                    }
+                    else -> {
+                        when (rotationAngle) {
+                            180 -> 0    // Don't rotate if handler says 180°
+                            0 -> 0      // Keep as is
+                            90 -> 90    // Keep as is
+                            270 -> 270  // Keep as is
+                            else -> rotationAngle
+                        }
+                    }
+                }
+            }
+            // Left-handed use - adjust the rotation
+            else -> {
+                when {
+                    cameraId == 1 -> {
+                        // Front camera + left hand needs special handling
+                        when (rotationAngle) {
+                            180 -> 0     // Don't rotate (same as right-handed logic)
+                            0 -> 180     // Rotate 180° (same as right-handed logic)
+                            90 -> 270    // Invert rotation (same as right-handed logic)
+                            270 -> 90    // Invert rotation (same as right-handed logic)
+                            else -> rotationAngle
+                        }
+                    }
+                    else -> {
+                        when (rotationAngle) {
+                            180 -> 180   // Apply 180° rotation (opposite of right-handed)
+                            0 -> 180     // Rotate 180° when handler says 0°
+                            90 -> 270    // Invert to 270°
+                            270 -> 90    // Invert to 90°
+                            else -> rotationAngle
+                        }
+                    }
+                }
+            }
+        }
+
+        Log.d(TAG, "Corrected rotation for ${if (isLeftHanded) "LEFT" else "RIGHT"} hand: $correctedRotation°")
+
+        if (correctedRotation == 0) {
             return originalBitmap
         }
 
-        // Apply the rotation calculated by the handler
+        // Apply the corrected rotation
         val matrix = Matrix()
-        matrix.setRotate(rotationAngle.toFloat(), originalBitmap.width / 2f, originalBitmap.height / 2f)
+        matrix.setRotate(correctedRotation.toFloat(), originalBitmap.width / 2f, originalBitmap.height / 2f)
 
         return Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.width, originalBitmap.height, matrix, true)
     }

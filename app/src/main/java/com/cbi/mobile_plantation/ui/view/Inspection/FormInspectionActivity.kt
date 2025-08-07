@@ -1493,8 +1493,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             val validationResult = formAncakViewModel.validateCurrentPage(1)
 
-            AppLogger.d("df")
-
             if (!validationResult.isValid) {
                 vibrate(500)
                 AlertDialogUtility.withSingleAction(
@@ -1520,13 +1518,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                         this@FormInspectionActivity
                     )
                 } else {
-                    // Just update metadata without location
                     val currentDate =
                         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                     val updatedData = data.copy(
                         createdDate = currentDate,
                         createdBy = prefManager!!.idUserLogin,
-                        createdName = prefManager!!.nameUserLogin
+                        createdName = prefManager!!.nameUserLogin,
+                        latIssue = lat,
+                        lonIssue = lon
                     )
                     formAncakViewModel.savePageData(currentPokok, updatedData)
                     AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
@@ -1649,7 +1648,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                     val updatedData = data.copy(
                         createdDate = currentDate,
                         createdBy = prefManager!!.idUserLogin,
-                        createdName = prefManager!!.nameUserLogin
+                        createdName = prefManager!!.nameUserLogin,
+                        latIssue = lat,
+                        lonIssue = lon
                     )
                     formAncakViewModel.savePageData(currentPokok, updatedData)
                     AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
@@ -1887,14 +1888,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     throw Exception("TPH ID tidak boleh kosong")
                                 }
 
-                                val entriesWithEmptyTree1 = formData.values.filter { it.emptyTree == 1 }
+                                val entriesWithEmptyTree1 =
+                                    formData.values.filter { it.emptyTree == 1 }
 
                                 val allEntriesComplete = entriesWithEmptyTree1.all { pageData ->
-                                    val isComplete = !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
+                                    val isComplete =
+                                        !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
                                     isComplete
                                 }
 
-                                val allConditionsMet = allEntriesComplete && photoTPHFollowUp != null
+                                val allConditionsMet =
+                                    allEntriesComplete && photoTPHFollowUp != null
 
                                 val inspeksiPutaran = if (allConditionsMet) 2 else 1
 
@@ -2241,7 +2245,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             updatePhotoBadgeVisibility()
-            bottomNavInspect.visibility = View.VISIBLE
+            showWithAnimation(bottomNavInspect)
+            showWithAnimation(fabPrevFormAncak)
+            showWithAnimation(fabNextFormAncak)
             bottomSheetDialog.dismiss()
             Handler(Looper.getMainLooper()).postDelayed({
                 showViewPhotoBottomSheet(null, isInTPH, isForSelfie, isForFollowUp)
@@ -2836,6 +2842,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
 
                         if (hasFindings) {
+                            formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                                currentPokok,
+                                lat,
+                                lon,
+                                prefManager!!,
+                                this@FormInspectionActivity
+                            )
+                        }else{
+                            AppLogger.d("masuk ges $lat")
+                            AppLogger.d("masuk ndak $lon")
                             formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
                                 currentPokok,
                                 lat,
@@ -4794,8 +4810,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             AppLogger.d("After clearing - All data structures cleared")
 
             // Clear the RecyclerView but DON'T recreate the adapter
-            val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
-            val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+            val rvSelectedPemanenOtomatis =
+                findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+            val rvSelectedPemanenManual =
+                findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
             rvSelectedPemanenOtomatis.visibility = View.GONE
             rvSelectedPemanenManual.visibility = View.GONE
 
@@ -4932,15 +4950,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                             AppLogger.d("  - Successfully found employee data for: $formattedWorker")
 
                             karyawanIdMap[formattedWorker] = individualKaryawanId.toIntOrNull() ?: 0
-                            kemandoranIdMap[formattedWorker] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                            kemandoranIdMap[formattedWorker] =
+                                selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
 
                             if (selectedNik.isNotEmpty()) {
                                 karyawanIdMap[selectedNik] = individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[selectedNik] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedNik] =
+                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
                             if (selectedName.isNotEmpty()) {
-                                karyawanIdMap[selectedName] = individualKaryawanId.toIntOrNull() ?: 0
-                                kemandoranIdMap[selectedName] = selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
+                                karyawanIdMap[selectedName] =
+                                    individualKaryawanId.toIntOrNull() ?: 0
+                                kemandoranIdMap[selectedName] =
+                                    selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
                             }
 
                             val worker = Worker(individualKaryawanId, formattedWorker)
@@ -5038,7 +5060,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         "Panen sudah dilakukan ancak <b>$ancakText</b> pada <b>$finalDateText</b>. Pilih pekerja untuk inspeksi:"
                     }
 
-                    descPemanenInspeksi.text = Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
+                    descPemanenInspeksi.text =
+                        Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
                     AppLogger.d("=== POPULATING SPINNERS ===")
                     AppLogger.d("About to populate spinner with ${allAvailableWorkers.size} workers")
@@ -6507,7 +6530,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
             if (photoTPHFollowUp == null) {
-                AppLogger.d("masuk gessss")
+
                 isValid = false
                 isInTPH = true
                 isForSelfie = false
