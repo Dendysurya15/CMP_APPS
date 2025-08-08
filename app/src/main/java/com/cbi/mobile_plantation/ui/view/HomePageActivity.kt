@@ -6715,6 +6715,7 @@ class HomePageActivity : AppCompatActivity() {
 
                     prefManager!!.lastSyncDate = currentDateTimeIndonesia
                     prefManager!!.lastSyncDataPanenInspeksi = currentDateTimeIndonesia
+                    prefManager!!.lastSyncFollowUpInspeksi = currentDateTimeIndonesia
 
                     _globalLastSync.value = currentDateTimeIndonesia
                     _globalLastSyncDataPanenInspeksi.value = currentDateTimeIndonesia

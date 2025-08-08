@@ -42,7 +42,7 @@ abstract class PanenDao {
         ancak: Int
     ): PanenEntity?
 
-    @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
+    @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated and isPushedToServer != 1)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
 
     @Query("SELECT id FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
