@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -80,6 +81,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _panenCountArchived = MutableLiveData<Int>()
     val panenCountArchived: LiveData<Int> = _panenCountArchived
+
+    private val _panenTransferInspeksi = MutableLiveData<List<PanenEntityWithRelations>>()
+    val panenTransferInspeksi: LiveData<List<PanenEntityWithRelations>> =
+        _panenTransferInspeksi
 
 
     // ViewModel.kt
@@ -349,6 +354,15 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo? {
         return repository.getTPHAndBlokInfo(id)
+    }
+
+    fun loadDataPanenTransferInspeksi(
+        datetime: String? = null,
+        archive_transfer_inspeksi: Int? = null
+    ) {
+        viewModelScope.launch {
+            _panenTransferInspeksi.value = repository.getPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+        }
     }
 
     fun loadActivePanenRestan(status: Int = 0) {

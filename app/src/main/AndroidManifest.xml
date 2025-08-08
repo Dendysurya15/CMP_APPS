@@ -14,7 +14,11 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.MANA" />
-    <uses-feature android:name="android.hardware.touchscreen.multitouch" android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.touchscreen.multitouch"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -28,7 +32,6 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -49,17 +52,17 @@
         android:theme="@style/Theme.Cmp_project"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-
+        <activity
+            android:name=".ui.view.Inspection.TransferInspeksiActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.view.followUpInspeksi.FollowUpInspeksi"
             android:exported="false"
             android:label="@string/title_activity_follow_up_inspeksi" />
-
         <activity
             android:name=".ui.view.followUpInspeksi.ListFollowUpInspeksi"
             android:exported="false"
             android:label="@string/title_activity_follow_up_inspeksi" />
-
         <activity
             android:name=".ui.view.Absensi.ScanAbsensiActivity"
             android:exported="false" /> <!-- <activity -->
@@ -82,7 +85,7 @@
         <activity
             android:name=".ui.view.Absensi.ListAbsensiActivity"
             android:exported="false"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait" />
         <activity
             android:name=".ui.view.weighBridge.ListHistoryWeighBridgeActivity"
             android:exported="false" />
@@ -96,8 +99,8 @@
         <activity
             android:name=".ui.view.espb.FormESPBActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.view.ListTPHApproval"
             android:exported="false" />
@@ -107,8 +110,8 @@
         <activity
             android:name=".ui.view.panenTBS.FeaturePanenTBSActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.view.panenTBS.ListPanenTBSActivity"
             android:exported="false" />
@@ -135,17 +138,19 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".utils.NotificationReceiver"
+        <receiver
+            android:name=".utils.NotificationReceiver"
             android:enabled="true"
             android:exported="false" />
-
-        <receiver android:name=".utils.BootReceiver"
+        <receiver
+            android:name=".utils.BootReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter android:priority="1000">
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.PACKAGE_REPLACED" />
+
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>

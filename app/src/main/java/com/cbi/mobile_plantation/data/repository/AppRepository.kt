@@ -190,6 +190,16 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getPanenForTransferInspeksi(date: String? = null,
+                                            archive_transfer_inspeksi: Int? = null): List<PanenEntityWithRelations> {
+        return try {
+            panenDao.getPanenForTransferInspeksi(date, archive_transfer_inspeksi)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection by ID: ${e.message}")
+            emptyList()
+        }
+    }
+
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,

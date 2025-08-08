@@ -247,13 +247,135 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/parentCardStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        android:orientation="vertical"
+
+        app:layout_constraintTop_toBottomOf="@id/filterDateContainer">
+
+        <HorizontalScrollView
+            android:id="@+id/horizontalCardFeature"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fillViewport="true"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/list_menu_upload_data"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginVertical="5dp"
+                android:orientation="horizontal"
+                android:paddingEnd="20dp">
+
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_item_tersimpan"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:foreground="?attr/selectableItemBackground"
+                    app:cardBackgroundColor="@color/bgSelectWorkerGreen"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/strokeSelectWorkerGreen">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginVertical="10dp"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="10dp">
+
+                        <TextView
+                            android:id="@+id/tv_card_tersimpan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:text="Tersimpan"
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/m"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/counter_item_tersimpan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:paddingHorizontal="10dp"
+                            android:text="0"
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/m"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_item_terscan"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginLeft="5dp"
+                    android:foreground="?attr/selectableItemBackground"
+                    app:cardBackgroundColor="@color/graylight"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/graylightDarker">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginVertical="10dp"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="10dp">
+
+                        <TextView
+                            android:id="@+id/tv_card_terscan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:text="Sudah Scan"
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/m"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/counter_item_terscan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:paddingHorizontal="10dp"
+                            android:text="0"
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/m"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </HorizontalScrollView>
+
+
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/filterDateContainer">
+        app:layout_constraintTop_toBottomOf="@id/parentCardStatus">
 
         <!-- Fixed Header -->
         <include
@@ -304,5 +426,21 @@
         app:maxImageSize="30dp"
         app:tint="@android:color/white"
         tools:ignore="ContentDescription" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnGenerateQRTPH"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="30dp"
+        android:layout_marginBottom="30dp"
+        android:src="@drawable/baseline_qr_code_scanner_24"
+        android:tooltipText="Generate QR TPH"
+        android:visibility="gone"
+        app:backgroundTint="@color/bluedarklight"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:maxImageSize="30dp"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

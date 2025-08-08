@@ -21,7 +21,6 @@ import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.LoginActivity
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
@@ -133,8 +132,7 @@ class MainActivity : AppCompatActivity() {
     private fun showMainContent() {
         if (!showingSplash) return
         showingSplash = false
-        AppLogger.d("kasjdlfkjasdfl")
-        startActivity(Intent(this, LoginActivity::class.java))
+        startActivity(Intent(this, HomePageActivity::class.java))
         finish()
     }
 

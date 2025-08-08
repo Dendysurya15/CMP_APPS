@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.database
 
 import androidx.room.*
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -75,6 +76,16 @@ abstract class PanenDao {
 """)
     abstract suspend fun getCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
+
+    @Query("""
+    SELECT * FROM ${AppUtils.DatabaseTables.PANEN}
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+    AND archive_transfer_inspeksi = :archive_transfer_inspeksi
+""")
+    abstract suspend fun getPanenForTransferInspeksi(
+        date: String? = null,
+        archive_transfer_inspeksi: Int? = null
+    ): List<PanenEntityWithRelations>
 
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 1 AND status_espb = 0 AND date(date_created) = date('now', 'localtime')")
     abstract suspend fun getCountArchive(): Int

@@ -339,7 +339,7 @@ class ListInspectionActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         adapter = ListInspectionAdapter(
             "",
-            onItemClick = { inspectionPath ->
+            onInspectionItemClick = { inspectionPath ->
                 showDetailData(inspectionPath)
             },
         )

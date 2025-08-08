@@ -229,6 +229,7 @@ object AppUtils {
         const val ScanPanenMPanen = "Scan Mandor Panen"
         const val DaftarHektarPanen = "Daftar Hektar Panen"
         const val TransferHektarPanen = "Transfer Hektar Panen"
+        const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
     }
 

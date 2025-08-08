@@ -52,6 +52,7 @@ import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
+import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -106,11 +107,24 @@ class ListFollowUpInspeksi : AppCompatActivity() {
     private lateinit var fabDelListInspect: FloatingActionButton
     private var globalFormattedDate: String = ""
     private lateinit var inspectionViewModel: InspectionViewModel
-    private val selectedPathIds = mutableListOf<String>()
+    private lateinit var panenViewModel: PanenViewModel
     private lateinit var filterAllData: CheckBox
     private var selectedDay: Int = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
     private var selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH) + 1
     private var selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR)
+    private lateinit var parentCardStatus: LinearLayout
+    private lateinit var horizontalCardFeature: HorizontalScrollView
+    private lateinit var listMenuUploadData: LinearLayout
+
+    // "Tersimpan" card properties
+    private lateinit var cardItemTersimpan: MaterialCardView
+    private lateinit var tvCardTersimpan: TextView
+    private lateinit var counterItemTersimpan: TextView
+
+    // "Sudah Scan" card properties
+    private lateinit var cardItemTerscan: MaterialCardView
+    private lateinit var tvCardTerscan: TextView
+    private lateinit var counterItemTerscan: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,7 +151,13 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         setupRecyclerView()
 
         setupObservers()
-        loadParameterInspeksi()
+
+        if (featureName != AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+            loadParameterInspeksi()
+        } else {
+            setupVisibilityStatusHorizontalCard()
+            setupCardListeners()
+        }
 
         filterAllData = findViewById(R.id.calendarCheckbox)
         filterAllData.setOnCheckedChangeListener { _, isChecked ->
@@ -150,17 +170,35 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 nameFilterDate.text = "Semua Data"
                 dateButton.isEnabled = false
                 dateButton.alpha = 0.5f
-                inspectionViewModel.loadInspectionPaths(null, 1)
+
+                // Check feature type
+                if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+                    // Load panen data based on current state
+                    panenViewModel.loadDataPanenTransferInspeksi(null, currentState)
+                } else {
+                    // Load inspection data
+                    inspectionViewModel.loadInspectionPaths(null, 1)
+                }
             } else {
                 loadingDialog.show()
                 loadingDialog.setMessage("Sedang mengambil data...", true)
                 val displayDate = ListPanenTBSActivity().formatGlobalDate(globalFormattedDate)
                 dateButton.text = displayDate
-                inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
+
+                // Check feature type
+                if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+                    // Load panen data based on current state
+                    panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, currentState)
+                } else {
+                    // Load inspection data
+                    inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
+                }
+
                 nameFilterDate.text = displayDate
                 dateButton.isEnabled = true
                 dateButton.alpha = 1f // Make the button appear darker
             }
+
             val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
             removeFilterDate.setOnClickListener {
                 loadingDialog.show()
@@ -175,17 +213,28 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     Calendar.getInstance().get(Calendar.YEAR)
                 )
                 AppUtils.setSelectedDate(todayBackendDate)
-                inspectionViewModel.loadInspectionPaths(todayBackendDate, 1)
+
+                // Check feature type
+                if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+                    // Load panen data based on current state
+                    panenViewModel.loadDataPanenTransferInspeksi(todayBackendDate, currentState)
+                } else {
+                    // Load inspection data
+                    inspectionViewModel.loadInspectionPaths(todayBackendDate, 1)
+                }
+
                 val todayDisplayDate = AppUtils.getTodaysDate()
                 dateButton.text = todayDisplayDate
             }
         }
 
-
-
         currentState = 0
         lifecycleScope.launch {
-            inspectionViewModel.loadInspectionPaths(globalFormattedDate,1 )
+            if (featureName != AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+                inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
+            } else {
+                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
+            }
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -196,6 +245,73 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 finishAffinity()
             }
         })
+    }
+
+    private fun setupVisibilityStatusHorizontalCard() {
+        parentCardStatus.visibility = View.VISIBLE
+    }
+
+    private fun setupCardListeners() {
+        cardItemTersimpan.setOnClickListener {
+            loadingDialog.setMessage("Loading data tersimpan", true)
+            adapter.updateData(emptyList())
+            currentState = 0
+            setActiveCard(cardItemTersimpan)
+            loadingDialog.show()
+
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            adapter.updateArchiveState(currentState)
+
+
+            // Check if filterAllData is checked
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
+            panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
+
+        }
+
+        cardItemTerscan.setOnClickListener {
+            loadingDialog.setMessage("Loading data terscan", true)
+            adapter.updateData(emptyList())
+            currentState = 1
+            setActiveCard(cardItemTerscan)
+            loadingDialog.show()
+
+
+            val isAllDataFiltered = filterAllData.isChecked
+            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
+
+            tvEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+
+            adapter.updateArchiveState(currentState)
+
+
+
+
+            panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 1)
+        }
+    }
+
+    private fun setActiveCard(activeCard: MaterialCardView) {
+
+        cardItemTersimpan.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
+        cardItemTerscan.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+            strokeColor = ContextCompat.getColor(context, R.color.graylightDarker)
+        }
+
+        // Set active card colors
+        activeCard.apply {
+            setCardBackgroundColor(ContextCompat.getColor(context, R.color.bgSelectWorkerGreen))
+            strokeColor = ContextCompat.getColor(context, R.color.strokeSelectWorkerGreen)
+        }
     }
 
     private fun setupHeader() {
@@ -223,6 +339,9 @@ class ListFollowUpInspeksi : AppCompatActivity() {
     private fun initViewModel() {
         val factory = InspectionViewModel.InspectionViewModelFactory(application)
         inspectionViewModel = ViewModelProvider(this, factory)[InspectionViewModel::class.java]
+
+        val factory2 = PanenViewModel.PanenViewModelFactory(application)
+        panenViewModel = ViewModelProvider(this, factory2)[PanenViewModel::class.java]
     }
 
     private fun initializeViews() {
@@ -231,6 +350,20 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         tvEmptyState = findViewById(R.id.tvEmptyDataListInspect)
         recyclerView = findViewById(R.id.rvTableDataListInspect)
         fabDelListInspect = findViewById(R.id.fabDelListInspect)
+
+        parentCardStatus = findViewById(R.id.parentCardStatus)
+        horizontalCardFeature = findViewById(R.id.horizontalCardFeature)
+        listMenuUploadData = findViewById(R.id.list_menu_upload_data)
+
+        // Initialize "Tersimpan" card elements
+        cardItemTersimpan = findViewById(R.id.card_item_tersimpan)
+        tvCardTersimpan = findViewById(R.id.tv_card_tersimpan)
+        counterItemTersimpan = findViewById(R.id.counter_item_tersimpan)
+
+        // Initialize "Sudah Scan" card elements
+        cardItemTerscan = findViewById(R.id.card_item_terscan)
+        tvCardTerscan = findViewById(R.id.tv_card_terscan)
+        counterItemTerscan = findViewById(R.id.counter_item_terscan)
     }
 
     fun openDatePicker(view: View) {
@@ -321,7 +454,6 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Sedang mengambil data...", true)
 
-
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
         val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
         val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_date)
@@ -329,24 +461,66 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         val displayDate = AppUtils.formatSelectedDateForDisplay(selectedDate)
         nameFilterDate.text = displayDate
 
-
-        AppLogger.d(selectedDate)
-        inspectionViewModel.loadInspectionPaths(selectedDate, 1)
+        // Check feature type and load appropriate data
+        if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+            // Load panen data based on current state
+            panenViewModel.loadDataPanenTransferInspeksi(selectedDate, currentState)
+        } else {
+            // Load inspection data
+            inspectionViewModel.loadInspectionPaths(selectedDate, 1)
+        }
 
         removeFilterDate.setOnClickListener {
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang mengambil data...", true)
+            if (filterAllData.isChecked) {
+                filterAllData.isChecked = false
+            }
+            filterDateContainer.visibility = View.GONE
+            val todayBackendDate = AppUtils.formatDateForBackend(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+            AppUtils.setSelectedDate(todayBackendDate)
 
+            // Check feature type
+            if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+                // Load panen data based on current state
+                panenViewModel.loadDataPanenTransferInspeksi(todayBackendDate, currentState)
+            } else {
+                // Load inspection data
+                inspectionViewModel.loadInspectionPaths(todayBackendDate, 1)
+            }
+
+            val todayDisplayDate = AppUtils.getTodaysDate()
+            dateButton.text = todayDisplayDate
         }
 
         filterDateContainer.visibility = View.VISIBLE
     }
 
+
     private fun setupRecyclerView() {
-        adapter = ListInspectionAdapter(
-            featureName = AppUtils.ListFeatureNames.ListFollowUpInspeksi,
-            onItemClick = { inspectionPath ->
-                showDetailData(inspectionPath)
-            },
-        )
+        adapter = if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+            ListInspectionAdapter(
+                featureName = featureName,
+                onInspectionItemClick = { inspectionPath ->
+                    // Handle inspection click if needed for TransferInspeksiPanen
+                },
+                onPanenItemClick = { panenItem ->
+                    // Handle panen item click
+//                    handlePanenItemClick(panenItem)
+                }
+            )
+        } else {
+            ListInspectionAdapter(
+                featureName = featureName,
+                onInspectionItemClick = { inspectionPath ->
+                    showDetailData(inspectionPath)
+                }
+            )
+        }
 
         recyclerView.apply {
             layoutManager = LinearLayoutManager(this@ListFollowUpInspeksi)
@@ -354,7 +528,13 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             addItemDecoration(DividerItemDecoration(this.context, LinearLayoutManager.VERTICAL))
         }
 
-        val headers = listOf("BLOK-TPH", "TGL INSPEKSI", "JUMLAH POKOK TEMUAN", "STATUS")
+
+        var headers: MutableList<String> = mutableListOf()
+        if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+            headers = mutableListOf("BLOK-TPH", "TANGGAL", "TIPE/\nANCAK", "KIRIM PABRIK")
+        } else {
+            headers = mutableListOf("BLOK-TPH", "TGL INSPEKSI", "JUMLAH POKOK TEMUAN", "STATUS")
+        }
         updateTableHeaders(headers)
     }
 
@@ -363,25 +543,63 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         loadingDialog.show()
         loadingDialog.setMessage("Loading data...")
 
-        inspectionViewModel.inspectionWithDetails.observe(this) { inspectionPaths ->
+        if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+            panenViewModel.panenTransferInspeksi.observe(this) { panenData ->
+                adapter.setPanenData(panenData)
+                updateCounters() // Update card counters
 
+                Handler(Looper.getMainLooper()).postDelayed({
+                    loadingDialog.dismiss()
 
-            AppLogger.d("inspectionPaths $inspectionPaths")
-            adapter.setData(inspectionPaths)
-            Handler(Looper.getMainLooper()).postDelayed({
-                loadingDialog.dismiss()
-
-                lifecycleScope.launch {
-                    if (inspectionPaths.isNotEmpty()) {
-                        tvEmptyState.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
-                    } else {
-                        tvEmptyState.text = "No saved data available"
-                        tvEmptyState.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
+                    lifecycleScope.launch {
+                        if (panenData.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
+                        } else {
+                            tvEmptyState.text = "Tidak ada data pencarian"
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                        }
                     }
-                }
-            }, 500)
+                }, 500)
+            }
+
+
+        } else {
+            // Observer for inspection data (original code)
+            inspectionViewModel.inspectionWithDetails.observe(this) { inspectionPaths ->
+                adapter.setData(inspectionPaths)
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    loadingDialog.dismiss()
+
+                    lifecycleScope.launch {
+                        if (inspectionPaths.isNotEmpty()) {
+                            tvEmptyState.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
+                        } else {
+                            tvEmptyState.text = "Tidak ada data pencarian"
+                            tvEmptyState.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                        }
+                    }
+                }, 500)
+            }
+        }
+    }
+
+    private fun updateCounters() {
+        if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
+            // Update the counter values based on your panen data
+            // You'll need to implement these methods in your ViewModel
+
+//            lifecycleScope.launch {
+//                val savedCount = panenViewModel.getSavedPanenCount() // Implement this
+//                val scannedCount = panenViewModel.getScannedPanenCount() // Implement this
+//
+//                counterItemTersimpan.text = savedCount.toString()
+//                counterItemTerscan.text = scannedCount.toString()
+//            }
         }
     }
 
@@ -412,7 +630,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
     @SuppressLint("InflateParams", "SetTextI18n", "MissingInflatedId", "Recycle")
     private fun showDetailData(inspectionPath: InspectionWithDetailRelations) {
-        val fullMessage = "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date}"
+        val fullMessage =
+            "Anda akan melihat detail inspeksi dari ${inspectionPath.tph!!.blok_kode} - TPH ${inspectionPath.tph.nomor} yang sudah dilakukan pada ${inspectionPath.inspeksi.created_date}"
 
         // Check status_upload to determine which alert dialog to show
         if (inspectionPath.inspeksi.inspeksi_putaran == 2) {
@@ -451,8 +670,6 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             )
         }
     }
-
-
 
 
 }

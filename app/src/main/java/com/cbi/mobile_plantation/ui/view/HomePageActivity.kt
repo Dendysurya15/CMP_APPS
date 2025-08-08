@@ -778,7 +778,17 @@ class HomePageActivity : AppCompatActivity() {
                 count = countPanenTPH.toString(),
                 functionDescription = "Transfer data dari kerani panen ke mandor panen untuk input hektar panen",
                 displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = AppUtils.ListFeatureNames.TransferInspeksiPanen,
+                featureNameBackgroundColor = R.color.graytextdark,
+                iconResource = null,
+                count = countPanenTPH.toString(),
+                functionDescription = "Transfer data dari kerani panen untuk hasil inspeksi H+0",
+                displayType = DisplayType.COUNT
             )
+
         )
 
         fun getFilteredFeaturesByJabatan(jabatan: String): List<FeatureCard> {
@@ -825,6 +835,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AsistensiEstateLain },
                     features.find { it.featureName == AppUtils.ListFeatureNames.TransferHektarPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
@@ -1727,6 +1738,14 @@ class HomePageActivity : AppCompatActivity() {
             AppUtils.ListFeatureNames.TransferHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, TransferHektarPanenActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            AppUtils.ListFeatureNames.TransferInspeksiPanen -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListFollowUpInspeksi::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }

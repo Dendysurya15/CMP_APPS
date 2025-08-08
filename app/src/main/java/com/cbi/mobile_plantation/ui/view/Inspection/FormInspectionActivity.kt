@@ -93,8 +93,6 @@ import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter.Companion.CAMERA_PERMISSION_REQUEST_CODE
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi.LatLon
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi.TrackingPath
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
@@ -5988,6 +5986,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
     }
+
+    data class TrackingPath(
+        val start: LatLon,
+        val end: LatLon
+    )
+
+    data class LatLon(
+        val lat: Double,
+        val lon: Double
+    )
 
     private fun parseTrackingPath(trackingPathJson: String?): TrackingPath? {
         return try {
