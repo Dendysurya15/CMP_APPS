@@ -151,7 +151,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
                 // Update base URL with mill IP
                 StagingApiClient.updateBaseUrl("http://$millIP:3005")
-//                StagingApiClient.updateBaseUrl("http://10.9.116.175:8000")
+//                StagingApiClient.updateBaseUrl("http://10.9.116.125:3005")
 
                 // Create request body with raw JSON
                 val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())
