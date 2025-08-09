@@ -18,6 +18,7 @@ import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,6 +86,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenTransferInspeksi = MutableLiveData<List<PanenEntityWithRelations>>()
     val panenTransferInspeksi: LiveData<List<PanenEntityWithRelations>> =
         _panenTransferInspeksi
+
+    private val _countPanenTransferInspeksi = MutableLiveData<Pair<Int, Int>>() // Pair of (state, count)
+    val countPanenTransferInspeksi: LiveData<Pair<Int, Int>> = _countPanenTransferInspeksi
+
 
 
     // ViewModel.kt
@@ -365,6 +370,16 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadCountTransferInspeksi(
+        datetime: String? = null,
+        archive_transfer_inspeksi: Int
+    ) {
+        viewModelScope.launch {
+            val count = repository.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+            _countPanenTransferInspeksi.value = Pair(archive_transfer_inspeksi, count)
+        }
+    }
+
     fun loadActivePanenRestan(status: Int = 0) {
         viewModelScope.launch {
             repository.getActivePanenRestan(status)
@@ -432,6 +447,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun changeStatusTransferRestan(id: Int) {
         viewModelScope.launch {
             repository.changeStatusTransferRestan(id)
+            loadAllPanen() // Refresh the data
+        }
+    }
+
+    fun changeStatusTransferInspeksiPanen(id: Int) {
+        viewModelScope.launch {
+            repository.changeStatusTransferInspeksiPanen(id)
             loadAllPanen() // Refresh the data
         }
     }

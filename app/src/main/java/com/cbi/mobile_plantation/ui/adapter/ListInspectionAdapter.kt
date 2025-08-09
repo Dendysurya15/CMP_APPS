@@ -250,7 +250,7 @@ class ListInspectionAdapter(
                 td1.visibility = View.VISIBLE
                 td2.visibility = View.VISIBLE
                 td3.visibility = View.VISIBLE
-                td4.visibility = View.VISIBLE
+                td4.visibility = View.GONE
                 td5.visibility = View.GONE
 
                 // Cast to PanenEntityWithRelations
@@ -272,14 +272,6 @@ class ListInspectionAdapter(
                     }
                     td3.text = "$tipeAncak\nANCAK ${panen.ancak}"
 
-                    val jjgKirim = try {
-                        val jjgJson = JSONObject(panen.jjg_json)
-                        val totalJjg = jjgJson.optInt("KP", 0)
-                        totalJjg.toString()
-                    } catch (e: Exception) {
-                        "0"
-                    }
-                    td4.text = jjgKirim
                 }
             }
         }

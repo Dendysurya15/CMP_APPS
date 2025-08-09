@@ -87,6 +87,16 @@ abstract class PanenDao {
         archive_transfer_inspeksi: Int? = null
     ): List<PanenEntityWithRelations>
 
+    @Query("""
+    SELECT COUNT(*) FROM panen_table 
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+    AND archive_transfer_inspeksi = :archive_transfer_inspeksi
+""")
+    abstract suspend fun getCountPanenForTransferInspeksi(
+        date: String? = null,
+        archive_transfer_inspeksi: Int
+    ): Int
+
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 1 AND status_espb = 0 AND date(date_created) = date('now', 'localtime')")
     abstract suspend fun getCountArchive(): Int
 
@@ -156,6 +166,9 @@ abstract class PanenDao {
 
     @Query("UPDATE panen_table SET status_transfer_restan = 1 WHERE id = :id")
     abstract fun changeStatusTransferRestan(id: Int): Int
+
+    @Query("UPDATE panen_table SET archive_transfer_inspeksi = 1 WHERE id = :id")
+    abstract fun changeStatusTransferInspeksiPanen(id: Int): Int
 
     @Query("UPDATE panen_table SET archive_mpanen = 1 WHERE id = :id")
     abstract fun archiveMpanenByID(id: Int): Int

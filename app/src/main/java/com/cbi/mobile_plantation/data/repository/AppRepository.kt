@@ -200,6 +200,13 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getCountPanenForTransferInspeksi(
+        datetime: String? = null,
+        archive_transfer_inspeksi: Int
+    ): Int {
+        return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+    }
+
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
@@ -1184,6 +1191,10 @@ class AppRepository(context: Context) {
 
     suspend fun changeStatusTransferRestan(id: Int) = withContext(Dispatchers.IO) {
         panenDao.changeStatusTransferRestan(id)
+    }
+
+    suspend fun changeStatusTransferInspeksiPanen(id: Int) = withContext(Dispatchers.IO) {
+        panenDao.changeStatusTransferInspeksiPanen(id)
     }
 
     suspend fun archiveMpanenByID(id: Int) = withContext(Dispatchers.IO) {
