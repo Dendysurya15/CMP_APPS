@@ -76,9 +76,11 @@ abstract class AbsensiDao {
         karyawan_msk_id = :mskId,
         karyawan_msk_nama = :mskNama,
         karyawan_msk_nik = :mskNik,
+        karyawan_msk_work_location = :mskWork,
         karyawan_tdk_msk_id = :tdkMskId,
         karyawan_tdk_msk_nama = :tdkMskNama,
         karyawan_tdk_msk_nik = :tdkMskNik,
+        karyawan_tdk_msk_work_location = :tdkMskWork,
         status_upload = :statusUpload
     WHERE id = :id
 """)
@@ -87,9 +89,11 @@ abstract class AbsensiDao {
         mskId: String,
         mskNama: String,
         mskNik: String,
+        mskWork: String,
         tdkMskId: String,
         tdkMskNama: String,
         tdkMskNik: String,
+        tdkMskWork: String,
         statusUpload: Int
     )
 

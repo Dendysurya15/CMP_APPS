@@ -2017,7 +2017,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
                                                     ?: ""),
                                                 "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
-                                                    ?: "")
+                                                    ?: ""),
+                                                "karyawan_msk_work_location" to (absensiWithRelations.absensi.karyawan_msk_work_location ?: ""),
+                                                "karyawan_tdk_msk_work_location" to (absensiWithRelations.absensi.karyawan_tdk_msk_work_location ?: "")
                                             )
 
                                             // Return the AbsensiDataRekap object
@@ -2041,6 +2043,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: "",
                                                 karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
                                                     ?: "",
+                                                karyawan_msk_work_location = absensiWithRelations.absensi.karyawan_msk_work_location ?: "", // ✅
+                                                karyawan_tdk_msk_work_location = absensiWithRelations.absensi.karyawan_tdk_msk_work_location ?: "", // ✅
                                                 status_upload = absensiWithRelations.absensi.status_upload
                                             )
                                         } catch (e: Exception) {
@@ -2060,6 +2064,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_tdk_msk_nama = "",
                                                 karyawan_msk_nik = "",
                                                 karyawan_tdk_msk_nik = "",
+                                                karyawan_msk_work_location = "",
+                                                karyawan_tdk_msk_work_location = "",
                                                 status_upload = 0
                                             )
                                         }

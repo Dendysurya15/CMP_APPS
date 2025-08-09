@@ -47,6 +47,8 @@ data class AbsensiDataRekap(
     val karyawan_tdk_msk_nama: String,
     val karyawan_msk_nik: String,
     val karyawan_tdk_msk_nik: String,
+    val karyawan_msk_work_location: String? = "",
+    val karyawan_tdk_msk_work_location: String? = "",
     val status_upload: Int
 )
 
@@ -174,6 +176,7 @@ class ListAbsensiAdapter(private val context: Context,
         val nik: String,
         val name: String,
         var status: String, // Hadir, Mangkir, Sakit, Izin, Cuti
+        var workLocation: String? = "",// Pruning, Panen, Rawat, N/A (for non-present employees)
         val kemandoranKey: String? = null
     )
 
@@ -183,11 +186,14 @@ class ListAbsensiAdapter(private val context: Context,
     ) : RecyclerView.Adapter<EditAttendanceAdapter.EditAttendanceViewHolder>() {
 
         private val attendanceStatuses = listOf("Hadir", "Mangkir", "Sakit", "Izin", "Cuti")
+        private val workLocations = listOf("Panen", "Potong Buah", "Gardan", "Supir", "Rawat Jalan", "Pruning", "Perbaikan Unit", "Jangkos", "Perawatan")
 
         class EditAttendanceViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             val tvEmployeeName: TextView = itemView.findViewById(R.id.tvEmployeeName)
             val spAttendanceStatus: MaterialSpinner = itemView.findViewById(R.id.spAttendanceStatus)
+            val spWorkLocationStatus: MaterialSpinner = itemView.findViewById(R.id.spWorkLocationStatus)
             val cardView: MaterialCardView = itemView.findViewById(R.id.MCVSpinner)
+            val cardViewWorkLocation: MaterialCardView = itemView.findViewById(R.id.MCVSpinnerWorkLocation)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EditAttendanceViewHolder {
@@ -202,23 +208,70 @@ class ListAbsensiAdapter(private val context: Context,
             // Display name with NIK on new line
             holder.tvEmployeeName.text = "${employee.name}\n${employee.nik}"
 
-            // Set up spinner with attendance statuses
+            // Set up attendance status spinner
             holder.spAttendanceStatus.setItems(attendanceStatuses)
 
-            // Set current selection based on employee status
-            val currentIndex = attendanceStatuses.indexOf(employee.status)
-            if (currentIndex != -1) {
-                holder.spAttendanceStatus.selectedIndex = currentIndex
+            // Set up work location spinner
+            holder.spWorkLocationStatus.setItems(workLocations)
+
+            // Set current selection for attendance status
+            val currentAttendanceIndex = attendanceStatuses.indexOf(employee.status)
+            if (currentAttendanceIndex != -1) {
+                holder.spAttendanceStatus.selectedIndex = currentAttendanceIndex
             }
 
-            // Set initial border color based on current status
+            // Set current selection for work location if employee is present
+            if (employee.status == "Hadir" && employee.workLocation != "N/A") {
+                val currentWorkLocationIndex = workLocations.indexOf(employee.workLocation)
+                if (currentWorkLocationIndex != -1) {
+                    holder.spWorkLocationStatus.selectedIndex = currentWorkLocationIndex
+                } else {
+                    // If work location is not in the list, set to first option
+                    holder.spWorkLocationStatus.selectedIndex = 0
+                    employee.workLocation = workLocations[0]
+                }
+            }
+
+            // Set initial visibility and border color
+            updateWorkLocationVisibility(holder, employee.status)
             updateCardBorderColor(holder.cardView, employee.status)
 
-            // Handle spinner selection change
+            // Handle attendance status spinner selection change
             holder.spAttendanceStatus.setOnItemSelectedListener { _, _, _, item ->
                 val newStatus = item.toString()
                 employee.status = newStatus
+
+                // Update work location visibility and reset if necessary
+                updateWorkLocationVisibility(holder, newStatus)
+
+                if (newStatus != "Hadir") {
+                    // If not present, set work location to N/A
+                    employee.workLocation = "N/A"
+                } else {
+                    // If present and work location was N/A, set to first work location
+                    if (employee.workLocation == "N/A") {
+                        employee.workLocation = workLocations[0]
+                        holder.spWorkLocationStatus.selectedIndex = 0
+                    }
+                }
+
                 updateCardBorderColor(holder.cardView, newStatus)
+            }
+
+            // Handle work location spinner selection change
+            holder.spWorkLocationStatus.setOnItemSelectedListener { _, _, _, item ->
+                if (employee.status == "Hadir") {
+                    employee.workLocation = item.toString()
+                }
+            }
+        }
+
+        private fun updateWorkLocationVisibility(holder: EditAttendanceViewHolder, status: String) {
+            // Only show work location spinner for "Hadir" status
+            if (status == "Hadir") {
+                holder.cardViewWorkLocation.visibility = View.VISIBLE
+            } else {
+                holder.cardViewWorkLocation.visibility = View.GONE
             }
         }
 
@@ -249,6 +302,475 @@ class ListAbsensiAdapter(private val context: Context,
         fun getUpdatedEmployees(): List<EmployeeAttendance> = employees
     }
 
+    private fun parseNewAttendanceDataFromSeparateFields(
+        idData: String?,
+        namaData: String?,
+        nikData: String?,
+        workLocationData: String? = null
+    ): List<EmployeeAttendance> {
+        if (idData.isNullOrEmpty() || namaData.isNullOrEmpty() || nikData.isNullOrEmpty()) {
+            return emptyList()
+        }
+
+        val employeeList = mutableListOf<EmployeeAttendance>()
+
+        AppLogger.d("=== PARSING ATTENDANCE DATA ===")
+        AppLogger.d("ID Data: $idData")
+        AppLogger.d("Nama Data: $namaData")
+        AppLogger.d("NIK Data: $nikData")
+        AppLogger.d("Work Location Data: $workLocationData")
+        AppLogger.d("===============================")
+
+        try {
+            val idJson = JSONObject(idData)
+            val namaJson = JSONObject(namaData)
+            val nikJson = JSONObject(nikData)
+
+            // FIXED: Handle work location data properly, even if empty/null
+            val workLocationJson = if (!workLocationData.isNullOrEmpty() && workLocationData != "{}") {
+                try {
+                    JSONObject(workLocationData)
+                } catch (e: Exception) {
+                    AppLogger.e("Error parsing work location JSON: ${e.message}")
+                    null
+                }
+            } else {
+                AppLogger.d("Work location data is empty or null")
+                null
+            }
+
+            // Status mapping
+            val statusMap = mapOf(
+                "h" to "Hadir",
+                "m" to "Mangkir",
+                "s" to "Sakit",
+                "i" to "Izin",
+                "c" to "Cuti"
+            )
+
+            // Process each status that exists in the JSON
+            statusMap.forEach { (statusKey, statusName) ->
+                if (idJson.has(statusKey) && namaJson.has(statusKey) && nikJson.has(statusKey)) {
+                    val idStatusJson = idJson.getJSONObject(statusKey)
+                    val namaStatusJson = namaJson.getJSONObject(statusKey)
+                    val nikStatusJson = nikJson.getJSONObject(statusKey)
+                    val workLocationStatusJson = workLocationJson?.optJSONObject(statusKey)
+
+                    AppLogger.d("Processing status: $statusName ($statusKey)")
+
+                    // Process each kemandoran within the status
+                    val keysIterator = idStatusJson.keys()
+                    while (keysIterator.hasNext()) {
+                        val kemandoranKey = keysIterator.next()
+
+                        if (namaStatusJson.has(kemandoranKey) && nikStatusJson.has(kemandoranKey)) {
+                            // FIXED: Clean and split data properly
+                            val idsRaw = idStatusJson.getString(kemandoranKey)
+                            val namesRaw = namaStatusJson.getString(kemandoranKey)
+                            val niksRaw = nikStatusJson.getString(kemandoranKey)
+
+                            val ids = idsRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                            val names = namesRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                            val niks = niksRaw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+
+                            AppLogger.d("Raw data for kemandoran $kemandoranKey:")
+                            AppLogger.d("IDs raw: '$idsRaw'")
+                            AppLogger.d("Names raw: '$namesRaw'")
+                            AppLogger.d("NIKs raw: '$niksRaw'")
+                            AppLogger.d("After processing - IDs: ${ids.size}, Names: ${names.size}, NIKs: ${niks.size}")
+
+                            // FIXED: Handle work locations properly with default values
+                            val workLocations = if (workLocationStatusJson?.has(kemandoranKey) == true) {
+                                try {
+                                    workLocationStatusJson.getString(kemandoranKey).split(",").map { it.trim() }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error parsing work locations for kemandoran $kemandoranKey: ${e.message}")
+                                    // Create default work locations based on status
+                                    List(ids.size) {
+                                        if (statusName == "Hadir") "Panen" else "N/A"
+                                    }
+                                }
+                            } else {
+                                // Create default work locations based on status
+                                List(ids.size) {
+                                    if (statusName == "Hadir") "Panen" else "N/A"
+                                }
+                            }
+
+                            AppLogger.d("Work locations for $kemandoranKey: $workLocations")
+
+                            // FIXED: Handle array size mismatch by using the smallest size
+                            val minSize = minOf(ids.size, names.size, niks.size)
+
+                            if (ids.size != names.size || names.size != niks.size) {
+                                AppLogger.w("Array size mismatch for kemandoran $kemandoranKey: ids=${ids.size}, names=${names.size}, niks=${niks.size}")
+                                AppLogger.w("Using minimum size: $minSize to prevent data corruption")
+
+                                // Log the extra data for debugging
+                                if (names.size > minSize) {
+                                    AppLogger.w("Extra names found: ${names.drop(minSize)}")
+                                }
+                                if (ids.size > minSize) {
+                                    AppLogger.w("Extra IDs found: ${ids.drop(minSize)}")
+                                }
+                                if (niks.size > minSize) {
+                                    AppLogger.w("Extra NIKs found: ${niks.drop(minSize)}")
+                                }
+                            }
+
+                            // Process employees using the minimum size to prevent index out of bounds
+                            for (index in 0 until minSize) {
+                                if (ids[index].isNotBlank() && names[index].isNotBlank() && niks[index].isNotBlank()) {
+                                    // Get individual work location with fallback
+                                    val individualWorkLocation = if (index < workLocations.size) {
+                                        workLocations[index].ifBlank {
+                                            if (statusName == "Hadir") "Panen" else "N/A"
+                                        }
+                                    } else {
+                                        if (statusName == "Hadir") "Panen" else "N/A"
+                                    }
+
+                                    val employee = EmployeeAttendance(
+                                        id = ids[index],
+                                        nik = niks[index],
+                                        name = names[index].trim(), // Trim whitespace
+                                        status = statusName,
+                                        workLocation = individualWorkLocation,
+                                        kemandoranKey = kemandoranKey
+                                    )
+
+                                    employeeList.add(employee)
+
+                                    AppLogger.d("Added employee: ${employee.name} - Status: ${employee.status} - Work Location: ${employee.workLocation}")
+                                } else {
+                                    AppLogger.w("Skipping employee at index $index due to blank data: id='${ids[index]}', name='${names[index]}', nik='${niks[index]}'")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            AppLogger.d("Total employees parsed: ${employeeList.size}")
+
+            // FIXED: Log all parsed employees for debugging
+            employeeList.forEach { employee ->
+                AppLogger.d("Final parsed: ${employee.name} - Status: ${employee.status} - Work Location: ${employee.workLocation}")
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing attendance data from separate fields: ${e.message}")
+            e.printStackTrace()
+        }
+
+        return employeeList
+    }
+
+    // FIXED: handleSaveNewAttendanceStructure function
+    private fun handleSaveNewAttendanceStructure(
+        updatedEmployees: List<EmployeeAttendance>,
+        originalItem: AbsensiDataRekap,
+        context: Context,
+        callback: (Boolean) -> Unit
+    ) {
+
+        val database = AppDatabase.getDatabase(context)
+        val absensiDao = database.absensiDao()
+        val uploadCmpDao = database.uploadCMPDao()
+
+        try {
+            // Status mapping - reverse mapping for JSON keys
+            val statusToKeyMap = mapOf(
+                "Hadir" to "h",
+                "Mangkir" to "m",
+                "Sakit" to "s",
+                "Izin" to "i",
+                "Cuti" to "c"
+            )
+
+            // Separate present (Hadir) and absent (non-Hadir) employees
+            val presentEmployees = updatedEmployees.filter { it.status == "Hadir" }
+            val absentEmployees = updatedEmployees.filter { it.status != "Hadir" }
+
+            // Create MSK (Present) JSON structures
+            val mskIdJson = JSONObject()
+            val mskNamaJson = JSONObject()
+            val mskNikJson = JSONObject()
+            val mskWorkLocationJson = JSONObject()
+
+            if (presentEmployees.isNotEmpty()) {
+                val hIdObj = JSONObject()
+                val hNamaObj = JSONObject()
+                val hNikObj = JSONObject()
+                val hWorkLocationObj = JSONObject()
+
+                val presentByKemandoran = presentEmployees.groupBy { it.kemandoranKey ?: "314" }
+
+                presentByKemandoran.forEach { (kemandoran, employees) ->
+                    val ids = employees.map { it.id }.joinToString(",")
+                    val names = employees.map { it.name }.joinToString(",")
+                    val niks = employees.map { it.nik }.joinToString(",")
+                    // FIXED: Properly handle work locations for present employees
+                    val workLocations = employees.map {
+                        if (it.workLocation.isNullOrEmpty() || it.workLocation == "N/A") {
+                            "Panen" // Default work location for present employees
+                        } else {
+                            it.workLocation
+                        }
+                    }.joinToString(",")
+
+                    hIdObj.put(kemandoran, ids)
+                    hNamaObj.put(kemandoran, names)
+                    hNikObj.put(kemandoran, niks)
+                    hWorkLocationObj.put(kemandoran, workLocations)
+                }
+
+                mskIdJson.put("h", hIdObj)
+                mskNamaJson.put("h", hNamaObj)
+                mskNikJson.put("h", hNikObj)
+                mskWorkLocationJson.put("h", hWorkLocationObj)
+            }
+
+            // Create TDK_MSK (Absent) JSON structures
+            val tdkMskIdJson = JSONObject()
+            val tdkMskNamaJson = JSONObject()
+            val tdkMskNikJson = JSONObject()
+            val tdkMskWorkLocationJson = JSONObject()
+
+            if (absentEmployees.isNotEmpty()) {
+                val absentByStatus = absentEmployees.groupBy { it.status }
+
+                absentByStatus.forEach { (status, employees) ->
+                    val statusKey = statusToKeyMap[status] ?: return@forEach
+
+                    val statusIdObj = JSONObject()
+                    val statusNamaObj = JSONObject()
+                    val statusNikObj = JSONObject()
+                    val statusWorkLocationObj = JSONObject()
+
+                    val employeesByKemandoran = employees.groupBy { it.kemandoranKey ?: "314" }
+
+                    employeesByKemandoran.forEach { (kemandoran, kemandoranEmployees) ->
+                        val ids = kemandoranEmployees.map { it.id }.joinToString(",")
+                        val names = kemandoranEmployees.map { it.name }.joinToString(",")
+                        val niks = kemandoranEmployees.map { it.nik }.joinToString(",")
+                        val workLocations = kemandoranEmployees.map { "N/A" }.joinToString(",") // N/A for absent
+
+                        statusIdObj.put(kemandoran, ids)
+                        statusNamaObj.put(kemandoran, names)
+                        statusNikObj.put(kemandoran, niks)
+                        statusWorkLocationObj.put(kemandoran, workLocations)
+                    }
+
+                    tdkMskIdJson.put(statusKey, statusIdObj)
+                    tdkMskNamaJson.put(statusKey, statusNamaObj)
+                    tdkMskNikJson.put(statusKey, statusNikObj)
+                    tdkMskWorkLocationJson.put(statusKey, statusWorkLocationObj)
+                }
+            }
+
+            // Determine the new status_upload value
+            val newStatusUpload = if (originalItem.status_upload != 0) 0 else originalItem.status_upload
+
+            // Create updated item with new JSON data
+            val updatedItem = originalItem.copy(
+                karyawan_msk_id = if (mskIdJson.length() > 0) mskIdJson.toString() else "{}",
+                karyawan_msk_nama = if (mskNamaJson.length() > 0) mskNamaJson.toString() else "{}",
+                karyawan_msk_nik = if (mskNikJson.length() > 0) mskNikJson.toString() else "{}",
+                karyawan_msk_work_location = if (mskWorkLocationJson.length() > 0) mskWorkLocationJson.toString() else "{}",
+                karyawan_tdk_msk_id = if (tdkMskIdJson.length() > 0) tdkMskIdJson.toString() else "{}",
+                karyawan_tdk_msk_nama = if (tdkMskNamaJson.length() > 0) tdkMskNamaJson.toString() else "{}",
+                karyawan_tdk_msk_nik = if (tdkMskNikJson.length() > 0) tdkMskNikJson.toString() else "{}",
+                karyawan_tdk_msk_work_location = if (tdkMskWorkLocationJson.length() > 0) tdkMskWorkLocationJson.toString() else "{}",
+                status_upload = newStatusUpload
+            )
+
+            AppLogger.d("=== SAVING WORK LOCATION DATA ===")
+            AppLogger.d("Present employees count: ${presentEmployees.size}")
+            AppLogger.d("Absent employees count: ${absentEmployees.size}")
+
+            presentEmployees.forEach { emp ->
+                AppLogger.d("Present Employee: ${emp.name} - Work Location: '${emp.workLocation}'")
+            }
+
+            AppLogger.d("MSK Work Location JSON: ${updatedItem.karyawan_msk_work_location}")
+            AppLogger.d("TDK MSK Work Location JSON: ${updatedItem.karyawan_tdk_msk_work_location}")
+            AppLogger.d("=============================")
+
+            // Verify the JSON structure
+            try {
+                val testMskWorkJson = JSONObject(updatedItem.karyawan_msk_work_location ?: "{}")
+                AppLogger.d("MSK Work JSON parsed successfully: ${testMskWorkJson.toString()}")
+            } catch (e: Exception) {
+                AppLogger.e("Error parsing MSK Work JSON: ${e.message}")
+            }
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    // Before deletion
+                    val recordsToDelete = uploadCmpDao.deleteUploadCmpByAbsensiId(originalItem.id)
+                    AppLogger.d("Records to delete: ${recordsToDelete}")
+
+                    // Update attendance record
+                    absensiDao.updateAbsensiFields(
+                        id = originalItem.id,
+                        mskId = updatedItem.karyawan_msk_id,
+                        mskNama = updatedItem.karyawan_msk_nama,
+                        mskNik = updatedItem.karyawan_msk_nik,
+                        mskWork = updatedItem.karyawan_msk_work_location ?: "{}", // Handle nullable
+                        tdkMskId = updatedItem.karyawan_tdk_msk_id,
+                        tdkMskNama = updatedItem.karyawan_tdk_msk_nama,
+                        tdkMskNik = updatedItem.karyawan_tdk_msk_nik,
+                        tdkMskWork = updatedItem.karyawan_tdk_msk_work_location ?: "{}", // Handle nullable
+                        statusUpload = newStatusUpload
+                    )
+
+                    withContext(Dispatchers.Main) {
+                        callback(true)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error in database operations: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        callback(false)
+                    }
+                }
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Error saving attendance data: ${e.message}")
+            callback(false)
+        }
+    }
+
+    // FIXED: showEditAttendanceBottomSheetNew function
+    private fun showEditAttendanceBottomSheetNew(context: Context, item: AbsensiDataRekap) {
+        val editBottomSheetDialog = BottomSheetDialog(context)
+        val editView = LayoutInflater.from(context)
+            .inflate(R.layout.layout_bottom_sheet_edit_absensi, null)
+
+        val employeeList = mutableListOf<EmployeeAttendance>()
+
+        AppLogger.d("=== LOADING EMPLOYEES FOR EDIT ===")
+
+        // FIXED: Parse MSK (Present) employees with work location data
+        val mskEmployees = parseNewAttendanceDataFromSeparateFields(
+            item.karyawan_msk_id,
+            item.karyawan_msk_nama,
+            item.karyawan_msk_nik,
+            item.karyawan_msk_work_location // Pass work location data
+        )
+        AppLogger.d("MSK employees loaded: ${mskEmployees.size}")
+        employeeList.addAll(mskEmployees)
+
+        // FIXED: Parse TDK_MSK (Absent) employees with work location data
+        val tdkMskEmployees = parseNewAttendanceDataFromSeparateFields(
+            item.karyawan_tdk_msk_id,
+            item.karyawan_tdk_msk_nama,
+            item.karyawan_tdk_msk_nik,
+            item.karyawan_tdk_msk_work_location // Pass work location data
+        )
+        AppLogger.d("TDK_MSK employees loaded: ${tdkMskEmployees.size}")
+        employeeList.addAll(tdkMskEmployees)
+
+        AppLogger.d("Total employees for edit: ${employeeList.size}")
+
+        // FIXED: Enhanced logging to debug parsed data
+        AppLogger.d("=== ALL PARSED EMPLOYEES ===")
+        employeeList.forEachIndexed { index, employee ->
+            AppLogger.d("[$index] ${employee.name} (${employee.nik}) - Status: ${employee.status} - Work Location: ${employee.workLocation}")
+        }
+        AppLogger.d("=============================")
+
+        // Check if we have any employees
+        if (employeeList.isEmpty()) {
+            AppLogger.e("No employees found to edit!")
+            Toast.makeText(context, "Tidak ada karyawan yang ditemukan untuk diedit", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        // Sort employees: Mangkir first, then others
+        employeeList.sortWith(compareBy<EmployeeAttendance> {
+            when(it.status) {
+                "Mangkir" -> 0
+                "Hadir" -> 1
+                "Sakit" -> 2
+                "Izin" -> 3
+                "Cuti" -> 4
+                else -> 5
+            }
+        }.thenBy { it.name })
+
+        AppLogger.d("Employees after sorting: ${employeeList.size}")
+
+        // Set up RecyclerView
+        val recyclerView = editView.findViewById<RecyclerView>(R.id.recyclerViewEditAbsensi)
+        val editAdapter = EditAttendanceAdapter(employeeList)
+        recyclerView.layoutManager = LinearLayoutManager(context)
+        recyclerView.adapter = editAdapter
+
+        // Cancel button
+        editView.findViewById<Button>(R.id.btnCancelEditAbsensi).setOnClickListener {
+            editBottomSheetDialog.dismiss()
+        }
+
+        // Save button
+        editView.findViewById<Button>(R.id.btnUpdateAbsensi).setOnClickListener {
+            AlertDialogUtility.withTwoActions(
+                context,
+                "KONFIRMASI",
+                "Perbarui Data Absensi",
+                "Apakah Anda yakin ingin memperbarui data absensi ini?",
+                "warning.json",
+                function = {
+                    val updatedEmployees = editAdapter.getUpdatedEmployees()
+
+                    // Add logging to debug what's being updated
+                    AppLogger.d("=== EMPLOYEES BEFORE SAVE ===")
+                    updatedEmployees.forEachIndexed { index, employee ->
+                        AppLogger.d("[$index] ${employee.name} - Status: ${employee.status} - Work Location: ${employee.workLocation}")
+                    }
+                    AppLogger.d("=============================")
+
+                    handleSaveNewAttendanceStructure(updatedEmployees, item, context) { success ->
+                        if (success) {
+                            editBottomSheetDialog.dismiss()
+
+                            AlertDialogUtility.withTwoActions(
+                                context,
+                                "BERHASIL",
+                                "Data Berhasil Diperbarui",
+                                "Data absensi berhasil diperbarui",
+                                "success.json",
+                                function = {
+                                    (context as? Activity)?.finish()
+                                }
+                            )
+                        } else {
+                            Toast.makeText(context, "Gagal mengupdate data absensi", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+        }
+
+        editBottomSheetDialog.setContentView(editView)
+
+        val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+        editBottomSheetDialog.show()
+
+        editBottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?.let { bottomSheet ->
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+                behavior.apply {
+                    this.peekHeight = maxHeight
+                    this.state = BottomSheetBehavior.STATE_EXPANDED
+                    this.isFitToContents = true
+                    this.isDraggable = false
+                }
+                bottomSheet.layoutParams?.height = maxHeight
+            }
+    }
+
     // Updated showBottomSheetDialog method in your main adapter
     private fun showBottomSheetDialog(holder: ListAbsensiViewHolder, item: AbsensiDataRekap,
                                       jmlhKaryawanMskDetail: Int, jmlhKaryawanTdkMskDetail: Int) {
@@ -266,9 +788,10 @@ class ListAbsensiAdapter(private val context: Context,
         view.findViewById<TextView>(R.id.titleDialogDetailTableAbsensi).append(" ($stateText)")
 
         // Close button click listener
-        view.findViewById<android.widget.Button>(R.id.btnCloseDetailTableAbsensi).setOnClickListener {
-            bottomSheetDialog.dismiss()
-        }
+        view.findViewById<android.widget.Button>(R.id.btnCloseDetailTableAbsensi)
+            .setOnClickListener {
+                bottomSheetDialog.dismiss()
+            }
 
         // Edit button setup with visibility control
         val editButton = view.findViewById<android.widget.Button>(R.id.btnEditAbsensi)
@@ -293,6 +816,7 @@ class ListAbsensiAdapter(private val context: Context,
             item.karyawan_msk_nik,
             item.karyawan_msk_nama,
             item.karyawan_msk_id,
+            item.karyawan_msk_work_location,
             item.kemandoran_kode,
             item.kemandoran
         )
@@ -301,6 +825,7 @@ class ListAbsensiAdapter(private val context: Context,
             item.karyawan_tdk_msk_nik,
             item.karyawan_tdk_msk_nama,
             item.karyawan_tdk_msk_id,
+            item.karyawan_tdk_msk_work_location,
             item.kemandoran_kode,
             item.kemandoran
         )
@@ -345,313 +870,6 @@ class ListAbsensiAdapter(private val context: Context,
             }
     }
 
-    private fun showEditAttendanceBottomSheetNew(context: Context, item: AbsensiDataRekap) {
-        val editBottomSheetDialog = BottomSheetDialog(context)
-        val editView = LayoutInflater.from(context)
-            .inflate(R.layout.layout_bottom_sheet_edit_absensi, null)
-
-        val employeeList = mutableListOf<EmployeeAttendance>()
-
-        // Parse MSK (Present) employees - these will have "h" key in JSON
-        val mskEmployees = parseNewAttendanceDataFromSeparateFields(
-            item.karyawan_msk_id,
-            item.karyawan_msk_nama,
-            item.karyawan_msk_nik
-        )
-        employeeList.addAll(mskEmployees)
-
-        // Parse TDK_MSK (Absent) employees - these will have "m", "s", "i", "c" keys in JSON
-        val tdkMskEmployees = parseNewAttendanceDataFromSeparateFields(
-            item.karyawan_tdk_msk_id,
-            item.karyawan_tdk_msk_nama,
-            item.karyawan_tdk_msk_nik
-        )
-        employeeList.addAll(tdkMskEmployees)
-
-        // Sort employees: Mangkir first, then others
-        employeeList.sortWith(compareBy<EmployeeAttendance> {
-            when(it.status) {
-                "Mangkir" -> 0
-                "Hadir" -> 1
-                else -> 2
-            }
-        }.thenBy { it.name })
-
-        // Set up RecyclerView
-        val recyclerView = editView.findViewById<RecyclerView>(R.id.recyclerViewEditAbsensi)
-        val editAdapter = EditAttendanceAdapter(employeeList)
-        recyclerView.layoutManager = LinearLayoutManager(context)
-        recyclerView.adapter = editAdapter
-
-        // Cancel button
-        editView.findViewById<Button>(R.id.btnCancelEditAbsensi).setOnClickListener {
-            editBottomSheetDialog.dismiss()
-        }
-
-        // Save button - IMPLEMENT THE SAVE FUNCTIONALITY
-        editView.findViewById<Button>(R.id.btnUpdateAbsensi).setOnClickListener {
-            // Tampilkan konfirmasi sebelum update
-            AlertDialogUtility.withTwoActions(
-                context,
-                "KONFIRMASI",
-                "Perbarui Data Absensi",
-                "Apakah Anda yakin ingin memperbarui data absensi ini?",
-                "warning.json",
-                function = {
-                    val updatedEmployees = editAdapter.getUpdatedEmployees()
-                    handleSaveNewAttendanceStructure(updatedEmployees, item, context) { success ->
-                        if (success) {
-                            editBottomSheetDialog.dismiss()
-
-                            // Tampilkan dialog sukses
-                            AlertDialogUtility.withTwoActions(
-                                context,
-                                "BERHASIL",
-                                "Data Berhasil Diperbarui",
-                                "Data absensi berhasil diperbarui",
-                                "success.json",
-                                function = {
-                                    // Kembali ke activity sebelumnya
-                                    (context as? Activity)?.finish()
-                                }
-                            )
-                        } else {
-                            Toast.makeText(context, "Gagal mengupdate data absensi", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            )
-        }
-
-        editBottomSheetDialog.setContentView(editView)
-
-        val maxHeight = (context.resources.displayMetrics.heightPixels * 0.85).toInt()
-        editBottomSheetDialog.show()
-
-        editBottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-            ?.let { bottomSheet ->
-                val behavior = BottomSheetBehavior.from(bottomSheet)
-                behavior.apply {
-                    this.peekHeight = maxHeight
-                    this.state = BottomSheetBehavior.STATE_EXPANDED
-                    this.isFitToContents = true
-                    this.isDraggable = false
-                }
-                bottomSheet.layoutParams?.height = maxHeight
-            }
-    }
-
-    private fun parseNewAttendanceDataFromSeparateFields(
-        idData: String?,
-        namaData: String?,
-        nikData: String?
-    ): List<EmployeeAttendance> {
-        if (idData.isNullOrEmpty() || namaData.isNullOrEmpty() || nikData.isNullOrEmpty()) {
-            return emptyList()
-        }
-
-        val employeeList = mutableListOf<EmployeeAttendance>()
-
-        try {
-            val idJson = JSONObject(idData)
-            val namaJson = JSONObject(namaData)
-            val nikJson = JSONObject(nikData)
-
-            // Status mapping
-            val statusMap = mapOf(
-                "h" to "Hadir",
-                "m" to "Mangkir",
-                "s" to "Sakit",
-                "i" to "Izin",
-                "c" to "Cuti"
-            )
-
-            // Process each status that exists in the JSON
-            statusMap.forEach { (statusKey, statusName) ->
-                if (idJson.has(statusKey) && namaJson.has(statusKey) && nikJson.has(statusKey)) {
-                    val idStatusJson = idJson.getJSONObject(statusKey)
-                    val namaStatusJson = namaJson.getJSONObject(statusKey)
-                    val nikStatusJson = nikJson.getJSONObject(statusKey)
-
-                    // Process each kemandoran within the status
-                    val keysIterator = idStatusJson.keys()
-                    while (keysIterator.hasNext()) {
-                        val kemandoranKey = keysIterator.next()
-
-                        if (namaStatusJson.has(kemandoranKey) && nikStatusJson.has(kemandoranKey)) {
-                            val ids = idStatusJson.getString(kemandoranKey).split(",").map { it.trim() }
-                            val names = namaStatusJson.getString(kemandoranKey).split(",").map { it.trim() }
-                            val niks = nikStatusJson.getString(kemandoranKey).split(",").map { it.trim() }
-
-                            // Ensure all arrays have the same size
-                            if (ids.size == names.size && names.size == niks.size) {
-                                ids.forEachIndexed { index, id ->
-                                    if (id.isNotBlank() && names[index].isNotBlank() && niks[index].isNotBlank()) {
-                                        employeeList.add(
-                                            EmployeeAttendance(
-                                                id = id,
-                                                nik = niks[index],
-                                                name = names[index],
-                                                status = statusName,
-                                                kemandoranKey = kemandoranKey // IMPORTANT: Add kemandoran tracking
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-        } catch (e: Exception) {
-            AppLogger.e("Error parsing attendance data from separate fields: ${e.message}")
-        }
-
-        return employeeList
-    }
-
-    private fun handleSaveNewAttendanceStructure(
-        updatedEmployees: List<EmployeeAttendance>,
-        originalItem: AbsensiDataRekap,
-        context: Context,
-        callback: (Boolean) -> Unit
-    ) {
-
-        val database = AppDatabase.getDatabase(context)
-        val absensiDao = database.absensiDao()
-        val uploadCmpDao = database.uploadCMPDao() // Assuming you have this DAO
-
-        try {
-            // ... (previous code for creating JSON structures remains the same)
-
-            // Status mapping - reverse mapping for JSON keys
-            val statusToKeyMap = mapOf(
-                "Hadir" to "h",
-                "Mangkir" to "m",
-                "Sakit" to "s",
-                "Izin" to "i",
-                "Cuti" to "c"
-            )
-
-            // Separate present (Hadir) and absent (non-Hadir) employees
-            val presentEmployees = updatedEmployees.filter { it.status == "Hadir" }
-            val absentEmployees = updatedEmployees.filter { it.status != "Hadir" }
-
-            // Create MSK (Present) JSON structures
-            val mskIdJson = JSONObject()
-            val mskNamaJson = JSONObject()
-            val mskNikJson = JSONObject()
-
-            if (presentEmployees.isNotEmpty()) {
-                val hIdObj = JSONObject()
-                val hNamaObj = JSONObject()
-                val hNikObj = JSONObject()
-
-                val presentByKemandoran = presentEmployees.groupBy { it.kemandoranKey ?: "314" }
-
-                presentByKemandoran.forEach { (kemandoran, employees) ->
-                    val ids = employees.map { it.id }.joinToString(",")
-                    val names = employees.map { it.name }.joinToString(",")
-                    val niks = employees.map { it.nik }.joinToString(",")
-
-                    hIdObj.put(kemandoran, ids)
-                    hNamaObj.put(kemandoran, names)
-                    hNikObj.put(kemandoran, niks)
-                }
-
-                mskIdJson.put("h", hIdObj)
-                mskNamaJson.put("h", hNamaObj)
-                mskNikJson.put("h", hNikObj)
-            }
-
-            // Create TDK_MSK (Absent) JSON structures
-            val tdkMskIdJson = JSONObject()
-            val tdkMskNamaJson = JSONObject()
-            val tdkMskNikJson = JSONObject()
-
-            if (absentEmployees.isNotEmpty()) {
-                val absentByStatus = absentEmployees.groupBy { it.status }
-
-                absentByStatus.forEach { (status, employees) ->
-                    val statusKey = statusToKeyMap[status] ?: return@forEach
-
-                    val statusIdObj = JSONObject()
-                    val statusNamaObj = JSONObject()
-                    val statusNikObj = JSONObject()
-
-                    val employeesByKemandoran = employees.groupBy { it.kemandoranKey ?: "314" }
-
-                    employeesByKemandoran.forEach { (kemandoran, kemandoranEmployees) ->
-                        val ids = kemandoranEmployees.map { it.id }.joinToString(",")
-                        val names = kemandoranEmployees.map { it.name }.joinToString(",")
-                        val niks = kemandoranEmployees.map { it.nik }.joinToString(",")
-
-                        statusIdObj.put(kemandoran, ids)
-                        statusNamaObj.put(kemandoran, names)
-                        statusNikObj.put(kemandoran, niks)
-                    }
-
-                    tdkMskIdJson.put(statusKey, statusIdObj)
-                    tdkMskNamaJson.put(statusKey, statusNamaObj)
-                    tdkMskNikJson.put(statusKey, statusNikObj)
-                }
-            }
-
-            // Determine the new status_upload value
-            val newStatusUpload = if (originalItem.status_upload != 0) 0 else originalItem.status_upload
-
-            // Create updated item with new JSON data
-            val updatedItem = originalItem.copy(
-                karyawan_msk_id = if (mskIdJson.length() > 0) mskIdJson.toString() else "{}",
-                karyawan_msk_nama = if (mskNamaJson.length() > 0) mskNamaJson.toString() else "{}",
-                karyawan_msk_nik = if (mskNikJson.length() > 0) mskNikJson.toString() else "{}",
-                karyawan_tdk_msk_id = if (tdkMskIdJson.length() > 0) tdkMskIdJson.toString() else "{}",
-                karyawan_tdk_msk_nama = if (tdkMskNamaJson.length() > 0) tdkMskNamaJson.toString() else "{}",
-                karyawan_tdk_msk_nik = if (tdkMskNikJson.length() > 0) tdkMskNikJson.toString() else "{}",
-                status_upload = newStatusUpload
-            )
-
-            AppLogger.d("Original item: ${originalItem.toString()}")
-            AppLogger.d("Original status_upload: ${originalItem.status_upload}")
-            AppLogger.d("New status_upload: $newStatusUpload")
-
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-
-                    // Before deletion
-                    val recordsToDelete = uploadCmpDao.deleteUploadCmpByAbsensiId(originalItem.id)
-                    AppLogger.d("Records to delete: ${recordsToDelete}")
-
-                    // Update attendance record
-                    absensiDao.updateAbsensiFields(
-                        id = originalItem.id,
-                        mskId = updatedItem.karyawan_msk_id,
-                        mskNama = updatedItem.karyawan_msk_nama,
-                        mskNik = updatedItem.karyawan_msk_nik,
-                        tdkMskId = updatedItem.karyawan_tdk_msk_id,
-                        tdkMskNama = updatedItem.karyawan_tdk_msk_nama,
-                        tdkMskNik = updatedItem.karyawan_tdk_msk_nik,
-                        statusUpload = newStatusUpload
-                    )
-
-                    withContext(Dispatchers.Main) {
-                        callback(true)
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error in database operations: ${e.message}")
-                    withContext(Dispatchers.Main) {
-                        callback(false)
-                    }
-                }
-            }
-
-        } catch (e: Exception) {
-            AppLogger.e("Error saving attendance data: ${e.message}")
-            callback(false)
-        }
-    }
-
     private fun calculateAttendanceCounts(jsonString: String): Int {
         return try {
             if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
@@ -687,6 +905,7 @@ class ListAbsensiAdapter(private val context: Context,
         nikJson: String,
         namaJson: String,
         idJson: String,
+        workLocationData: String?,
         kemandoranKode: String,
         kemandoranNames: String
     ): String {
@@ -703,6 +922,9 @@ class ListAbsensiAdapter(private val context: Context,
             } else {
                 return "-"  // Return "-" if no data
             }
+            val workLocationJson = if (!workLocationData.isNullOrEmpty()) {
+                try { JSONObject(workLocationData) } catch (e: Exception) { null }
+            } else null
 
             // Split kemandoran codes and names
             val kemandoranKodes = kemandoranKode.split(",").map { it.trim() }
