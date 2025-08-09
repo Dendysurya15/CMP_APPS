@@ -173,11 +173,11 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                 // Check feature type
                 if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
-                    // Load panen data based on current state
+                    // Load panen data based on current state - pass NULL for all data
                     panenViewModel.loadDataPanenTransferInspeksi(null, currentState)
                 } else {
                     // Load inspection data
-                    inspectionViewModel.loadInspectionPaths(null, 1)
+                    inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
                 }
             } else {
                 loadingDialog.show()
@@ -187,7 +187,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                 // Check feature type
                 if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
-                    // Load panen data based on current state
+                    // Load panen data based on current state - pass globalFormattedDate for specific date
                     panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, currentState)
                 } else {
                     // Load inspection data
@@ -263,13 +263,14 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             recyclerView.visibility = View.VISIBLE
             adapter.updateArchiveState(currentState)
 
-
             // Check if filterAllData is checked
             val isAllDataFiltered = filterAllData.isChecked
-            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
-            panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-
+            if(isAllDataFiltered){
+                panenViewModel.loadDataPanenTransferInspeksi(null, currentState) // Pass currentState (0)
+            }else{
+                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, currentState) // Pass currentState (0)
+            }
         }
 
         cardItemTerscan.setOnClickListener {
@@ -279,19 +280,17 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             setActiveCard(cardItemTerscan)
             loadingDialog.show()
 
-
             val isAllDataFiltered = filterAllData.isChecked
-            val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
             tvEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
-
             adapter.updateArchiveState(currentState)
 
-
-
-
-            panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 1)
+            if(isAllDataFiltered){
+                panenViewModel.loadDataPanenTransferInspeksi(null, currentState) // Pass currentState (1)
+            }else{
+                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, currentState) // Pass currentState (1)
+            }
         }
     }
 
