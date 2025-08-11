@@ -51,21 +51,10 @@ class DataPanenInspectionRepository(
                 put("tph")
                 put("tph_nomor")
                 put("ancak")
+                put("tipe")
                 put("created_date")
                 put("created_by")
-                put("jjg_panen")
-                put("jjg_masak")
-                put("jjg_mentah")
-                put("jjg_lewat_masak")
-                put("jjg_kosong")
-                put("jjg_abnormal")
-                put("jjg_serangan_tikus")
-                put("jjg_panjang")
-                put("jjg_tidak_vcut")
-                put("jjg_bayar")
-                put("jjg_kirim")
                 put("kemandoran")
-                put("spb_kode")
             })
 
             // Build WHERE clause with multiple conditions
@@ -88,7 +77,7 @@ class DataPanenInspectionRepository(
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return TestingApiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
@@ -259,6 +248,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return TestingApiService.getDataRaw(requestBody)
     }
 }

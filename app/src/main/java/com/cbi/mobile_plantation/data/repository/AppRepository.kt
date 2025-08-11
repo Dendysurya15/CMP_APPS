@@ -813,6 +813,57 @@ class AppRepository(context: Context) {
         hektarPanenDao.updateStatusUploadHektarPanen(ids, statusUpload)
     }
 
+    suspend fun saveTransferInspeksi(
+        transferInspeksiList: List<PanenEntity>,
+        createdBy: String,
+        creatorInfo: String,
+        context: Context
+    ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
+        try {
+            val processedIds = mutableListOf<Long>()
+
+            // Check each item individually
+            for (transferInspeksi in transferInspeksiList) {
+                // Check if this specific item exists based on tph_id and date_created
+                val existingEntity = panenDao.findByTphAndDate(
+                    transferInspeksi.tph_id,
+                    transferInspeksi.date_created
+                )
+
+                if (existingEntity != null) {
+                    // EXISTS: Update status_scan_inspeksi = 1
+                    val updateResult = panenDao.updateScanInspeksiStatus(
+                        existingEntity.id,
+                        1 // status_scan_inspeksi = 1
+                    )
+
+                    if (updateResult > 0) {
+                        processedIds.add(existingEntity.id.toLong())
+                    }
+                } else {
+                    // DOESN'T EXIST: Insert new record
+                    val entityToSave = transferInspeksi.copy(
+                        created_by = createdBy.toIntOrNull() ?: 0,
+                        info = creatorInfo
+                    )
+
+                    val result = panenDao.insertWithTransaction(entityToSave)
+
+                    result.fold(
+                        onSuccess = { id -> processedIds.add(id) },
+                        onFailure = { throw it }
+                    )
+                }
+            }
+
+            // Always return success
+            Result.success(SaveTPHResult.AllSuccess(processedIds))
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
@@ -995,6 +1046,10 @@ class AppRepository(context: Context) {
 
     suspend fun getPanenCount(): Int {
         return panenDao.getCount()
+    }
+
+    suspend fun getPanenCountForTransferInspeksi(): Int {
+        return panenDao.getCountForTransferInspeksi()
     }
 
     suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {

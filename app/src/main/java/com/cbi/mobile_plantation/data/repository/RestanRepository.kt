@@ -79,6 +79,6 @@ class RestanRepository(
         AppLogger.d("Restan API Request: ${jsonObject.toString()}")
 
         // Make the API call
-        return apiService.getDataRaw(requestBody)
+        return TestingApiService.getDataRaw(requestBody)
     }
 }

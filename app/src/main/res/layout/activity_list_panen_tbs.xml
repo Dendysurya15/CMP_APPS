@@ -282,6 +282,7 @@
                 tools:ignore="MissingConstraints">
 
                 <LinearLayout
+                    android:id="@+id/totalJjgSection"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:layout_weight="1"

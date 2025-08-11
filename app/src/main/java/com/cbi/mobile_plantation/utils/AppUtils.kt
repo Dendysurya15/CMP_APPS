@@ -231,6 +231,7 @@ object AppUtils {
         const val TransferHektarPanen = "Transfer Hektar Panen"
         const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
+        const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
     }
 
     object WaterMarkFotoDanFolder {

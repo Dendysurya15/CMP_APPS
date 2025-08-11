@@ -2635,25 +2635,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val tphId = item.optString("tph", "")
                             val createdDate = item.optString("created_date", "")
                             val createdBy = item.optInt("created_by", 0)
-                            val spb_kode = item.optString("spb_kode", "")
                             val ancak = item.optInt("ancak", 0)
-
-                            // Extract jjg values for jjg_json
-                            val jjgPanen = item.optInt("jjg_panen", 0)
-                            val jjgMentah = item.optInt("jjg_mentah", 0)
-                            val jjgLewatMasak = item.optInt("jjg_lewat_masak", 0)
-                            val jjgKosong = item.optInt("jjg_kosong", 0)
-                            val jjgAbnormal = item.optInt("jjg_abnormal", 0)
-                            val jjgSeranganTikus = item.optInt("jjg_serangan_tikus", 0)
-                            val jjgPanjang = item.optInt("jjg_panjang", 0)
-                            val jjgTidakVcut = item.optInt("jjg_tidak_vcut", 0)
-                            val jjgBayar = item.optInt("jjg_bayar", 0)
-                            val jjgKirim = item.optInt("jjg_kirim", 0)
-                            val jjgMasak = item.optInt("jjg_masak", 0)
-
-                            // Build jjg_json
-                            val jjgJson =
-                                "{\"TO\":$jjgPanen,\"UN\":$jjgMentah,\"OV\":$jjgLewatMasak,\"EM\":$jjgKosong,\"AB\":$jjgAbnormal,\"RA\":$jjgSeranganTikus,\"LO\":$jjgPanjang,\"TI\":$jjgTidakVcut,\"RI\":$jjgMasak,\"KP\":$jjgKirim,\"PA\":$jjgBayar}"
+                            val jenis_panen = item.optInt("tipe", 0)
 
                             // Parse kemandoran JSON to extract kemandoran_id and karyawan info
                             val kemandoranString = item.optString("kemandoran", "")
@@ -2722,13 +2705,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 kemandoran_id = kemandoranId,
                                 karyawan_nik = karyawanNik,
                                 karyawan_nama = karyawanNama,
-                                jjg_json = jjgJson,
+                                jjg_json = "",
                                 foto = "",
                                 komentar = "",
                                 asistensi = 0,
                                 lat = 0.0,
                                 lon = 0.0,
-                                jenis_panen = 0,
+                                jenis_panen = jenis_panen,
                                 ancak = ancak,
                                 info = "",
                                 archive = 0,
@@ -2737,7 +2720,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 status_restan = 0,
                                 scan_status = 0,
                                 dataIsZipped = 0,
-                                no_espb = spb_kode,
+                                no_espb = "",
                                 username = "",
                                 status_upload = 0,
                                 status_uploaded_image = "0",
@@ -2770,8 +2753,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 for (panen in panenList) {
                                     try {
-                                        // Check if record exists by ID
-                                        val existingRecord = panenDao.getById(panen.id)
+                                        // Check if record exists by tph_id and date_created (NOT by ID)
+                                        val existingRecord = panenDao.findByTphAndDate(panen.tph_id, panen.date_created)
 
                                         if (existingRecord == null) {
                                             // Record doesn't exist -> INSERT
@@ -2784,20 +2767,67 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 AppLogger.e("Failed to insert panen record: ${panen.tph_id}, ${panen.date_created}")
                                             }
                                         } else {
-                                            // Record exists -> UPDATE (preserve local-only fields)
-                                            AppLogger.d("Record exists, updating: ID=${panen.id}")
+                                            // Record exists -> UPDATE (check for null/""/0 values and update them)
+                                            AppLogger.d("Record exists, updating: TPH=${panen.tph_id}, Date=${panen.date_created}")
 
-                                            val updatedRecord = panen.copy(
-                                                // Preserve local status if higher
-                                                status_espb = maxOf(
-                                                    existingRecord.status_espb,
-                                                    panen.status_espb
-                                                ),
+                                            val updatedRecord = existingRecord.copy(
+                                                // Update basic info from server
+                                                created_by = panen.created_by,
+                                                no_espb = panen.no_espb,
+                                                jenis_panen = panen.jenis_panen,
+                                                ancak = panen.ancak,
+                                                jjg_json = panen.jjg_json,
+                                                isPushedToServer = 1,
+
+                                                // Update karyawan info if existing is null/empty
+                                                karyawan_id = if (existingRecord.karyawan_id.isNullOrEmpty() && panen.karyawan_id.isNotEmpty()) {
+                                                    panen.karyawan_id
+                                                } else {
+                                                    existingRecord.karyawan_id
+                                                },
+
+                                                kemandoran_id = if (existingRecord.kemandoran_id.isNullOrEmpty() && panen.kemandoran_id.isNotEmpty()) {
+                                                    panen.kemandoran_id
+                                                } else {
+                                                    existingRecord.kemandoran_id
+                                                },
+
+                                                karyawan_nik = if (existingRecord.karyawan_nik.isNullOrEmpty() && panen.karyawan_nik.isNotEmpty()) {
+                                                    panen.karyawan_nik
+                                                } else {
+                                                    existingRecord.karyawan_nik
+                                                },
+
+                                                karyawan_nama = if (existingRecord.karyawan_nama.isNullOrEmpty() && panen.karyawan_nama.isNotEmpty()) {
+                                                    panen.karyawan_nama
+                                                } else {
+                                                    existingRecord.karyawan_nama
+                                                },
+
+                                                // Update jumlah_pemanen if existing is 0 or 1 (default)
+                                                jumlah_pemanen = if (existingRecord.jumlah_pemanen <= 1 && panen.jumlah_pemanen > 1) {
+                                                    panen.jumlah_pemanen
+                                                } else {
+                                                    existingRecord.jumlah_pemanen
+                                                },
+
                                                 status_upload = existingRecord.status_upload,
                                                 status_uploaded_image = existingRecord.status_uploaded_image,
+                                                status_scan_inspeksi = existingRecord.status_scan_inspeksi,
+
                                                 // Preserve local photos and comments if they exist
-                                                foto = if (existingRecord.foto.isNotEmpty()) existingRecord.foto else panen.foto,
-                                                komentar = if (existingRecord.komentar.isNotEmpty()) existingRecord.komentar else panen.komentar,
+                                                foto = if (existingRecord.foto.isNotEmpty() && existingRecord.foto != "NULL") {
+                                                    existingRecord.foto
+                                                } else {
+                                                    panen.foto
+                                                },
+
+                                                komentar = if (existingRecord.komentar.isNotEmpty() && existingRecord.komentar != "NULL") {
+                                                    existingRecord.komentar
+                                                } else {
+                                                    panen.komentar
+                                                },
+
                                                 // Preserve local coordinates if they exist
                                                 lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
                                                 lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
@@ -2805,7 +2835,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                             panenDao.update(listOf(updatedRecord))
                                             successCount++
-                                            AppLogger.d("Updated existing record ID ${panen.id}")
+                                            AppLogger.d("Updated existing record TPH=${panen.tph_id}, Date=${panen.date_created}")
                                         }
                                     } catch (e: Exception) {
                                         failCount++
@@ -4428,25 +4458,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val tphId = item.optString("tph", "")
                                                 val createdDate = item.optString("created_date", "")
                                                 val createdBy = item.optInt("created_by", 0)
-                                                val spb_kode = item.optString("spb_kode", "")
                                                 val ancak = item.optInt("ancak", 0)
-
-                                                // Extract jjg values for jjg_json
-                                                val jjgPanen = item.optInt("jjg_panen", 0)
-                                                val jjgMentah = item.optInt("jjg_mentah", 0)
-                                                val jjgLewatMasak = item.optInt("jjg_lewat_masak", 0)
-                                                val jjgKosong = item.optInt("jjg_kosong", 0)
-                                                val jjgAbnormal = item.optInt("jjg_abnormal", 0)
-                                                val jjgSeranganTikus = item.optInt("jjg_serangan_tikus", 0)
-                                                val jjgPanjang = item.optInt("jjg_panjang", 0)
-                                                val jjgTidakVcut = item.optInt("jjg_tidak_vcut", 0)
-                                                val jjgBayar = item.optInt("jjg_bayar", 0)
-                                                val jjgKirim = item.optInt("jjg_kirim", 0)
-                                                val jjgMasak = item.optInt("jjg_masak", 0)
-
-                                                // Build jjg_json
-                                                val jjgJson =
-                                                    "{\"TO\":$jjgPanen,\"UN\":$jjgMentah,\"OV\":$jjgLewatMasak,\"EM\":$jjgKosong,\"AB\":$jjgAbnormal,\"RA\":$jjgSeranganTikus,\"LO\":$jjgPanjang,\"TI\":$jjgTidakVcut,\"RI\":$jjgMasak,\"KP\":$jjgKirim,\"PA\":$jjgBayar}"
 
                                                 // Parse kemandoran JSON to extract kemandoran_id and karyawan info
                                                 val kemandoranString = item.optString("kemandoran", "")
@@ -4509,7 +4521,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     kemandoran_id = kemandoranId,
                                                     karyawan_nik = karyawanNik,
                                                     karyawan_nama = karyawanNama,
-                                                    jjg_json = jjgJson,
+                                                    jjg_json = "",
                                                     foto = "",
                                                     komentar = "",
                                                     asistensi = 0,
@@ -4524,7 +4536,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     status_restan = 0,
                                                     scan_status = 0,
                                                     dataIsZipped = 0,
-                                                    no_espb = spb_kode,
+                                                    no_espb = "",
                                                     username = "",
                                                     status_upload = 0,
                                                     status_uploaded_image = "0",
@@ -4574,11 +4586,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 AppLogger.d("Record exists, updating: ID=${panen.id}")
 
                                                                 val updatedRecord = panen.copy(
-                                                                    // Preserve local status if higher
-                                                                    status_espb = maxOf(
-                                                                        existingRecord.status_espb,
-                                                                        panen.status_espb
-                                                                    ),
                                                                     status_upload = existingRecord.status_upload,
                                                                     status_uploaded_image = existingRecord.status_uploaded_image,
                                                                     // Preserve local photos and comments if they exist

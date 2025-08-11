@@ -525,6 +525,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
                             panenTPH = list ?: emptyList()
                             panenDeferred.complete(list ?: emptyList())
+
+                            AppLogger.d("panenTPH $panenTPH")
                         }
                     }
 
@@ -4753,17 +4755,12 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var isProcessingTPHSelection = false // Add this as a class variable
 
     override fun onTPHSelected(selectedTPHInLIst: ScannedTPHSelectionItem) {
-        AppLogger.d("=== TPH SELECTION DEBUG START ===")
-        AppLogger.d("Selected TPH ID: ${selectedTPHInLIst.id}")
-        AppLogger.d("Selected TPH Number: ${selectedTPHInLIst.number}")
-
         if (isProcessingTPHSelection) {
             AppLogger.d("TPH selection already in progress, ignoring...")
             return
         }
 
         if (photoInTPH != null) {
-            AppLogger.d("Photo exists in TPH, showing confirmation dialog")
             AlertDialogUtility.withTwoActions(
                 this@FormInspectionActivity,
                 "Lanjutkan Hapus Foto",
@@ -4772,17 +4769,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "warning.json",
                 ContextCompat.getColor(this@FormInspectionActivity, R.color.greendarkerbutton),
                 function = {
-                    AppLogger.d("User confirmed photo deletion, clearing photo data")
                     photoInTPH = null
                     komentarInTPH = null
                     updatePhotoBadgeVisibility()
                 },
                 cancelFunction = {
-                    AppLogger.d("User cancelled photo deletion")
                 }
             )
         } else {
-            AppLogger.d("No photo in TPH, proceeding with selection")
             isProcessingTPHSelection = true
 
             tvErrorScannedNotSelected.visibility = View.GONE
@@ -4793,19 +4787,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             titlePemanenInspeksi.visibility = View.VISIBLE
             descPemanenInspeksi.visibility = View.VISIBLE
 
-            AppLogger.d("=== CLEARING EXISTING DATA ===")
-            AppLogger.d("Before clearing - Selected workers in adapter: ${selectedPemanenAdapter.getSelectedWorkers().size}")
-            AppLogger.d("Before clearing - Manual workers in adapter: ${selectedPemanenManualAdapter.getSelectedWorkers().size}")
-            AppLogger.d("Before clearing - karyawanIdMap size: ${karyawanIdMap.size}")
-            AppLogger.d("Before clearing - kemandoranIdMap size: ${kemandoranIdMap.size}")
-
             // Clear RecyclerView and maps FIRST
             selectedPemanenAdapter.clearAllWorkers()
             selectedPemanenManualAdapter.clearAllWorkers()
             karyawanIdMap.clear()
             kemandoranIdMap.clear()
-
-            AppLogger.d("After clearing - All data structures cleared")
 
             // Clear the RecyclerView but DON'T recreate the adapter
             val rvSelectedPemanenOtomatis =
@@ -4822,32 +4808,18 @@ open class FormInspectionActivity : AppCompatActivity(),
             selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
             selectedKaryawanList = emptyList()
 
-            AppLogger.d("selectedTPHNomorByScan set to: $selectedTPHNomorByScan")
-            AppLogger.d("selectedKaryawanList cleared (size: ${selectedKaryawanList.size})")
+            selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
+            selectedKaryawanList = emptyList()
 
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    AppLogger.d("=== FILTERING PANEN RECORDS ===")
-                    AppLogger.d("Total panenTPH records: ${panenTPH.size}")
-                    AppLogger.d("Looking for TPH ID: ${selectedTPHInLIst.id}")
-
                     val matchingPanenList = panenTPH.filter { panenWithRelations ->
                         val tphId = panenWithRelations.panen?.tph_id?.toIntOrNull()
-                        val matches = tphId == selectedTPHInLIst.id
-                        if (matches) {
-                            AppLogger.d("Found matching panen: ID=${panenWithRelations.panen?.id}, TPH_ID=$tphId")
-                        }
-                        matches
+                        tphId == selectedTPHInLIst.id
                     }
-
-                    AppLogger.d("Found ${matchingPanenList.size} matching panen records")
 
                     if (matchingPanenList.isEmpty()) {
                         AppLogger.e("No matching panen records found for TPH ID: ${selectedTPHInLIst.id}")
-                        panenTPH.forEach { panenWithRelations ->
-                            val tphId = panenWithRelations.panen?.tph_id
-                            AppLogger.d("- TPH ID: $tphId")
-                        }
                         return@postDelayed
                     }
 
@@ -4868,22 +4840,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                     selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
                     selectedBlokByScan = firstTph?.blok_kode ?: ""
 
-                    AppLogger.d("=== TPH INFO SET ===")
-                    AppLogger.d("selectedTPHIdByScan: $selectedTPHIdByScan")
-                    AppLogger.d("selectedEstateByScan: $selectedEstateByScan")
-                    AppLogger.d("selectedAfdelingByScan: $selectedAfdelingByScan")
-                    AppLogger.d("selectedBlokByScan: $selectedBlokByScan")
-
                     // Store all available workers for spinner
                     val allAvailableWorkers = mutableListOf<Worker>()
                     val allKaryawanInfo = mutableListOf<KaryawanInfo>()
 
-                    AppLogger.d("=== PROCESSING WORKERS FOR SPINNER ===")
-
                     // Process merged workers and prepare them for spinner
-                    mergedData.workerSet.forEachIndexed { index, formattedWorker ->
-                        AppLogger.d("Processing worker [$index]: $formattedWorker")
-
+                    mergedData.workerSet.forEach { formattedWorker ->
                         val dashIndex = formattedWorker.indexOf(" - ")
                         val selectedNik = if (dashIndex != -1) {
                             formattedWorker.substring(0, dashIndex).trim()
@@ -4896,57 +4858,33 @@ open class FormInspectionActivity : AppCompatActivity(),
                             formattedWorker.trim()
                         }
 
-                        AppLogger.d("  - Parsed NIK: '$selectedNik'")
-                        AppLogger.d("  - Parsed Name: '$selectedName'")
-
                         // Find the corresponding employee data from any of the panen records
                         var selectedEmployee: PanenEntity? = null
                         var individualKaryawanId: String? = null
 
-                        AppLogger.d("  - Searching through ${matchingPanenList.size} panen records for employee data...")
-
-                        for ((panenIndex, panenWithRelations) in matchingPanenList.withIndex()) {
+                        for (panenWithRelations in matchingPanenList) {
                             val panenEntity = panenWithRelations.panen ?: continue
                             val karyawanNik = panenEntity.karyawan_nik
                             val karyawanNama = panenEntity.karyawan_nama
                             val karyawanId = panenEntity.karyawan_id
 
-                            AppLogger.d("Panen [$panenIndex] - NIKs: '$karyawanNik', Names: '$karyawanNama', IDs: '$karyawanId'")
-
-                            // MODIFIED CONDITION: Allow empty karyawan_id and use NIK as fallback
-                            if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank()) {
+                            if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
                                 val niks = karyawanNik.split(",").map { it.trim() }
                                 val names = karyawanNama.split(",").map { it.trim() }
-
-                                // Handle empty karyawan_id - use NIKs as IDs if karyawan_id is empty
-                                val ids = if (karyawanId.isNullOrBlank()) {
-                                    AppLogger.d("    karyawan_id is empty, using NIKs as IDs")
-                                    niks // Use NIKs as IDs
-                                } else {
-                                    karyawanId.split(",").map { it.trim() }
-                                }
-
-                                AppLogger.d("    Split NIKs: $niks")
-                                AppLogger.d("    Split Names: $names")
-                                AppLogger.d("    Split IDs: $ids")
+                                val ids = karyawanId.split(",").map { it.trim() }
 
                                 val nikIndex = niks.indexOf(selectedNik)
                                 val nameIndex = names.indexOf(selectedName)
 
-                                AppLogger.d("    NIK Index: $nikIndex, Name Index: $nameIndex")
-
                                 if (nikIndex != -1 && nameIndex != -1 && nikIndex < ids.size) {
                                     selectedEmployee = panenEntity
                                     individualKaryawanId = ids[nikIndex]
-                                    AppLogger.d("    *** MATCH FOUND! Employee ID: $individualKaryawanId")
                                     break
                                 }
                             }
                         }
 
                         if (selectedEmployee != null && individualKaryawanId != null) {
-                            AppLogger.d("  - Successfully found employee data for: $formattedWorker")
-
                             karyawanIdMap[formattedWorker] = individualKaryawanId.toIntOrNull() ?: 0
                             kemandoranIdMap[formattedWorker] =
                                 selectedEmployee.kemandoran_id.toIntOrNull() ?: 0
@@ -4974,23 +4912,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 )
                             )
 
-                            AppLogger.d("  - Added worker to spinner: $formattedWorker, ID: $individualKaryawanId")
-                        } else {
-                            AppLogger.w("  - *** WARNING: Could not find employee data for worker: $formattedWorker")
-                            AppLogger.w("    selectedEmployee: $selectedEmployee")
-                            AppLogger.w("    individualKaryawanId: $individualKaryawanId")
+                            AppLogger.d("Added worker to spinner: $formattedWorker, ID: $individualKaryawanId")
                         }
                     }
 
-                    AppLogger.d("=== WORKER PROCESSING COMPLETE ===")
-                    AppLogger.d("Total workers processed: ${mergedData.workerSet.size}")
-                    AppLogger.d("Workers successfully added to spinner: ${allAvailableWorkers.size}")
-                    AppLogger.d("karyawanIdMap entries: ${karyawanIdMap.size}")
-                    AppLogger.d("kemandoranIdMap entries: ${kemandoranIdMap.size}")
-
                     // Store all available workers
                     allAvailableKaryawanList = allKaryawanInfo
-                    AppLogger.d("allAvailableKaryawanList size: ${allAvailableKaryawanList.size}")
 
                     // Create description
                     val ancakText = if (mergedData.ancakList.isNotEmpty()) {
@@ -5024,11 +4951,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                     selectedTanggalPanenByScan = datesJson.toString()
 
-                    AppLogger.d("=== DESCRIPTION DATA ===")
-                    AppLogger.d("selectedIdPanenByScan: $selectedIdPanenByScan")
-                    AppLogger.d("selectedAncakByScan: $selectedAncakByScan")
-                    AppLogger.d("selectedTanggalPanenByScan: $selectedTanggalPanenByScan")
-
                     val today = LocalDate.now()
 
                     val formattedDatesWithH = mergedData.dateList.mapNotNull { dateStr ->
@@ -5061,41 +4983,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                     descPemanenInspeksi.text =
                         Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
-                    AppLogger.d("=== POPULATING SPINNERS ===")
-                    AppLogger.d("About to populate spinner with ${allAvailableWorkers.size} workers")
-
-                    // Check if we have any selected workers before populating spinner
-                    val currentSelectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
-                    AppLogger.d("Current selected workers in adapter: ${currentSelectedWorkers.size}")
-                    currentSelectedWorkers.forEach { worker ->
-                        AppLogger.d("  - Selected: ${worker.name} (ID: ${worker.id})")
-                    }
-
                     // NOW POPULATE THE SPINNER with all available workers
                     populatePemanenSpinner(allAvailableWorkers)
                     setupManualPemanenSpinner()
 
-                    AppLogger.d("=== FINAL STATUS ===")
                     AppLogger.d("Total workers available in spinner: ${allAvailableWorkers.size}")
-
-                    // Final check: are all workers selected?
-                    val finalSelectedWorkers = selectedPemanenAdapter.getSelectedWorkers()
-                    AppLogger.d("Final selected workers count: ${finalSelectedWorkers.size}")
-
-                    if (finalSelectedWorkers.size >= allAvailableWorkers.size && allAvailableWorkers.isNotEmpty()) {
-                        AppLogger.d("*** All workers have been selected - spinner should show empty ***")
-                    } else {
-                        AppLogger.d("Workers still available for selection: ${allAvailableWorkers.size - finalSelectedWorkers.size}")
-                    }
-
-                    AppLogger.d("=== TPH SELECTION DEBUG END ===")
 
                 } catch (e: Exception) {
                     AppLogger.e("Error processing merged TPH selection: ${e.message}")
-                    AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                 } finally {
                     isProcessingTPHSelection = false
-                    AppLogger.d("isProcessingTPHSelection set to false")
                 }
             }, 200)
         }

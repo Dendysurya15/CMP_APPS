@@ -267,7 +267,7 @@ class ListInspectionAdapter(
                     // td3: Tipe/Ancak
                     val tipeAncak = when (panen.jenis_panen) {
                         0 -> "NORMAL"
-                        1 -> "CUT&CARRY"
+                        1 -> "CUT & CARRY"
                         else -> "TIDAK DIKETAHUI"
                     }
                     td3.text = "$tipeAncak\nANCAK ${panen.ancak}"

@@ -62,6 +62,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
 
+    private val _panenCountForTransferInspeksi = MutableStateFlow(0)
+    val panenCountForTransferInspeksi: StateFlow<Int> = _panenCountForTransferInspeksi.asStateFlow()
+
     private val _archivedCount = MutableLiveData<Int>()
     val archivedCount: LiveData<Int> = _archivedCount
 
@@ -177,6 +180,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun loadPanenCount(): Int {
         val count = repository.getPanenCount()
         _panenCount.value = count
+        return count
+    }
+
+    suspend fun loadPanenCountForTransferInspeksi(): Int {
+        val count = repository.getPanenCountForTransferInspeksi()
+        _panenCountForTransferInspeksi.value = count
         return count
     }
 

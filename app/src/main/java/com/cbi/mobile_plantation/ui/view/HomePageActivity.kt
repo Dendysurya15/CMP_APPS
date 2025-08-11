@@ -164,6 +164,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
     private var countPanenTPH: Int = 0  // Global variable for count
+    private var countPanenTPHForTransferInspeksi: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
@@ -464,6 +465,20 @@ class HomePageActivity : AppCompatActivity() {
                     AppLogger.e("Error fetching data: ${e.message}")
                     withContext(Dispatchers.Main) {
                         featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                    }
+                }
+
+                try {
+                    val countDeferred = async { panenViewModel.loadPanenCountForTransferInspeksi() }
+                    countPanenTPHForTransferInspeksi = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.TransferInspeksiPanen, countPanenTPHForTransferInspeksi.toString())
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
                     }
                 }
                 try {
@@ -784,9 +799,18 @@ class HomePageActivity : AppCompatActivity() {
                 featureName = AppUtils.ListFeatureNames.TransferInspeksiPanen,
                 featureNameBackgroundColor = R.color.graytextdark,
                 iconResource = null,
-                count = countPanenTPH.toString(),
+                count = countPanenTPHForTransferInspeksi.toString(),
                 functionDescription = "Transfer data dari kerani panen untuk hasil inspeksi H+0",
                 displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = AppUtils.ListFeatureNames.ScanTransferInspeksiPanen,
+                featureNameBackgroundColor = R.color.orange,
+                iconResource =  R.drawable.scan_inspect_icon,
+                count = countPanenTPHForTransferInspeksi.toString(),
+                functionDescription = "Scan data panen untuk proses Inspeksi H+0",
+                displayType = DisplayType.ICON
             )
 
         )
@@ -853,6 +877,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
                     features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
@@ -865,6 +890,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
                     features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
@@ -874,6 +900,7 @@ class HomePageActivity : AppCompatActivity() {
                 AppUtils.ListFeatureByRoleUser.MandorPanen -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanPanenMPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.DaftarHektarPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
@@ -886,6 +913,7 @@ class HomePageActivity : AppCompatActivity() {
                     )
 
                 AppUtils.ListFeatureByRoleUser.GM -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
@@ -893,6 +921,7 @@ class HomePageActivity : AppCompatActivity() {
                 )
 
                 AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
@@ -1746,6 +1775,14 @@ class HomePageActivity : AppCompatActivity() {
             AppUtils.ListFeatureNames.TransferInspeksiPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListFollowUpInspeksi::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, ScanQR::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
