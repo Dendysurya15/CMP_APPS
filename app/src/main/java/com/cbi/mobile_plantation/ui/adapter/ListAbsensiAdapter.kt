@@ -185,8 +185,12 @@ class ListAbsensiAdapter(private val context: Context,
         private val employees: MutableList<EmployeeAttendance>
     ) : RecyclerView.Adapter<EditAttendanceAdapter.EditAttendanceViewHolder>() {
 
+        // Attendance statuses with their corresponding values
         private val attendanceStatuses = listOf("Hadir", "Mangkir", "Sakit", "Izin", "Cuti")
+
+        // Work locations with their corresponding numeric values
         private val workLocations = listOf("Panen", "Potong Buah", "Gardan", "Supir", "Rawat Jalan", "Pruning", "Perbaikan Unit", "Jangkos", "Perawatan")
+        private val workLocationValues = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9) // Numeric values for each work location
 
         class EditAttendanceViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             val tvEmployeeName: TextView = itemView.findViewById(R.id.tvEmployeeName)
@@ -222,13 +226,14 @@ class ListAbsensiAdapter(private val context: Context,
 
             // Set current selection for work location if employee is present
             if (employee.status == "Hadir" && employee.workLocation != "N/A") {
-                val currentWorkLocationIndex = workLocations.indexOf(employee.workLocation)
+                // Convert work location value to index
+                val currentWorkLocationIndex = getWorkLocationIndexByValue(employee.workLocation.toString())
                 if (currentWorkLocationIndex != -1) {
                     holder.spWorkLocationStatus.selectedIndex = currentWorkLocationIndex
                 } else {
                     // If work location is not in the list, set to first option
                     holder.spWorkLocationStatus.selectedIndex = 0
-                    employee.workLocation = workLocations[0]
+                    employee.workLocation = workLocationValues[0].toString()
                 }
             }
 
@@ -248,9 +253,9 @@ class ListAbsensiAdapter(private val context: Context,
                     // If not present, set work location to N/A
                     employee.workLocation = "N/A"
                 } else {
-                    // If present and work location was N/A, set to first work location
+                    // If present and work location was N/A, set to first work location value
                     if (employee.workLocation == "N/A") {
-                        employee.workLocation = workLocations[0]
+                        employee.workLocation = workLocationValues[0].toString()
                         holder.spWorkLocationStatus.selectedIndex = 0
                     }
                 }
@@ -261,7 +266,11 @@ class ListAbsensiAdapter(private val context: Context,
             // Handle work location spinner selection change
             holder.spWorkLocationStatus.setOnItemSelectedListener { _, _, _, item ->
                 if (employee.status == "Hadir") {
-                    employee.workLocation = item.toString()
+                    val selectedIndex = workLocations.indexOf(item.toString())
+                    if (selectedIndex != -1) {
+                        // Store the numeric value instead of the text
+                        employee.workLocation = workLocationValues[selectedIndex].toString()
+                    }
                 }
             }
         }
@@ -294,6 +303,27 @@ class ListAbsensiAdapter(private val context: Context,
                     cardView.strokeColor = ContextCompat.getColor(context, R.color.grayDefault)
                     cardView.strokeWidth = 5
                 }
+            }
+        }
+
+        // Helper function to get work location index by its numeric value
+        private fun getWorkLocationIndexByValue(workLocationValue: String): Int {
+            return try {
+                val numericValue = workLocationValue.toInt()
+                workLocationValues.indexOf(numericValue)
+            } catch (e: NumberFormatException) {
+                -1
+            }
+        }
+
+        // Helper function to get work location text by its numeric value
+        fun getWorkLocationTextByValue(workLocationValue: String): String {
+            return try {
+                val numericValue = workLocationValue.toInt()
+                val index = workLocationValues.indexOf(numericValue)
+                if (index != -1) workLocations[index] else "Unknown"
+            } catch (e: NumberFormatException) {
+                "Unknown"
             }
         }
 
