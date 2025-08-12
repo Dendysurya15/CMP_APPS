@@ -2119,96 +2119,81 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     null
                                 }
 
-                            val username = extractUsernameFromCreatedName(createdName)
+                            val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                                ""
+                            } else {
+                                extractUsernameFromCreatedName(createdName)
+                            }
 
-                            // Count status_espb values and check spb_kode relationship
+                            // Count status_espb values and check spb_kode relationship (for logging only)
                             when (statusEspb) {
                                 0 -> {
                                     status0Count++
                                     if (spbKode.isNullOrEmpty()) {
                                         status0WithNullSpb++
-
-                                        // ADD THE ENTITY TO PANEN LIST HERE - Only for status_espb=0 with null spb_kode
-                                        AppLogger.d("Creating entity for insert/update")
-                                        val jjgJson = "{\"KP\": $jjgKirim}"
-                                        AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
-
-                                        // Create a PanenEntity with the required fields
-                                        val panenEntity = PanenEntity(
-                                            tph_id = tphId.toString(),
-                                            date_created = createdDate,
-                                            created_by = 0,
-                                            karyawan_id = "",
-                                            kemandoran_id = "",
-                                            karyawan_nik = "",
-                                            karyawan_nama = "",
-                                            jjg_json = jjgJson,
-                                            foto = "",
-                                            komentar = "",
-                                            asistensi = 0,
-                                            lat = 0.0,
-                                            lon = 0.0,
-                                            jenis_panen = 0,
-                                            ancak = 0,
-                                            info = "",
-                                            archive = 0,
-                                            status_banjir = 0,
-                                            status_espb = 0,
-                                            status_restan = 1,
-                                            scan_status = 1,
-                                            dataIsZipped = 0,
-                                            no_espb = spbKode ?: "",
-                                            username = username,
-                                            status_upload = 0,
-                                            status_uploaded_image = "0",
-                                            status_pengangkutan = 0,
-                                            status_insert_mpanen = 0,
-                                            status_scan_mpanen = 0,
-                                            jumlah_pemanen = 0,
-                                            archive_mpanen = 0,
-                                            isPushedToServer = 1
-                                        )
-
-                                        panenList.add(panenEntity)
                                     } else {
                                         status0WithNonNullSpb++
-                                        // Log some examples
-                                        if (status0WithNonNullSpb <= 3) {
-                                            AppLogger.d("Status_espb=0 with spb_kode: '$spbKode' (tph: $tphId)")
-                                        }
                                     }
                                 }
-
                                 1 -> {
                                     status1Count++
                                     if (spbKode.isNullOrEmpty()) {
                                         status1WithNullSpb++
-                                        // This should be rare/impossible - log these cases
-                                        AppLogger.w("⚠️ INCONSISTENCY: Status_espb=1 but spb_kode is NULL/empty (tph: $tphId, date: $createdDate)")
                                     } else {
                                         status1WithNonNullSpb++
-                                        // Log some examples
-                                        if (status1WithNonNullSpb <= 3) {
-                                            AppLogger.d("Status_espb=1 with spb_kode: '$spbKode' (tph: $tphId)")
-                                        }
                                     }
                                 }
-
                                 2 -> {
                                     status2Count++
                                     if (spbKode.isNullOrEmpty()) {
                                         status2WithNullSpb++
-                                        // This should be rare/impossible - log these cases
-                                        AppLogger.w("⚠️ INCONSISTENCY: Status_espb=2 but spb_kode is NULL/empty (tph: $tphId, date: $createdDate)")
                                     } else {
                                         status2WithNonNullSpb++
-                                        // Log some examples
-                                        if (status2WithNonNullSpb <= 3) {
-                                            AppLogger.d("Status_espb=2 with spb_kode: '$spbKode' (tph: $tphId)")
-                                        }
                                     }
                                 }
                             }
+
+                            // ADD ALL RECORDS TO PANEN LIST - regardless of status or spb_kode
+                            AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb, spbKode=$spbKode")
+                            val jjgJson = "{\"KP\": $jjgKirim}"
+
+                            // Create a PanenEntity with the required fields
+                            val panenEntity = PanenEntity(
+                                tph_id = tphId.toString(),
+                                date_created = createdDate,
+                                created_by = 0,
+                                karyawan_id = "",
+                                kemandoran_id = "",
+                                karyawan_nik = "",
+                                karyawan_nama = "",
+                                jjg_json = jjgJson,
+                                foto = "",
+                                komentar = "",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = 0,
+                                ancak = 0,
+                                info = "",
+                                archive = 0,
+                                status_banjir = 0,
+                                status_espb = statusEspb, // Use actual status from server
+                                status_restan = 1,
+                                scan_status = 1, // ALWAYS set to 1 for restan sync
+                                dataIsZipped = 0,
+                                no_espb = spbKode ?: "", // Use actual spb_kode or empty
+                                username = username,
+                                status_upload = 0,
+                                status_uploaded_image = "0",
+                                status_pengangkutan = 0,
+                                status_insert_mpanen = 0,
+                                status_scan_mpanen = 0,
+                                jumlah_pemanen = 0,
+                                archive_mpanen = 0,
+                                isPushedToServer = 1
+                            )
+
+                            panenList.add(panenEntity)
                         }
 
                         // Enhanced summary with spb_kode relationship check
@@ -2567,8 +2552,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val jjgJson = "{\"KP\": $jjgKirim}"
                             val createdName = item.optString("created_name", "")
-                            val username =
+                            val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                                ""  // Keep it empty if null/NULL
+                            } else {
                                 extractUsernameFromCreatedName(createdName)
+                            }
                             // Parse kemandoran JSON to extract kemandoran_id and karyawan info
                             val kemandoranString = item.optString("kemandoran", "")
                             var kemandoranId = ""
@@ -2722,7 +2710,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             val updatedRecord = existingRecord.copy(
                                                 // Update basic info from server
                                                 created_by = panen.created_by,
-                                                no_espb = panen.no_espb,
                                                 jenis_panen = panen.jenis_panen,
                                                 ancak = panen.ancak,
                                                 jjg_json = panen.jjg_json,
@@ -4570,8 +4557,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val jjgKirim = item.optInt("jjg_kirim", 0)
                                                 val jjgJson = "{\"KP\": $jjgKirim}"
                                                 val createdName = item.optString("created_name", "")
-                                                val username =
+                                                val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                                                    ""  // Keep it empty if null/NULL
+                                                } else {
                                                     extractUsernameFromCreatedName(createdName)
+                                                }
                                                 // Parse kemandoran JSON to extract kemandoran_id and karyawan info
                                                 val kemandoranString =
                                                     item.optString("kemandoran", "")
@@ -4838,97 +4828,81 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         null
                                                     }
                                                 val createdName = item.optString("created_name", "")
-                                                val username =
+                                                val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                                                    ""  // Keep it empty if null/NULL
+                                                } else {
                                                     extractUsernameFromCreatedName(createdName)
+                                                }
 
-                                                // Count status_espb values and check spb_kode relationship
+                                                // Count status_espb values and check spb_kode relationship (for logging only)
                                                 when (statusEspb) {
                                                     0 -> {
                                                         status0Count++
                                                         if (spbKode.isNullOrEmpty()) {
                                                             status0WithNullSpb++
-
-                                                            // ADD THE ENTITY TO PANEN LIST HERE - Only for status_espb=0 with null spb_kode
-                                                            AppLogger.d("Creating entity for insert/update")
-                                                            val jjgJson = "{\"KP\": $jjgKirim}"
-                                                            AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, jjgJson=$jjgJson")
-
-                                                            // Create a PanenEntity with the required fields
-                                                            val panenEntity = PanenEntity(
-                                                                tph_id = tphId.toString(),
-                                                                date_created = createdDate,
-                                                                created_by = 0,
-                                                                karyawan_id = "",
-                                                                kemandoran_id = "",
-                                                                karyawan_nik = "",
-                                                                karyawan_nama = "",
-                                                                jjg_json = jjgJson,
-                                                                foto = "",
-                                                                komentar = "",
-                                                                asistensi = 0,
-                                                                lat = 0.0,
-                                                                lon = 0.0,
-                                                                jenis_panen = 0,
-                                                                ancak = 0,
-                                                                info = "",
-                                                                archive = 0,
-                                                                status_banjir = 0,
-                                                                status_espb = 0,
-                                                                status_restan = 1,
-                                                                scan_status = 1,
-                                                                dataIsZipped = 0,
-                                                                no_espb = spbKode ?: "",
-                                                                username = username,
-                                                                status_upload = 0,
-                                                                status_uploaded_image = "0",
-                                                                status_pengangkutan = 0,
-                                                                status_insert_mpanen = 0,
-                                                                status_scan_mpanen = 0,
-                                                                jumlah_pemanen = 0,
-                                                                archive_mpanen = 0,
-                                                                isPushedToServer = 1
-                                                            )
-
-                                                            panenList.add(panenEntity)
                                                         } else {
                                                             status0WithNonNullSpb++
-                                                            // Log some examples
-                                                            if (status0WithNonNullSpb <= 3) {
-                                                                AppLogger.d("Status_espb=0 with spb_kode: '$spbKode' (tph: $tphId)")
-                                                            }
                                                         }
                                                     }
-
                                                     1 -> {
                                                         status1Count++
                                                         if (spbKode.isNullOrEmpty()) {
                                                             status1WithNullSpb++
-                                                            // This should be rare/impossible - log these cases
-                                                            AppLogger.w("⚠️ INCONSISTENCY: Status_espb=1 but spb_kode is NULL/empty (tph: $tphId, date: $createdDate)")
                                                         } else {
                                                             status1WithNonNullSpb++
-                                                            // Log some examples
-                                                            if (status1WithNonNullSpb <= 3) {
-                                                                AppLogger.d("Status_espb=1 with spb_kode: '$spbKode' (tph: $tphId)")
-                                                            }
                                                         }
                                                     }
-
                                                     2 -> {
                                                         status2Count++
                                                         if (spbKode.isNullOrEmpty()) {
                                                             status2WithNullSpb++
-                                                            // This should be rare/impossible - log these cases
-                                                            AppLogger.w("⚠️ INCONSISTENCY: Status_espb=2 but spb_kode is NULL/empty (tph: $tphId, date: $createdDate)")
                                                         } else {
                                                             status2WithNonNullSpb++
-                                                            // Log some examples
-                                                            if (status2WithNonNullSpb <= 3) {
-                                                                AppLogger.d("Status_espb=2 with spb_kode: '$spbKode' (tph: $tphId)")
-                                                            }
                                                         }
                                                     }
                                                 }
+
+                                                // ADD ALL RECORDS TO PANEN LIST - regardless of status or spb_kode
+                                                AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb, spbKode=$spbKode")
+                                                val jjgJson = "{\"KP\": $jjgKirim}"
+
+                                                // Create a PanenEntity with the required fields
+                                                val panenEntity = PanenEntity(
+                                                    tph_id = tphId.toString(),
+                                                    date_created = createdDate,
+                                                    created_by = 0,
+                                                    karyawan_id = "",
+                                                    kemandoran_id = "",
+                                                    karyawan_nik = "",
+                                                    karyawan_nama = "",
+                                                    jjg_json = jjgJson,
+                                                    foto = "",
+                                                    komentar = "",
+                                                    asistensi = 0,
+                                                    lat = 0.0,
+                                                    lon = 0.0,
+                                                    jenis_panen = 0,
+                                                    ancak = 0,
+                                                    info = "",
+                                                    archive = 0,
+                                                    status_banjir = 0,
+                                                    status_espb = statusEspb, // Use actual status from server
+                                                    status_restan = 1,
+                                                    scan_status = 1, // ALWAYS set to 1 for restan sync
+                                                    dataIsZipped = 0,
+                                                    no_espb = spbKode ?: "", // Use actual spb_kode or empty
+                                                    username = username,
+                                                    status_upload = 0,
+                                                    status_uploaded_image = "0",
+                                                    status_pengangkutan = 0,
+                                                    status_insert_mpanen = 0,
+                                                    status_scan_mpanen = 0,
+                                                    jumlah_pemanen = 0,
+                                                    archive_mpanen = 0,
+                                                    isPushedToServer = 1
+                                                )
+
+                                                panenList.add(panenEntity)
                                             }
 
                                             // Enhanced summary with spb_kode relationship check
@@ -5653,7 +5627,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 
     private fun extractUsernameFromCreatedName(createdName: String): String {
-        if (createdName.isEmpty()) return ""
+        // Return empty if input is null, empty, or "NULL"
+        if (createdName.isEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+            return ""
+        }
 
         try {
             // Remove extra spaces and split by space
@@ -5714,7 +5691,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             return if (result.length >= 3) {
                 result.takeLast(3).uppercase()
             } else {
-                result.uppercase()
+                // If still can't extract proper username, return empty instead of incomplete result
+                ""
             }
 
         } catch (e: Exception) {

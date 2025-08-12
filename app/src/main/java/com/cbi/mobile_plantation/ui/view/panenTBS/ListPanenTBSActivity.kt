@@ -435,7 +435,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         } else {
                             panenViewModel.loadTPHESPB(0,  0,false, globalFormattedDate)
                             panenViewModel.countTPHNonESPB(0,  0,true, globalFormattedDate)
-                            panenViewModel.countTPHESPB(0,  0,false, globalFormattedDate)
+                            panenViewModel.countTPHESPB(0,  1,false, globalFormattedDate)
                             panenViewModel.countHasBeenESPB(0,  0,false, globalFormattedDate)
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
@@ -648,6 +648,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             else if (featureName == "Detail eSPB") {
                 val btnEditEspb = findViewById<FloatingActionButton>(R.id.btnEditEspb)
                 btnEditEspb.visibility = View.VISIBLE
+                val labelEditEspb = findViewById<TextView>(R.id.labelEditEspb)
+                labelEditEspb.visibility = View.VISIBLE
+                val labelGenerateQR = findViewById<TextView>(R.id.labelGenerateQR)
+                labelGenerateQR.visibility = View.VISIBLE
                 ll_detail_espb = findViewById<LinearLayout>(R.id.ll_detail_espb)
                 ll_detail_espb.visibility = View.VISIBLE
                 espbViewModel.getESPBById(espbId)
@@ -859,6 +863,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val btnTambahHapusTPHESPB =
                     findViewById<FloatingActionButton>(R.id.btnTambahHapusTPHESPB)
                 btnTambahHapusTPHESPB.visibility = View.VISIBLE
+
+                val labelTambahHapusTPHESPB =
+                    findViewById<TextView>(R.id.labelTambahHapusTPHESPB)
+                labelTambahHapusTPHESPB.visibility = View.VISIBLE
 
 
 

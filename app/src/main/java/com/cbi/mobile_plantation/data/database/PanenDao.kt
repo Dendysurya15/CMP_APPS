@@ -104,7 +104,7 @@ abstract class PanenDao {
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 1 AND status_espb = 0 AND date(date_created) = date('now', 'localtime')")
     abstract suspend fun getCountArchive(): Int
 
-    @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0  AND status_espb = 0 AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') AND date(date_created) = date('now', 'localtime') AND scan_status == 1" )
+    @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0  AND status_transfer_restan = 0 AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') AND date(date_created) = date('now', 'localtime') AND scan_status == 1" )
     abstract suspend fun getCountApproval(): Int
 
 

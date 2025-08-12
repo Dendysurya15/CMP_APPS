@@ -43,11 +43,11 @@ class DownloadDatasetUtility(
         AppLogger.d("$TAG - User role: $userRole")
 
         // Add role-specific datasets
-        addRoleSpecificDatasets(
-            datasets, userRole, regionalId, estateId, afdelingId, regionalUser,
-            lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
-            lastModifiedDatasetPemanen
-        )
+//        addRoleSpecificDatasets(
+//            datasets, userRole, regionalId, estateId, afdelingId, regionalUser,
+//            lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
+//            lastModifiedDatasetPemanen
+//        )
 
 
         // Handle special triggers first (these override normal role-based logic)
@@ -57,11 +57,11 @@ class DownloadDatasetUtility(
 
 
         // Add common datasets for all roles (except when special triggers are active)
-        addCommonDatasets(
-            datasets, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
-            lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
-            lastModifiedDatasetKendaraan, lastModifiedSettingJSON
-        )
+//        addCommonDatasets(
+//            datasets, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
+//            lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
+//            lastModifiedDatasetKendaraan, lastModifiedSettingJSON
+//        )
 
         return datasets
     }
