@@ -1,20 +1,19 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
 import android.Manifest
-import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.location.Location
 import android.net.Uri
 import android.os.Build
@@ -32,107 +31,102 @@ import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
-import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
-import android.view.animation.AccelerateInterpolator
-import android.view.animation.DecelerateInterpolator
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.PopupWindow
+import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.cbi.mobile_plantation.data.model.KaryawanModel
-import com.cbi.mobile_plantation.data.model.KemandoranModel
-import com.cbi.mobile_plantation.data.repository.CameraRepository
-import com.cbi.mobile_plantation.data.repository.PanenTBSRepository
-import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
-import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter
-import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
-import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
-import com.cbi.mobile_plantation.ui.viewModel.LocationViewModel
-import com.cbi.mobile_plantation.ui.viewModel.PanenTBSViewModel
-import com.cbi.mobile_plantation.utils.AlertDialogUtility
-import com.cbi.mobile_plantation.utils.AppLogger
-import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.mobile_plantation.utils.AppUtils.stringXML
-import com.cbi.mobile_plantation.utils.AppUtils.vibrate
-import com.cbi.mobile_plantation.utils.LoadingDialog
-import com.cbi.mobile_plantation.utils.MathFun
-import com.cbi.mobile_plantation.utils.PrefManager
-import com.cbi.markertph.data.model.TPHNewModel
-import com.google.android.flexbox.FlexboxLayoutManager
-import com.google.android.flexbox.JustifyContent
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.switchmaterial.SwitchMaterial
-import com.jaredrummler.materialspinner.MaterialSpinner
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.io.File
-import kotlin.reflect.KMutableProperty0
-import android.text.InputType as AndroidInputType
-import android.view.inputmethod.EditorInfo
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.CheckBox
-import android.widget.ImageButton
-import android.widget.ListView
-import android.widget.PopupWindow
-import android.widget.ProgressBar
-import android.widget.ScrollView
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.cbi.markertph.data.model.JenisTPHModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.KaryawanModel
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.data.repository.CameraRepository
+import com.cbi.mobile_plantation.data.repository.PanenTBSRepository
 import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
+import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
+import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
+import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
+import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
+import com.cbi.mobile_plantation.ui.viewModel.LocationViewModel
+import com.cbi.mobile_plantation.ui.viewModel.MutuBuahViewModel
+import com.cbi.mobile_plantation.ui.viewModel.PanenTBSViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
+import com.cbi.mobile_plantation.utils.AlertDialogUtility
+import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.AppUtils.stringXML
+import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.MathFun
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScannedTPHLocation
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
+import kotlin.reflect.KMutableProperty0
+import android.text.InputType as AndroidInputType
 
 @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
 open class FeaturePanenTBSActivity : AppCompatActivity(),
@@ -140,8 +134,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     ListTPHInsideRadiusAdapter.OnTPHSelectedListener {
     private var isSnackbarShown = false
     private var photoCount = 0
+    private var photoCountSelfie = 0
     private val photoFiles = mutableListOf<String>() // Store filenames
+    private val photoFilesSelfie = mutableListOf<String>() // Store filenames
     private val komentarFoto = mutableListOf<String>() // Store filenames
+
+    private lateinit var layoutSelfiePhoto: View
+    private var selfiePhotoFile: File? = null
+
     private var jumTBS = 0
     private var bMentah = 0
     private var bLewatMasak = 0
@@ -199,6 +199,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
+    private lateinit var takeFotoSelfieAdapter: TakeFotoPreviewAdapter
+
 
     private var masterDeptInfoMap: Map<String, String> = emptyMap()
     private var estateList: List<EstateModel> = emptyList()
@@ -267,6 +269,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var mutuBuahViewModel: MutuBuahViewModel
     private lateinit var absensiViewModel: AbsensiViewModel
     private var regionalId: String? = null
     private var estateId: String? = null
@@ -369,9 +372,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
         setupTitleEachGroupInput()
         setupHeader()
+        if (featureName==AppUtils.ListFeatureNames.MutuBuah) {
+            val tvDescFoto = findViewById<TextView>(R.id.tvDescFoto)
+            tvDescFoto.text =  "Upload foto sebagai bukti pengisian form Mutu Buah (Minimal 1 Foto Selfie dan 1 foto TPH untuk simpan)"
+//            val tvRecyclerViewFotoSelfie = recyclerViewFotoSelfie.findViewById<TextView>(R.id.tvPhotoComment)
+//            tvRecyclerViewFotoSelfie.visibility = View.GONE
+//            val rtRecyclerViewFotoSelfie = recyclerViewFotoSelfie.findViewById<EditText>(R.id.etPhotoComment)
+//            rtRecyclerViewFotoSelfie.visibility = View.GONE
+//            val ivAddFoto = recyclerViewFotoSelfie.findViewById<ImageView>(R.id.ivAddFoto)
+//            ivAddFoto.setImageResource(R.drawable.baseline_camera_front_24)
+//            ivAddFoto.setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN) // make it red
+        }
 
         infoApp = AppUtils.getDeviceInfo(this@FeaturePanenTBSActivity).toString()
-
 
         lifecycleScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -386,150 +399,178 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
-                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+                    if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+                        val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    panenViewModel.getAllTPHHasBeenSelected()
-                    delay(100)
+                        panenViewModel.getAllTPHHasBeenSelected()
+                        delay(100)
 
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val tphDataMap = mutableMapOf<Int, TPHData>()
+                        withContext(Dispatchers.Main) {
+                            panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
+                                val tphDataMap = mutableMapOf<Int, TPHData>()
 
-                            list?.forEach { panen ->
-                                val tphId = panen.tph?.id
-                                val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                val limitTPH = panen.tph?.limit_tph
-                                val workerNiks =
-                                    panen.panen.karyawan_nik?.split(",")?.map { it.trim() }
-                                        ?: emptyList()
-                                val blokKode = panen.tph!!.blok_kode
-                                val nomor = panen.tph.nomor
+                                list?.forEach { panen ->
+                                    val tphId = panen.tph?.id
+                                    val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+                                    val limitTPH = panen.tph?.limit_tph
+                                    val workerNiks =
+                                        panen.panen.karyawan_nik?.split(",")?.map { it.trim() }
+                                            ?: emptyList()
+                                    val blokKode = panen.tph!!.blok_kode
+                                    val nomor = panen.tph.nomor
 
-                                if (tphId != null && jenisTPHId != null) {
-                                    val existingData = tphDataMap[tphId]
-                                    if (existingData != null) {
-                                        // Merge worker NIKs and increment count
-                                        val mergedNiks =
-                                            (existingData.workerNiks + workerNiks).distinct()
-                                        tphDataMap[tphId] = existingData.copy(
-                                            count = existingData.count + 1,
-                                            workerNiks = mergedNiks,
-                                            blokKode = blokKode,
-                                            nomor = nomor
-                                        )
+                                    if (tphId != null && jenisTPHId != null) {
+                                        val existingData = tphDataMap[tphId]
+                                        if (existingData != null) {
+                                            // Merge worker NIKs and increment count
+                                            val mergedNiks =
+                                                (existingData.workerNiks + workerNiks).distinct()
+                                            tphDataMap[tphId] = existingData.copy(
+                                                count = existingData.count + 1,
+                                                workerNiks = mergedNiks,
+                                                blokKode = blokKode,
+                                                nomor = nomor
+                                            )
+                                        } else {
+                                            // Create new entry for this TPH
+                                            tphDataMap[tphId] = TPHData(
+                                                count = 1,
+                                                jenisTPHId = jenisTPHId,
+                                                limitTPH = limitTPH!!,
+                                                workerNiks = workerNiks,
+                                                blokKode = blokKode,
+                                                nomor = nomor
+                                            )
+                                        }
+                                    }
+                                }
+
+                                panenStoredLocal.clear()
+                                panenStoredLocal.putAll(tphDataMap)
+
+                                panenDeferred.complete(list ?: emptyList())
+                            }
+                        }
+
+                        val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+
+                        panenViewModel.getAllJenisTPH()
+                        delay(100)
+
+                        withContext(Dispatchers.Main) {
+                            panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
+                                jenisTPHListGlobal = list ?: emptyList()
+                                jenisTPHDeferred.complete(list ?: emptyList())
+                            }
+                        }
+
+                        val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+
+                        absensiViewModel.loadActiveAbsensi()
+                        delay(100)
+
+                        withContext(Dispatchers.Main) {
+                            absensiViewModel.activeAbsensiList.observe(this@FeaturePanenTBSActivity) { absensiWithRelations ->
+                                val absensiData = absensiWithRelations ?: emptyList()
+
+                                // Store the absensi models in the global variable
+                                absensiList = absensiData
+
+                                // Extract all NIKs of present karyawan from all absensi entries
+                                val newPresentNikSet = mutableSetOf<String>()
+
+                                absensiData.forEach { absensiRelation ->
+                                    val absensi = absensiRelation.absensi
+                                    // Split the comma-separated NIK string and add each NIK to the set
+                                    val niks = absensi.karyawan_msk_nik.split(",")
+                                    newPresentNikSet.addAll(niks.filter {
+                                        it.isNotEmpty() && it.trim().isNotEmpty()
+                                    })
+                                }
+
+                                // Update the global set
+                                presentNikSet = newPresentNikSet
+
+                                AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
+                                absensiDeferred.complete(absensiData)
+                            }
+                        }
+
+                        val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
+
+                        panenViewModel.getAllKaryawan() // This should be added to your ViewModel
+                        delay(100)
+
+                        withContext(Dispatchers.Main) {
+                            panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
+                                val allKaryawan = list ?: emptyList()
+
+                                // Get user's afdeling ID (which is same as divisi)
+                                val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
+                                AppLogger.d("User's afdeling ID: $userAfdelingId")
+
+                                // Only filter if presentNikSet has values
+                                if (presentNikSet.isNotEmpty()) {
+                                    // Filter to get only present karyawan
+                                    val presentKaryawan = allKaryawan.filter { karyawan ->
+                                        karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                                    }
+
+                                    // Filter by divisi - same divisi as user goes to karyawanList, others go to karyawanLainList
+                                    if (userAfdelingId != null) {
+                                        // Karyawan from same divisi as user
+                                        karyawanList = presentKaryawan.filter { karyawan ->
+                                            karyawan.divisi == userAfdelingId
+                                        }
+
+                                        // Karyawan from other divisi
+                                        karyawanLainList = presentKaryawan.filter { karyawan ->
+                                            karyawan.divisi != userAfdelingId
+                                        }
                                     } else {
-                                        // Create new entry for this TPH
-                                        tphDataMap[tphId] = TPHData(
-                                            count = 1,
-                                            jenisTPHId = jenisTPHId,
-                                            limitTPH = limitTPH!!,
-                                            workerNiks = workerNiks,
-                                            blokKode = blokKode,
-                                            nomor = nomor
-                                        )
-                                    }
-                                }
-                            }
 
-                            panenStoredLocal.clear()
-                            panenStoredLocal.putAll(tphDataMap)
-
-                            panenDeferred.complete(list ?: emptyList())
-                        }
-                    }
-
-                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
-
-                    panenViewModel.getAllJenisTPH()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
-                            jenisTPHListGlobal = list ?: emptyList()
-                            jenisTPHDeferred.complete(list ?: emptyList())
-                        }
-                    }
-
-                    val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
-
-                    absensiViewModel.loadActiveAbsensi()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        absensiViewModel.activeAbsensiList.observe(this@FeaturePanenTBSActivity) { absensiWithRelations ->
-                            val absensiData = absensiWithRelations ?: emptyList()
-
-                            // Store the absensi models in the global variable
-                            absensiList = absensiData
-
-                            // Extract all NIKs of present karyawan from all absensi entries
-                            val newPresentNikSet = mutableSetOf<String>()
-
-                            absensiData.forEach { absensiRelation ->
-                                val absensi = absensiRelation.absensi
-                                // Split the comma-separated NIK string and add each NIK to the set
-                                val niks = absensi.karyawan_msk_nik.split(",")
-                                newPresentNikSet.addAll(niks.filter {
-                                    it.isNotEmpty() && it.trim().isNotEmpty()
-                                })
-                            }
-
-                            // Update the global set
-                            presentNikSet = newPresentNikSet
-
-                            AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
-                            absensiDeferred.complete(absensiData)
-                        }
-                    }
-
-                    val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
-
-                    panenViewModel.getAllKaryawan() // This should be added to your ViewModel
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val allKaryawan = list ?: emptyList()
-
-                            // Get user's afdeling ID (which is same as divisi)
-                            val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-                            AppLogger.d("User's afdeling ID: $userAfdelingId")
-
-                            // Only filter if presentNikSet has values
-                            if (presentNikSet.isNotEmpty()) {
-                                // Filter to get only present karyawan
-                                val presentKaryawan = allKaryawan.filter { karyawan ->
-                                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
-                                }
-
-                                // Filter by divisi - same divisi as user goes to karyawanList, others go to karyawanLainList
-                                if (userAfdelingId != null) {
-                                    // Karyawan from same divisi as user
-                                    karyawanList = presentKaryawan.filter { karyawan ->
-                                        karyawan.divisi == userAfdelingId
+                                        karyawanList = presentKaryawan
+                                        karyawanLainList = emptyList()
                                     }
 
-                                    // Karyawan from other divisi
-                                    karyawanLainList = presentKaryawan.filter { karyawan ->
-                                        karyawan.divisi != userAfdelingId
-                                    }
+                                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
+                                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
+                                    AppLogger.d("Same divisi karyawan (karyawanList): ${karyawanList.size}")
+                                    AppLogger.d("Other divisi karyawan (karyawanLainList): ${karyawanLainList.size}")
+
+                                    // Complete the deferred with all present karyawan
+                                    karyawanDeferred.complete(presentKaryawan)
                                 } else {
-
-                                    karyawanList = presentKaryawan
+                                    karyawanList = emptyList()
                                     karyawanLainList = emptyList()
+                                    karyawanDeferred.complete(allKaryawan)
                                 }
+                            }
+                        }
 
-                                AppLogger.d("Total karyawan: ${allKaryawan.size}")
-                                AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
-                                AppLogger.d("Same divisi karyawan (karyawanList): ${karyawanList.size}")
-                                AppLogger.d("Other divisi karyawan (karyawanLainList): ${karyawanLainList.size}")
+                        val allKaryawan = karyawanDeferred.await()
 
-                                // Complete the deferred with all present karyawan
-                                karyawanDeferred.complete(presentKaryawan)
-                            } else {
-                                karyawanList = emptyList()
-                                karyawanLainList = emptyList()
-                                karyawanDeferred.complete(allKaryawan)
+                        if (allKaryawan.isNotEmpty()) {
+                            // Setup the karyawan dropdown
+                            val nameCounts = mutableMapOf<String, Int>()
+                            allKaryawan.forEach {
+                                it.nama?.trim()?.let { nama ->
+                                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                                }
+                            }
+
+                            allKaryawan.forEach {
+                                it.nama?.trim()?.let { nama ->
+                                    val key = if (nameCounts[nama]!! > 1) {
+                                        "$nama - ${it.nik}"
+                                    } else {
+                                        nama
+                                    }
+                                    karyawanIdMap[key] = it.id!!
+                                    if (it.kemandoran_id != null) {
+                                        kemandoranIdMap[key] = it.kemandoran_id!!
+                                    }
+                                }
                             }
                         }
                     }
@@ -556,31 +597,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
 
                     divisiList = divisiDeferred.await()
-                    val allKaryawan = karyawanDeferred.await()
-
-                    if (allKaryawan.isNotEmpty()) {
-                        // Setup the karyawan dropdown
-                        val nameCounts = mutableMapOf<String, Int>()
-                        allKaryawan.forEach {
-                            it.nama?.trim()?.let { nama ->
-                                nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
-                            }
-                        }
-
-                        allKaryawan.forEach {
-                            it.nama?.trim()?.let { nama ->
-                                val key = if (nameCounts[nama]!! > 1) {
-                                    "$nama - ${it.nik}"
-                                } else {
-                                    nama
-                                }
-                                karyawanIdMap[key] = it.id!!
-                                if (it.kemandoran_id != null) {
-                                    kemandoranIdMap[key] = it.kemandoran_id!!
-                                }
-                            }
-                        }
-                    }
 
                     if (divisiList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
@@ -974,6 +990,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 AppLogger.d("IDs: ${idKaryawanList.size}")
                                 AppLogger.d("Kemandoran IDs: ${kemandoranIdList.size}")
                                 val photoFilesString = photoFiles.joinToString(";")
+                                val photoFilesSelfieString = photoFilesSelfie.joinToString(";")
                                 val komentarFotoString = komentarFoto.joinToString(";")
                                     .takeIf { it.isNotBlank() && it != ";" && !it.matches(Regex("^;+$")) }
 
@@ -1064,37 +1081,65 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     }
                                 }
 
+                                val tph_id = selectedTPHValue?.toString() ?: ""
+                                val date_created = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date())
+
                                 val result = withContext(Dispatchers.IO) {
-                                    panenViewModel.saveDataPanen(
-                                        tph_id = selectedTPHValue?.toString() ?: "",
-                                        date_created = SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).format(Date()),
-                                        created_by = userId!!,  // Prevent crash if userId is null
-                                        karyawan_id = uniqueIdKaryawan,
-                                        kemandoran_id = uniqueKemandoranId,
-                                        karyawan_nik = uniqueNikPemanen,
-                                        karyawan_nama = uniqueNamaPemanen,
-                                        jjg_json = jjg_json,
-                                        foto = photoFilesString,
-                                        komentar = komentarFotoString ?: "",
-                                        asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
-                                            ?: 0),
-                                        lat = finalLat ?: 0.0,
-                                        lon = finalLon ?: 0.0,
-                                        jenis_panen = selectedTipePanen.toIntOrNull()
-                                            ?: 0, // Avoid NumberFormatException
-                                        ancakInput = ancakInput.toInt(), // Default to "0" if null
-                                        info = infoApp ?: "",
-                                        archive = 0,
-                                        blokBanjir = blokBanjir
-                                    )
+                                    if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+                                        mutuBuahViewModel.saveDataMutuBuah(
+                                            tph_id = tph_id,
+                                            date_created = date_created,
+                                            foto = photoFilesString,
+                                            komentar = komentarFotoString ?: "",
+                                            lat = finalLat ?: 0.0,
+                                            lon = finalLon ?: 0.0,
+                                            info = infoApp ?: "",
+                                            jjgPanen = jumTBS,
+                                            jjgMasak = buahMasak,
+                                            jjgMentah = bMentah,
+                                            jjgLewatMasak = bLewatMasak,
+                                            jjgKosong = jjgKosong,
+                                            jjgSeranganTikus = seranganTikus,
+                                            jjgPanjang = tangkaiPanjang,
+                                            jjgTidakVcut = tidakVCut,
+                                            jjgBayar = tbsDibayar,
+                                            jjgKirim = kirimPabrik,
+                                            created_by = userId!!,
+                                            jjgAbnormal = abnormal,
+                                            foto_selfie = photoFilesSelfieString,
+                                            createdName = userName!!)
+                                    }else{
+                                        panenViewModel.saveDataPanen(
+                                            tph_id = tph_id,
+                                            date_created = date_created,
+                                            created_by = userId!!,  // Prevent crash if userId is null
+                                            karyawan_id = uniqueIdKaryawan,
+                                            kemandoran_id = uniqueKemandoranId,
+                                            karyawan_nik = uniqueNikPemanen,
+                                            karyawan_nama = uniqueNamaPemanen,
+                                            jjg_json = jjg_json,
+                                            foto = photoFilesString,
+                                            komentar = komentarFotoString ?: "",
+                                            asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
+                                                ?: 0),
+                                            lat = finalLat ?: 0.0,
+                                            lon = finalLon ?: 0.0,
+                                            jenis_panen = selectedTipePanen.toIntOrNull()
+                                                ?: 0, // Avoid NumberFormatException
+                                            ancakInput = ancakInput.toInt(), // Default to "0" if null
+                                            info = infoApp ?: "",
+                                            archive = 0,
+                                            blokBanjir = blokBanjir
+                                        )
+                                    }
                                 }
 
-
                                 when (result) {
-                                    is AppRepository.SaveResultPanen.Success -> {
+                                    is AppRepository.SaveResultPanen.Success,
+                                    is AppRepository.SaveResultMutuBuah.Success  -> {
                                         playSound(R.raw.berhasil_simpan)
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1139,9 +1184,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             resetFormAfterSaveData()
                                         }
                                     }
-
-
                                     is AppRepository.SaveResultPanen.Error -> {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@FeaturePanenTBSActivity,
+                                            stringXML(R.string.al_back),
+                                            stringXML(R.string.al_failed_save_local),
+                                            "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) {}
+                                    }
+                                    is AppRepository.SaveResultMutuBuah.Error -> {
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
                                             stringXML(R.string.al_back),
@@ -1665,11 +1718,33 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             loadingDialog.dismiss()
         }
 
-// Reset all image
+        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+            // Reset selfie photo data
+            photoCountSelfie = 0
+            photoFilesSelfie.clear()
+            selfiePhotoFile = null
+
+            // Reset selfie UI - THIS IS THE KEY FIX
+            val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
+            imageView.setImageResource(R.drawable.baseline_camera_front_24)
+            imageView.setColorFilter(
+                ContextCompat.getColor(this, R.color.colorRedDark),
+                PorterDuff.Mode.SRC_IN
+            )
+
+            // Reset scale type to default
+            imageView.scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+
+        // Reset regular photos
         photoCount = 0
         photoFiles.clear()
         komentarFoto.clear()
         takeFotoPreviewAdapter?.resetAllSections()
+    }
+
+    companion object {
+        private const val CAMERA_PERMISSION_REQUEST_CODE = 100
     }
 
     @SuppressLint("SetTextI18n")
@@ -1931,6 +2006,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val factoryPanenViewModel = PanenViewModel.PanenViewModelFactory(application)
         panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
 
+        val factoryMutuBuahViewModel = MutuBuahViewModel.MutuBuahViewModelFactory(application)
+        mutuBuahViewModel = ViewModelProvider(this, factoryMutuBuahViewModel)[MutuBuahViewModel::class.java]
+
         val factoryAbsensiViewModel = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel =
             ViewModelProvider(this, factoryAbsensiViewModel)[AbsensiViewModel::class.java]
@@ -2072,8 +2150,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             )
         )
 
-
-
         inputMappings.forEach { (layoutView, key, inputType) ->
             updateTextInPertanyaan(layoutView, key)
             when (inputType) {
@@ -2091,6 +2167,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 setupSpinnerView(layoutView, masterDeptAbbrList)
                             } else {
                                 val namaEstates = listOf(prefManager!!.estateUserLengkapLogin ?: "")
+                                Log.d("testEstate", namaEstates.toString())
                                 setupSpinnerView(layoutView, namaEstates)
                                 findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
                             }
@@ -2639,8 +2716,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                         Log.d("DepartmentInfo", "Setting up spinner with list")
                         setupSpinnerView(layoutEstate, masterDeptAbbrList)
-
-
                     }
                 }
             }
@@ -2775,7 +2850,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 isEmptyScannedTPH = true
             }
         } else {
-            Toasty.error(this, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_LONG, true)
+            Toasty.error(this, "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!", Toast.LENGTH_LONG, true)
                 .show()
             isEmptyScannedTPH = true
         }
@@ -3107,119 +3182,122 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private suspend fun loadPemanenFullEstate(rootView: View) {
-        try {
-            val karyawanDeferred = coroutineScope {
-                async {
-                    panenViewModel.getAllKaryawan()
-                    delay(100)
-                    panenViewModel.allKaryawanList.value ?: emptyList()
-                }
-            }
-
-            val allKaryawan = karyawanDeferred.await()
-
-            // Get user's afdeling ID (which is same as divisi)
-            val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-            AppLogger.d("User's afdeling ID: $userAfdelingId")
-
-            // Only filter if presentNikSet has values
-            if (presentNikSet.isNotEmpty()) {
-                // Filter karyawan list to only include those who are present
-                val presentKaryawan = allKaryawan.filter { karyawan ->
-                    karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+        if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+            try {
+                val karyawanDeferred = coroutineScope {
+                    async {
+                        panenViewModel.getAllKaryawan()
+                        delay(100)
+                        panenViewModel.allKaryawanList.value ?: emptyList()
+                    }
                 }
 
-                // Filter by divisi - same divisi as user goes to karyawanList, others go to karyawanLainList
-                if (userAfdelingId != null) {
-                    // Karyawan from same divisi as user
-                    karyawanList = presentKaryawan.filter { karyawan ->
-                        karyawan.divisi == userAfdelingId
+                val allKaryawan = karyawanDeferred.await()
+
+                // Get user's afdeling ID (which is same as divisi)
+                val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
+                AppLogger.d("User's afdeling ID: $userAfdelingId")
+
+                // Only filter if presentNikSet has values
+                if (presentNikSet.isNotEmpty()) {
+                    // Filter karyawan list to only include those who are present
+                    val presentKaryawan = allKaryawan.filter { karyawan ->
+                        karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                     }
 
-                    // Karyawan from other divisi
-                    karyawanLainList = presentKaryawan.filter { karyawan ->
-                        karyawan.divisi != userAfdelingId
+                    // Filter by divisi - same divisi as user goes to karyawanList, others go to karyawanLainList
+                    if (userAfdelingId != null) {
+                        // Karyawan from same divisi as user
+                        karyawanList = presentKaryawan.filter { karyawan ->
+                            karyawan.divisi == userAfdelingId
+                        }
+
+                        // Karyawan from other divisi
+                        karyawanLainList = presentKaryawan.filter { karyawan ->
+                            karyawan.divisi != userAfdelingId
+                        }
+                    } else {
+                        // If userAfdelingId is null, put all present karyawan in karyawanList
+                        karyawanList = presentKaryawan
+                        karyawanLainList = emptyList()
+                    }
+
+                    // Log statistics for debugging
+                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
+                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
+                    AppLogger.d("Same afdeling karyawan (karyawanList): ${karyawanList.size}")
+                    AppLogger.d("Other afdeling karyawan (karyawanLainList): ${karyawanLainList.size}")
+
+                    val karyawanNames = karyawanList
+                        .sortedBy { it.nama }
+                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                    val karyawanLainNames = karyawanLainList
+                        .sortedBy { it.nama }
+                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                    withContext(Dispatchers.Main) {
+                        val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                        layoutPemanen.visibility = View.VISIBLE
+
+                        if (karyawanNames.isNotEmpty()) {
+                            setupSpinnerView(layoutPemanen, karyawanNames)
+                        } else {
+                            setupSpinnerView(layoutPemanen, emptyList())
+                            val pemanenSpinner =
+                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
+                        }
+
+                        val layoutPemanenLain =
+                            rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                        if (layoutPemanenLain != null) {
+                            if (karyawanLainNames.isNotEmpty()) {
+                                setupSpinnerView(layoutPemanenLain, karyawanLainNames)
+                            } else {
+                                setupSpinnerView(layoutPemanenLain, emptyList())
+                                val pemanenLainSpinner =
+                                    layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
+                            }
+                        }
+
                     }
                 } else {
-                    // If userAfdelingId is null, put all present karyawan in karyawanList
-                    karyawanList = presentKaryawan
+                    // No present karyawan - clear both lists
+                    karyawanList = emptyList()
                     karyawanLainList = emptyList()
-                }
 
-                // Log statistics for debugging
-                AppLogger.d("Total karyawan: ${allKaryawan.size}")
-                AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
-                AppLogger.d("Same afdeling karyawan (karyawanList): ${karyawanList.size}")
-                AppLogger.d("Other afdeling karyawan (karyawanLainList): ${karyawanLainList.size}")
+                    withContext(Dispatchers.Main) {
+                        val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                        layoutPemanen.visibility = View.VISIBLE
 
-                val karyawanNames = karyawanList
-                    .sortedBy { it.nama }
-                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                val karyawanLainNames = karyawanLainList
-                    .sortedBy { it.nama }
-                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                withContext(Dispatchers.Main) {
-                    val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                    layoutPemanen.visibility = View.VISIBLE
-
-                    if (karyawanNames.isNotEmpty()) {
-                        setupSpinnerView(layoutPemanen, karyawanNames)
-                    } else {
                         setupSpinnerView(layoutPemanen, emptyList())
                         val pemanenSpinner =
                             layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                         pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
-                    }
 
-                    val layoutPemanenLain =
-                        rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                    if (layoutPemanenLain != null) {
-                        if (karyawanLainNames.isNotEmpty()) {
-                            setupSpinnerView(layoutPemanenLain, karyawanLainNames)
-                        } else {
-                            setupSpinnerView(layoutPemanenLain, emptyList())
-                            val pemanenLainSpinner =
-                                layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                            pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
-                        }
-                    }
+                        val layoutPemanenLain =
+                            rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                        setupSpinnerView(layoutPemanenLain, emptyList())
+                        val pemanenLainSpinner =
+                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                        pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
 
+                    }
                 }
-            } else {
-                // No present karyawan - clear both lists
-                karyawanList = emptyList()
-                karyawanLainList = emptyList()
-
+            } catch (e: Exception) {
+                AppLogger.e("Error reloading all karyawan: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                    layoutPemanen.visibility = View.VISIBLE
-
-                    setupSpinnerView(layoutPemanen, emptyList())
-                    val pemanenSpinner =
-                        layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                    pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
-
-                    val layoutPemanenLain =
-                        rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                    setupSpinnerView(layoutPemanenLain, emptyList())
-                    val pemanenLainSpinner =
-                        layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                    pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
-
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error reloading worker data: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
-            }
-        } catch (e: Exception) {
-            AppLogger.e("Error reloading all karyawan: ${e.message}")
-            withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    this@FeaturePanenTBSActivity,
-                    "Error reloading worker data: ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
             }
         }
+
     }
 
 
@@ -3549,9 +3627,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 //reset all image
                 photoCount = 0
+                photoCountSelfie  = 0
                 photoFiles.clear()
+                photoFilesSelfie.clear()
                 komentarFoto.clear()
                 takeFotoPreviewAdapter?.resetAllSections()
+                takeFotoSelfieAdapter?.resetAllSections()
             } else {
                 if (karyawanLainList.isNotEmpty()) {
                     switchAsistensi.isChecked = true
@@ -3593,9 +3674,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 //reset all image
                 photoCount = 0
+                photoCountSelfie  = 0
                 photoFiles.clear()
+                photoFilesSelfie.clear()
                 komentarFoto.clear()
                 takeFotoPreviewAdapter?.resetAllSections()
+                takeFotoSelfieAdapter?.resetAllSections()
             }
 
             // Restore karyawan lists after all other operations
@@ -3679,7 +3763,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 else -> false
             }
 
-            if (isEmpty) {
+            if (isEmpty && (featureName != AppUtils.ListFeatureNames.MutuBuah)) {
                 tvError.visibility = View.VISIBLE
                 mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
                 missingFields.add(key)
@@ -3754,7 +3838,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
         // Check if at least one group is properly filled
-        if (!isPrimaryGroupFilled && (!isSecondaryGroupFilled || !isAsistensiEnabled)) {
+        if (!isPrimaryGroupFilled && (!isSecondaryGroupFilled || !isAsistensiEnabled) && (featureName != AppUtils.ListFeatureNames.MutuBuah)) {
             isValid = false
 
             // Show errors for primary group if it's not properly filled
@@ -3873,6 +3957,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         if (photoCount == 0) {
             isValid = false
             errorMessages.add(stringXML(R.string.al_photo_minimal_one))
+
+            val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
+            tvErrorNotAttachPhotos.visibility = View.VISIBLE
+        }
+
+        // Selfie photo validation for MutuBuah feature
+        if (featureName == AppUtils.ListFeatureNames.MutuBuah && photoCountSelfie == 0) {
+            isValid = false
+            errorMessages.add("Wajib melakukan foto selfie dahulu")
 
             val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
             tvErrorNotAttachPhotos.visibility = View.VISIBLE
@@ -4980,8 +5073,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private fun setupRecyclerViewTakePreviewFoto() {
-        val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
+        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+            // Setup direct selfie photo layout instead of RecyclerView
+            layoutSelfiePhoto = findViewById(R.id.layoutSelfiePhoto)
+            layoutSelfiePhoto.visibility = View.VISIBLE
 
+            setupSelfiePhotoLayout()
+        }
+
+        val waterMark = if(featureName == AppUtils.ListFeatureNames.MutuBuah){
+            AppUtils.ListFeatureNames.MutuBuah.uppercase().replace(" ","_")
+        }else{
+            AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+        }
+
+
+        // Regular photo RecyclerView setup remains the same
+        val recyclerView: RecyclerView = findViewById(R.id.recyclerViewFotoPreview)
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
@@ -4989,27 +5097,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             5,
             cameraViewModel,
             this,
-            AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
+            waterMark
         ).apply {
-            // Set up the photo deletion callback
             onPhotoDeleted = { fileName, position ->
-                // Find the index of the filename in our list
                 val index = photoFiles.indexOf(fileName)
                 if (index != -1) {
-                    // Remove the filename and its comment
                     photoFiles.removeAt(index)
                     if (index < komentarFoto.size) {
                         komentarFoto.removeAt(index)
                     }
                     photoCount--
-
                     AppLogger.d("Photo removed from activity: $fileName, new count: $photoCount")
                 } else {
                     AppLogger.e("Failed to find photo $fileName in photoFiles list")
                 }
             }
         }
-
         recyclerView.adapter = takeFotoPreviewAdapter
     }
 
@@ -5017,6 +5120,154 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         // Assuming the TextView inside the LinearLayout has an ID, e.g., `tvTitleFormPanenTBS`
         val textView = linearLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
         textView.text = text
+    }
+
+    private fun setupSelfiePhotoLayout() {
+        val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
+        val commentTextView = layoutSelfiePhoto.findViewById<TextView>(R.id.tvPhotoComment)
+        val titleCommentTextView = layoutSelfiePhoto.findViewById<TextView>(R.id.titleComment)
+
+        // Hide comment section for selfie
+        titleCommentTextView.visibility = View.GONE
+        commentTextView.visibility = View.GONE
+
+        // Set selfie camera icon
+        imageView.setImageResource(R.drawable.baseline_camera_front_24)
+        imageView.setColorFilter(
+            ContextCompat.getColor(this, R.color.colorRedDark),
+            PorterDuff.Mode.SRC_IN
+        )
+
+        // Handle selfie photo click
+        imageView.setOnClickListener {
+            handleSelfiePhotoClick()
+        }
+    }
+
+    private fun handleSelfiePhotoClick() {
+        // Check camera permission first
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                takeSelfiePhoto()
+            }
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                this,
+                android.Manifest.permission.CAMERA
+            ) -> {
+                showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
+            }
+            else -> {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.CAMERA),
+                    CAMERA_PERMISSION_REQUEST_CODE
+                )
+            }
+        }
+    }
+
+    private fun takeSelfiePhoto() {
+        val locationData = getCurrentLocationData()
+        val (currentLat, currentLon) = getCurrentCoordinates()
+
+        // Check if GPS coordinates are available
+        if (currentLat == null || currentLon == null) {
+            Toast.makeText(
+                this,
+                "Pastikan GPS mendapatkan titik Koordinat!",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        // Check required fields for MutuBuah
+        when {
+            locationData.estate.isNullOrEmpty() -> {
+                Toast.makeText(this, "Pastikan sudah mengisi Estate terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                return
+            }
+            locationData.afdeling.isNullOrEmpty() -> {
+                Toast.makeText(this, "Pastikan sudah mengisi Afdeling terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+
+        // Make sure the unique code contains "selfie"
+        val uniqueKodeFoto = "selfie_1"
+        val sourceFoto = "${locationData.estate} ${locationData.afdeling}"
+        val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
+
+        if (selfiePhotoFile != null) {
+            // Show existing photo for edit/delete
+            cameraViewModel.openZoomPhotos(
+                file = selfiePhotoFile!!,
+                position = "selfie_0",
+                onChangePhoto = {
+                    cameraViewModel.takeCameraPhotos(
+                        this,
+                        uniqueKodeFoto, // This should contain "selfie"
+                        imageView,
+                        0, // Position 0 for selfie
+                        null,
+                        "",
+                        uniqueKodeFoto,
+                        featureName!!.uppercase(), // This will add the feature name to filename
+                        currentLat,
+                        currentLon,
+                        sourceFoto
+                    )
+                },
+                onDeletePhoto = { _ ->
+                    deleteSelfiePhoto()
+                }
+            )
+        } else {
+            // Take new selfie photo
+            cameraViewModel.takeCameraPhotos(
+                this,
+                uniqueKodeFoto, // This should contain "selfie"
+                imageView,
+                0, // Position 0 for selfie
+                null,
+                "",
+                uniqueKodeFoto,
+                featureName!!.uppercase(), // This will add the feature name to filename
+                currentLat,
+                currentLon,
+                sourceFoto
+            )
+        }
+    }
+
+    private fun deleteSelfiePhoto() {
+        selfiePhotoFile?.let { file ->
+            val fileName = file.name
+
+            // Remove from storage
+            if (file.exists()) {
+                file.delete()
+            }
+
+            // Clear from activity
+            selfiePhotoFile = null
+            photoCountSelfie = 0
+
+            // Remove from filename list
+            photoFilesSelfie.clear()
+
+            // Reset UI
+            val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
+            imageView.setImageResource(R.drawable.baseline_camera_front_24)
+            imageView.setColorFilter(
+                ContextCompat.getColor(this, R.color.colorRedDark),
+                PorterDuff.Mode.SRC_IN
+            )
+
+            AppLogger.d("Selfie photo deleted: $fileName")
+        }
     }
 
     override fun getCurrentLocationData(): TakeFotoPreviewAdapter.LocationData {
@@ -5285,15 +5536,44 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         selectedBlok = selectedTPHInLIst.blockCode
         selectedTPHValue = selectedTPHIdByScan
         selectedTPH = selectedTPHInLIst.number
-        layoutAncak.visibility = View.VISIBLE
-        layoutTipePanen.visibility = View.VISIBLE
-        layoutKemandoran.visibility = View.VISIBLE
-        layoutPemanen.visibility = View.VISIBLE
-        layoutSelAsistensi.visibility = View.VISIBLE
+        if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+            layoutAncak.visibility = View.VISIBLE
+            layoutTipePanen.visibility = View.VISIBLE
+            layoutKemandoran.visibility = View.VISIBLE
+            layoutPemanen.visibility = View.VISIBLE
+            layoutSelAsistensi.visibility = View.VISIBLE
+        }
 
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
         if (karyawanLainList.isNotEmpty()) {
             switchAsistensi.isChecked = true
+        }
+    }
+
+    private fun resetSelfiePhoto() {
+        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+            // Reset selfie photo data
+            photoCountSelfie = 0
+            photoFilesSelfie.clear()
+            selfiePhotoFile = null
+
+            // Reset selfie UI
+            val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
+
+            // Clear Glide cache first
+            Glide.with(this).clear(imageView)
+
+            // Set back to original camera icon
+            imageView.setImageResource(R.drawable.baseline_camera_front_24)
+            imageView.setColorFilter(
+                ContextCompat.getColor(this, R.color.colorRedDark),
+                PorterDuff.Mode.SRC_IN
+            )
+
+            // Ensure proper scale type
+            imageView.scaleType = ImageView.ScaleType.FIT_CENTER
+
+            AppLogger.d("Selfie photo UI reset successfully")
         }
     }
 
@@ -5888,6 +6168,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         SoundPlayer.releaseMediaPlayer()
     }
 
+    // Update the onPhotoTaken method to handle selfie photos:
     override fun onPhotoTaken(
         photoFile: File,
         fname: String,
@@ -5898,37 +6179,75 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         latitude: Double?,
         longitude: Double?
     ) {
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
-        val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
+        // Check if this is a selfie photo based on position and feature name
+        val isSelfiePhoto = featureName == AppUtils.ListFeatureNames.MutuBuah &&
+                position == 0 &&
+                fname.contains("selfie")
 
-        val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
-        tvErrorNotAttachPhotos.visibility = View.GONE
+        if (isSelfiePhoto) {
+            // Handle selfie photo
+            AppLogger.d("Handling selfie photo: $fname")
 
-        adapter?.addPhotoFile("$position", photoFile)
+            val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
+            tvErrorNotAttachPhotos.visibility = View.GONE
 
-        finalLat = latitude
-        finalLon = longitude
+            selfiePhotoFile = photoFile
+            photoCountSelfie = 1
 
-        if (position < photoFiles.size) {
-            // Position exists, replace it
-            photoFiles[position] = fname
-            komentarFoto[position] = komentar ?: ""
-        } else {
-            while (photoFiles.size < position) {
-                photoFiles.add("")
-                komentarFoto.add("")
-            }
-            photoFiles.add(fname)
-            komentarFoto.add(komentar ?: "")
-            photoCount++
-        }
+            // Clear and add to selfie list
+            photoFilesSelfie.clear()
+            photoFilesSelfie.add(fname)
 
-        val viewHolder =
-            recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
-        viewHolder?.let {
+            // Update UI
+            val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
+
+            // Load the image and clear any color filters
             Glide.with(this)
                 .load(photoFile)
-                .into(it.imageView)
+                .into(imageView)
+
+            // Clear color filter to remove the red tint
+            imageView.clearColorFilter()
+
+            // Ensure the image view shows the photo properly
+            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+
+            AppLogger.d("Selfie photo processed successfully: $fname")
+
+        } else {
+            // Handle regular photos (existing code)
+            AppLogger.d("Handling regular photo: $fname at position: $position")
+
+            val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
+            val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
+
+            val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
+            tvErrorNotAttachPhotos.visibility = View.GONE
+
+            adapter?.addPhotoFile("$position", photoFile)
+
+            finalLat = latitude
+            finalLon = longitude
+
+            if (position < photoFiles.size) {
+                photoFiles[position] = fname
+                komentarFoto[position] = komentar ?: ""
+            } else {
+                while (photoFiles.size < position) {
+                    photoFiles.add("")
+                    komentarFoto.add("")
+                }
+                photoFiles.add(fname)
+                komentarFoto.add(komentar ?: "")
+                photoCount++
+            }
+
+            val viewHolder = recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
+            viewHolder?.let {
+                Glide.with(this)
+                    .load(photoFile)
+                    .into(it.imageView)
+            }
         }
     }
 

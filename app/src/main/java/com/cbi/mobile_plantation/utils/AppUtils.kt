@@ -159,6 +159,7 @@ object AppUtils {
     }
 
     object DatabaseTables {
+        const val MUTU_BUAH = "mutu_buah"
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
@@ -186,6 +187,9 @@ object AppUtils {
     }
 
     object ListFeatureByRoleUser {
+        const val Manager = "Manager"
+        const val GM = "GM"
+        const val ASKEP = "ASKEP"
         const val MandorPanen = "Mandor Panen"
         const val KeraniTimbang = "Kerani Timbang"
         const val Asisten = "Asisten"
@@ -193,6 +197,7 @@ object AppUtils {
         const val KeraniPanen = "Kerani Panen"
         const val IT = "IT"
     }
+
 
 
     object ListFeatureNames {
@@ -207,6 +212,7 @@ object AppUtils {
 
         const val InspeksiPanen = "Inspeksi Panen"
         const val RekapInspeksiPanen = "Rekap Inspeksi Panen"
+        const val FollowUpInspeksi = "Follow Up Inspeksi"
         const val ScanESPBTimbanganMill = "Scan e-SPB Timbangan Mill"
         const val RekapESPBTimbanganMill = "Rekap e-SPB Timbangan Mill"
         const val AbsensiPanen = "Absensi panen"
@@ -215,10 +221,13 @@ object AppUtils {
         const val SinkronisasiData = "Sinkronisasi data"
         const val UnduhTPHAsistensi = "Unduh TPH Asistensi"
         const val UploadDataCMP = "Upload Data CMP"
+        const val ListFollowUpInspeksi = "List Follow Up Inspeksi"
 
         const val ScanPanenMPanen = "Scan Mandor Panen"
         const val DaftarHektarPanen = "Daftar Hektar Panen"
         const val TransferHektarPanen = "Transfer Hektar Panen"
+        const val MutuBuah = "Inspeksi Mutu Buah"
+        const val RekapMutuBuah = "Rekap Mutu Buah"
 
     }
 

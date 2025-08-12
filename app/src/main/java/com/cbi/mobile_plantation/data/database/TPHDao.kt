@@ -188,4 +188,8 @@ abstract class TPHDao {
     @Query("SELECT blok_kode FROM tph WHERE id = :tphId")
     abstract suspend fun getBlokKodeByTphId(tphId: Int): String?
 
+    @Query("SELECT * FROM tph WHERE id = :tphId LIMIT 1")
+    abstract suspend fun getTPHById(tphId: Int): TPHNewModel
+
+
 }

@@ -64,6 +64,7 @@ import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
@@ -95,6 +96,7 @@ import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
+import com.cbi.mobile_plantation.ui.viewModel.MutuBuahViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
@@ -150,6 +152,7 @@ class HomePageActivity : AppCompatActivity() {
     private val _allIdsAndFilenames = MutableLiveData<List<Pair<String, String>>>()
     val allIdsAndFilenames: LiveData<List<Pair<String, String>>> = _allIdsAndFilenames
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var mutuBuahViewModel: MutuBuahViewModel
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
@@ -161,6 +164,7 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
     private var countPanenTPH: Int = 0  // Global variable for count
+    private var countMutuBuah: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
@@ -440,6 +444,19 @@ class HomePageActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount("Rekap Hasil Panen", countPanenTPH.toString())
                         featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                    }
+                }
+                try {
+                    val countDeferred = async { mutuBuahViewModel.loadMutuBuahToday() }
+                    countMutuBuah = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.MutuBuah, countMutuBuah.toString())
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.MutuBuah)
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error fetching data: ${e.message}")
@@ -749,7 +766,26 @@ class HomePageActivity : AppCompatActivity() {
                 count = countPanenTPH.toString(),
                 functionDescription = "Transfer data dari kerani panen ke mandor panen untuk input hektar panen",
                 displayType = DisplayType.COUNT
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.colorRedDark,
+                featureName = AppUtils.ListFeatureNames.MutuBuah,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = R.drawable.panen_tbs_icon,
+                count = null,
+                functionDescription = "Inspeksi Mutu Buah",
+                displayType = DisplayType.ICON
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.colorRedDark,
+                featureName = AppUtils.ListFeatureNames.MutuBuah,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = null,
+                count = countMutuBuah.toString(),
+                functionDescription = "Pencatatan panen TBS di TPH oleh kerani panen",
+                displayType = DisplayType.COUNT
             )
+
         )
 
         fun getFilteredFeaturesByJabatan(jabatan: String): List<FeatureCard> {
@@ -774,6 +810,15 @@ class HomePageActivity : AppCompatActivity() {
 
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.MandorPanen
+
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.ASKEP, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.ASKEP
+
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.Manager, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.Manager
+
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.GM
 
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.IT, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.IT
@@ -805,11 +850,13 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
 
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
                 AppUtils.ListFeatureByRoleUser.Asisten -> listOfNotNull(
@@ -819,8 +866,10 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
-//                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
 
@@ -829,12 +878,45 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.DaftarHektarPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
 
                     )
+
+                AppUtils.ListFeatureByRoleUser.GM -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                    )
+
+                AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                )
+
+                AppUtils.ListFeatureByRoleUser.ASKEP -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                )
 
                 AppUtils.ListFeatureByRoleUser.IT -> features
 
@@ -847,8 +929,6 @@ class HomePageActivity : AppCompatActivity() {
                 specificFeatures + commonFeatures
             }
         }
-
-
         val gridLayoutManager = GridLayoutManager(this, 2)
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
@@ -1962,6 +2042,21 @@ class HomePageActivity : AppCompatActivity() {
 
                 }
             }
+
+            AppUtils.ListFeatureNames.MutuBuah -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+            AppUtils.ListFeatureNames.RekapMutuBuah -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
         }
     }
 
@@ -2011,6 +2106,8 @@ class HomePageActivity : AppCompatActivity() {
                 val hektarPanenDeferred =
                     CompletableDeferred<List<HektarPanenEntity>>()
                 val zipDeferred = CompletableDeferred<Boolean>()
+                val mutuBuahDeffered =
+                    CompletableDeferred<List<MutuBuahEntity>>()
 
                 panenViewModel.loadActivePanenESPBAll()
                 delay(100)
@@ -2020,6 +2117,14 @@ class HomePageActivity : AppCompatActivity() {
                         list ?: emptyList()
                     ) // Ensure it's never null
                 }
+
+                mutuBuahViewModel.loadMutuBuahToday()
+                delay(100)
+//                mutuBuahViewModel.loadMutuBuahToday.observeOnce(this@HomePageActivity) { list ->
+//                    panenDeferred.complete(
+//                        list ?: emptyList()
+//                    ) // Ensure it's never null
+//                }
 
                 // Load ESPB Data
                 weightBridgeViewModel.fetchActiveESPBAll()
@@ -2054,6 +2159,7 @@ class HomePageActivity : AppCompatActivity() {
                 var unzippedPanenData: List<Map<String, Any>> = emptyList()
                 var unzippedESPBData: List<Map<String, Any>> = emptyList()
                 var unzippedHektaranData: List<Map<String, Any>> = emptyList()
+                var unzippedMutuBuah: List<Map<String, Any>> = emptyList()
                 var unzippedAbsensiData: List<Map<String, Any>> = emptyList()
 
                 var mappedPanenData: List<Map<String, Any>> = emptyList()
@@ -2068,6 +2174,7 @@ class HomePageActivity : AppCompatActivity() {
                     val espbList = espbDeferred.await()
                     val absensiList = absensiDeferred.await()
                     val hektarPanenList = hektarPanenDeferred.await()
+                    val mutuBuahList = mutuBuahDeffered.await()
 
                     // Prepare to search for photo files in CMP directories
                     val picturesDirs = listOf(
@@ -6520,6 +6627,10 @@ class HomePageActivity : AppCompatActivity() {
         val factoryInspection = InspectionViewModel.InspectionViewModelFactory(application)
         inspectionViewModel =
             ViewModelProvider(this, factoryInspection)[InspectionViewModel::class.java]
+
+        val factoryMBVM = MutuBuahViewModel.MutuBuahViewModelFactory(application)
+        mutuBuahViewModel =
+            ViewModelProvider(this, factoryMBVM)[MutuBuahViewModel::class.java]
     }
 
 
@@ -6599,6 +6710,5 @@ class HomePageActivity : AppCompatActivity() {
                     7
             }.show()
     }
-
 
 }

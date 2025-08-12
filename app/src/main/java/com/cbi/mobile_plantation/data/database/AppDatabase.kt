@@ -26,6 +26,7 @@ import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.utils.AppUtils
 import java.util.concurrent.Executors
 
@@ -75,7 +76,8 @@ import java.util.concurrent.Executors
         HektarPanenEntity::class,
         EstateModel::class,
         AfdelingModel::class,
-        JenisTPHModel::class
+        JenisTPHModel::class,
+        MutuBuahEntity::class
     ],
     version = 50
 )
@@ -98,6 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun afdelingDao(): AfdelingDao
     abstract fun hektarPanenDao(): HektarPanenDao
     abstract fun jenisTPHDao(): JenisTPHDao
+    abstract fun mutuBuahDao(): MutuBuahDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {

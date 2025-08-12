@@ -2,6 +2,9 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
@@ -14,6 +17,7 @@ import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.PathWithInspectionTphRelations
@@ -23,6 +27,8 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.MathFun
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.math.BigDecimal
@@ -58,6 +64,17 @@ class AppRepository(context: Context) {
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
     private val blokDao = database.blokDao()
+    private val mutuBuahDao = database.mutuBuahDao()
+
+    private val _tphData = MutableLiveData<TPHNewModel?>()
+    val tphData: LiveData<TPHNewModel?> = _tphData
+
+    suspend fun loadTPH(tphId: Int) {
+        withContext(Dispatchers.IO) {
+            val result = tphDao.getTPHById(tphId)
+            _tphData.postValue(result)
+        }
+    }
 
 
     sealed class SaveResultPanen {
@@ -65,8 +82,17 @@ class AppRepository(context: Context) {
         data class Error(val exception: Exception) : SaveResultPanen()
     }
 
+    sealed class SaveResultMutuBuah {
+        object Success : SaveResultMutuBuah()
+        data class Error(val exception: Exception) : SaveResultMutuBuah()
+    }
+
     suspend fun saveDataPanen(data: PanenEntity) {
         panenDao.insert(data)
+    }
+
+    suspend fun saveMutuBuah(data: MutuBuahEntity) {
+        mutuBuahDao.insert(data)
     }
 
     suspend fun saveScanMPanen(
@@ -833,6 +859,10 @@ class AppRepository(context: Context) {
         tphDao.getBlokKodeByTphId(tphId)
     }
 
+    suspend fun getTPHById(tphId: Int): TPHNewModel = withContext(Dispatchers.IO) {
+        tphDao.getTPHById(tphId)
+    }
+
     suspend fun getNamaByNik(nik: String): String? = withContext(Dispatchers.IO) {
         karyawanDao.getNamaByNik(nik)
     }
@@ -972,10 +1002,6 @@ class AppRepository(context: Context) {
                 Result.failure(e)
             }
         }
-
-    suspend fun getMillByAbbr(abbr: String): MillModel? {
-        return millDao.getMillByAbbr(abbr)
-    }
 
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
@@ -1222,6 +1248,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getMBCountCreatedToday(): Int {
+        return try {
+            mutuBuahDao.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
+
     fun getBlokById(listBlokId: List<Int>): List<BlokModel> {
         return blokDao.getDataByIdInBlok(listBlokId)
     }
@@ -1285,5 +1320,4 @@ class AppRepository(context: Context) {
     suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
         return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
     }
-
 }
