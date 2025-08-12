@@ -57,6 +57,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -665,7 +666,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 dataContainer!!.visibility = View.GONE
                 errorText!!.text = errorMessage
                 btnProcess!!.visibility = View.GONE
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.4).toInt()
+                val maxHeight = (resources.displayMetrics.heightPixels * 0.7).toInt()
 
                 bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                     ?.let { bottomSheet ->
@@ -828,12 +829,25 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     try {
                                         loadingDialog.setMessage("Sedang memeriksa duplikat TPH...", true)
 
-                                        // Get the basic data needed for TPH check
-                                        val basicProcessingResult = withContext(Dispatchers.IO) {
-                                            processBasicQRData(parseResult.jsonStr)
+                                        val reconstructedData = withContext(Dispatchers.IO) {
+                                            reconstructTPH1Data(parseResult.jsonStr)
                                         }
 
-                                        // Create TPH duplicate check data
+                                        if (reconstructedData == null) {
+                                            loadingDialog.dismiss()
+                                            showTPHDuplicateError("Terjadi kesalahan saat memproses data QR")
+                                            return@launch
+                                        }
+
+// Convert reconstructed data back to JSON string for processing
+                                        val reconstructedJsonStr = Gson().toJson(reconstructedData)
+
+// Get the basic data needed for TPH check using reconstructed data
+                                        val basicProcessingResult = withContext(Dispatchers.IO) {
+                                            processBasicQRData(reconstructedJsonStr) // Use reconstructed JSON
+                                        }
+
+// Create TPH duplicate check data
                                         val espbData = mapOf(
                                             "num" to 1,
                                             "ip" to basicProcessingResult.millIP,
@@ -872,75 +886,226 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         )
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
-                                        AppLogger.d(espbJson)
+                                        AppLogger.d("espbJson $espbJson")
                                         weightBridgeViewModel.checkTPHDuplicates(basicProcessingResult.millIP, espbJson)
                                         delay(100)
 
-                                        // Observe TPH duplicate result
+// Observe TPH duplicate result
                                         weightBridgeViewModel.tphDuplicateResult.observeOnce(this@ScanWeighBridgeActivity) { duplicateResponse ->
                                             if (duplicateResponse?.status == "success" && !duplicateResponse.duplicates.isNullOrEmpty()) {
-
                                                 // TPH duplicates found - show detailed error
                                                 lifecycleScope.launch {
                                                     try {
                                                         loadingDialog.setMessage("Mengambil detail data duplikat...", true)
 
-                                                        val duplicateDetails = mutableListOf<String>()
-                                                        val combinationCounts = mutableMapOf<String, Int>()
+                                                        // Data class to hold duplicate info for grouping
+                                                        data class DuplicateInfo(
+                                                            val blokKode: String,
+                                                            val tphNomor: String,
+                                                            val formattedDate: String,
+                                                            val rawDate: String,
+                                                            val idTph: Int,
+                                                            val jjgCount: String
+                                                        )
 
-                                                        // First pass - count combinations
+                                                        val duplicateInfoList = mutableListOf<DuplicateInfo>()
+
+                                                        // Process each duplicate and collect info
                                                         for (duplicate in duplicateResponse.duplicates) {
                                                             try {
                                                                 val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
-                                                                if (tphBlokInfo != null) {
-                                                                    val combinationKey = "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
-                                                                    combinationCounts[combinationKey] = (combinationCounts[combinationKey] ?: 0) + 1
+
+                                                                // Format the datetime to Indonesian format with custom short months
+                                                                val formattedDate = try {
+                                                                    val originalDate = SimpleDateFormat(
+                                                                        "yyyy-MM-dd HH:mm:ss",
+                                                                        Locale.getDefault()
+                                                                    ).parse(duplicate.datetime)
+
+                                                                    val calendar = Calendar.getInstance()
+                                                                    calendar.time = originalDate!!
+
+                                                                    val shortMonths = arrayOf(
+                                                                        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+                                                                        "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
+                                                                    )
+
+                                                                    val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
+                                                                    val month = shortMonths[calendar.get(Calendar.MONTH)]
+                                                                    val year = calendar.get(Calendar.YEAR)
+                                                                    val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
+                                                                    val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
+                                                                    val second = String.format("%02d", calendar.get(Calendar.SECOND))
+
+                                                                    "$day $month $year $hour:$minute:$second"
+                                                                } catch (e: Exception) {
+                                                                    AppLogger.e("Date parsing error: ${e.message}")
+                                                                    duplicate.datetime
                                                                 }
+
+                                                                // Extract JJG count from reconstructed tph1 data
+                                                                var jjgCount = ""
+                                                                try {
+                                                                    val tph1Data = basicProcessingResult.tph1
+                                                                    if (!tph1Data.isNullOrEmpty()) {
+                                                                        val tph1Entries = tph1Data.split(";")
+                                                                        for (entry in tph1Entries) {
+                                                                            val parts = entry.split(",")
+                                                                            if (parts.size >= 4) {
+                                                                                val tphId = parts[0].trim()
+                                                                                val datetime = parts[1].trim()
+                                                                                val jjg = parts[2].trim()
+
+                                                                                // Match by TPH ID and datetime
+                                                                                if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
+                                                                                    jjgCount = jjg
+                                                                                    break
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                } catch (e: Exception) {
+                                                                    AppLogger.e("Error extracting JJG count: ${e.message}")
+                                                                }
+
+                                                                if (tphBlokInfo != null) {
+                                                                    duplicateInfoList.add(
+                                                                        DuplicateInfo(
+                                                                            blokKode = tphBlokInfo.blokKode,
+                                                                            tphNomor = tphBlokInfo.tphNomor,
+                                                                            formattedDate = formattedDate,
+                                                                            rawDate = duplicate.datetime,
+                                                                            idTph = duplicate.idTph,
+                                                                            jjgCount = jjgCount
+                                                                        )
+                                                                    )
+                                                                } else {
+                                                                    // For unknown TPH, use a fallback group
+                                                                    duplicateInfoList.add(
+                                                                        DuplicateInfo(
+                                                                            blokKode = "Unknown",
+                                                                            tphNomor = "ID ${duplicate.idTph}",
+                                                                            formattedDate = formattedDate,
+                                                                            rawDate = duplicate.datetime,
+                                                                            idTph = duplicate.idTph,
+                                                                            jjgCount = jjgCount
+                                                                        )
+                                                                    )
+                                                                }
+
                                                             } catch (e: Exception) {
-                                                                AppLogger.e("Error in first pass: ${e.message}")
+                                                                AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
+
+                                                                val formattedDate = try {
+                                                                    val originalDate = SimpleDateFormat(
+                                                                        "yyyy-MM-dd HH:mm:ss",
+                                                                        Locale.getDefault()
+                                                                    ).parse(duplicate.datetime)
+
+                                                                    val calendar = Calendar.getInstance()
+                                                                    calendar.time = originalDate!!
+
+                                                                    val shortMonths = arrayOf(
+                                                                        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+                                                                        "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
+                                                                    )
+
+                                                                    val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
+                                                                    val month = shortMonths[calendar.get(Calendar.MONTH)]
+                                                                    val year = calendar.get(Calendar.YEAR)
+                                                                    val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
+                                                                    val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
+                                                                    val second = String.format("%02d", calendar.get(Calendar.SECOND))
+
+                                                                    "$day $month $year $hour:$minute:$second"
+                                                                } catch (e: Exception) {
+                                                                    AppLogger.e("Date parsing error in fallback: ${e.message}")
+                                                                    duplicate.datetime
+                                                                }
+
+                                                                // Extract JJG count for fallback case too
+                                                                var jjgCount = ""
+                                                                try {
+                                                                    val tph1Data = basicProcessingResult.tph1
+                                                                    if (!tph1Data.isNullOrEmpty()) {
+                                                                        val tph1Entries = tph1Data.split(";")
+                                                                        for (entry in tph1Entries) {
+                                                                            val parts = entry.split(",")
+                                                                            if (parts.size >= 4) {
+                                                                                val tphId = parts[0].trim()
+                                                                                val datetime = parts[1].trim()
+                                                                                val jjg = parts[2].trim()
+
+                                                                                if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
+                                                                                    jjgCount = jjg
+                                                                                    break
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                } catch (e: Exception) {
+                                                                    AppLogger.e("Error extracting JJG count in fallback: ${e.message}")
+                                                                }
+
+                                                                duplicateInfoList.add(
+                                                                    DuplicateInfo(
+                                                                        blokKode = "Unknown",
+                                                                        tphNomor = "ID ${duplicate.idTph}",
+                                                                        formattedDate = formattedDate,
+                                                                        rawDate = duplicate.datetime,
+                                                                        idTph = duplicate.idTph,
+                                                                        jjgCount = jjgCount
+                                                                    )
+                                                                )
                                                             }
                                                         }
 
-                                                        // Second pass - format the details
-                                                        for (duplicate in duplicateResponse.duplicates) {
-                                                            try {
-                                                                val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
-                                                                if (tphBlokInfo != null) {
-                                                                    val combinationKey = "${tphBlokInfo.blokKode}-${tphBlokInfo.tphNomor}"
-                                                                    val count = combinationCounts[combinationKey] ?: 1
+                                                        // Group by blok code and sort
+                                                        val groupedDuplicates = duplicateInfoList
+                                                            .groupBy { it.blokKode }
+                                                            .toSortedMap() // Sort blok codes alphabetically
 
-                                                                    // Format the datetime to Indonesian format
-                                                                    val formattedDate = try {
-                                                                        val originalDate = SimpleDateFormat(
-                                                                            "yyyy-MM-dd HH:mm:ss",
-                                                                            Locale.getDefault()
-                                                                        ).parse(duplicate.datetime)
-                                                                        val indonesianDateFormat = SimpleDateFormat(
-                                                                            "d MMMM yyyy HH:mm:ss",
-                                                                            Locale("id", "ID")
-                                                                        )
-                                                                        indonesianDateFormat.format(originalDate!!)
-                                                                    } catch (e: Exception) {
-                                                                        AppLogger.e("Date parsing error: ${e.message}")
-                                                                        duplicate.datetime
-                                                                    }
+                                                        // Format the grouped duplicates
+                                                        val duplicateDetails = mutableListOf<String>()
+                                                        var groupNumber = 1
 
-                                                                    val formattedDetail = if (count > 1) {
-                                                                        "• ${tphBlokInfo.blokKode} - TPH ${tphBlokInfo.tphNomor} ($formattedDate)"
+                                                        for ((blokKode, duplicatesInBlok) in groupedDuplicates) {
+                                                            // Add group header
+                                                            duplicateDetails.add("${groupNumber}. $blokKode")
+
+                                                            // Sort TPH within each group by TPH number
+                                                            val sortedTPH = duplicatesInBlok.sortedBy { duplicate ->
+                                                                // Extract numeric part of TPH for proper sorting
+                                                                try {
+                                                                    if (duplicate.tphNomor.startsWith("ID ")) {
+                                                                        // For unknown TPH (ID format), sort by ID number
+                                                                        duplicate.tphNomor.substring(3).toIntOrNull() ?: Int.MAX_VALUE
                                                                     } else {
-                                                                        "• ${tphBlokInfo.blokKode} - TPH ${tphBlokInfo.tphNomor}"
+                                                                        // For normal TPH, extract number from tphNomor
+                                                                        duplicate.tphNomor.toIntOrNull() ?: Int.MAX_VALUE
                                                                     }
-
-                                                                    duplicateDetails.add(formattedDetail)
-                                                                } else {
-                                                                    val formattedDetail = "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
-                                                                    duplicateDetails.add(formattedDetail)
+                                                                } catch (e: Exception) {
+                                                                    Int.MAX_VALUE
                                                                 }
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
-                                                                val formattedDetail = "• ID TPH ${duplicate.idTph} (${duplicate.datetime})"
-                                                                duplicateDetails.add(formattedDetail)
                                                             }
+
+                                                            // Add TPH details for this group
+                                                            for (duplicate in sortedTPH) {
+                                                                val jjgText = if (duplicate.jjgCount.isNotEmpty()) " - ${duplicate.jjgCount} Jjg" else ""
+                                                                val tphDetail = if (duplicate.tphNomor.startsWith("ID ")) {
+                                                                    "  • ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
+                                                                } else {
+                                                                    "  • ${duplicate.blokKode} TPH ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
+                                                                }
+                                                                duplicateDetails.add(tphDetail)
+                                                            }
+
+                                                            // Add empty line after each group (except the last one)
+                                                            if (groupNumber < groupedDuplicates.size) {
+                                                                duplicateDetails.add("")
+                                                            }
+
+                                                            groupNumber++
                                                         }
 
                                                         val duplicateListText = duplicateDetails.joinToString("\n")
@@ -962,8 +1127,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                     }
                                                 }
                                             } else {
-                                                // No TPH duplicates - continue with full processing
-                                                continueQRProcessing(parseResult.jsonStr)
+                                                // No TPH duplicates - continue with full processing using reconstructed data
+                                                continueQRProcessing(reconstructedJsonStr) // Pass reconstructed JSON
                                             }
                                         }
 
@@ -1052,53 +1217,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.IO) {
                     // Then proceed with your Gson parsing
-                    val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
-                    AppLogger.d("Parsed Data: $parsedData")
-
-                    // Create modified parsed data with reconstructed dates if needed
-                    var modifiedParsedData = parsedData
-
-                    // Check if we have the new format with tgl field
-                    if (parsedData?.tgl != null && !parsedData.tph1.isNullOrEmpty()) {
-                        try {
-                            // Split tph1 entries
-                            val tph1Entries = parsedData.tph1.split(";")
-                            val reconstructedTph1 = tph1Entries.joinToString(";") { entry ->
-                                val parts = entry.split(",")
-                                if (parts.size >= 3) {
-                                    val id = parts[0]
-                                    val dateIndex = parts[1]
-                                    val time = parts[2]
-                                    val restValues = parts.subList(3, parts.size).joinToString(",")
-
-                                    // Get the corresponding date from tgl using the dateIndex
-                                    val date = parsedData.tgl[dateIndex] ?: ""
-
-                                    if (date.isNotEmpty()) {
-                                        "$id,$date $time,$restValues"
-                                    } else {
-                                        // If no matching date found, keep original entry
-                                        entry
-                                    }
-                                } else {
-                                    entry
-                                }
-                            }
-
-                            // Create a "patched" version of the parsed data with the reconstructed tph1
-                            modifiedParsedData = wbQRData(
-                                espb = parsedData.espb,
-                                tph0 = parsedData.tph0,
-                                tph1 = reconstructedTph1,
-                                tgl = parsedData.tgl
-                            )
-
-                            AppLogger.d("Reconstructed tph1: $reconstructedTph1")
-                        } catch (e: Exception) {
-                            AppLogger.e("Error reconstructing tph1 dates: ${e.message}")
-                            // Continue with original parsedData if reconstruction fails
-                        }
-                    }
+                    val modifiedParsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
 
                     val blokJjgList = modifiedParsedData?.espb?.blokJjg?.split(";")?.mapNotNull {
                         it.split(",").takeIf { it.size == 2 }?.let { (id, jjg) ->
@@ -1369,6 +1488,63 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     loadingDialog.dismiss()
                 }
             }
+        }
+    }
+
+    private fun reconstructTPH1Data(jsonStr: String): wbQRData? {
+        return try {
+            val parsedData = Gson().fromJson(jsonStr, wbQRData::class.java)
+            AppLogger.d("Parsed Data: $parsedData")
+
+            // Check if we have the new format with tgl field
+            if (parsedData?.tgl != null && !parsedData.tph1.isNullOrEmpty()) {
+                try {
+                    // Split tph1 entries
+                    val tph1Entries = parsedData.tph1.split(";")
+                    val reconstructedTph1 = tph1Entries.joinToString(";") { entry ->
+                        val parts = entry.split(",")
+                        if (parts.size >= 3) {
+                            val id = parts[0]
+                            val dateIndex = parts[1]
+                            val time = parts[2]
+                            val restValues = parts.subList(3, parts.size).joinToString(",")
+
+                            // Get the corresponding date from tgl using the dateIndex
+                            val date = parsedData.tgl[dateIndex] ?: ""
+
+                            if (date.isNotEmpty()) {
+                                "$id,$date $time,$restValues"
+                            } else {
+                                // If no matching date found, keep original entry
+                                entry
+                            }
+                        } else {
+                            entry
+                        }
+                    }
+
+                    // Create a "patched" version of the parsed data with the reconstructed tph1
+                    val modifiedParsedData = wbQRData(
+                        espb = parsedData.espb,
+                        tph0 = parsedData.tph0,
+                        tph1 = reconstructedTph1,
+                        tgl = parsedData.tgl
+                    )
+
+                    AppLogger.d("Reconstructed tph1: $reconstructedTph1")
+                    modifiedParsedData
+                } catch (e: Exception) {
+                    AppLogger.e("Error reconstructing tph1 dates: ${e.message}")
+                    // Return original parsedData if reconstruction fails
+                    parsedData
+                }
+            } else {
+                // Return original parsedData if no reconstruction needed
+                parsedData
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing JSON: ${e.message}")
+            null
         }
     }
 

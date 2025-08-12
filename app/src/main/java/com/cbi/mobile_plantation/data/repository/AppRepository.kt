@@ -1003,6 +1003,10 @@ class AppRepository(context: Context) {
             }
         }
 
+//    suspend fun getMillByAbbr(abbr: String): MillModel? {
+//        return millDao.getMillByAbbr(abbr)
+//    }
+
     suspend fun getActivePanenRestan(status: Int = 0): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
