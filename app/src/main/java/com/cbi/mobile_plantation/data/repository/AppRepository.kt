@@ -40,6 +40,10 @@ sealed class SaveTPHResult {
         val duplicateCount: Int,
         val duplicateInfo: String
     ) : SaveTPHResult()
+    data class AllDuplicate(
+        val duplicateCount: Int,
+        val duplicateInfo: String
+    ) : SaveTPHResult()
 }
 
 class AppRepository(context: Context) {
@@ -822,8 +826,12 @@ class AppRepository(context: Context) {
         try {
             val processedIds = mutableListOf<Long>()
 
+            Log.d("TransferInspeksi", "Starting saveTransferInspeksi with ${transferInspeksiList.size} items")
+
             // Check each item individually
-            for (transferInspeksi in transferInspeksiList) {
+            for ((index, transferInspeksi) in transferInspeksiList.withIndex()) {
+                Log.d("TransferInspeksi", "Processing item $index: tph_id=${transferInspeksi.tph_id}, date_created=${transferInspeksi.date_created}")
+
                 // Check if this specific item exists based on tph_id and date_created
                 val existingEntity = panenDao.findByTphAndDate(
                     transferInspeksi.tph_id,
@@ -831,17 +839,67 @@ class AppRepository(context: Context) {
                 )
 
                 if (existingEntity != null) {
-                    // EXISTS: Update status_scan_inspeksi = 1
-                    val updateResult = panenDao.updateScanInspeksiStatus(
-                        existingEntity.id,
-                        1 // status_scan_inspeksi = 1
+                    // EXISTS: Update fields if they are empty/null and set status_scan_inspeksi = 1
+                    Log.d("TransferInspeksi", "EXISTING RECORD FOUND - ID: ${existingEntity.id}, updating fields and status_scan_inspeksi to 1")
+
+                    val updatedRecord = existingEntity.copy(
+                        // Always update status_scan_inspeksi to 1
+                        status_scan_inspeksi = 1,
+
+                        // Update kemandoran_id if existing is null/empty
+                        kemandoran_id = if (existingEntity.kemandoran_id.isNullOrEmpty() || existingEntity.kemandoran_id == "NULL") {
+                            transferInspeksi.kemandoran_id
+                        } else {
+                            existingEntity.kemandoran_id
+                        },
+
+                        // Update karyawan_nik if existing is null/empty
+                        karyawan_nik = if (existingEntity.karyawan_nik.isNullOrEmpty() || existingEntity.karyawan_nik == "NULL") {
+                            transferInspeksi.karyawan_nik
+                        } else {
+                            existingEntity.karyawan_nik
+                        },
+
+                        // Update karyawan_nama if existing is null/empty
+                        karyawan_nama = if (existingEntity.karyawan_nama.isNullOrEmpty() || existingEntity.karyawan_nama == "NULL") {
+                            transferInspeksi.karyawan_nama
+                        } else {
+                            existingEntity.karyawan_nama
+                        },
+
+                        // Update jenis_panen if existing is 0 (default/empty)
+                        jenis_panen = if (existingEntity.jenis_panen == 0) {
+                            transferInspeksi.jenis_panen
+                        } else {
+                            existingEntity.jenis_panen
+                        },
+
+                        // Update ancak if existing is 0 (default/empty)
+                        ancak = if (existingEntity.ancak == 0) {
+                            transferInspeksi.ancak
+                        } else {
+                            existingEntity.ancak
+                        },
+
+                        // Also update karyawan_id if existing is empty
+                        karyawan_id = if (existingEntity.karyawan_id.isNullOrEmpty()) {
+                            transferInspeksi.karyawan_id
+                        } else {
+                            existingEntity.karyawan_id
+                        }
                     )
 
-                    if (updateResult > 0) {
-                        processedIds.add(existingEntity.id.toLong())
-                    }
+                    // Use the general update method instead of specific status update
+                    panenDao.update(listOf(updatedRecord))
+                    processedIds.add(existingEntity.id.toLong())
+
+                    Log.d("TransferInspeksi", "Successfully updated existing record ID: ${existingEntity.id}")
+                    Log.d("TransferInspeksi", "Updated fields - kemandoran_id: ${updatedRecord.kemandoran_id}, karyawan_nik: ${updatedRecord.karyawan_nik}, karyawan_nama: ${updatedRecord.karyawan_nama}, jenis_panen: ${updatedRecord.jenis_panen}, ancak: ${updatedRecord.ancak}")
+
                 } else {
                     // DOESN'T EXIST: Insert new record
+                    Log.d("TransferInspeksi", "NEW RECORD - No existing record found, inserting new record")
+
                     val entityToSave = transferInspeksi.copy(
                         created_by = createdBy.toIntOrNull() ?: 0,
                         info = creatorInfo
@@ -850,16 +908,25 @@ class AppRepository(context: Context) {
                     val result = panenDao.insertWithTransaction(entityToSave)
 
                     result.fold(
-                        onSuccess = { id -> processedIds.add(id) },
-                        onFailure = { throw it }
+                        onSuccess = { id ->
+                            processedIds.add(id)
+                            Log.d("TransferInspeksi", "Successfully inserted new record with ID: $id")
+                        },
+                        onFailure = {
+                            Log.e("TransferInspeksi", "Failed to insert new record: ${it.message}")
+                            throw it
+                        }
                     )
                 }
             }
+
+            Log.d("TransferInspeksi", "Completed processing. Total processed IDs: ${processedIds.size}")
 
             // Always return success
             Result.success(SaveTPHResult.AllSuccess(processedIds))
 
         } catch (e: Exception) {
+            Log.e("TransferInspeksi", "Error in saveTransferInspeksi: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -867,19 +934,27 @@ class AppRepository(context: Context) {
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
+                AppLogger.d("=== SAVE TPH DATA LIST START ===")
+                AppLogger.d("Total items to process: ${tphDataList.size}")
+
                 // Keep track of successes and failures
                 val savedIds = mutableListOf<Long>()
                 val duplicates = mutableListOf<TphRvData>()
 
                 // Check each item individually
-                for (tphData in tphDataList) {
+                for ((index, tphData) in tphDataList.withIndex()) {
+                    AppLogger.d("Processing item ${index + 1}/${tphDataList.size}: TPH=${tphData.namaBlok}, Date=${tphData.time}, JJG=${tphData.jjg}, User=${tphData.username}")
+
                     // Check if this specific item is a duplicate
                     val isDuplicate = panenDao.exists(tphData.namaBlok, tphData.time)
 
                     if (isDuplicate) {
                         // Add to duplicates list
                         duplicates.add(tphData)
+                        AppLogger.w("⚠️ Duplicate found: TPH=${tphData.namaBlok}, Date=${tphData.time}")
                     } else {
+                        AppLogger.d("Creating new record for TPH=${tphData.namaBlok}, Date=${tphData.time}")
+
                         // Save non-duplicate
                         val result = panenDao.insertWithTransaction(
                             PanenEntity(
@@ -908,26 +983,46 @@ class AppRepository(context: Context) {
                         )
 
                         result.fold(
-                            onSuccess = { id -> savedIds.add(id) },
-                            onFailure = { throw it }
+                            onSuccess = { id ->
+                                savedIds.add(id)
+                                AppLogger.d("✅ Successfully saved: TPH=${tphData.namaBlok}, ID=$id")
+                            },
+                            onFailure = {
+                                AppLogger.e("❌ Failed to save: TPH=${tphData.namaBlok}, Error: ${it.message}")
+                                throw it
+                            }
                         )
                     }
                 }
 
+                AppLogger.d("=== PROCESSING SUMMARY ===")
+                AppLogger.d("Total processed: ${tphDataList.size}")
+                AppLogger.d("Successfully saved: ${savedIds.size}")
+                AppLogger.d("Duplicates found: ${duplicates.size}")
+                AppLogger.d("==========================")
+
                 // Create result based on what happened
+                // In your saveTPHDataList function, change the result handling:
+
                 when {
                     duplicates.isEmpty() -> {
                         // All items were saved successfully
+                        AppLogger.d("🎉 All ${savedIds.size} items saved successfully!")
                         Result.success(SaveTPHResult.AllSuccess(savedIds))
                     }
 
                     savedIds.isEmpty() -> {
-                        // Everything was a duplicate
+                        // Everything was a duplicate - return as success so we can show alert
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
-                        Result.failure(
-                            Exception("All data is duplicate:\n$duplicateInfo")
+                        AppLogger.w("⚠️ All data is duplicate - returning as success to show alert")
+                        AppLogger.w("Duplicate details:\n$duplicateInfo")
+                        Result.success(
+                            SaveTPHResult.AllDuplicate(
+                                duplicateCount = duplicates.size,
+                                duplicateInfo = duplicateInfo
+                            )
                         )
                     }
 
@@ -936,6 +1031,9 @@ class AppRepository(context: Context) {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
+                        AppLogger.w("⚠️ Partial success: ${savedIds.size} saved, ${duplicates.size} duplicates")
+                        AppLogger.d("Saved IDs: $savedIds")
+                        AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.PartialSuccess(
                                 savedIds = savedIds,
@@ -946,7 +1044,11 @@ class AppRepository(context: Context) {
                     }
                 }
             } catch (e: Exception) {
+                AppLogger.e("💥 Error saving TPH data: ${e.message}")
+                AppLogger.e("Exception details: ${e.stackTraceToString()}")
                 Result.failure(e)
+            } finally {
+                AppLogger.d("=== SAVE TPH DATA LIST END ===")
             }
         }
 
@@ -968,13 +1070,12 @@ class AppRepository(context: Context) {
 
     suspend fun loadESPB(
         archive: Int,
-        statusEspb: Int,
-        statusTransferRestan:Int,
-        scanStatus: Int,
+        statusTransferRestan: Int,
+        hasNoEspb: Boolean,
         date: String? = null
     ): List<PanenEntityWithRelations> {
         return try {
-            panenDao.loadESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            panenDao.loadESPB(archive, statusTransferRestan, hasNoEspb, date)
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             emptyList()  // Return empty list if there's an error
@@ -983,13 +1084,12 @@ class AppRepository(context: Context) {
 
     suspend fun countESPB(
         archive: Int,
-        statusEspb: Int,
-        statusTransferRestan:Int,
-        scanStatus: Int,
+        statusTransferRestan: Int,
+        hasNoEspb: Boolean,
         date: String? = null
     ): Int {
         return try {
-            panenDao.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            panenDao.countESPB(archive,  statusTransferRestan, hasNoEspb, date)
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
             0  // Return 0 if there's an error

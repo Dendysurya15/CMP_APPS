@@ -254,14 +254,14 @@ class ListTPHApproval : AppCompatActivity() {
                             val result =
                                 if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                                     repository.saveTPHDataList(saveData)
-                                }  else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
+                                } else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
                                     repository.saveTransferInspeksi(
                                         saveDataTransferInspeksiList,
                                         createdBy,
                                         creatorInfo,
                                         this@ListTPHApproval
                                     )
-                                }else {
+                                } else {
                                     repository.saveScanMPanen(
                                         saveDataMPanenList,
                                         createdBy,
@@ -279,29 +279,6 @@ class ListTPHApproval : AppCompatActivity() {
                                             _saveDataPanenState.value =
                                                 SaveDataPanenState.Success(saveResult.savedIds)
 
-                                            playSound(R.raw.berhasil_simpan)
-                                            Toasty.success(
-                                                this@ListTPHApproval,
-                                                "Data berhasil disimpan",
-                                                Toast.LENGTH_LONG,
-                                                true
-                                            ).show()
-                                            startActivity(
-                                                Intent(
-                                                    this@ListTPHApproval,
-                                                    HomePageActivity::class.java
-                                                )
-                                            )
-                                            finish()
-                                        }
-
-                                        is SaveTPHResult.PartialSuccess -> {
-                                            _saveDataPanenState.value =
-                                                SaveDataPanenState.PartialSuccess(
-                                                    savedIds = saveResult.savedIds,
-                                                    duplicateCount = saveResult.duplicateCount,
-                                                    duplicateInfo = saveResult.duplicateInfo
-                                                )
                                             playSound(R.raw.berhasil_simpan)
                                             delay(300)
                                             Toasty.success(
@@ -327,15 +304,50 @@ class ListTPHApproval : AppCompatActivity() {
                                                     duplicateInfo = saveResult.duplicateInfo
                                                 )
 
-                                            // Play success sound but show partial success message
+                                            // Play success sound
                                             playSound(R.raw.berhasil_simpan)
+                                            delay(300)
+                                            // Format duplicate info for user display
+                                            val duplicateDetails =
+                                                saveResult.duplicateInfo.replace("TPH ID:", "TPH:")
+                                                    .replace("Date:", "Tanggal:")
 
+                                            // Show alert for partial success with duplicates
                                             AlertDialogUtility.withSingleAction(
                                                 this@ListTPHApproval,
                                                 "OK",
-                                                "Sebagian data berhasil disimpan",
-                                                "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati.",
-                                                "warning.json"
+                                                "Beberapa data yang tidak terduplikat sudah tersimpan",
+                                                "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati.\n\nData duplikat:\n$duplicateDetails",
+                                                "warning.json",
+                                                color = R.color.orange
+                                            ) {
+                                                startActivity(
+                                                    Intent(
+                                                        this@ListTPHApproval,
+                                                        HomePageActivity::class.java
+                                                    )
+                                                )
+                                                finish()
+                                            }
+                                        }
+
+                                        is SaveTPHResult.AllDuplicate -> {
+                                            _saveDataPanenState.value =
+                                                SaveDataPanenState.Error("All data is duplicate")
+
+                                            // Format duplicate info for user display
+                                            val duplicateDetails =
+                                                saveResult.duplicateInfo.replace("TPH ID:", "TPH:")
+                                                    .replace("Date:", "Tanggal:")
+
+                                            // Show alert for all duplicate
+                                            AlertDialogUtility.withSingleAction(
+                                                this@ListTPHApproval,
+                                                "OK",
+                                                "Data duplikat, anda telah melakukan scan untuk data panen ini!",
+                                                "Semua ${saveResult.duplicateCount} data yang dipilih sudah ada di database.\n\nData duplikat:\n$duplicateDetails",
+                                                "warning.json",
+                                                color = R.color.colorRedDark
                                             ) {
                                                 startActivity(
                                                     Intent(
@@ -352,23 +364,11 @@ class ListTPHApproval : AppCompatActivity() {
                                     _saveDataPanenState.value = SaveDataPanenState.Error(
                                         exception.message ?: "Unknown error occurred"
                                     )
-                                    if (exception.message?.contains("All data is duplicate") == true) {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@ListTPHApproval,
-                                            "OK",
-                                            "Data duplikat, anda telah melakukan scan untuk data panen ini!",
-                                            "Error: ${exception.message}",
-                                            "warning.json"
-                                        ) {
-                                            // Stay on the same screen
-                                        }
-                                    } else {
-                                        Toasty.error(
-                                            this@ListTPHApproval,
-                                            "Error: ${exception.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
+                                    Toasty.error(
+                                        this@ListTPHApproval,
+                                        "Error: ${exception.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 }
                             )
                         } catch (e: Exception) {
@@ -737,7 +737,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 tipePanen = "NULL",
                                 ancak = "NULL"
                             )
-                        } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                        }
+                        else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
                             val parts = entry.split(",")
                             if (parts.size != 9) {
                                 Log.e(
@@ -876,7 +877,10 @@ class ListTPHApproval : AppCompatActivity() {
                                 val parts = beforeJson.split(",")
 
                                 if (parts.size < 5) {
-                                    Log.e(TAG, "Invalid entry format for ScanTransferInspeksiPanen with JSON, expected at least 5 parts before JSON but got ${parts.size}: $entry")
+                                    Log.e(
+                                        TAG,
+                                        "Invalid entry format for ScanTransferInspeksiPanen with JSON, expected at least 5 parts before JSON but got ${parts.size}: $entry"
+                                    )
                                     return@mapNotNull null
                                 }
 
@@ -891,7 +895,10 @@ class ListTPHApproval : AppCompatActivity() {
                                 val parts = entry.split(",")
 
                                 if (parts.size < 5) {
-                                    Log.e(TAG, "Invalid entry format for ScanTransferInspeksiPanen without JSON, expected at least 5 parts but got ${parts.size}: $entry")
+                                    Log.e(
+                                        TAG,
+                                        "Invalid entry format for ScanTransferInspeksiPanen without JSON, expected at least 5 parts but got ${parts.size}: $entry"
+                                    )
                                     return@mapNotNull null
                                 }
 
@@ -906,7 +913,10 @@ class ListTPHApproval : AppCompatActivity() {
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"
                             val fullDateTime = "$fullDate $time"
 
-                            Log.d(TAG, "Processing ScanTransferInspeksiPanen - idtph: $idtph, dateIndex: $dateIndex, time: $time, tipePanen: $tipePanen, ancak: $ancak")
+                            Log.d(
+                                TAG,
+                                "Processing ScanTransferInspeksiPanen - idtph: $idtph, dateIndex: $dateIndex, time: $time, tipePanen: $tipePanen, ancak: $ancak"
+                            )
                             Log.d(TAG, "Full datetime: $fullDateTime")
                             Log.d(TAG, "JSON part: $jsonPart")
 
@@ -931,8 +941,10 @@ class ListTPHApproval : AppCompatActivity() {
                             }
 
                             // Join NIKs and names with commas
-                            val karyawanNik = if (nikNumbers.isNotEmpty()) nikNumbers.joinToString(",") else "NULL"
-                            val karyawanNama = if (nikNames.isNotEmpty()) nikNames.joinToString(",") else "NULL"
+                            val karyawanNik =
+                                if (nikNumbers.isNotEmpty()) nikNumbers.joinToString(",") else "NULL"
+                            val karyawanNama =
+                                if (nikNames.isNotEmpty()) nikNames.joinToString(",") else "NULL"
 
                             Log.d(TAG, "Parsed NIKs: $karyawanNik")
                             Log.d(TAG, "Parsed Names: $karyawanNama")
@@ -1017,7 +1029,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 dataIsZipped = 0,
                                 created_by = 0,
                                 jumlah_pemanen = nikNumbers.size,     // Number of workers
-                                status_scan_mpanen = 0              ,  // Different from MPanen
+                                status_scan_mpanen = 0,  // Different from MPanen
                                 status_scan_inspeksi = 1
                             )
 

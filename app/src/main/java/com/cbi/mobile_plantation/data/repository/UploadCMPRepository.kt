@@ -348,6 +348,7 @@ class UploadCMPRepository(context: Context) {
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
                                 )
+                                AppLogger.d("lkasjdlfkjasd lflaskd jf")
 
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")

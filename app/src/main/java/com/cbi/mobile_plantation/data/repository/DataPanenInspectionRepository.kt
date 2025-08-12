@@ -52,8 +52,10 @@ class DataPanenInspectionRepository(
                 put("tph_nomor")
                 put("ancak")
                 put("tipe")
+                put("jjg_kirim")
                 put("created_date")
                 put("created_by")
+                put("created_name")
                 put("kemandoran")
             })
 
