@@ -3653,6 +3653,8 @@ class HomePageActivity : AppCompatActivity() {
                                         val nameList = allNameByCategory[statusCode] ?: emptyList()
                                         val workLocationList = allWorkLocationByCategory[statusCode] ?: emptyList()
 
+                                        // Replace this section in your code (around line where you create detailRecord)
+
                                         nikList.forEachIndexed { index, nik ->
                                             val karyawan = karyawanMap[nik]
                                             val employeeName = karyawan?.nama ?: nameList.getOrNull(index).orEmpty()
@@ -3668,7 +3670,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 "date_created" to (absensi.date_absen ?: "")
                                             )
 
-                                            // Add alokasi_kerja based on status and work location
+                                            // FIXED: Always add alokasi_kerja, ensure it's always an integer
                                             if (statusCode == "h" && statusInt == 1) { // Present employees
                                                 // Convert work location to integer, default to 1 (Panen) if invalid
                                                 val alokasiKerja = try {
@@ -3684,13 +3686,14 @@ class HomePageActivity : AppCompatActivity() {
                                                 }
                                                 detailRecord["alokasi_kerja"] = alokasiKerja
                                             } else {
-                                                // Absent employees - alokasi_kerja is null
+                                                // FIXED: Explicitly set alokasi_kerja to 0 as Integer for absent employees
                                                 detailRecord["alokasi_kerja"] = 0
                                             }
 
+                                            AppLogger.d("Final detail record: $detailRecord")
                                             detailRecords.add(detailRecord)
 
-                                            AppLogger.d("Employee: $employeeName ($nik) - Status: $statusInt - Work Location: $workLocationValue - Alokasi Kerja: ${if (statusCode == "h") workLocationValue else "null"}")
+                                            AppLogger.d("Employee: $employeeName ($nik) - Status: $statusInt - Work Location: $workLocationValue - Alokasi Kerja: ${detailRecord["alokasi_kerja"]}")
                                         }
                                     }
 
