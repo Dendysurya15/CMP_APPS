@@ -5237,7 +5237,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 featureName!!.uppercase(), // This will add the feature name to filename
                 currentLat,
                 currentLon,
-                sourceFoto
+                sourceFoto,
+                CameraRepository.CameraType.FRONT
             )
         }
     }
