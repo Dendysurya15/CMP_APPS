@@ -1357,6 +1357,28 @@ object AppUtils {
      * Get a map of all calculated data for easy access
      */
     fun getPanenProcessedData(mappedData: List<Map<String, Any?>>, featureName: String?): Map<String, Any> {
+        val totalJjgCount = if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+            // For Mutu Buah, use jjg_panen instead of jjg_kirim
+            mappedData.sumOf { data ->
+                val jjgPanen = data["jjg_panen"] as? Int ?: 0
+                jjgPanen
+            }
+        } else {
+            // For other features, use the existing logic with jjg_json
+            mappedData.sumOf { data ->
+                try {
+                    val jjgJsonStr = data["jjg_json"]?.toString() ?: "{}"
+                    val jjgJson = JSONObject(jjgJsonStr)
+
+                    when (featureName) {
+                        AppUtils.ListFeatureNames.RekapPanenDanRestan -> jjgJson.optInt("KP", 0)
+                        else -> jjgJson.optInt("KP", 0) // Default to KP for other features
+                    }
+                } catch (e: Exception) {
+                    0
+                }
+            }
+        }
         return mapOf(
             "blokNames" to getDistinctBlokNames(mappedData),
             "blokDisplay" to getBlokDisplay(mappedData, featureName),

@@ -405,8 +405,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
 
-        // Get previous TPH data if available
-
 
         if (listTPHDriver.isNotEmpty() && !shouldRestoreCheckboxState) {
 
@@ -519,6 +517,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 mutuBuahViewModel.loadMBUnuploaded(0, AppUtils.currentDate)
                 mutuBuahViewModel.countMBUnuploaded(AppUtils.currentDate)
                 mutuBuahViewModel.countMBUploaded(AppUtils.currentDate)
+                findViewById<TextView>(R.id.tv_card_tersimpan).text = "Tersimpan"
+                findViewById<TextView>(R.id.tv_card_terscan).text = "Sudah Upload"
+
             } else if (featureName == "Rekap panen dan restan") {
 
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
@@ -874,6 +875,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun setupCardListeners() {
+// In ListPanenTBSActivity.kt, update the cardTersimpan.setOnClickListener around line 750-850
+
         cardTersimpan.setOnClickListener {
 
             listAdapter.updateData(emptyList())
@@ -883,6 +886,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen || featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 val standardHeaders = listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
                 updateTableHeaders(standardHeaders)
+            } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+                // Add header for Mutu Buah tersimpan
+                val mutuBuahHeaders = listOf("BLOK", "NO TPH", "JJG PANEN", "JAM")
+                updateTableHeaders(mutuBuahHeaders)
             }
 
             tvEmptyState.visibility = View.GONE
@@ -899,7 +906,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 speedDial.visibility =
                     if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
             }
-
 
             // Check if filterAllData is checked
             val isAllDataFiltered = filterAllData.isChecked
@@ -927,18 +933,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
             } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 loadingDialog.setMessage("Loading data per transaksi", true)
                 panenViewModel.getAllPanenWhereESPB(noespb)
-                if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
-                    loadingDialog.setMessage("Loading data tersimpan mutu buah", true)
-                    val isAllDataFiltered = filterAllData.isChecked
-                    if (isAllDataFiltered) {
-                        mutuBuahViewModel.loadMBUnuploaded(0)
-                        mutuBuahViewModel.countMBUnuploaded()
-                        mutuBuahViewModel.countMBUploaded()
-                    } else {
-                        mutuBuahViewModel.loadMBUnuploaded(0, globalFormattedDate)
-                        mutuBuahViewModel.countMBUnuploaded(globalFormattedDate)
-                        mutuBuahViewModel.countMBUploaded(globalFormattedDate)
-                    }
+            } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+                // Add specific handling for Mutu Buah tersimpan
+                loadingDialog.setMessage("Loading data tersimpan mutu buah", true)
+                val isAllDataFiltered = filterAllData.isChecked
+                if (isAllDataFiltered) {
+                    // Load unuploaded mutu buah data (status = 0 means not uploaded/tersimpan)
+                    mutuBuahViewModel.loadMBUnuploaded(0)
+                    mutuBuahViewModel.countMBUnuploaded()
+                    mutuBuahViewModel.countMBUploaded()
+                } else {
+                    // Load unuploaded mutu buah data for specific date
+                    mutuBuahViewModel.loadMBUnuploaded(0, globalFormattedDate)
+                    mutuBuahViewModel.countMBUnuploaded(globalFormattedDate)
+                    mutuBuahViewModel.countMBUploaded(globalFormattedDate)
                 }
             } else {
                 counterPerPemanen.visibility = View.GONE
@@ -955,6 +963,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         }
 
+        // In ListPanenTBSActivity.kt, update the cardTerscan.setOnClickListener around line 800-900
+
         cardTerscan.setOnClickListener {
             listAdapter.updateData(emptyList())
             currentState = 1
@@ -962,7 +972,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
             loadingDialog.show()
 
             if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
-                val standardHeaders = listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
+                val standardHeaders = listOf("BLOK", "NO TPH", "JJG PANEN", "JAM")
                 updateTableHeaders(standardHeaders)
             } else if (featureName == AppUtils.ListFeatureNames.DetailESPB) {
                 //untuk rekap per blok
@@ -973,6 +983,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         "TOTAL JJG\nKIRIM PABRIK"
                     )
                 updateTableHeaders(rekapHeaders)
+            } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+                // Add header for Mutu Buah sudah upload
+                val mutuBuahHeaders = listOf("BLOK", "NO TPH", "JJG PANEN", "JAM")
+                updateTableHeaders(mutuBuahHeaders)
             }
 
             val isAllDataFiltered = filterAllData.isChecked
@@ -1013,10 +1027,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 loadingDialog.setMessage("Loading data per blok", true)
                 panenViewModel.getAllPanenWhereESPB(noespb)
             } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
-                loadingDialog.setMessage("Loading data terscan mutu buah", true)
+                loadingDialog.setMessage("Loading data sudah upload mutu buah", true)
                 val isAllDataFiltered = filterAllData.isChecked
                 if (isAllDataFiltered) {
-                    mutuBuahViewModel.loadMBUnuploaded(1)
+                    mutuBuahViewModel.loadMBUnuploaded(0)
                     mutuBuahViewModel.countMBUnuploaded()
                     mutuBuahViewModel.countMBUploaded()
                 } else {
@@ -2550,9 +2564,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
             counterTerscan.text = count.toString()
         }
 
+        // In the mutuBuahViewModel.activeMutuBuahList.observe() method, around line 1175:
+
         mutuBuahViewModel.activeMutuBuahList.observe(this) { mutuBuahList ->
-            // Remove the currentState condition that was limiting when this observer runs
-            // The observer should always be active for Mutu Buah feature
             if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
@@ -2574,21 +2588,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "jjg_json" to createMutuBuahJjgJson(mutuBuahEntity),
                                     "foto" to (mutuBuahEntity.foto as Any),
                                     "komentar" to (mutuBuahEntity.komentar ?: "" as Any),
-                                    "asistensi" to ("" as Any), // Not available in MutuBuahEntity
+                                    "asistensi" to ("" as Any),
                                     "lat" to (mutuBuahEntity.lat as Any),
                                     "lon" to (mutuBuahEntity.lon as Any),
-                                    "jenis_panen" to ("" as Any), // Not available in MutuBuahEntity
-                                    "ancak" to ("" as Any), // Not available in MutuBuahEntity
-                                    "archive" to ("" as Any), // Not available in MutuBuahEntity
+                                    "jenis_panen" to ("" as Any),
+                                    "ancak" to ("" as Any),
+                                    "archive" to ("" as Any),
                                     "nama_estate" to (mutuBuahEntity.deptAbbr as Any),
                                     "nama_afdeling" to (mutuBuahEntity.divisiAbbr as Any),
-                                    "blok_banjir" to ("" as Any), // Not available in MutuBuahEntity
-                                    "tahun_tanam" to ("" as Any), // Not available in MutuBuahEntity
+                                    "blok_banjir" to ("" as Any),
+                                    "tahun_tanam" to ("" as Any),
                                     "nama_karyawans" to (mutuBuahEntity.createdName as Any),
                                     "nama_kemandorans" to (mutuBuahEntity.kemandoran as Any),
-                                    "username" to ("" as Any), // Not available in MutuBuahEntity
+                                    "username" to ("" as Any),
                                     "foto_selfie" to (mutuBuahEntity.foto_selfie as Any),
-                                    "jjg_panen" to (mutuBuahEntity.jjgPanen as Any),
+                                    "jjg_panen" to (mutuBuahEntity.jjgPanen as Any), // Add this line
                                     "jjg_masak" to (mutuBuahEntity.jjgMasak as Any),
                                     "jjg_mentah" to (mutuBuahEntity.jjgMentah as Any),
                                     "jjg_lewat_masak" to (mutuBuahEntity.jjgLewatMasak as Any),
@@ -2607,35 +2621,42 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 totalSection.visibility = View.VISIBLE
                             }
 
-                            // Calculate summary data for Mutu Buah
-                            val processedData =
-                                AppUtils.getPanenProcessedData(mappedData, featureName)
+                            // Calculate summary data for Mutu Buah using jjg_panen
+                            val totalJjgPanen = mappedData.sumOf { data ->
+                                (data["jjg_panen"] as? Int) ?: 0
+                            }
 
-                            val blokNames = processedData["blokNames"]?.toString() ?: ""
-                            blok = if (blokNames.isEmpty()) "-" else blokNames
+                            val blokNames = mappedData.map { it["blok_name"].toString() }.distinct()
+                            val blokDisplay = if (blokNames.size <= 3) {
+                                blokNames.joinToString(", ")
+                            } else {
+                                "${blokNames.take(3).joinToString(", ")}, ..."
+                            }
 
-                            listBlok.text = processedData["blokDisplay"]?.toString()
-                            jjg = processedData["totalJjgCount"]?.toString()?.toInt() ?: 0
-                            totalJjg.text = jjg.toString()
-                            tph = processedData["tphCount"]?.toString()?.toInt() ?: 0
-                            totalTPH.text = tph.toString()
+                            blok = if (blokNames.isEmpty()) "-" else blokNames.joinToString(", ")
+
+                            listBlok.text = blokDisplay
+                            jjg = totalJjgPanen // Use jjg_panen total
+                            totalJjg.text = totalJjgPanen.toString()
+                            tph = mappedData.size
+                            totalTPH.text = mappedData.size.toString()
 
                             // Set Blok
                             val tvBlok = findViewById<View>(R.id.tv_blok)
                             tvBlok.findViewById<TextView>(R.id.tvTitleEspb).text = "Blok"
                             tvBlok.findViewById<TextView>(R.id.tvSubTitleEspb).text = blok
 
-                            // Set jjg
+                            // Set jjg (using jjg_panen)
                             val tvJjg = findViewById<View>(R.id.tv_jjg)
                             tvJjg.findViewById<TextView>(R.id.tvTitleEspb).text = "Janjang"
                             tvJjg.findViewById<TextView>(R.id.tvSubTitleEspb).text =
-                                jjg.toString()
+                                totalJjgPanen.toString()
 
                             // Set TPH count
                             val tvTph = findViewById<View>(R.id.tv_total_tph)
                             tvTph.findViewById<TextView>(R.id.tvTitleEspb).text = "Jumlah TPH"
                             tvTph.findViewById<TextView>(R.id.tvSubTitleEspb).text =
-                                tph.toString()
+                                mappedData.size.toString()
 
                             listAdapter.updateData(mappedData)
                             originalData = emptyList()
@@ -3729,9 +3750,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             btnGenerateQRTPH.visibility = View.GONE
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
-                        val headerCheckBoxPanen =
-                            findViewById<ConstraintLayout>(R.id.tableHeader)
-                                .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
+                        // Hide all QR generation buttons for Mutu Buah
+                        btnGenerateQRTPH.visibility = View.GONE
+                        btnGenerateQRTPHUnl.visibility = View.GONE
+                        tvGenQR60.visibility = View.GONE
+                        tvGenQRFull.visibility = View.GONE
+
+                        val headerCheckBoxPanen = findViewById<ConstraintLayout>(R.id.tableHeader)
+                            .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                         headerCheckBoxPanen.visibility = View.GONE
                     } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
                         val headerCheckBoxPanen =
@@ -3900,7 +3926,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         "PANJANG": ${mutuBuah.jjgPanjang},
         "TIDAK_VCUT": ${mutuBuah.jjgTidakVcut},
         "BAYAR": ${mutuBuah.jjgBayar},
-        "KIRIM": ${mutuBuah.jjgKirim}
+        "KIRIM": ${mutuBuah.jjgPanen}
     }
     """.trimIndent()
     }
@@ -4728,6 +4754,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             listOf("BLOK", "NO TPH/\nJJG KIRIM", "JAM", "KP")
         } else if (featureName == "Detail eSPB") {
             listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
+        } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+            listOf("BLOK", "NO TPH", "JJG PANEN", "JAM")
         } else {
             listOf("BLOK", "NO TPH", "KIRIM PABRIK", "JAM")
         }
