@@ -15,4 +15,27 @@ interface MutuBuahDao {
     @Query("SELECT COUNT(*) FROM mutu_buah WHERE tanggal = strftime('%Y-%m-%d', 'now', 'localtime')")
     abstract suspend fun getCountCreatedToday(): Int
 
+    @Query("""
+        SELECT * 
+        FROM mutu_buah
+        WHERE status_upload = :statusUpload
+          AND (:date IS NULL OR strftime('%Y-%m-%d', tanggal) = :date)
+    """)
+    suspend fun loadMutuBuahByStatusUploadAndDate(
+        statusUpload: Int,
+        date: String? = null
+    ): List<MutuBuahEntity>
+
+    @Query("""
+    SELECT COUNT(*) 
+    FROM mutu_buah
+    WHERE status_upload = :statusUpload
+      AND (:date IS NULL OR strftime('%Y-%m-%d', tanggal) = :date)
+""")
+    suspend fun countMutuBuahByStatusUploadAndDate(
+        statusUpload: Int,
+        date: String? = null
+    ): Int
+
+
 }

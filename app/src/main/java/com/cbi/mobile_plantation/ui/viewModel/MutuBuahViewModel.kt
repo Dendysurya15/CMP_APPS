@@ -7,10 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.cbi.markertph.data.model.TPHNewModel
-import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
-import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.launch
@@ -19,6 +16,15 @@ import kotlin.String
 
 class MutuBuahViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AppRepository = AppRepository(application)
+
+    private val _activeMutuBuahList = MutableLiveData<List<MutuBuahEntity>>()
+    val activeMutuBuahList: LiveData<List<MutuBuahEntity>> get() = _activeMutuBuahList
+
+    private val _countMutuBuahUnuploaded = MutableLiveData<Int>()
+    val countMutuBuahUnuploaded: LiveData<Int> = _countMutuBuahUnuploaded
+
+    private val _countMutuBuahUploaded = MutableLiveData<Int>()
+    val countMutuBuahUploaded: LiveData<Int> = _countMutuBuahUploaded
 
     suspend fun loadMutuBuahToday(): Int {
         val count = try {
@@ -102,6 +108,36 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
             AppRepository.SaveResultMutuBuah.Success
         } catch (e: Exception) {
             AppRepository.SaveResultMutuBuah.Error(e)
+        }
+    }
+
+    fun loadMBUnuploaded(statusUpload: Int, date: String? = null) = viewModelScope.launch {
+        try {
+            val list = repository.loadMutuBuah(statusUpload, date)
+            _activeMutuBuahList.value = list
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah: ${e.message}")
+            _activeMutuBuahList.value = emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    fun countMBUnuploaded(date: String? = null) = viewModelScope.launch {
+        try {
+            val int = repository.countMutuBuah(0, date)
+            _countMutuBuahUnuploaded.value = int
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah count unuploaded: ${e.message}")
+            _countMutuBuahUnuploaded.value = 0
+        }
+    }
+
+    fun countMBUploaded(date: String? = null) = viewModelScope.launch {
+        try {
+            val int = repository.countMutuBuah(1, date)
+            _countMutuBuahUploaded.value = int
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah count uploaded: ${e.message}")
+            _countMutuBuahUploaded.value = 0
         }
     }
 

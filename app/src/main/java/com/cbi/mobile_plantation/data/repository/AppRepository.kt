@@ -818,6 +818,30 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun loadMutuBuah(
+        statusUpload: Int,
+        date: String? = null
+    ): List<MutuBuahEntity> {
+        return try {
+            mutuBuahDao.loadMutuBuahByStatusUploadAndDate(statusUpload, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun countMutuBuah(
+        statusUpload: Int,
+        date: String? = null
+    ): Int {
+        return try {
+            mutuBuahDao.countMutuBuahByStatusUploadAndDate(statusUpload, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah: ${e.message}")
+            0
+        }
+    }
+
     suspend fun countESPB(
         archive: Int,
         statusEspb: Int,

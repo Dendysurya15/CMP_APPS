@@ -455,8 +455,8 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferred = async { mutuBuahViewModel.loadMutuBuahToday() }
                     countMutuBuah = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.MutuBuah, countMutuBuah.toString())
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.MutuBuah)
+                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapMutuBuah, countMutuBuah.toString())
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapMutuBuah)
                     }
                 } catch (e: Exception) {
                     AppLogger.e("Error fetching data: ${e.message}")
@@ -778,11 +778,11 @@ class HomePageActivity : AppCompatActivity() {
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.colorRedDark,
-                featureName = AppUtils.ListFeatureNames.MutuBuah,
+                featureName = AppUtils.ListFeatureNames.RekapMutuBuah,
                 featureNameBackgroundColor = R.color.greenBorder,
                 iconResource = null,
                 count = countMutuBuah.toString(),
-                functionDescription = "Pencatatan panen TBS di TPH oleh kerani panen",
+                functionDescription = "Rekap Inspeksi Mutu Buah",
                 displayType = DisplayType.COUNT
             )
 
@@ -2051,8 +2051,8 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
             AppUtils.ListFeatureNames.RekapMutuBuah -> {
-                if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListPanenTBSActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
