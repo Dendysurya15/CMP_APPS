@@ -47,6 +47,9 @@ abstract class PanenDao {
     @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
 
+    @Query("SELECT * FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
+    abstract suspend fun existsModel(tphId: String, dateCreated: String): PanenEntity?
+
     @Query("SELECT id FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
     abstract suspend fun getIdByTphIdAndDateCreated(tphId: String, dateCreated: String): Int
 
@@ -81,6 +84,10 @@ abstract class PanenDao {
     abstract suspend fun getCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
 
+    @Query("UPDATE panen_table SET status_espb = 0 WHERE tph_id = :tphId AND date_created = :dateCreated")
+    abstract suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int
+
+
     @Query("""
     SELECT * FROM ${AppUtils.DatabaseTables.PANEN}
     WHERE (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
@@ -113,22 +120,21 @@ abstract class PanenDao {
     WHERE archive = :archive
     AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') = :hasNoEspb
     AND status_transfer_restan = :statusTransferRestan
+    AND scan_status = :scanStatus
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
-     AND scan_status == 1
     ORDER BY date_created DESC
 """)
-    abstract suspend fun loadESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, date: String?): List<PanenEntityWithRelations>
+    abstract suspend fun loadESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
 
     @Query("""
     SELECT COUNT(*) FROM panen_table 
     WHERE archive = :archive 
-
     AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') = :hasNoEspb
     AND status_transfer_restan = :statusTransferRestan
-    AND scan_status == 1
+    AND scan_status = :scanStatus
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
 """)
-    abstract suspend fun countESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, date: String?): Int
+    abstract suspend fun countESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): Int
 
     @Query("""
     UPDATE panen_table

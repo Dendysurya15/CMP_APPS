@@ -2710,31 +2710,63 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             val updatedRecord = existingRecord.copy(
                                                 // Update basic info from server
                                                 created_by = panen.created_by,
-                                                jenis_panen = panen.jenis_panen,
-                                                ancak = panen.ancak,
-                                                jjg_json = panen.jjg_json,
+                                                jenis_panen = if (existingRecord.jenis_panen == 0 && panen.jenis_panen != 0) {
+                                                    panen.jenis_panen
+                                                } else {
+                                                    existingRecord.jenis_panen
+                                                },
+
+                                                ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
+                                                    panen.ancak
+                                                } else {
+                                                    existingRecord.ancak
+                                                },
+
+                                                jjg_json = if ((existingRecord.jjg_json.isNullOrEmpty() ||
+                                                            existingRecord.jjg_json == "NULL" ||
+                                                            existingRecord.jjg_json == "{}" ||
+                                                            existingRecord.jjg_json == "{\"KP\": 0}") &&
+                                                    panen.jjg_json.isNotEmpty() &&
+                                                    panen.jjg_json != "NULL" &&
+                                                    panen.jjg_json != "{\"KP\": 0}") {
+                                                    panen.jjg_json
+                                                } else {
+                                                    existingRecord.jjg_json
+                                                },
                                                 isPushedToServer = 1,
 
                                                 // Update karyawan info if existing is null/empty
-                                                karyawan_id = if (existingRecord.karyawan_id.isNullOrEmpty() && panen.karyawan_id.isNotEmpty()) {
+                                                karyawan_id = if ((existingRecord.karyawan_id.isNullOrEmpty() ||
+                                                            existingRecord.karyawan_id == "NULL") &&
+                                                    panen.karyawan_id.isNotEmpty() &&
+                                                    panen.karyawan_id != "NULL") {
                                                     panen.karyawan_id
                                                 } else {
                                                     existingRecord.karyawan_id
                                                 },
 
-                                                kemandoran_id = if (existingRecord.kemandoran_id.isNullOrEmpty() && panen.kemandoran_id.isNotEmpty()) {
+                                                kemandoran_id = if ((existingRecord.kemandoran_id.isNullOrEmpty() ||
+                                                            existingRecord.kemandoran_id == "NULL") &&
+                                                    panen.kemandoran_id.isNotEmpty() &&
+                                                    panen.kemandoran_id != "NULL") {
                                                     panen.kemandoran_id
                                                 } else {
                                                     existingRecord.kemandoran_id
                                                 },
 
-                                                karyawan_nik = if (existingRecord.karyawan_nik.isNullOrEmpty() && panen.karyawan_nik.isNotEmpty()) {
+                                                karyawan_nik = if ((existingRecord.karyawan_nik.isNullOrEmpty() ||
+                                                            existingRecord.karyawan_nik == "NULL") &&
+                                                    panen.karyawan_nik.isNotEmpty() &&
+                                                    panen.karyawan_nik != "NULL") {
                                                     panen.karyawan_nik
                                                 } else {
                                                     existingRecord.karyawan_nik
                                                 },
 
-                                                karyawan_nama = if (existingRecord.karyawan_nama.isNullOrEmpty() && panen.karyawan_nama.isNotEmpty()) {
+                                                karyawan_nama = if ((existingRecord.karyawan_nama.isNullOrEmpty() ||
+                                                            existingRecord.karyawan_nama == "NULL") &&
+                                                    panen.karyawan_nama.isNotEmpty() &&
+                                                    panen.karyawan_nama != "NULL") {
                                                     panen.karyawan_nama
                                                 } else {
                                                     existingRecord.karyawan_nama

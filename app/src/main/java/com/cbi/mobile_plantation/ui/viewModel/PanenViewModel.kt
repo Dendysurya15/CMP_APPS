@@ -116,9 +116,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadTPHNonESPB(archive: Int,  statusTransferRestan: Int, hasNoEspb: Boolean, date: String? = null) = viewModelScope.launch {
+    fun loadTPHNonESPB(archive: Int,  statusTransferRestan: Int, hasNoEspb: Boolean,scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, date)
+            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb,scanStatus, date)
             _activePanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -126,9 +126,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllPanenDataDetailESPB(archive: Int, statusTransferRestan:Int, hasNoEspb:Boolean, date: String? = null) = viewModelScope.launch {
+    fun getAllPanenDataDetailESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, date)
+            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _detailNonESPBTPH.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -136,9 +136,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countTPHNonESPB(archive: Int, statusTransferRestan:Int, hasNoEspb: Boolean, date: String? = null) = viewModelScope.launch {
+    fun countTPHNonESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusTransferRestan, hasNoEspb, date)
+            val count = repository.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _panenCountActive.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -146,9 +146,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countHasBeenESPB(archive: Int,  statusTransferRestan:Int, hasNoEspb: Boolean, date: String? = null) = viewModelScope.launch {
+    fun countHasBeenESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusTransferRestan, hasNoEspb, date)
+            val count = repository.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _panenCountHasBeenESPB.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -156,10 +156,15 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int {
+        return withContext(Dispatchers.IO) {
+            repository.updateStatusEspbToZero(tphId, dateCreated)
+        }
+    }
 
-    fun loadTPHESPB(archive: Int,statusTransferRestan:Int,  hasNoEspb: Boolean,  date: String? = null) = viewModelScope.launch {
+    fun loadTPHESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, date)
+            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _archivedPanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -167,9 +172,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countTPHESPB(archive: Int,  statusTransferRestan:Int, hasNoEspb: Boolean, date: String? = null) = viewModelScope.launch {
+    fun countTPHESPB(archive: Int,  statusTransferRestan:Int, hasNoEspb: Boolean, scanStatus:Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive,  statusTransferRestan,hasNoEspb, date)
+            val count = repository.countESPB(archive,  statusTransferRestan,hasNoEspb, scanStatus,date)
             _panenCountArchived.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
