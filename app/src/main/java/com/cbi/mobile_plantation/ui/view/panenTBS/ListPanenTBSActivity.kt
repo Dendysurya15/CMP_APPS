@@ -2543,14 +2543,15 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         }
 
-
         panenViewModel.panenCountActive.observe(this) { count ->
             counterTersimpan.text = count.toString()
         }
+
         panenViewModel.panenCountArchived.observe(this) { count ->
             AppLogger.d(count.toString())
             counterTerscan.text = count.toString()
         }
+
         panenViewModel.panenCountHasBeenESPB.observe(this) { count ->
             counterPerPemanen.text = count.toString()
         }
@@ -4917,6 +4918,20 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         // Update the ESPB in database
                         lifecycleScope.launch {
                             try {
+                                // Update status_espb for removed TPH records
+                                val originalRecords = tph1.split(";").filter { it.isNotEmpty() }
+                                val newRecords = newTph1String.split(";").filter { it.isNotEmpty() }
+
+                                for (originalRecord in originalRecords) {
+                                    if (!newRecords.contains(originalRecord)) {
+                                        val parts = originalRecord.split(",")
+                                        if (parts.size >= 2) {
+                                            val tphId = parts[0].trim()
+                                            val dateCreated = parts[1].trim()
+                                            panenViewModel.updateStatusEspbToZero(tphId, dateCreated)
+                                        }
+                                    }
+                                }
 
                                 val newBlokJjg = calculateBlokJjgFromTph1(newTph1String)
                                 val updateResult = withContext(Dispatchers.IO) {

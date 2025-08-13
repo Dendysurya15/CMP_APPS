@@ -33,6 +33,9 @@ abstract class PanenDao {
     @Query("DELETE FROM panen_table WHERE id = :id")
     abstract suspend fun deleteById(id: Int)
 
+    @Query("UPDATE panen_table SET status_espb = 0 WHERE tph_id = :tphId AND date_created = :dateCreated")
+    abstract suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int
+
     @Update
     abstract fun update(panen: List<PanenEntity>)
 

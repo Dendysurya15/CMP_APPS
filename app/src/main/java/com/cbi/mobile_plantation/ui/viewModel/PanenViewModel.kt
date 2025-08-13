@@ -123,6 +123,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int {
+        return withContext(Dispatchers.IO) {
+            repository.updateStatusEspbToZero(tphId, dateCreated)
+        }
+    }
+
     fun countTPHNonESPB(archive: Int, statusEspb: Int,  statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
             val count = repository.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)

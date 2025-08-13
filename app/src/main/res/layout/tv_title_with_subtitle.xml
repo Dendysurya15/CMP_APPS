@@ -1,36 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-    <LinearLayout
+<LinearLayout
     android:id="@+id/parentTvTitleEspb"
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="match_parent"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:weightSum="1">
+    <TextView
+        android:id="@+id/tvTitleEspb"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="1">
-        <TextView
-            android:id="@+id/tvTitleEspb"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.367"
-            android:text="Transporter"
-            android:textSize="@dimen/s"
-            android:fontFamily="@font/manrope_regular"
-            android:gravity="center|left"/>
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.03"
-            android:text=":"
-            android:textSize="@dimen/s"
-            android:fontFamily="@font/manrope_regular"
-            android:gravity="center|left"/>
-        <TextView
-            android:id="@+id/tvSubTitleEspb"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.6"
-            android:text="No eSPB"
-            android:textSize="@dimen/s"
-            android:fontFamily="@font/manrope_regular"
-            android:gravity="center|left"/>
-    </LinearLayout>
+        android:layout_weight="0.367"
+        android:text="Transporter"
+        android:textColor="@color/black"
+        android:textSize="@dimen/s"
+        android:fontFamily="@font/manrope_regular"
+        android:gravity="center|left"/>
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.03"
+        android:text=":"
+        android:textColor="@color/black"
+        android:textSize="@dimen/s"
+        android:fontFamily="@font/manrope_regular"
+        android:gravity="center|left"/>
+    <TextView
+        android:id="@+id/tvSubTitleEspb"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.6"
+        android:text="No eSPB"
+        android:textColor="@color/black"
+        android:textSize="@dimen/s"
+        android:fontFamily="@font/manrope_regular"
+        android:gravity="center|left"/>
+</LinearLayout>

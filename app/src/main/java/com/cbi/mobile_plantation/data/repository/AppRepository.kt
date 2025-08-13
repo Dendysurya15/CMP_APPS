@@ -1056,6 +1056,10 @@ class AppRepository(context: Context) {
         espbDao.updateTPH1AndBlokJjg(noespb, newTph1, newBlokJjg)
     }
 
+    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int = withContext(Dispatchers.IO) {
+        panenDao.updateStatusEspbToZero(tphId, dateCreated)
+    }
+
 
     suspend fun deleteESPBByIds(ids: List<Int>) = withContext(Dispatchers.IO) {
         espbDao.deleteByListID(ids)
