@@ -195,11 +195,14 @@ class HomePageActivity : AppCompatActivity() {
     private val globalAbsensiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiDetailPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private val globalMutuBuahIdsByPart = mutableMapOf<String, List<Int>>()
+
     private var globalInspeksiIds: List<Int> = emptyList()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private var globalHektaranIds: List<Int> = emptyList()
     private var globalAbsensiIds: List<Int> = emptyList()
+    private var globalMutuBuahIds: List<Int> = emptyList()
 
     private var zipFilePath: String? = null
     private var zipFileName: String? = null
@@ -2439,7 +2442,8 @@ class HomePageActivity : AppCompatActivity() {
             val featuresToFetch = listOf(
                 AppUtils.DatabaseTables.ESPB,
                 AppUtils.DatabaseTables.PANEN,
-                AppUtils.DatabaseTables.INSPEKSI
+                AppUtils.DatabaseTables.INSPEKSI,
+                AppUtils.DatabaseTables.MUTU_BUAH
             )
             val combinedUploadData = mutableMapOf<String, Any>()
             lifecycleScope.launch {
@@ -2466,13 +2470,14 @@ class HomePageActivity : AppCompatActivity() {
                     ) // Ensure it's never null
                 }
 
-                mutuBuahViewModel.loadMutuBuahToday()
+                mutuBuahViewModel.loadMutuBuahAll()
                 delay(100)
-//                mutuBuahViewModel.loadMutuBuahToday.observeOnce(this@HomePageActivity) { list ->
-//                    panenDeferred.complete(
-//                        list ?: emptyList()
-//                    ) // Ensure it's never null
-//                }
+                mutuBuahViewModel.mutuBuahList.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "MutuBuah Data Size: ${list.size}")
+                    mutuBuahDeffered.complete(
+                        list
+                    )
+                }
 
                 // Load ESPB Data
                 weightBridgeViewModel.fetchActiveESPBAll()
@@ -2524,7 +2529,8 @@ class HomePageActivity : AppCompatActivity() {
                 var mappedESPBData: List<Map<String, Any>> = emptyList()
                 var mappedInspeksiData = mutableListOf<Map<String, Any>>()
                 var allPhotosInspeksi = mutableListOf<Map<String, String>>()
-
+                var allPhotosMutuBuah = mutableListOf<Map<String, String>>()
+                var allSelfiesMutuBuah = mutableListOf<Map<String, String>>()
                 var allPhotosPanen = mutableListOf<Map<String, String>>()
                 var allPhotosAbsensi = mutableListOf<Map<String, String>>()
                 var hektaranJson = ""
@@ -4917,6 +4923,353 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
+                    if (mutuBuahList.isNotEmpty()) {
+                        val uniquePhotosMutuBuah = mutableMapOf<String, Map<String, String>>()
+                        val uniqueSelfiesMutuBuah = mutableMapOf<String, Map<String, String>>()
+
+                        // Prepare to search for photo files in CMP directories
+                        val picturesDirs = listOf(
+                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                            File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
+                        ).filterNotNull()
+
+                        // Find all CMP directories upfront
+                        val cmpDirectories = mutableListOf<File>()
+                        for (picturesDir in picturesDirs) {
+                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                continue
+                            }
+
+                            // Look specifically for CMP-MUTU BUAH directory
+                            val cmpMutuBuahDir = File(picturesDir, "CMP-MUTU BUAH")
+                            if (cmpMutuBuahDir.exists() && cmpMutuBuahDir.isDirectory) {
+                                cmpDirectories.add(cmpMutuBuahDir)
+                            }
+
+                            // Also check for any other CMP directories
+                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-MUTU BUAH"
+                            } ?: emptyArray()
+
+                            cmpDirectories.addAll(otherCmpDirs)
+                        }
+
+                        AppLogger.d("Found ${cmpDirectories.size} CMP directories for MutuBuah")
+
+                        // Helper function to process photos
+                        // Helper function to process photos
+                        fun processMutuBuahPhotos(
+                            photoString: String?,
+                            mutuBuah: MutuBuahEntity,
+                            photoType: String, // "foto" or "foto_selfie"
+                            targetMap: MutableMap<String, Map<String, String>>
+                        ) {
+                            val photoNames = photoString?.split(";") ?: listOf()
+
+                            for (photoName in photoNames) {
+                                val trimmedName = photoName.trim()
+                                if (trimmedName.isEmpty()) continue
+
+                                if (trimmedName in targetMap) continue
+
+                                // Get the appropriate status based on photo type
+                                val uploadStatusImage = when (photoType) {
+                                    "foto"-> mutuBuah.status_uploaded_image
+                                    "foto_selfie" -> mutuBuah.status_uploaded_image_selfie
+                                    else -> mutuBuah.status_uploaded_image // fallback
+                                }
+
+                                val folderServer = when (photoType) {
+                                    "foto"-> AppUtils.DatabaseTables.MUTU_BUAH
+                                    "foto_selfie" -> "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie"
+                                    else -> AppUtils.DatabaseTables.MUTU_BUAH
+                                }
+
+                                // Skip only if status is 200 (fully uploaded)
+                                if (uploadStatusImage == "200") {
+                                    AppLogger.d("Skipping $photoType photo $trimmedName - record ${mutuBuah.id} fully uploaded (status 200)")
+                                    continue
+                                }
+
+                                var photoFound = false
+
+                                for (cmpDir in cmpDirectories) {
+                                    val photoFile = File(cmpDir, trimmedName)
+
+                                    if (photoFile.exists() && photoFile.isFile) {
+                                        var shouldAdd = false
+
+                                        if (uploadStatusImage == "0") {
+                                            shouldAdd = true
+                                            AppLogger.d("$photoType photo $trimmedName hasn't been uploaded (status 0)")
+                                        } else if (uploadStatusImage.startsWith("{")) {
+                                            try {
+                                                val errorJson = Gson().fromJson(
+                                                    uploadStatusImage,
+                                                    JsonObject::class.java
+                                                )
+                                                val errorArray = errorJson?.get("error")?.asJsonArray
+
+                                                errorArray?.forEach { errorItem ->
+                                                    if (errorItem.asString == trimmedName) {
+                                                        shouldAdd = true
+                                                        AppLogger.d("$photoType photo $trimmedName is marked as error in record ${mutuBuah.id}")
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                            }
+                                        }
+
+                                        val createdDate = mutuBuah.createdDate
+                                        val formattedDate = try {
+                                            val dateFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val date = dateFormat.parse(createdDate)
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(date ?: Date())
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error formatting date: ${e.message}")
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(Date())
+                                        }
+
+                                        val basePathImage = formattedDate + prefManager!!.estateUserLogin
+
+                                        if (shouldAdd) {
+                                            targetMap[trimmedName] = mapOf(
+                                                "name" to trimmedName,
+                                                "path" to photoFile.absolutePath,
+                                                "size" to photoFile.length().toString(),
+                                                "table_ids" to mutuBuah.id.toString(),
+                                                "table" to folderServer,
+                                                "base_path" to basePathImage,
+                                                "database" to AppUtils.DatabaseTables.MUTU_BUAH,
+                                            )
+                                            AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                        } else {
+                                            AppLogger.d("Skipping $photoType photo $trimmedName - no upload needed")
+                                        }
+
+                                        photoFound = true
+                                        break
+                                    }
+                                }
+
+                                if (!photoFound) {
+                                    AppLogger.w("$photoType photo not found: $trimmedName")
+                                }
+                            }
+                        }
+
+                        // Process both foto and foto_selfie for each MutuBuah record
+                        for (mutuBuah in mutuBuahList) {
+                            processMutuBuahPhotos(mutuBuah.foto, mutuBuah, "foto", uniquePhotosMutuBuah)
+                            processMutuBuahPhotos(mutuBuah.foto_selfie, mutuBuah, "foto_selfie", uniqueSelfiesMutuBuah)
+                        }
+
+                        // Map MutuBuah data for upload
+                        val mappedMutuBuahData = mutuBuahList.map { mutuBuah ->
+                            val createdDate = mutuBuah.createdDate
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
+
+                            // Process foto with path
+                            val originalFotoString = mutuBuah.foto
+                            val modifiedFotoString = if (originalFotoString.contains(";")) {
+                                originalFotoString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalFotoString.isNotEmpty()) {
+                                "$basePath$originalFotoString"
+                            } else {
+                                ""
+                            }
+
+                            // Process foto_selfie with path
+                            val originalSelfieString = mutuBuah.foto_selfie
+                            val modifiedSelfieString = if (originalSelfieString.contains(";")) {
+                                originalSelfieString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalSelfieString.isNotEmpty()) {
+                                "$basePath$originalSelfieString"
+                            } else {
+                                ""
+                            }
+
+                            mapOf(
+                                "id" to mutuBuah.id,
+                                "tanggal" to mutuBuah.tanggal,
+                                "regional" to mutuBuah.regional,
+                                "wilayah" to mutuBuah.wilayah,
+                                "company" to mutuBuah.company,
+                                "company_abbr" to mutuBuah.companyAbbr,
+                                "company_nama" to mutuBuah.companyNama,
+                                "dept" to mutuBuah.dept,
+                                "dept_ppro" to mutuBuah.deptPpro,
+                                "dept_abbr" to mutuBuah.deptAbbr,
+                                "dept_nama" to mutuBuah.deptNama,
+                                "divisi" to mutuBuah.divisi,
+                                "divisi_ppro" to mutuBuah.divisiPpro,
+                                "divisi_abbr" to mutuBuah.divisiAbbr,
+                                "divisi_nama" to mutuBuah.divisiNama,
+                                "blok" to mutuBuah.blok,
+                                "blok_ppro" to mutuBuah.blokPpro,
+                                "blok_kode" to mutuBuah.blokKode,
+                                "blok_nama" to mutuBuah.blokNama,
+                                "tph" to mutuBuah.tph,
+                                "tph_nomor" to mutuBuah.tphNomor,
+                                "kemandoran" to mutuBuah.kemandoran,
+                                "jumlah_pemanen" to mutuBuah.jumlahPemanen,
+                                "jjg_panen" to mutuBuah.jjgPanen,
+                                "jjg_masak" to mutuBuah.jjgMasak,
+                                "jjg_mentah" to mutuBuah.jjgMentah,
+                                "jjg_lewat_masak" to mutuBuah.jjgLewatMasak,
+                                "jjg_kosong" to mutuBuah.jjgKosong,
+                                "jjg_abnormal" to mutuBuah.jjgAbnormal,
+                                "jjg_serangan_tikus" to mutuBuah.jjgSeranganTikus,
+                                "jjg_panjang" to mutuBuah.jjgPanjang,
+                                "jjg_tidak_vcut" to mutuBuah.jjgTidakVcut,
+                                "jjg_bayar" to mutuBuah.jjgBayar,
+                                "jjg_kirim" to mutuBuah.jjgKirim,
+                                "created_by" to mutuBuah.createdBy,
+                                "created_name" to mutuBuah.createdName,
+                                "created_date" to mutuBuah.createdDate,
+                                "updated_by" to mutuBuah.updatedBy,
+                                "updated_name" to mutuBuah.updatedName,
+                                "updated_date" to mutuBuah.updatedDate,
+                                "history" to mutuBuah.history,
+                                "foto" to modifiedFotoString,
+                                "foto_selfie" to modifiedSelfieString,
+                                "komentar" to mutuBuah.komentar,
+                                "app_version" to mutuBuah.appVersion,
+                                "status_data_panen" to mutuBuah.statusDataPanen,
+                                "lat" to mutuBuah.lat,
+                                "lon" to mutuBuah.lon
+                            )
+                        }
+
+                        // Filter data to upload (status_upload == 0)
+                        val mutuBuahDataToUpload = mappedMutuBuahData.filter { mutuBuahMap ->
+                            val id = mutuBuahMap["id"] as? Int ?: 0
+                            val original = mutuBuahList.find { it.id == id }
+                            original?.status_upload == 0
+                        }
+
+                        // Create upload data if there's data to upload
+                        if (mutuBuahDataToUpload.isNotEmpty()) {
+                            val wrappedData = mapOf(
+                                AppUtils.DatabaseTables.MUTU_BUAH to mutuBuahDataToUpload
+                            )
+                            val mutuBuahJson = Gson().toJson(wrappedData)
+                            val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
+
+                            combinedUploadData[AppUtils.DatabaseTables.MUTU_BUAH] = mapOf(
+                                "data" to mutuBuahJson,
+                                "filename" to "Data Mutu Buah ${prefManager!!.estateUserLogin}",
+                                "ids" to mutuBuahIds
+                            )
+                        }
+
+                        // Create upload data if there's data to upload
+                        if (mutuBuahDataToUpload.isNotEmpty()) {
+                            val wrappedData = mapOf(
+                                AppUtils.DatabaseTables.MUTU_BUAH to mutuBuahDataToUpload
+                            )
+                            val mutuBuahJson = Gson().toJson(wrappedData)
+
+                            // Save JSON to temp directory for inspection
+                            try {
+                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                    if (!exists()) mkdirs()
+                                }
+
+                                val filename = "mutu_buah_data_${System.currentTimeMillis()}.json"
+                                val tempFile = File(tempDir, filename)
+
+                                FileOutputStream(tempFile).use { fos ->
+                                    fos.write(mutuBuahJson.toByteArray())
+                                }
+
+                                AppLogger.d("Saved raw mutu buah data to temp file: ${tempFile.absolutePath}")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to save mutu buah data to temp file: ${e.message}")
+                                e.printStackTrace()
+                            }
+
+                            val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
+
+                            combinedUploadData[AppUtils.DatabaseTables.MUTU_BUAH] = mapOf(
+                                "data" to mutuBuahJson,
+                                "filename" to "Data Mutu Buah ${prefManager!!.estateUserLogin}",
+                                "ids" to mutuBuahIds
+                            )
+                        }
+
+
+
+
+                        // Add photos to upload data
+                        val allPhotosMutuBuah = uniquePhotosMutuBuah.values.toMutableList()
+                        val allSelfiesMutuBuah = uniqueSelfiesMutuBuah.values.toMutableList()
+
+                        if (allPhotosMutuBuah.isNotEmpty()) {
+                            AppLogger.d("Adding ${allPhotosMutuBuah.size} unique MutuBuah photos to upload data")
+                            combinedUploadData["foto_mutu_buah"] = allPhotosMutuBuah
+                        } else {
+                            AppLogger.w("No MutuBuah photos found to upload")
+                        }
+
+                        if (allSelfiesMutuBuah.isNotEmpty()) {
+                            AppLogger.d("Adding ${allSelfiesMutuBuah.size} unique MutuBuah selfies to upload data")
+                            combinedUploadData["foto_selfie_mutu_buah"] = allSelfiesMutuBuah
+                        } else {
+                            AppLogger.w("No MutuBuah selfies found to upload")
+                        }
+
+                        unzippedMutuBuah = mappedMutuBuahData.filter { item ->
+                            val id = item["id"] as? Int ?: 0
+                            val original = mutuBuahList.find { it.id == id }
+                            val isZipped = original?.dataIsZipped ?: 0
+                            isZipped == 0
+                        } as List<Map<String, Any>>
+
+                        globalMutuBuahIds = unzippedMutuBuah.mapNotNull { item ->
+                            item["id"] as? Int
+                        }
+
+                        AppLogger.d("globalMutuBuahIds $globalMutuBuahIds")
+                    }
+
                 } catch (e: Exception) {
                     Log.e("UploadCheck", "❌ Error: ${e.message}")
                 } finally {
@@ -4934,6 +5287,10 @@ class HomePageActivity : AppCompatActivity() {
                     }
                     if (unzippedInspeksiData.isNotEmpty()) {
                         uploadDataList.add(AppUtils.DatabaseTables.INSPEKSI to unzippedInspeksiData)
+                    }
+
+                    if (unzippedMutuBuah.isNotEmpty()) {
+                        uploadDataList.add(AppUtils.DatabaseTables.MUTU_BUAH to unzippedMutuBuah)
                     }
 
                     if (uploadDataList.isNotEmpty()) {
@@ -4955,6 +5312,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 AppUtils.DatabaseTables.ESPB -> globalESPBIds
                                                 AppUtils.DatabaseTables.PANEN -> globalPanenIds
                                                 AppUtils.DatabaseTables.INSPEKSI -> globalInspeksiIds
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> globalMutuBuahIds
                                                 else -> emptyList()
                                             }
 
@@ -4997,6 +5355,22 @@ class HomePageActivity : AppCompatActivity() {
 
                                                     AppUtils.DatabaseTables.INSPEKSI -> {
                                                         inspectionViewModel.updateStatus.observeOnce(
+                                                            this@HomePageActivity
+                                                        ) { success ->
+                                                            if (success) {
+                                                                AppLogger.d("✅ $feature Archive Updated Successfully")
+                                                                updateDeferred.complete(true)
+                                                            } else {
+                                                                AppLogger.e("❌ $feature Archive Update Failed")
+                                                                updateDeferred.complete(false)
+                                                            }
+                                                        }
+                                                        // Trigger the update
+                                                        archiveUpdateActions[feature]?.invoke(ids)
+                                                    }
+
+                                                    AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                        mutuBuahViewModel.updateStatus.observeOnce(
                                                             this@HomePageActivity
                                                         ) { success ->
                                                             if (success) {
@@ -5121,8 +5495,7 @@ class HomePageActivity : AppCompatActivity() {
                 val updatedHektarPanenList = hektarPanenDeferred.await()
                 val updatedAbsensiList = absensiDeferred.await()
                 val updatedInspeksiList = inspeksiDeferred.await()
-
-                AppLogger.d("updatedESPBList $updatedESPBList")
+                val updatedMutuBuahList = mutuBuahDeffered.await()
 
                 val panenToUpload = updatedPanenList.filter {
                     it.panen.status_upload == 0
@@ -5137,17 +5510,43 @@ class HomePageActivity : AppCompatActivity() {
                     it.absensi.status_upload == 0
                 }
                 val inspeksiPanenToUpload = updatedInspeksiList.filter {
-                    it.inspeksi.status_upload == "0"
+                    it.inspeksi.status_upload == "0" && it.inspeksi.isPushedToServer == 0
                 }
 
+                val mutuBuahToUpload = updatedMutuBuahList.filter {
+                    it.status_upload == 0
+                }
+
+
+                AppLogger.d("mutubuahtoupload $mutuBuahToUpload")
+
+
+
+                val hasPhotosMutuBuahToUpload = allPhotosMutuBuah.isNotEmpty()
+                val hasSelfiesMutuBuahToUpload = allSelfiesMutuBuah.isNotEmpty()
                 val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
                 val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
                 val hasPhotosInspeksiToUpload = allPhotosInspeksi.isNotEmpty()
-                val hasItemsToUpload =
-                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty() || hasPhotosInspeksiToUpload
+
+                AppLogger.d("hasPhotosMutuBuahToUpload $hasPhotosMutuBuahToUpload")
+                AppLogger.d("hasSelfiesMutuBuahToUpload $hasSelfiesMutuBuahToUpload")
+                val hasItemsToUpload = panenToUpload.isNotEmpty() ||
+                        espbToUpload.isNotEmpty() ||
+                        hasPhotosPanenToUpload ||
+                        hektarPanenToUpload.isNotEmpty() ||
+                        absensiPanenToUpload.isNotEmpty() ||
+                        hasPhotosAbsensiToUpload ||
+                        inspeksiPanenToUpload.isNotEmpty() ||
+                        hasPhotosInspeksiToUpload ||
+                        mutuBuahToUpload.isNotEmpty() ||
+                        hasPhotosMutuBuahToUpload ||
+                        hasSelfiesMutuBuahToUpload
 
 
-                AppLogger.d("combinedUploadData $combinedUploadData")
+                AppLogger.d("inspeksiPanenToUpload $inspeksiPanenToUpload")
+                AppLogger.d("hasPhotosInspeksiToUpload $hasPhotosInspeksiToUpload")
+                AppLogger.d("hasitemupload $hasItemsToUpload")
+
                 if (hasItemsToUpload) {
                     val uploadDataJson = Gson().toJson(combinedUploadData)
                     setupDialogUpload(uploadDataJson)
@@ -5166,40 +5565,6 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractEmployeesFromJson(jsonString: String?, kemandoranId: String): List<String> {
-        if (jsonString.isNullOrEmpty()) return emptyList()
-
-        return try {
-            val gson = Gson()
-            val jsonObject = gson.fromJson(jsonString, JsonObject::class.java)
-
-            val employees = mutableListOf<String>()
-
-            // Iterate through all categories (h, m, etc.)
-            for ((category, categoryData) in jsonObject.entrySet()) {
-                if (categoryData.isJsonObject) {
-                    val categoryObject = categoryData.asJsonObject
-
-                    // Check if this category contains data for our kemandoran
-                    if (categoryObject.has(kemandoranId)) {
-                        val employeeData = categoryObject.get(kemandoranId).asString
-                        if (employeeData.isNotEmpty()) {
-                            employees.addAll(
-                                employeeData.split(",")
-                                    .filter { it.isNotEmpty() }
-                                    .map { it.trim() }
-                            )
-                        }
-                    }
-                }
-            }
-
-            employees
-        } catch (e: Exception) {
-            AppLogger.e("Error parsing JSON for kemandoran $kemandoranId: ${e.message}")
-            emptyList()
-        }
-    }
 
     // Alternative approach if you want to extract employees by category
     private fun extractEmployeesByCategory(
@@ -5288,6 +5653,7 @@ class HomePageActivity : AppCompatActivity() {
                 1
             )
         },
+
         AppUtils.DatabaseTables.HEKTAR_PANEN to { ids: List<Int> ->
             hektarPanenViewModel.updateDataIsZippedHP(
                 ids,
@@ -5306,7 +5672,13 @@ class HomePageActivity : AppCompatActivity() {
                 ids,
                 1
             )
-        }
+        },
+        AppUtils.DatabaseTables.MUTU_BUAH to { ids: List<Int> ->
+            mutuBuahViewModel.updateDataIsZippedMutuBuah(
+                ids,
+                1
+            )
+        },
     )
 
     data class Pemanen(val nik: String, val nama: String)
@@ -5378,7 +5750,6 @@ class HomePageActivity : AppCompatActivity() {
                 val dataMap = gson.fromJson(uploadData, Map::class.java)
                 AppLogger.d("Data map keys: ${dataMap.keys}")
                 AppLogger.d(dataMap.toString())
-                AppLogger.d("slkdjflkajsfd")
 
                 // Extract the data for panen, espb, and photo files
                 val panenFilePath = dataMap[AppUtils.DatabaseTables.PANEN] as? String
@@ -5579,6 +5950,127 @@ class HomePageActivity : AppCompatActivity() {
                         } else {
                             AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
                         }
+                    }
+                }
+
+                // Process MutuBuah data
+                val mutuBuahInfo = dataMap[AppUtils.DatabaseTables.MUTU_BUAH] as? Map<*, *>
+                if (mutuBuahInfo != null) {
+                    AppLogger.d("Found mutu_buah data: $mutuBuahInfo")
+
+                    val mutuBuahData = mutuBuahInfo["data"] as? String
+                    val mutuBuahFilename = mutuBuahInfo["filename"] as? String
+                    val mutuBuahIds = mutuBuahInfo["ids"] as? List<Int> ?: emptyList()
+
+                    if (mutuBuahData != null && mutuBuahData.isNotEmpty()) {
+                        val dataSize = mutuBuahData.length.toLong()
+                        AppLogger.d("MutuBuah data size: $dataSize")
+
+                        val tableIdsJson = JSONObject().apply {
+                            put(AppUtils.DatabaseTables.MUTU_BUAH, JSONArray(mutuBuahIds))
+                        }.toString()
+
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = "Data Mutu Buah",
+                            fullPath = "",
+                            baseFilename = mutuBuahFilename!!,
+                            data = mutuBuahData,
+                            type = "json",
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        adapter.setFileSize(uploadItem.id, dataSize)
+                        adapter.notifyDataSetChanged()
+                        AppLogger.d("Added MutuBuah to upload items (size: $dataSize bytes)")
+                    } else {
+                        AppLogger.d("MutuBuah data is missing required fields: data=$mutuBuahData, filename=$mutuBuahFilename")
+                    }
+                }
+
+                // Process foto_mutu_buah (regular photos)
+                val fotoMutuBuah = dataMap["foto_mutu_buah"] as? List<*>
+                if (fotoMutuBuah != null && fotoMutuBuah.isNotEmpty()) {
+                    AppLogger.d("Processing MutuBuah photo data: ${fotoMutuBuah.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoMutuBuah.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("MutuBuah Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing MutuBuah photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount MutuBuah photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Mutu Buah ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_mutu_buah",
+                            baseFilename = "",
+                            data = gson.toJson(fotoMutuBuah),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding MutuBuah photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No MutuBuah photo files found for upload")
+                    }
+                }
+
+// Process foto_selfie_mutu_buah (selfie photos)
+                val fotoSelfieMutuBuah = dataMap["foto_selfie_mutu_buah"] as? List<*>
+                if (fotoSelfieMutuBuah != null && fotoSelfieMutuBuah.isNotEmpty()) {
+                    AppLogger.d("Processing MutuBuah selfie photo data: ${fotoSelfieMutuBuah.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoSelfieMutuBuah.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("MutuBuah Selfie Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing MutuBuah selfie photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount MutuBuah selfie photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Selfie Mutu Buah ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_selfie_mutu_buah",
+                            baseFilename = "",
+                            data = gson.toJson(fotoSelfieMutuBuah),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding MutuBuah selfie photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No MutuBuah selfie photo files found for upload")
                     }
                 }
 
@@ -6397,6 +6889,7 @@ class HomePageActivity : AppCompatActivity() {
                 globalHektarPanenIdsByPart.clear()
                 globalAbsensiPanenIdsByPart.clear()
                 globalResponseJsonUploadList.clear()
+                globalMutuBuahIdsByPart.clear()
 
                 AppLogger.d("responseMap $responseMap")
 
@@ -6497,6 +6990,18 @@ class HomePageActivity : AppCompatActivity() {
                                                         inspeksiDetailPanenIds
                                                     AppLogger.d("Extracted Inspeksi Detail IDs from response: $inspeksiDetailPanenIds")
                                                 }
+
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                    val MutuBuahIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.MUTU_BUAH)
+                                                    val MutuBuahIds =
+                                                        (0 until MutuBuahIdsArray.length()).map {
+                                                            MutuBuahIdsArray.getInt(it)
+                                                        }
+                                                    globalMutuBuahIdsByPart[keyJsonName] =
+                                                        MutuBuahIds
+                                                    AppLogger.d("Extracted Inspeksi Detail IDs from response: $MutuBuahIds")
+                                                }
                                             }
                                         }
                                     } else {
@@ -6508,6 +7013,7 @@ class HomePageActivity : AppCompatActivity() {
                                         globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                         globalInspeksiDetailPanenIdsByPart[keyJsonName] =
                                             emptyList()
+                                        globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                                     }
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
@@ -6517,6 +7023,7 @@ class HomePageActivity : AppCompatActivity() {
                                     globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                     globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                     globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                    globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                                 }
                             } else {
                                 globalPanenIdsByPart[keyJsonName] = emptyList()
@@ -6525,6 +7032,7 @@ class HomePageActivity : AppCompatActivity() {
                                 globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                 globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                 globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                             }
                         } else if (response.type == "image") {
                             globalResponseJsonUploadList.add(
@@ -6667,6 +7175,20 @@ class HomePageActivity : AppCompatActivity() {
                             responseInfo.status
                         )
                         AppLogger.d("Updated status_upload to ${responseInfo.status} for inspeksi detail IDs: $inspeksiDetailPanenIds")
+                    } else {
+                        AppLogger.d("No inspeksi detail IDs found for file $trackingId")
+                    }
+
+                    val mutuBuahIds =
+                        globalMutuBuahIdsByPart[trackingId] ?: emptyList()
+                    if (mutuBuahIds.isNotEmpty()) {
+                        AppLogger.d("Found ${mutuBuahIds.size} absensi IDs for file $trackingId: $mutuBuahIds")
+
+                        mutuBuahViewModel.updateStatusUploadMutuBuah(
+                            mutuBuahIds,
+                            responseInfo.status
+                        )
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for inspeksi detail IDs: $mutuBuahIds")
                     } else {
                         AppLogger.d("No inspeksi detail IDs found for file $trackingId")
                     }

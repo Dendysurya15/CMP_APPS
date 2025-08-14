@@ -184,6 +184,10 @@ class AppRepository(context: Context) {
         return millDao.getMillByAbbr(abbr)
     }
 
+    suspend fun updateDataIsZippedMutuBuah(ids: List<Int>, status: Int) {
+        mutuBuahDao.updateDataIsZippedMutuBuah(ids, status)
+    }
+
     suspend fun getInspectionData(
         datetime: String? = null,
         isPushedToServer: Int? = null
@@ -1250,6 +1254,9 @@ class AppRepository(context: Context) {
         inspectionDao.updateStatusUploadInspeksiDetailPanen(ids, statusUpload)
     }
 
+    suspend fun updateStatusUploadMutuBuah(ids: List<Int>, statusUpload: Int) {
+        mutuBuahDao.updateStatusUploadMutuBuah(ids, statusUpload)
+    }
 
     suspend fun getAllHektarPanen(): Result<List<HektarPanenEntity>> =
         withContext(Dispatchers.IO) {
@@ -1712,6 +1719,17 @@ class AppRepository(context: Context) {
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB created today: ${e.message}")
             0
+        }
+    }
+
+    // In your Repository class
+    suspend fun getMutuBuahAll(): Result<List<MutuBuahEntity>> {
+        return try {
+            val data = mutuBuahDao.getAllMutuBuah() // You'll need to add this DAO method
+            Result.success(data)
+        } catch (e: Exception) {
+            AppLogger.e("Error getting all MutuBuah: ${e.message}")
+            Result.failure(e)
         }
     }
 

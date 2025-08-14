@@ -56,5 +56,6 @@ data class MutuBuahEntity(
     val lat: Double,
     val lon: Double,
     val dataIsZipped: Int = 0,
-    val status_uploaded_image: String = "0"
+    val status_uploaded_image: String = "0",
+    val status_uploaded_image_selfie: String = "0"
     )

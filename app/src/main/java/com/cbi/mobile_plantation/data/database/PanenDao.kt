@@ -202,7 +202,15 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen = 0 and status_transfer_restan = 0 AND isPushedToServer = 0")
+    @Query("""
+    SELECT * FROM panen_table 
+    WHERE status_espb = 0 
+    AND status_scan_mpanen = 0 
+    AND status_transfer_restan = 0 
+    AND isPushedToServer = 0
+    AND status_upload = 0
+    AND date(date_created) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+7 days')
+""")
     abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
     @Transaction

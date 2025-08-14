@@ -569,8 +569,12 @@ object AppUtils {
                     // Handle inspeksi photos with proper folder organization
                     processInspeksiPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
+                featureKey.lowercase().contains("mutu_buah") -> {
+                    // Handle MutuBuah photos with both foto and foto_selfie
+                    processMutuBuahPhotos(data, allCmpDirectories, zip, zipParams, context)
+                }
                 else -> {
-                    // Handle other features normally
+                    // Handle other features normally (PANEN, ESPB, etc.)
                     processRegularPhotos(data, featureKey, allCmpDirectories, zip, zipParams, context)
                 }
             }
@@ -871,6 +875,58 @@ object AppUtils {
                     AppLogger.d("Added photo to zip (relative path): ${relativePathFile.absolutePath} -> $targetPath")
                 } catch (e: Exception) {
                     AppLogger.e("Failed to add photo to zip: ${relativePathFile.absolutePath}, Error: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun processMutuBuahPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        AppLogger.d("Processing MutuBuah photos for id: ${data["id"]}")
+
+        // Process regular photos (foto)
+        val photoPathString = data["foto"] as? String
+        if (!photoPathString.isNullOrBlank()) {
+            val photoPaths = photoPathString.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "mutu_buah/photos/regular", // Regular photos folder
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+
+        // Process selfie photos (foto_selfie)
+        val selfiePathString = data["foto_selfie"] as? String
+        if (!selfiePathString.isNullOrBlank()) {
+            val selfiePaths = selfiePathString.split(";")
+
+            selfiePaths.forEach { selfiePath ->
+                if (selfiePath.isNotBlank()) {
+                    val selfieFileName = selfiePath.trim().substringAfterLast("/")
+                    addPhotoToZip(
+                        selfiePath.trim(),
+                        selfieFileName,
+                        "mutu_buah/photos/selfie", // Selfie photos folder
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
                 }
             }
         }

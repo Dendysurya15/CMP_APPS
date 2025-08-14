@@ -26,6 +26,15 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
     private val _countMutuBuahUploaded = MutableLiveData<Int>()
     val countMutuBuahUploaded: LiveData<Int> = _countMutuBuahUploaded
 
+    private val _mutuBuahList = MutableLiveData<List<MutuBuahEntity>>()
+    val mutuBuahList: LiveData<List<MutuBuahEntity>> = _mutuBuahList
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
+
     suspend fun loadMutuBuahToday(): Int {
         val count = try {
             repository.getMBCountCreatedToday()
@@ -110,6 +119,42 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
             AppRepository.SaveResultMutuBuah.Error(e)
         }
     }
+
+    fun loadMutuBuahAll() {
+        viewModelScope.launch {
+            repository.getMutuBuahAll()
+                .onSuccess { mutuBuahList ->
+                    _mutuBuahList.value = mutuBuahList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load MutuBuah data")
+                }
+        }
+    }
+
+    fun updateDataIsZippedMutuBuah(ids: List<Int>, status:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateDataIsZippedMutuBuah(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
+
+    fun updateStatusUploadMutuBuah(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadMutuBuah(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
 
     fun loadMBUnuploaded(statusUpload: Int, date: String? = null) = viewModelScope.launch {
         try {

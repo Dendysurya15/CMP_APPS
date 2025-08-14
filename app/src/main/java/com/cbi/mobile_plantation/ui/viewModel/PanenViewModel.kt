@@ -12,6 +12,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
@@ -92,7 +93,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _countPanenTransferInspeksi = MutableLiveData<Pair<Int, Int>>() // Pair of (state, count)
     val countPanenTransferInspeksi: LiveData<Pair<Int, Int>> = _countPanenTransferInspeksi
-
 
 
     // ViewModel.kt
