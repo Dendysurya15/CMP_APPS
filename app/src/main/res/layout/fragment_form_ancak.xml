@@ -143,7 +143,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:fontFamily="@font/manrope_extrabold"
-                    android:text="17"
+
                     android:textColor="@color/black"
                     android:textSize="40dp"
                     tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
@@ -166,23 +166,20 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_marginBottom="100dp"
+            android:visibility="visible">
 
-            <include
-                android:id="@+id/lyPrioritasInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyPrioritasInspect"-->
+<!--                layout="@layout/pertanyaan_spinner_layout" />-->
 
             <include
                 android:id="@+id/lyHarvestTreeInspect"
                 layout="@layout/pertanyaan_spinner_layout" />
 
             <include
-                android:id="@+id/lyRatAttackInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyGanoInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+                android:id="@+id/lyHarvestTreeNumber"
+                layout="@layout/pane_number_wide_layout" />
 
             <include
                 android:id="@+id/lyNeatPelepahInspect"
@@ -193,60 +190,60 @@
                 layout="@layout/pertanyaan_spinner_layout" />
 
             <include
-                android:id="@+id/lyPruningInspect"
+                android:id="@+id/lyKondisiPruningInspect"
                 layout="@layout/pertanyaan_spinner_layout" />
 
-            <include
-                android:id="@+id/lyKentosanInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyUnderPruningInspect"-->
+<!--                layout="@layout/pertanyaan_spinner_layout" />-->
+
+<!--            <include-->
+<!--                android:id="@+id/lyKentosanInspect"-->
+<!--                layout="@layout/pertanyaan_spinner_layout" />-->
 
             <include
-                android:id="@+id/lyBuahRipeInspect"
-                layout="@layout/pane_number_layout" />
+                android:id="@+id/lyBMtidakdipotong"
+                layout="@layout/pane_number_wide_layout" />
 
             <include
-                android:id="@+id/lyBuahM1Inspect"
-                layout="@layout/pane_number_layout" />
+                android:id="@+id/lyBTPiringanGwangan"
+                layout="@layout/pane_number_wide_layout" />
 
             <include
-                android:id="@+id/lyBuahM2Inspect"
-                layout="@layout/pane_number_layout" />
+                android:id="@+id/lyBrdKtpGawangan"
+                layout="@layout/pane_number_wide_layout" />
 
             <include
-                android:id="@+id/lyBuahM3Inspect"
-                layout="@layout/pane_number_layout" />
+                android:id="@+id/lyBrdKtpPiringan"
+                layout="@layout/pane_number_wide_layout" />
 
-            <include
-                android:id="@+id/lyBrdKtpInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdInInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyBrdInInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdOutInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyBrdOutInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyPasarPikulInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyPasarPikulInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyKetiakInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyKetiakInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyParitInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyParitInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdSegarInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
-            <include
-                android:id="@+id/lyBrdSegarInspect"
-                layout="@layout/pane_number_layout" />
-
-            <include
-                android:id="@+id/lyBrdBusukInspect"
-                layout="@layout/pane_number_layout" />
+<!--            <include-->
+<!--                android:id="@+id/lyBrdBusukInspect"-->
+<!--                layout="@layout/pane_number_layout" />-->
 
         </LinearLayout>
     </LinearLayout>

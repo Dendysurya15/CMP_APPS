@@ -1,61 +1,74 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/itemContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal">
+    android:orientation="vertical"
+    android:padding="8dp">
 
-    <com.google.android.material.radiobutton.MaterialRadioButton
-        android:id="@+id/rbScannedTPHInsideRadius"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:buttonTint="@color/greenDarker" />
-
+    <!-- Container for normal TPH row -->
     <LinearLayout
         android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_gravity="center_vertical"
-        android:gravity="center_vertical"
-        android:layout_height="wrap_content">
+        android:gravity="center_vertical">
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rbScannedTPHInsideRadius"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/greenDarker" />
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:orientation="vertical"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:layout_height="wrap_content">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center_vertical"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tphInfoTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/black"
+                    android:fontFamily="@font/manrope_bold"
+                    android:textSize="@dimen/m" />
+
+                <TextView
+                    android:id="@+id/jenisTPHName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/black"
+                    android:fontFamily="@font/manrope_bold"
+                    android:textSize="@dimen/m" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/tphInfoTextView"
-                android:layout_width="match_parent"
-                android:textColor="@color/black"
+                android:id="@+id/tphHasBeenSelected"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text=""
-                android:fontFamily="@font/manrope_bold"
-
-                android:textSize="@dimen/m" />
-
-            <TextView
-                android:id="@+id/jenisTPHName"
-                android:layout_width="match_parent"
-                android:textColor="@color/black"
-                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:gravity="center_vertical"
+                android:textColor="@color/greendarkerbutton"
+                android:visibility="gone"
                 android:fontFamily="@font/manrope_bold"
                 android:textSize="@dimen/m" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/tphHasBeenSelected"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:textColor="@color/greendarkerbutton"
-            android:visibility="gone"
-            android:gravity="center_vertical"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:fontFamily="@font/manrope_bold"
-            android:textSize="@dimen/m" />
     </LinearLayout>
 
-
-
+    <!-- Separator line (only shown for SEPARATOR items) -->
+    <View
+        android:id="@+id/dashedLine"
+        android:layout_width="match_parent"
+        android:layout_height="10dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/dashed_straight_line"
+        android:visibility="gone" />
 </LinearLayout>

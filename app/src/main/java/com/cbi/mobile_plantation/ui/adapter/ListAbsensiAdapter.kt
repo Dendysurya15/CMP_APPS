@@ -54,7 +54,7 @@ class ListAbsensiAdapter(private val context: Context,
                          private var items: List<AbsensiDataRekap>):
     RecyclerView.Adapter<ListAbsensiAdapter.ListAbsensiViewHolder>() {
 
-        private  val selectedItems = mutableSetOf<AbsensiDataRekap>()
+    private  val selectedItems = mutableSetOf<AbsensiDataRekap>()
     private var currentArchiveState: Int = 0
     private var selectionMode = false
     private var selectAllState = false
@@ -314,6 +314,9 @@ class ListAbsensiAdapter(private val context: Context,
             InfoAbsensi.TTLKEHADIRAN to "Masuk: $jmlhKaryawanMskDetail orang\n  Tidak Masuk: $jmlhKaryawanTdkMskDetail orang"
         )
 
+
+        AppLogger.d("formattedKaryawanTdkMsk $formattedKaryawanTdkMsk")
+        AppLogger.d("formattedKaryawanMsk $formattedKaryawanMsk")
         infoItems.forEach { (type, value) ->
             val itemView = view.findViewById<View>(type.id)
 

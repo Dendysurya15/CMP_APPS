@@ -26,7 +26,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.BlokModel
@@ -1299,7 +1299,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                             null
                                         }
                                     }.joinToString("\n").takeIf { it.isNotBlank() } ?: "-"
-
 
                                     val millId = item.mill_id ?: 0
                                     val transporterId = item.transporter_id ?: 0

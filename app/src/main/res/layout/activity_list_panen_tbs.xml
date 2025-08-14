@@ -282,6 +282,7 @@
                 tools:ignore="MissingConstraints">
 
                 <LinearLayout
+                    android:id="@+id/totalJjgSection"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
@@ -691,6 +692,25 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </ScrollView>
 
+    <TextView
+        android:id="@+id/labelGenerateQR"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/rounded_label_background"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp"
+        android:text="Generate QR eSPB"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/btnGenerateQRTPH"
+        app:layout_constraintEnd_toStartOf="@id/btnGenerateQRTPH"
+        app:layout_constraintTop_toTopOf="@id/btnGenerateQRTPH" />
+
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPH"
@@ -707,6 +727,8 @@
         app:maxImageSize="30dp"
         app:rippleColor="@color/bgLightOrange"
         app:tint="@color/white" />
+
+
 
     <TextView
         android:id="@+id/tvGenQR60"
@@ -754,6 +776,26 @@
         app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPHUnl"
         app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPHUnl" />
 
+    <!-- First FAB with Label -->
+    <TextView
+        android:id="@+id/labelTambahHapusTPHESPB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/rounded_label_background"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp"
+        android:text="Tambah/Hapus TPH eSPB"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/btnTambahHapusTPHESPB"
+        app:layout_constraintEnd_toStartOf="@id/btnTambahHapusTPHESPB"
+        app:layout_constraintTop_toTopOf="@id/btnTambahHapusTPHESPB" />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnTambahHapusTPHESPB"
         android:layout_width="wrap_content"
@@ -770,6 +812,26 @@
         app:rippleColor="@color/yellowBorder"
         app:tint="@color/white" />
 
+    <!-- Second FAB with Label -->
+    <TextView
+        android:id="@+id/labelEditEspb"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/rounded_label_background"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp"
+        android:text="Edit eSPB"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/btnEditEspb"
+        app:layout_constraintEnd_toStartOf="@id/btnEditEspb"
+        app:layout_constraintTop_toTopOf="@id/btnEditEspb" />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnEditEspb"
         android:layout_width="wrap_content"
@@ -785,6 +847,7 @@
         app:maxImageSize="30dp"
         app:rippleColor="@color/bgLightOrange"
         app:tint="@color/white" />
+
 
     <com.leinardi.android.speeddial.SpeedDialView
         android:id="@+id/dial_tph_list"

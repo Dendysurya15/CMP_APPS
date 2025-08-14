@@ -18,7 +18,10 @@ import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.FlagESPBModel
 import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
+import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.LoginActivity
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
@@ -32,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.Normalizer.Form
 
 class MainActivity : AppCompatActivity() {
     private var showingSplash = true
@@ -108,6 +112,7 @@ class MainActivity : AppCompatActivity() {
             database.millDao()
             database.uploadCMPDao()
             database.absensiDao()
+            database.parameterDao()
             insertDefaultFlags()
 
             Log.d("Database", "Database and tables initialized successfully")
@@ -127,7 +132,6 @@ class MainActivity : AppCompatActivity() {
     private fun showMainContent() {
         if (!showingSplash) return
         showingSplash = false
-
         startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }

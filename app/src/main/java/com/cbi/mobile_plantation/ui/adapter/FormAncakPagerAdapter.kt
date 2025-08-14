@@ -7,13 +7,15 @@ import com.cbi.mobile_plantation.ui.fragment.FormAncakFragment
 
 class FormAncakPagerAdapter(
     fragmentActivity: FragmentActivity,
-    private val totalPages: Int
+    private val totalPages: Int,
+    private val featureName: String? = null  // <- Add this parameter
 ) : FragmentStateAdapter(fragmentActivity) {
 
     override fun getItemCount(): Int = totalPages
 
     override fun createFragment(position: Int): Fragment {
-        val fragment = FormAncakFragment.newInstance(position + 1)
-        return fragment
+        val pageNumber = position + 1
+        // Pass both pageNumber AND featureName to the fragment
+        return FormAncakFragment.newInstance(pageNumber, featureName)
     }
 }

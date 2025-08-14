@@ -18,11 +18,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
@@ -342,7 +342,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "check_only" to false
                                 )
 
-                                AppLogger.d("test bro")
+                                AppLogger.d("testing")
 
                                 val espbJsonCheckDuplicate = Gson().toJson(wrappedEspbDataCheck)
                                 weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJsonCheckDuplicate)
@@ -427,6 +427,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang mengupload data ke server, harap tunggu",
                                     true
                                 )
+                                AppLogger.d("test")
                                 weightBridgeViewModel.uploadESPBKraniTimbang(
                                     itemsToUpload,
                                     globalIdEspb
@@ -1239,7 +1240,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         if (parts.isNotEmpty()) {
                             val tphId = parts[0].toIntOrNull()
                             if (tphId != null) {
-                                // Wait for tphDetails to be fetched first
+
                                 withContext(Dispatchers.Main) {
                                     val blokDeferred = CompletableDeferred<List<BlokModel>>()
 

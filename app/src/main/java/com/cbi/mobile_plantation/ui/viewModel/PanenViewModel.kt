@@ -7,8 +7,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.cbi.markertph.data.model.JenisTPHModel
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
@@ -17,6 +18,7 @@ import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,6 +62,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     private val _panenCount = MutableStateFlow(0)
     val panenCount: StateFlow<Int> = _panenCount.asStateFlow()
 
+    private val _panenCountForTransferInspeksi = MutableStateFlow(0)
+    val panenCountForTransferInspeksi: StateFlow<Int> = _panenCountForTransferInspeksi.asStateFlow()
+
     private val _archivedCount = MutableLiveData<Int>()
     val archivedCount: LiveData<Int> = _archivedCount
 
@@ -80,6 +85,14 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _panenCountArchived = MutableLiveData<Int>()
     val panenCountArchived: LiveData<Int> = _panenCountArchived
+
+    private val _panenTransferInspeksi = MutableLiveData<List<PanenEntityWithRelations>>()
+    val panenTransferInspeksi: LiveData<List<PanenEntityWithRelations>> =
+        _panenTransferInspeksi
+
+    private val _countPanenTransferInspeksi = MutableLiveData<Pair<Int, Int>>() // Pair of (state, count)
+    val countPanenTransferInspeksi: LiveData<Pair<Int, Int>> = _countPanenTransferInspeksi
+
 
 
     // ViewModel.kt
@@ -103,9 +116,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadTPHNonESPB(archive: Int, statusEspb: Int, statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun loadTPHNonESPB(archive: Int,  statusTransferRestan: Int, hasNoEspb: Boolean,scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusEspb, statusTransferRestan, scanStatus, date)
+            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb,scanStatus, date)
             _activePanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -113,9 +126,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllPanenDataDetailESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun getAllPanenDataDetailESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusEspb, statusTransferRestan, scanStatus, date)
+            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _detailNonESPBTPH.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -123,9 +136,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countTPHNonESPB(archive: Int, statusEspb: Int,  statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun countTPHNonESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            val count = repository.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _panenCountActive.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -133,9 +146,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countHasBeenESPB(archive: Int, statusEspb: Int, statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun countHasBeenESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            val count = repository.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _panenCountHasBeenESPB.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -143,10 +156,15 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int {
+        return withContext(Dispatchers.IO) {
+            repository.updateStatusEspbToZero(tphId, dateCreated)
+        }
+    }
 
-    fun loadTPHESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun loadTPHESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
-            val list = repository.loadESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            val list = repository.loadESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
             _archivedPanenList.value = list
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
@@ -154,9 +172,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun countTPHESPB(archive: Int, statusEspb: Int, statusTransferRestan:Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
+    fun countTPHESPB(archive: Int,  statusTransferRestan:Int, hasNoEspb: Boolean, scanStatus:Int, date: String? = null) = viewModelScope.launch {
         try {
-            val count = repository.countESPB(archive, statusEspb, statusTransferRestan,scanStatus, date)
+            val count = repository.countESPB(archive,  statusTransferRestan,hasNoEspb, scanStatus,date)
             _panenCountArchived.value = count
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
@@ -167,6 +185,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun loadPanenCount(): Int {
         val count = repository.getPanenCount()
         _panenCount.value = count
+        return count
+    }
+
+    suspend fun loadPanenCountForTransferInspeksi(): Int {
+        val count = repository.getPanenCountForTransferInspeksi()
+        _panenCountForTransferInspeksi.value = count
         return count
     }
 
@@ -264,6 +288,19 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getAllTPHinWeek() {
+        viewModelScope.launch {
+            repository.getAllTPHinWeek()
+                .onSuccess { panenList ->
+                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
+
+
     fun getAllJenisTPH() {
         viewModelScope.launch {
             repository.getAllJenisTPH()
@@ -338,6 +375,25 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         return repository.getTPHAndBlokInfo(id)
     }
 
+    fun loadDataPanenTransferInspeksi(
+        datetime: String? = null,
+        archive_transfer_inspeksi: Int? = null
+    ) {
+        viewModelScope.launch {
+            _panenTransferInspeksi.value = repository.getPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+        }
+    }
+
+    fun loadCountTransferInspeksi(
+        datetime: String? = null,
+        archive_transfer_inspeksi: Int
+    ) {
+        viewModelScope.launch {
+            val count = repository.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+            _countPanenTransferInspeksi.value = Pair(archive_transfer_inspeksi, count)
+        }
+    }
+
     fun loadActivePanenRestan(status: Int = 0) {
         viewModelScope.launch {
             repository.getActivePanenRestan(status)
@@ -405,6 +461,13 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun changeStatusTransferRestan(id: Int) {
         viewModelScope.launch {
             repository.changeStatusTransferRestan(id)
+            loadAllPanen() // Refresh the data
+        }
+    }
+
+    fun changeStatusTransferInspeksiPanen(id: Int) {
+        viewModelScope.launch {
+            repository.changeStatusTransferInspeksiPanen(id)
             loadAllPanen() // Refresh the data
         }
     }

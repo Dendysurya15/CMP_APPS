@@ -33,24 +33,44 @@ class TPHRvAdapter(
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
-        holder.td1.visibility = View.VISIBLE
-        holder.td2.visibility = View.VISIBLE
-        holder.td3.visibility = View.VISIBLE
-        holder.td4.visibility = View.VISIBLE
 
         // Customize display based on featureName
-        if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
-            // Custom display for ScanPanenMPanen
-            holder.td1.text = item.namaBlok // Blok-TPH
-            holder.td2.text = item.noTPH    // NIK
-            holder.td3.text = item.time     // Jam
-            holder.td4.text = item.jjg      // Just show JJG count
-        } else {
-            // Default display (ScanHasilPanen)
-            holder.td1.text = item.namaBlok
-            holder.td2.text = "${item.noTPH}/${item.jjg}"
-            holder.td3.text = item.time
-            holder.td4.text = item.username
+        when (featureName) {
+            AppUtils.ListFeatureNames.ScanPanenMPanen -> {
+                // Custom display for ScanPanenMPanen
+                holder.td1.visibility = View.VISIBLE
+                holder.td2.visibility = View.VISIBLE
+                holder.td3.visibility = View.VISIBLE
+                holder.td4.visibility = View.VISIBLE
+
+                holder.td1.text = item.namaBlok // Blok-TPH
+                holder.td2.text = item.noTPH    // NIK
+                holder.td3.text = item.time     // Jam
+                holder.td4.text = item.jjg      // Just show JJG count
+            }
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                // Custom display for ScanTransferInspeksiPanen - only 3 columns
+                holder.td1.visibility = View.VISIBLE
+                holder.td2.visibility = View.VISIBLE
+                holder.td3.visibility = View.VISIBLE
+                holder.td4.visibility = View.GONE // Hide 4th column
+
+                holder.td1.text = "${item.namaBlok}-${item.noTPH}" // BLOK-TPH (E019A-70)
+                holder.td2.text = AppUtils.formatToIndonesianDate(item.time)                      // TANGGAL (full datetime)
+                holder.td3.text = "${item.tipePanen}/\nANCAK ${item.ancak}" // TIPE_PANEN/ANCAK (NORMAL/16)
+            }
+            else -> {
+                // Default display (ScanHasilPanen)
+                holder.td1.visibility = View.VISIBLE
+                holder.td2.visibility = View.VISIBLE
+                holder.td3.visibility = View.VISIBLE
+                holder.td4.visibility = View.VISIBLE
+
+                holder.td1.text = item.namaBlok
+                holder.td2.text = "${item.noTPH}/${item.jjg}"
+                holder.td3.text = item.time
+                holder.td4.text = item.username
+            }
         }
 
         holder.flCheckBoxItemTph.visibility = View.GONE

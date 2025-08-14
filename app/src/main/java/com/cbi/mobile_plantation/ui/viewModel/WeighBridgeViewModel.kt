@@ -12,7 +12,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.network.StagingApiClient
@@ -221,20 +221,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 }
         }
     }
-
-    fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?) {
-        viewModelScope.launch {
-            repository.fetchBlokbyParams(blockId, est, afd)
-                .onSuccess { blokModel  ->
-                    _blokData.postValue(blokModel )
-                }
-                .onFailure { exception ->
-                    _error.postValue(exception.message ?: "Failed to load TPH data")
-                }
-        }
-    }
-
-
+    
 
     fun checkEspbExists(noEspb: String) {
         viewModelScope.launch {

@@ -14,8 +14,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
@@ -28,7 +28,8 @@ import com.google.android.material.radiobutton.MaterialRadioButton
 class ListTPHInsideRadiusAdapter(
     private val tphList: List<ScannedTPHSelectionItem>,
     private val listener: OnTPHSelectedListener,
-    private val jenisTPHList: List<JenisTPHModel> // Added parameter
+    private val jenisTPHList: List<JenisTPHModel>,
+    private val enforceSelectionLimits: Boolean = true
 ) : RecyclerView.Adapter<ListTPHInsideRadiusAdapter.ViewHolder>() {
 
     private var selectedPosition = -1
@@ -45,10 +46,12 @@ class ListTPHInsideRadiusAdapter(
     init {
         // Initialize selected position based on currently selected TPH
         selectedTPHId = listener.getCurrentlySelectedTPHId()
+        AppLogger.d("Adapter init - selectedTPHId: $selectedTPHId")
         if (selectedTPHId != null) {
             for (i in tphList.indices) {
                 if (tphList[i].id == selectedTPHId) {
                     selectedPosition = i
+                    AppLogger.d("Found selected TPH at position: $i")
                     break
                 }
             }
@@ -60,6 +63,8 @@ class ListTPHInsideRadiusAdapter(
         val jenisTPHNameTextView: TextView = itemView.findViewById(R.id.jenisTPHName)
         val radioButton: MaterialRadioButton = itemView.findViewById(R.id.rbScannedTPHInsideRadius)
         val tphHasBeenSelected: TextView = itemView.findViewById(R.id.tphHasBeenSelected)
+        val dashedLine: View = itemView.findViewById(R.id.dashedLine)
+
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -72,9 +77,26 @@ class ListTPHInsideRadiusAdapter(
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
         // Get the TPH item for this position
         val tphItem = tphList[position]
+        if (tphItem.tph_from_pasar_tengah == "SEPARATOR") {
+            holder.radioButton.visibility = View.GONE
+            holder.jenisTPHNameTextView.visibility = View.GONE
+            holder.tphHasBeenSelected.visibility = View.GONE
+            holder.dashedLine.visibility = View.VISIBLE
 
-        AppLogger.d("tphItem $tphItem")
+            holder.tphInfoTextView.visibility = View.VISIBLE
+            holder.tphInfoTextView.text = tphItem.blockCode
+            holder.tphInfoTextView.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.graytextdark))
+            holder.tphInfoTextView.setTypeface(null, Typeface.BOLD)
+            holder.tphInfoTextView.textSize = 14f
 
+            holder.itemView.setOnClickListener(null)
+            return
+        } else {
+            holder.radioButton.visibility = View.VISIBLE
+            holder.jenisTPHNameTextView.visibility = View.VISIBLE
+            holder.tphHasBeenSelected.visibility = View.GONE
+            holder.dashedLine.visibility = View.GONE
+        }
         val jenisTPHId = tphItem.jenisTPHId.toInt()
 
         // Create background drawable
@@ -144,6 +166,35 @@ class ListTPHInsideRadiusAdapter(
             }
         }
 
+        if (tphItem.id == selectedTPHId && !tphItem.isWithinRange) {
+            val selectedOutOfRangeText = "$plainText\n[TERPILIH - DILUAR JANGKAUAN]"
+            val spannableWithSelected = SpannableString(selectedOutOfRangeText)
+
+            // Copy existing spans
+            spannable.getSpans(0, spannable.length, ForegroundColorSpan::class.java).forEach { span ->
+                val start = spannable.getSpanStart(span)
+                val end = spannable.getSpanEnd(span)
+                spannableWithSelected.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+
+            // Add green color for selected indicator
+            val selectedStart = selectedOutOfRangeText.indexOf("[TERPILIH")
+            if (selectedStart >= 0) {
+                spannableWithSelected.setSpan(
+                    ForegroundColorSpan(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton)),
+                    selectedStart,
+                    selectedOutOfRangeText.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+
+            holder.tphInfoTextView.text = spannableWithSelected
+        } else {
+            // Set the normal text
+            holder.tphInfoTextView.text = spannable
+        }
+
+
         // Set the text
         holder.tphInfoTextView.text = spannable
 
@@ -190,8 +241,7 @@ class ListTPHInsideRadiusAdapter(
             selectedTPHId = tphItem.id
         }
 
-        // Handle status text based on selection and range
-        if (tphItem.isAlreadySelected) {
+        if (tphItem.isAlreadySelected && enforceSelectionLimits) {
             val jenisTPHId = tphItem.jenisTPHId.toInt()
             // Get the default limit from jenisTPHList
             val defaultLimit = jenisTPHList.find { it.id == jenisTPHId }?.limit ?: 1
@@ -202,7 +252,7 @@ class ListTPHInsideRadiusAdapter(
             } catch (e: Exception) {
                 null
             }
-            
+
             // Calculate the limit to use based on TPH type
             val limit = if (jenisTPHId == 2 && jenisTPHList.find { it.id == 2 }?.jenis_tph == "induk") {
                 // Special case for jenis_tph = induk (id = 2)
@@ -217,8 +267,6 @@ class ListTPHInsideRadiusAdapter(
                 defaultLimit
             }
 
-            AppLogger.d("limit $limit")
-            // Show different messages based on selection count
             if (tphItem.selectionCount >= limit!!) {
                 AppLogger.d("TPH reached maximum selections")
                 // TPH has reached maximum selections
@@ -241,7 +289,7 @@ class ListTPHInsideRadiusAdapter(
                 holder.radioButton.alpha = 1.0f
             }
         } else {
-            // IMPORTANT: For items that are NOT already selected, ensure the TextView is hidden
+            // IMPORTANT: For items that are NOT already selected OR when limits are not enforced, ensure the TextView is hidden
             holder.tphHasBeenSelected.visibility = View.GONE
             holder.tphHasBeenSelected.text = ""
         }
@@ -250,24 +298,31 @@ class ListTPHInsideRadiusAdapter(
         holder.radioButton.setOnClickListener(null)
         holder.itemView.setOnClickListener(null)
 
-        // Only enable click listener if the TPH can be selected again and is within range
-        if (tphItem.canBeSelectedAgain && tphItem.isWithinRange) {
+        val canClick = if (enforceSelectionLimits) {
+            (tphItem.canBeSelectedAgain && tphItem.isWithinRange) || (tphItem.id == selectedTPHId)
+        } else {
+            tphItem.isWithinRange || (tphItem.id == selectedTPHId)
+        }
+
+        if (canClick) {
             holder.radioButton.setOnClickListener {
                 val oldPosition = selectedPosition
                 selectedPosition = position
                 selectedTPHId = tphItem.id
 
-                // Update old and new positions
                 if (oldPosition >= 0) notifyItemChanged(oldPosition)
                 notifyItemChanged(position)
 
-                // Notify the activity about the selected item
                 listener.onTPHSelected(tphItem)
             }
 
             // Make the entire item clickable as well
             holder.itemView.setOnClickListener {
                 holder.radioButton.performClick()
+            }
+        }else{
+            if (tphItem.id == selectedTPHId) {
+                holder.radioButton.isChecked = true
             }
         }
     }

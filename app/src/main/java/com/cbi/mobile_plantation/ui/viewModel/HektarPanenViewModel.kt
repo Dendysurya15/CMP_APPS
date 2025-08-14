@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.mobile_plantation.data.database.HektarPanenDao
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -65,8 +66,8 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
     private val _historyHektarPanen = MutableLiveData<List<HektarPanenEntity>>()
     val historyHektarPanen : LiveData<List<HektarPanenEntity>> = _historyHektarPanen
 
-    suspend fun getDistinctBlokByDate(date: String): List<Int> {
-        return repository.getDistinctBlokByDate(date)
+    suspend fun getDistinctBlokParamsByDate(date: String): List<HektarPanenDao.BlokParams> {
+        return repository.getDistinctBlokParamsByDate(date)
     }
 
     suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String?, blok: Int?): List<HektarPanenEntity> {

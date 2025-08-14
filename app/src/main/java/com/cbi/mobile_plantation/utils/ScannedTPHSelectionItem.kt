@@ -11,5 +11,6 @@ data class ScannedTPHSelectionItem(
     val canBeSelectedAgain: Boolean,
     val isWithinRange: Boolean,
     val jenisTPHId: String,
-    val customLimit: String? = null  // Add this property
+    val customLimit: String? = null,
+    val tph_from_pasar_tengah: String = "0" // "1" = from pasar tengah, "0" = regular, "SEPARATOR" = separator
 )

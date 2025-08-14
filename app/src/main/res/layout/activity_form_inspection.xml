@@ -8,336 +8,1299 @@
     android:background="@color/blueLight"
     tools:context=".ui.view.Inspection.FormInspectionActivity">
 
-    <!-- Header Section -->
-    <include
-        android:id="@+id/headerFormInspection"
-        layout="@layout/header_feature_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- Information Blok Section -->
-    <ScrollView
-        android:id="@+id/svInfoBlokInspection"
+    <!-- Selection Screen (Initial Screen) -->
+    <LinearLayout
+        android:id="@+id/selectionScreen"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/bottomNavInspect"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/headerFormInspection">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingBottom="30dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginTop="10dp"
-                android:fontFamily="@font/manrope_extrabold"
-                android:gravity="center|left"
-                android:text="Informasi Blok"
-                android:textColor="@color/black"
-                android:textSize="23dp"
-                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginBottom="10dp"
-                android:fontFamily="@font/manrope_medium"
-                android:gravity="center|left"
-                android:text="Lengkapi informasi data blok berikut."
-                android:textColor="@color/black"
-                android:textSize="15dp"
-                android:textStyle="italic"
-                android:visibility="visible"
-                tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
-
-            <include
-                android:id="@+id/lyInspectionType"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyEstInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyAfdInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyTtInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyBlokInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyAncakInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyNoTphInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyStatusPanenInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyJalurInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyBrdTglInspect"
-                layout="@layout/pane_number_layout" />
-
-            <include
-                android:id="@+id/lyBuahTglInspect"
-                layout="@layout/pane_number_layout" />
-
-            <include
-                android:id="@+id/lyMandor1Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyPemanen1Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <LinearLayout
-                android:id="@+id/layoutSelAsistensi"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="130dp"
-                    android:layout_height="match_parent"
-                    android:fontFamily="@font/manrope_semibold"
-                    android:gravity="center|left"
-                    android:text="Pemanen Dari Kemandoran Lain"
-                    android:textColor="@color/black"
-                    android:textSize="18dp"
-                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/smAnotherKemandoran"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:thumbTint="@color/switch_thumb_selector"
-                    app:trackTint="@color/switch_track_selector" />
-
-            </LinearLayout>
-
-            <include
-                android:id="@+id/lyMandor2Inspect"
-                layout="@layout/pertanyaan_spinner_layout"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/lyPemanen2Inspect"
-                layout="@layout/pertanyaan_spinner_layout"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/lyConditionType"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyBaris1Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyBaris2Inspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-        </LinearLayout>
-
-    </ScrollView>
-
-    <!-- Form Data Section -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/clFormInspection"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="40dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/bottomNavInspect"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/headerFormInspection">
-
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/vpFormAncakInspect"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <!-- Action Button Form Data Section -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabPhotoFormInspect"
-            style="@style/RoundedFAB"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginBottom="15dp"
-            android:backgroundTint="@color/bluelightbutton"
-            android:src="@drawable/baseline_add_a_photo_24"
-            app:fabCustomSize="65dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:maxImageSize="30dp"
-            app:tint="@android:color/white"
-            app:pressedTranslationZ="0dp"
-            tools:ignore="ContentDescription" />
-
-        <View
-            android:id="@+id/badgePhotoInspect"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:background="@drawable/circle_white_background"
-            android:backgroundTint="@color/colorRed"
-            android:elevation="10dp"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="@id/fabPhotoFormInspect"
-            app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabPrevFormInspect"
-            style="@style/RoundedFAB"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
-            android:layout_marginBottom="15dp"
-            android:src="@drawable/baseline_arrow_back_24"
-            app:fabCustomSize="65dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/fabNextFormInspect"
-            app:maxImageSize="30dp"
-            app:tint="@android:color/white"
-            tools:ignore="ContentDescription" />
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabNextFormInspect"
-            style="@style/RoundedFAB"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="20dp"
-            android:layout_marginBottom="15dp"
-            android:src="@drawable/baseline_arrow_forward_24"
-            app:fabCustomSize="65dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:maxImageSize="30dp"
-            app:tint="@android:color/white"
-            tools:ignore="ContentDescription" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Summary Section -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/clSummaryInspection"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/bottomNavInspect"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/headerFormInspection">
-
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingHorizontal="20dp"
-                android:paddingBottom="30dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_marginVertical="10dp"
-                    android:fontFamily="@font/manrope_extrabold"
-                    android:gravity="center|left"
-                    android:text="Rekapitulasi Data"
-                    android:textColor="@color/black"
-                    android:textSize="23dp"
-                    tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
-
-                <TableLayout
-                    android:id="@+id/tblLytSummaryInspect"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:stretchColumns="1" />
-
-            </LinearLayout>
-
-        </ScrollView>
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabSaveFormInspect"
-            style="@style/RoundedFAB"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="20dp"
-            android:layout_marginBottom="15dp"
-            android:src="@drawable/baseline_save_24"
-            app:fabCustomSize="65dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:maxImageSize="30dp"
-            app:tint="@android:color/white"
-            tools:ignore="ContentDescription" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <include
-        android:id="@+id/incTakePhotoInspect"
-        layout="@layout/camera_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
-
-    <include
-        android:id="@+id/incEditPhotoInspect"
-        layout="@layout/camera_edit"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
-
-    <!-- Bottom Navigation Bar -->
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavInspect"
-        android:layout_width="match_parent"
-        android:layout_height="65dp"
-        android:layout_gravity="bottom"
-        android:background="@drawable/border_top_light"
-        app:itemActiveIndicatorStyle="@style/NoIndicator"
-        app:itemIconTint="@color/switch_thumb_selector"
-        app:itemPaddingBottom="15dp"
-        app:itemPaddingTop="8dp"
-        app:itemTextColor="@color/switch_thumb_selector"
-        app:labelVisibilityMode="selected"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:menu="@menu/bottom_nav_menu_inspect" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="40dp"
+            android:fontFamily="@font/manrope_extrabold"
+            android:gravity="center"
+            android:text="Pilih Metode Inspeksi"
+            android:textColor="@color/black"
+            android:textSize="24sp"
+            tools:ignore="HardcodedText" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMulaiDariTPH"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:backgroundTint="@color/bluedarklight"
+            android:fontFamily="@font/manrope_bold"
+            android:paddingVertical="12dp"
+            android:text="Mulai dari TPH"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/ic_home_black_24dp"
+            app:iconGravity="start"
+            app:iconTint="@color/white"
+            tools:ignore="HardcodedText" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMulaiDariPokok"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/orange"
+            android:fontFamily="@font/manrope_bold"
+            android:paddingVertical="12dp"
+            android:text="Mulai dari Baris / Pasar Tengah"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/baseline_grain_24"
+            app:iconGravity="start"
+            app:iconTint="@color/white"
+            tools:ignore="HardcodedText" />
+
+    </LinearLayout>
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/mainContentWrapper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible">
+
+        <include
+            android:id="@+id/headerFormInspection"
+            layout="@layout/header_feature_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Information Blok Section -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/clInfoBlokSection"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toTopOf="@id/bottomNavInspect"
+            app:layout_constraintEnd_toEndOf="parent"
+
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/headerFormInspection">
+
+            <ScrollView
+                android:id="@+id/svInfoBlokInspection"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="20dp"
+                    android:paddingBottom="150dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:layout_marginTop="10dp"
+                        android:text="Detail Tracking Inspeksi"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/l"
+                        android:id="@+id/titleDetailTrackingMap"
+                        android:visibility="gone"
+                        tools:ignore="HardcodedText,RtlHardcoded" />
+
+                    <!-- Map Container -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/cardMap"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <!-- Map Type Switcher -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/blueLight"
+                                android:orientation="horizontal"
+                                android:padding="8dp">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnDefault"
+                                    android:layout_width="0dp"
+                                    android:layout_height="48dp"
+                                    android:layout_marginStart="2dp"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:paddingStart="16dp"
+                                    android:paddingTop="8dp"
+                                    android:paddingEnd="16dp"
+                                    android:paddingBottom="8dp"
+                                    android:text="Standar"
+                                    android:textSize="14sp"
+                                    app:backgroundTint="@color/greenDarker"
+                                    app:cornerRadius="12dp"
+                                    app:elevation="2dp"
+                                    app:iconGravity="start"
+                                    app:iconPadding="8dp"
+                                    app:iconSize="20dp"
+                                    app:strokeWidth="0dp" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnSatellite"
+                                    android:layout_width="0dp"
+                                    android:layout_height="48dp"
+                                    android:layout_marginStart="2dp"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/manrope_bold"
+                                    android:paddingStart="16dp"
+                                    android:paddingTop="8dp"
+                                    android:paddingEnd="16dp"
+                                    android:paddingBottom="8dp"
+                                    android:text="Satelit"
+                                    android:textSize="14sp"
+                                    app:backgroundTint="@color/greenDarker"
+                                    app:cornerRadius="12dp"
+                                    app:elevation="2dp"
+                                    app:iconGravity="start"
+                                    app:iconPadding="8dp"
+                                    app:iconSize="20dp"
+                                    app:strokeWidth="0dp" />
+
+                            </LinearLayout>
+
+                            <org.osmdroid.views.MapView
+                                android:id="@+id/map"
+                                android:layout_width="match_parent"
+                                android:layout_height="350dp" />
+
+                        </LinearLayout>
+
+                    </androidx.cardview.widget.CardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:id="@+id/titleInformasiBlok"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:text="Informasi Blok"
+                        android:textColor="@color/black"
+                        android:textSize="23dp"
+                        tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginBottom="10dp"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="center|left"
+                        android:id="@+id/descTitleBlokInspeksi"
+                        android:text="Lengkapi informasi data blok berikut."
+                        android:textColor="@color/black"
+                        android:textSize="15dp"
+                        android:textStyle="italic"
+                        android:visibility="visible"
+                        tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        android:id="@+id/detailInspeksiForFollowUp"
+                        android:layout_marginBottom="-10dp"
+                        android:orientation="horizontal">
+
+                        <!-- LEFT COLUMN -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginEnd="8dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_bold"
+                                android:text="Est/Afd/Blok"
+                                android:background="@color/graylight"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvEstAfdBlok"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:text="-"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="12dp" />
+
+                            <!-- Item 2 Left -->
+
+
+                            <!-- Item 3 Left -->
+                            <TextView
+                                android:id="@+id/tvTitleLeft3"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="2dp"
+                                android:fontFamily="@font/manrope_bold"
+                                android:text="Jalur Masuk"
+                                android:background="@color/graylight"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:textStyle="italic" />
+
+                            <TextView
+                                android:id="@+id/tvJalurMasuk"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:text="-"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="12dp" />
+
+                            <TextView
+                                android:id="@+id/tvTitleRight1"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_bold"
+                                android:background="@color/graylight"
+                                android:text="Baris"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvBaris"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="12dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_bold"
+                                android:background="@color/graylight"
+                                android:text="Tanggal Panen"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvTglPanen"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="12dp" />
+
+
+
+                        </LinearLayout>
+
+                        <!-- RIGHT COLUMN -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:id="@+id/tvTitleLeft2"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/graylight"
+                                android:fontFamily="@font/manrope_bold"
+                                android:text="Tanggal Inspeksi"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvTanggalInspeksi"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:text="-"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="12dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_bold"
+                                android:background="@color/graylight"
+                                android:text="Pemanen"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="2dp" />
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/rvSelectedPemanenFollowUp"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:overScrollMode="never"
+                                android:visibility="gone"/>
+
+                            <!-- Item 2 Right -->
+                            <TextView
+                                android:id="@+id/tvTitleRight2"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_bold"
+                                android:background="@color/graylight"
+                                android:text="Komentar Temuan TPH"
+                                android:textColor="@color/black"
+                                android:textStyle="italic"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvKomentarTPH"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:text="-"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:layout_marginBottom="12dp"
+                                android:maxLines="4"
+                                android:ellipsize="end" />
+
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+
+                    <include
+                        android:id="@+id/lyEstInspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/lyAfdInspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/alertCardScanRadius"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="@color/bgLightYellow"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:strokeColor="@color/borderYellow"
+                        app:strokeWidth="2dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:id="@+id/errorIcon"
+                                android:layout_width="30dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginEnd="8dp"
+                                android:src="@drawable/circle_exclamation_solid"
+                                android:tint="@color/anotherYellow"
+                                tools:ignore="UseAppTint" />
+
+                            <TextView
+                                android:id="@+id/alertTvScannedRadius"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_bold"
+                                android:textColor="@color/grayDefault"
+                                android:textSize="17sp" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnScanTPHRadius"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:backgroundTint="@color/bluedarklight"
+                            android:fontFamily="@font/manrope_bold"
+                            android:text="Refresh TPH"
+                            android:textAllCaps="false"
+                            android:textColor="@color/white"
+                            android:textSize="@dimen/m"
+                            android:visibility="gone"
+                            app:cornerRadius="8dp"
+                            app:icon="@drawable/baseline_refresh_24"
+                            app:iconGravity="textEnd"
+                            app:iconPadding="8dp"
+                            app:iconTint="@color/white" />
+
+                        <ProgressBar
+                            android:id="@+id/progressBarScanTPHManual"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="center"
+                            android:layout_marginLeft="10dp"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutAutoScan"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:fontFamily="@font/manrope_semibold"
+                            android:gravity="center|left"
+                            android:text="Auto-Refresh (setiap 5 detik)"
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/m" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAutoScan"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            app:thumbTint="@color/switch_thumb_selector"
+                            app:trackTint="@color/switch_track_selector" />
+
+                    </LinearLayout>
+
+                    <androidx.core.widget.NestedScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fillViewport="true">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical"
+                                android:layout_marginTop="10dp"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/titleScannedTPHInsideRadius"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/manrope_extrabold"
+                                    android:gravity="left"
+                                    android:text="Daftar Lokasi TPH Terdekat"
+                                    android:textColor="@color/black"
+                                    android:textSize="20sp"
+                                    android:visibility="gone"
+                                    app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                                    tools:ignore="MissingConstraints" />
+
+                                <ProgressBar
+                                    android:id="@+id/progressBarScanTPHAuto"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:layout_marginLeft="10dp"
+                                    android:visibility="gone" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/descScannedTPHInsideRadius"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/manrope_medium"
+                                android:gravity="left"
+                                android:textColor="@color/black"
+                                android:textSize="@dimen/m"
+                                android:visibility="gone"
+                                app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                                tools:ignore="MissingConstraints" />
+
+                            <TextView
+                                android:id="@+id/emptyScanTPHInsideRadius"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginLeft="5dp"
+                                android:fontFamily="@font/manrope_bold"
+                                android:text="@string/no_detect_tph"
+                                android:textColor="@color/black"
+                                android:textSize="18sp"
+                                android:textStyle="italic"
+                                android:visibility="gone" />
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/tphScannedResultRecyclerView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:clipToPadding="false"
+                                android:nestedScrollingEnabled="true"
+                                android:overScrollMode="always"
+                                android:padding="0dp"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/tvErrorScannedNotSelected"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:fontFamily="@font/manrope_bold"
+                                android:text="Nomor TPH harus dipilih!"
+                                android:textColor="@color/colorRedDark"
+                                android:textSize="17sp"
+                                android:visibility="gone"
+                                tools:ignore="HardcodedText,RtlSymmetry" />
+
+                        </LinearLayout>
+                    </androidx.core.widget.NestedScrollView>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/titlePemanenInspeksi"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/manrope_extrabold"
+                            android:gravity="left"
+                            android:text="Daftar Pemanen"
+                            android:textColor="@color/black"
+                            android:textSize="20sp"
+                            android:visibility="gone"
+                            app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                            tools:ignore="MissingConstraints" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/descPemanenInspeksi"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                        tools:ignore="MissingConstraints" />
+
+                    <include
+                        android:id="@+id/lyPemanenOtomatis"
+                        layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSelectedPemanenOtomatisInspection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/top_margin"
+                        android:overScrollMode="never"
+                        android:visibility="gone" />
+
+                    <include
+                        android:id="@+id/lyPemanenManual"
+                        layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSelectedPemanenManualInspection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/top_margin"
+                        android:overScrollMode="never"
+                        android:visibility="gone" />
+
+                    <include
+                        android:id="@+id/lyJalurInspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/warning_card"
+                        layout="@layout/warning_layout_card_asistensi"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+
+                    <include
+                        android:id="@+id/lyBrdTglInspect"
+                        layout="@layout/pane_number_layout" />
+
+                    <include
+                        android:id="@+id/lyBuahTglInspect"
+                        layout="@layout/pane_number_layout" />
+
+                    <include
+                        android:id="@+id/lyPemanen2Inspect"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
+
+                    <include
+                        android:id="@+id/lyConditionType"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/lyBaris1Inspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/lyBaris2Inspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                </LinearLayout>
+
+            </ScrollView>
+
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabFollowUpTPH"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="95dp"
+                android:backgroundTint="@color/yellowbutton"
+                android:src="@drawable/baseline_manage_search_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="gone"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+
+            <TextView
+                android:id="@+id/labelFollowUpTPH"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Pemulihan TPH"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabFollowUpTPH"
+                app:layout_constraintStart_toEndOf="@id/fabFollowUpTPH"
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH" />
+
+            <ImageView
+                android:id="@+id/badgePhotoFUTPH"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintEnd_toEndOf="@id/fabFollowUpTPH"
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH"
+                tools:ignore="UseAppTint" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPhotoInfoBlok"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="15dp"
+                android:backgroundTint="@color/orange"
+                android:src="@drawable/baseline_add_a_photo_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                android:visibility="gone"
+                app:pressedTranslationZ="0dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <ImageView
+                android:id="@+id/badgePhotoInfoBlok"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:layout_marginLeft="45dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintStart_toStartOf="@id/fabPhotoInfoBlok"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:id="@+id/labelPhotoInfoBlok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto TPH"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabPhotoInfoBlok"
+                app:layout_constraintStart_toEndOf="@id/fabPhotoInfoBlok"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok" />
+
+            <!-- Right FAB for Next to Form Ancak -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabNextToFormAncak"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="15dp"
+                android:backgroundTint="@color/greenDefault"
+                android:src="@drawable/baseline_arrow_forward_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Form Data Section -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/clFormInspection"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/bottomNavInspect"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/headerFormInspection">
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/vpFormAncakInspect"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- fabPhotoUser - Top FAB with Label -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPhotoUser"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="165dp"
+                android:backgroundTint="@color/redblack"
+                android:src="@drawable/circle_user_solid"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="gone"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Label for fabPhotoUser -->
+            <TextView
+                android:id="@+id/labelPhotoUser"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Selfie"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabPhotoUser"
+                app:layout_constraintStart_toEndOf="@id/fabPhotoUser"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser" />
+
+            <!-- Badge for fabPhotoUser -->
+            <ImageView
+                android:id="@+id/badgePhotoUser"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintEnd_toEndOf="@id/fabPhotoUser"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser" />
+
+
+
+
+            <!-- fabFollowUpNow - Middle FAB with Label -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabFollowUpNow"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="90dp"
+                android:backgroundTint="@color/yellowbutton"
+                android:src="@drawable/baseline_manage_search_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="gone"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Label for fabFollowUpNow -->
+            <TextView
+                android:id="@+id/labelFollowUpNow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Pemulihan"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabFollowUpNow"
+                app:layout_constraintStart_toEndOf="@id/fabFollowUpNow"
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpNow" />
+
+            <!-- Badge for fabFollowUpNow -->
+            <ImageView
+                android:id="@+id/badgeFollowUpNow"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintEnd_toEndOf="@id/fabFollowUpNow"
+                app:layout_constraintTop_toTopOf="@id/fabFollowUpNow" />
+
+
+            <!-- fabPhotoFormInspect - Bottom FAB with Label -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPhotoFormInspect"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="15dp"
+                android:backgroundTint="@color/bluelightbutton"
+                android:src="@drawable/baseline_add_a_photo_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:maxImageSize="30dp"
+                app:pressedTranslationZ="0dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Label for fabPhotoFormInspect -->
+            <TextView
+                android:id="@+id/labelPhotoFormInspect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Temuan"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabPhotoFormInspect"
+                app:layout_constraintStart_toEndOf="@id/fabPhotoFormInspect"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
+
+            <!-- Badge for fabPhotoFormInspect -->
+            <ImageView
+                android:id="@+id/badgePhotoInspect"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintEnd_toEndOf="@id/fabPhotoFormInspect"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
+
+
+            <!-- Navigation FABs - Previous -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPrevFormInspect"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:layout_marginBottom="15dp"
+                android:src="@drawable/baseline_arrow_back_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/fabNextFormInspect"
+                app:maxImageSize="30dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Navigation FABs - Next -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabNextFormInspect"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="15dp"
+                android:src="@drawable/baseline_arrow_forward_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:maxImageSize="30dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Summary Section -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/clSummaryInspection"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/bottomNavInspect"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/headerFormInspection">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="20dp"
+                    android:paddingBottom="30dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="5dp"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="center|left"
+                        android:text="Rekapitulasi Data Inspeksi"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/xl"
+                        tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+                    <TextView
+                        android:id="@+id/desTPHEstateAfd"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/l"
+                        tools:ignore="MissingConstraints" />
+
+                    <TextView
+                        android:id="@+id/desTPH"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        tools:ignore="MissingConstraints" />
+
+                    <TextView
+                        android:id="@+id/desJalurMasuk"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        tools:ignore="MissingConstraints" />
+
+                    <TextView
+                        android:id="@+id/desJenisKondisi"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        tools:ignore="MissingConstraints" />
+
+                    <TextView
+                        android:id="@+id/desBr1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        tools:ignore="MissingConstraints" />
+
+                    <TextView
+                        android:id="@+id/desBr2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:gravity="left"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        tools:ignore="MissingConstraints" />
+
+                    <View
+                        android:id="@+id/dashedLineTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginBottom="10dp"
+                        android:background="@drawable/dashed_straight_line"
+                        android:visibility="visible"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <!-- Container for dynamic card layouts -->
+                    <LinearLayout
+                        android:id="@+id/containerTemuanCards"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="80dp"
+                        android:orientation="vertical" />
+
+                </LinearLayout>
+
+            </ScrollView>
+
+            <!-- User Photo FAB with left label -->
+            <TextView
+                android:id="@+id/labelPhotoUser2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Foto Selfie"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/fabPhotoUser2"
+                app:layout_constraintEnd_toStartOf="@id/fabPhotoUser2"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser2" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabPhotoUser2"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="15dp"
+                android:backgroundTint="@color/redblack"
+                android:src="@drawable/circle_user_solid"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toTopOf="@+id/fabSaveFormInspect"
+                app:layout_constraintStart_toStartOf="@+id/fabSaveFormInspect"
+                app:maxImageSize="35dp"
+                app:pressedTranslationZ="0dp"
+                android:visibility="gone"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <ImageView
+                android:id="@+id/badgePhotoUser2"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:backgroundTint="@color/greenDarker"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:padding="3dp"
+                android:layout_marginLeft="45dp"
+                android:background="@drawable/circle_white_background"
+                android:visibility="gone"
+                android:elevation="10dp"
+                app:layout_constraintStart_toStartOf="@id/fabPhotoUser2"
+                app:layout_constraintTop_toTopOf="@id/fabPhotoUser2"
+                tools:ignore="UseAppTint" />
+
+            <!-- Save FAB with left label -->
+            <TextView
+                android:id="@+id/labelSaveFormInspect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/rounded_label_background"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Simpan"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="visible"
+                app:layout_constraintBottom_toBottomOf="@id/fabSaveFormInspect"
+                app:layout_constraintEnd_toStartOf="@id/fabSaveFormInspect"
+                app:layout_constraintTop_toTopOf="@id/fabSaveFormInspect" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabSaveFormInspect"
+                style="@style/RoundedFAB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="15dp"
+                android:src="@drawable/baseline_save_24"
+                app:fabCustomSize="65dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:maxImageSize="30dp"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <include
+            android:id="@+id/incTakePhotoInspect"
+            layout="@layout/camera_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/incEditPhotoInspect"
+            layout="@layout/camera_edit"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <!-- Bottom Navigation Bar -->
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNavInspect"
+            android:layout_width="match_parent"
+            android:layout_height="65dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/border_top_light"
+            app:itemActiveIndicatorStyle="@style/NoIndicator"
+            app:itemIconTint="@color/switch_thumb_selector"
+            app:itemPaddingBottom="15dp"
+            app:itemPaddingTop="8dp"
+            app:itemTextColor="@color/switch_thumb_selector"
+            app:labelVisibilityMode="selected"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:menu="@menu/bottom_nav_menu_inspect" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
