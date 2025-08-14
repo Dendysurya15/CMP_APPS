@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_background"
+    android:padding="16dp">
+
+    <!-- Fixed Header: Title -->
+    <TextView
+        android:id="@+id/tvDetailTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:fontFamily="@font/manrope_extrabold"
+        android:textColor="@color/black"
+        android:textSize="@dimen/xl"
+        android:gravity="center"
+        android:text="Detail Temuan di TPH"
+        android:textStyle="bold" />
+
+    <!-- Fixed Header: Dashed Line -->
+    <View
+        android:id="@+id/dashedLine"
+        android:layout_width="match_parent"
+        android:layout_height="10dp"
+        android:background="@drawable/dashed_straight_line"
+        android:layout_marginBottom="8dp"
+        android:visibility="visible"/>
+
+    <!-- Fixed Header: Image (for TPH only) -->
+    <ImageView
+        android:id="@+id/ivDetailImage"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:contentDescription="Detail Photo" />
+
+    <!-- Scrollable Content Area -->
+    <ScrollView
+        android:id="@+id/svDetailContent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls">
+
+        <LinearLayout
+            android:id="@+id/llDetailContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="16dp">
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Fixed Footer: Close Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCloseDetail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Tutup"
+        android:fontFamily="@font/manrope_semibold"
+        app:backgroundTint="@color/greenDarker"
+        app:cornerRadius="10dp" />
+
+</LinearLayout>

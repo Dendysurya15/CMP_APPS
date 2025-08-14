@@ -62,15 +62,14 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 //import com.cbi.mobile_plantation.utils.DataCacheManager
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.ui.adapter.SelectedPemanenAbsensiAdapter
 import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
-//import com.cbi.markertph.data.model.DeptModel
-//import com.cbi.markertph.data.model.DivisiModel
+
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar

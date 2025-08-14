@@ -22,9 +22,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import net.lingala.zip4j.ZipFile
@@ -52,7 +54,8 @@ import java.util.zip.ZipInputStream
 
 object AppUtils {
 
-    const val TOTAL_MAX_TREES_INSPECTION: Int = 50
+    const val TOTAL_MAX_TREES_INSPECTION: Int = 100
+    const val MINIMAL_TAKE_SELFIE_INSPECTION: Int = 10
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
     const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
         UPDATE_INTERVAL_IN_MILLISECONDS / 2
@@ -62,6 +65,7 @@ object AppUtils {
     const val MAX_SELECTIONS_PER_TPH = 3
     const val MAX_ALERT_FOR_GENERATE_QR = 60
     const val max_data_in_zip = 12
+    const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
@@ -163,13 +167,14 @@ object AppUtils {
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
-        const val INSPEKSI_PATH = "inspeksi_path"
+        const val INSPEKSI_DETAIL= "inspeksi_detail"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
         const val AFDELING = "afdeling"
         const val MILL = "mill"
         const val TPH = "tph"
         const val ESTATE = "estate"
+        const val PARAMETER = "parameter"
         const val KEMANDORAN = "kemandoran"
         const val KARYAWAN = "karyawan"
         const val TRANSPORTER = "transporter"
@@ -228,12 +233,19 @@ object AppUtils {
         const val TransferHektarPanen = "Transfer Hektar Panen"
         const val MutuBuah = "Inspeksi Mutu Buah"
         const val RekapMutuBuah = "Rekap Mutu Buah"
+        const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
+        const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
     }
 
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
-        const val WMInspeksi = "INSPEKSI"
+        const val WMBuktiInspeksiUser = "INSPEKSI_BY_USER"
+        const val WMBuktiFUInspeksiUser = "INSPEKSI_FU_BY_USER"
+        const val WMInspeksiTPH = "INSPEKSI_TPH"
+        const val WMInspeksiPokok = "INSPEKSI_POKOK"
+        const val WMFUInspeksiTPH = "FU_INSPEKSI_TPH"
+        const val WMFUInspeksiPokok = "FU_INSPEKSI_POKOK"
         const val WMAbsensiPanen = "ABSENSI PANEN"
         const val WMESPB = "E-SPB"
         const val WMTransferHektarPanen = "TRANSFER HEKTAR PANEN"
@@ -253,6 +265,7 @@ object AppUtils {
         const val mill = "mill"
         const val tph = "tph"
         const val blok = "blok"
+        const val parameter = "parameter"
         const val estate = "estate"
         const val jenisTPH = "jenis_tph"
         const val pemanen = "pemanen"
@@ -263,7 +276,21 @@ object AppUtils {
         const val sinkronisasiRestan = "Sinkronisasi Data Restan"
         const val sinkronisasiDataUser = "Sinkronisasi Data User"
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
+        const val sinkronisasiFollowUpInspeksi = "Data Inspeksi (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
+    }
+
+    object kodeInspeksi {
+        const val brondolanDigawangan = "Brondolan dibuang ke gawangan"
+        const val brondolanTidakDikutip = "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok"
+        const val buahMasakTidakDipotong = "Buah masak tidak dipotong"
+        const val buahTertinggalPiringan = "Buah tertinggal di piringan dan buah diperam digawangan mati"
+        const val buahTinggalTPH = "Buah tinggal di TPH"
+        const val brondolanTinggalTPH = "Brondolan tinggal di TPH"
+        const val susunanPelepahTidakSesuai = "Susunan pelepah tidak sesuai"
+        const val terdapatPelepahSengkleh = "Terdapat pelepah sengkleh"
+        const val overPruning = "Overpruning"
+        const val underPruning = "Underpruning"
     }
 
     private val todayDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
@@ -294,6 +321,8 @@ object AppUtils {
         // Remove dots
         return numericVersion.replace(".", "")
     }
+
+
 
     fun clearTempJsonFiles(context: Context) {
         try {
@@ -388,11 +417,20 @@ object AppUtils {
         }
     }
 
+    private fun convertDataToJsonString(data: List<Map<String, Any>>): String {
+        val gson = GsonBuilder()
+            .setPrettyPrinting()  // Makes JSON readable (optional)
+            .serializeNulls()     // Include null values (optional)
+            .create()
+
+        return gson.toJson(data)
+    }
+
     fun createAndSaveZipUploadCMPSingle(
         context: Context,
         featureDataList: List<Pair<String, List<Map<String, Any>>>>,
         userId: String,
-        onResult: (Boolean, String, String, File) -> Unit // Note: Changed to return a single File
+        onResult: (Boolean, String, String, File) -> Unit
     ) {
         try {
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -401,13 +439,11 @@ object AppUtils {
                 if (!exists()) mkdirs()
             }
 
-            // Get the Pictures directories - try both locations
             val picturesDirs = listOf(
                 context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                 File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
             ).filterNotNull()
 
-            // Simple filename format without chunking
             val zipFileName = "${userId}_${dateTime}.zip"
             val zipFile = File(appFilesDir, zipFileName)
 
@@ -420,10 +456,8 @@ object AppUtils {
                 encryptionMethod = EncryptionMethod.ZIP_STANDARD
             }
 
-            // Process each feature and its data
             featureDataList.forEach { (featureKey, dataList) ->
-                // Add JSON data for this feature
-                val jsonString = convertDataToJsonString(dataList)
+                val jsonString = convertDataToJsonString(dataList)  // Now uses Gson
                 val jsonBytes = jsonString.toByteArray()
 
                 val inputStream = ByteArrayInputStream(jsonBytes)
@@ -432,11 +466,9 @@ object AppUtils {
                     zipParams.apply { fileNameInZip = "$featureKey/data.json" }
                 )
 
-                // Add photos for this feature's data
                 addFeaturePhotosToZip(context, dataList, featureKey, picturesDirs, zip, zipParams)
             }
 
-            // Return the result using the callback
             onResult(true, zipFile.name, zipFile.absolutePath, zipFile)
 
         } catch (e: Exception) {
@@ -516,159 +548,6 @@ object AppUtils {
         }
     }
 
-
-    private fun createAndSaveZipUploadCMPImpl(
-        context: Context,
-        featureDataList: List<Pair<String, List<Map<String, Any>>>>,
-        userId: String,
-        onResult: (Boolean, String, String, List<File>) -> Unit
-    ) {
-        try {
-            val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
-
-            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
-                if (!exists()) mkdirs()
-            }
-
-            // Get the Pictures directories - try both locations
-            val picturesDirs = listOf(
-                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
-            ).filterNotNull()
-
-            // Check for existing zip files to determine the next sequence number
-            val existingFiles = appFilesDir.listFiles()?.filter {
-                // Update regex to account for the new format with total parts
-                it.name.matches(Regex("${userId}_\\d{14}_\\d+_\\d+\\.zip"))
-            } ?: emptyList()
-
-            // Use the FULL datetime as prefix to reset sequence for each new batch
-            val currentPrefix = "${userId}_$dateTime"
-            var nextSequenceNumber = 1
-
-            existingFiles.forEach { file ->
-                if (file.name.startsWith(currentPrefix)) {
-                    // Extract the sequence number from filename with EXACT datetime match
-                    // Updated regex to match new format (userId_datetime_totalparts_sequencenumber.zip)
-                    val sequenceMatch = Regex("${userId}_${dateTime}_(\\d+)_(\\d+)\\.zip").find(file.name)
-                    sequenceMatch?.groupValues?.getOrNull(2)?.toIntOrNull()?.let { seq ->
-                        if (seq >= nextSequenceNumber) {
-                            nextSequenceNumber = seq + 1
-                        }
-                    }
-                }
-            }
-
-            val allZipFiles = mutableListOf<File>() // List of all created zip files
-
-            // Flatten all data into a single list
-            val allData = mutableListOf<Triple<String, Map<String, Any>, String>>() // (feature, data, photo path)
-
-            featureDataList.forEach { (featureKey, dataList) ->
-                dataList.forEach { data ->
-                    // Add the data with its feature key
-                    allData.add(Triple(featureKey, data, ""))
-                }
-            }
-
-            // chunk data di dalam zip dengan batas di max_data_in_zip
-            val chunkedAllData = allData.chunked(max_data_in_zip)
-
-            // Calculate total parts in advance
-            val totalParts = chunkedAllData.size
-
-            // Create a zip file for each chunk
-            chunkedAllData.forEachIndexed { index, chunk ->
-                // Update the zip filename format to include total parts
-                val zipFileName = "${userId}_${dateTime}_${totalParts}_${index + 1}.zip"
-                val zipFile = File(appFilesDir, zipFileName)
-
-                val zip = ZipFile(zipFile)
-                zip.setPassword(ZIP_PASSWORD.toCharArray())
-
-                val zipParams = ZipParameters().apply {
-                    compressionMethod = CompressionMethod.DEFLATE
-                    isEncryptFiles = true
-                    encryptionMethod = EncryptionMethod.ZIP_STANDARD
-                }
-
-                // Group the data by feature key
-                val groupedByFeature = chunk.groupBy { it.first }
-
-                // Add each feature's data to the zip
-                groupedByFeature.forEach { (featureKey, featureData) ->
-                    // Extract just the data maps
-                    val dataMapList = featureData.map { it.second }
-
-                    // Add JSON data for this feature
-                    val jsonString = convertDataToJsonString(dataMapList)
-                    val jsonBytes = jsonString.toByteArray()
-
-                    val inputStream = ByteArrayInputStream(jsonBytes)
-                    zip.addStream(
-                        inputStream,
-                        zipParams.apply { fileNameInZip = "$featureKey/data.json" }
-                    )
-
-                    // Add photos for this chunk's data
-                    addFeaturePhotosToZip(context, dataMapList, featureKey, picturesDirs, zip, zipParams)
-                }
-
-                // Add to our results list
-                allZipFiles.add(zipFile)
-            }
-
-            // Return the result using the callback
-            if (allZipFiles.isNotEmpty()) {
-                // For backward compatibility, still return the first zip's info in the original parameters
-                val firstZip = allZipFiles.first()
-                onResult(true, firstZip.name, firstZip.absolutePath, allZipFiles)
-            } else {
-                onResult(false, "No zip files created", "", emptyList())
-            }
-        } catch (e: Exception) {
-            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
-            AppLogger.e(errorMessage)
-            onResult(false, errorMessage, "", emptyList())
-        }
-    }
-
-    class ProgressRequestBody(
-        private val file: File,
-        private val contentTypeString: String,
-        private val callback: (progress: Int) -> Unit
-    ) : RequestBody() {
-
-        override fun contentType(): MediaType? = contentTypeString.toMediaTypeOrNull()
-
-        override fun contentLength(): Long = file.length()
-
-        override fun writeTo(sink: BufferedSink) {
-            val length = contentLength()
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            val fileInputStream = FileInputStream(file)
-            var uploaded: Long = 0
-            fileInputStream.use { inputStream ->
-                var read = inputStream.read(buffer)
-                while (read != -1) {
-                    sink.write(buffer, 0, read)
-                    uploaded += read
-                    val progress = (uploaded * 100 / length).toInt()
-                    callback(progress) // report progress
-                    read = inputStream.read(buffer)
-                }
-            }
-        }
-
-        companion object {
-            private const val DEFAULT_BUFFER_SIZE = 2048
-        }
-    }
-
-
-    /**
-     * Adds photos from CMP directories to the zip file
-     */
     private fun addFeaturePhotosToZip(
         context: Context,
         dataList: List<Map<String, Any>>,
@@ -677,9 +556,173 @@ object AppUtils {
         zip: ZipFile,
         zipParams: ZipParameters
     ) {
+        val allCmpDirectories = findAllCmpDirectories(picturesDirs)
+
+        if (allCmpDirectories.isEmpty()) {
+            AppLogger.w("No CMP directories found in any Pictures location")
+            return
+        }
+
+        dataList.forEach { data ->
+            when {
+                featureKey.lowercase().contains("inspeksi") -> {
+                    // Handle inspeksi photos with proper folder organization
+                    processInspeksiPhotos(data, allCmpDirectories, zip, zipParams, context)
+                }
+                else -> {
+                    // Handle other features normally
+                    processRegularPhotos(data, featureKey, allCmpDirectories, zip, zipParams, context)
+                }
+            }
+        }
+    }
+
+    private fun processInspeksiPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        AppLogger.d("Processing all inspeksi photos for id: ${data["id"]}")
+
+        // Process main inspeksi selfie photos
+        processInspeksiSelfiePhotos(data, allCmpDirectories, zip, zipParams, context)
+
+        // Process inspeksi detail photos
+        processInspeksiDetailPhotos(data, allCmpDirectories, zip, zipParams, context)
+    }
+
+    private fun processInspeksiSelfiePhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        // Handle main header selfie photos (foto) - these go to INSPEKSI_BY_USER folder
+        val foto = data["foto_user"] as? String
+
+        if (!foto.isNullOrBlank()) {
+            val photoPaths = foto.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "inspeksi/photos/${AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser}",
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+
+        // Handle main header follow-up selfie photos (foto_pemulihan) - also go to INSPEKSI_BY_USER folder
+        val fotoPemulihan = data["foto_user_pemulihan"] as? String
+
+        if (!fotoPemulihan.isNullOrBlank()) {
+            val photoPaths = fotoPemulihan.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "inspeksi/photos/${AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser}",
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+    }
+
+    private fun processInspeksiDetailPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        val inspeksiDetailList = data["inspeksi_detail"] as? List<Map<String, Any>>
+
+        inspeksiDetailList?.forEach { detailData ->
+            // Process regular detail photos
+            val detailPhotoPathString = detailData["foto"] as? String
+            val detailFollowUpPhotoString = detailData["foto_pemulihan"] as? String
+            val noPokok = detailData["no_pokok"] as? Int ?: 0
+
+            // Process regular detail photos
+            if (!detailPhotoPathString.isNullOrBlank()) {
+                val detailPhotoPaths = detailPhotoPathString.split(";")
+
+                detailPhotoPaths.forEach { photoPath ->
+                    if (photoPath.isNotBlank()) {
+                        val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                        // Determine folder based on no_pokok and photo content
+                        val targetFolder = if (noPokok == 0) {
+                            AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH
+                        } else {
+                            AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok
+                        }
+
+                        addPhotoToZip(
+                            photoPath.trim(),
+                            photoFileName,
+                            "inspeksi/photos/$targetFolder",
+                            allCmpDirectories,
+                            zip,
+                            zipParams,
+                            context
+                        )
+                    }
+                }
+            }
+
+            // Process follow-up/recovery photos
+            if (!detailFollowUpPhotoString.isNullOrBlank()) {
+                val followUpPhotoPaths = detailFollowUpPhotoString.split(";")
+
+                followUpPhotoPaths.forEach { photoPath ->
+                    if (photoPath.isNotBlank()) {
+                        val photoFileName = photoPath.trim().substringAfterLast("/")
+
+                        // Determine folder based on no_pokok for follow-up photos
+                        val targetFolder = if (noPokok == 0) {
+                            AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH
+                        } else {
+                            AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok
+                        }
+
+                        addPhotoToZip(
+                            photoPath.trim(),
+                            photoFileName,
+                            "inspeksi/photos/$targetFolder",
+                            allCmpDirectories,
+                            zip,
+                            zipParams,
+                            context
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun findAllCmpDirectories(picturesDirs: List<File>): List<File> {
         val allCmpDirectories = mutableListOf<File>()
 
-        // Find all CMP directories in all possible Pictures folders
         for (picturesDir in picturesDirs) {
             if (!picturesDir.exists() || !picturesDir.isDirectory) {
                 AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
@@ -694,175 +737,158 @@ object AppUtils {
             AppLogger.d("Found ${cmpDirectories.size} CMP directories: ${cmpDirectories.map { it.name }}")
 
             allCmpDirectories.addAll(cmpDirectories)
-        }
 
-        // Also check in the main Pictures directory itself
-        for (picturesDir in picturesDirs) {
+            // Also check in the main Pictures directory itself
             val mainPicsDir = File(picturesDir.parentFile, "Pictures")
             if (mainPicsDir.exists() && mainPicsDir.isDirectory) {
-                val cmpDirectories = mainPicsDir.listFiles { file ->
+                val additionalCmpDirectories = mainPicsDir.listFiles { file ->
                     file.isDirectory && file.name.startsWith("CMP")
                 } ?: emptyArray()
 
                 AppLogger.d("Looking for CMP directories in: ${mainPicsDir.absolutePath}")
-                AppLogger.d("Found ${cmpDirectories.size} CMP directories: ${cmpDirectories.map { it.name }}")
+                AppLogger.d("Found ${additionalCmpDirectories.size} CMP directories: ${additionalCmpDirectories.map { it.name }}")
 
-                allCmpDirectories.addAll(cmpDirectories)
+                allCmpDirectories.addAll(additionalCmpDirectories)
             }
         }
 
-        if (allCmpDirectories.isEmpty()) {
-            AppLogger.w("No CMP directories found in any Pictures location")
-        }
+        return allCmpDirectories
+    }
 
-        // Process each data entry to find photos
-        dataList.forEach { data ->
-            // Extract photo paths from the "foto" field
-            val photoPathString = data["foto"] as? String
+    private fun processInspeksiMainPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        val photoPathString = data["foto"] as? String
+        AppLogger.d("Processing main inspeksi photos for id: ${data["id"]}")
 
-            AppLogger.d("id: ${data["id"]}")
-            AppLogger.d("Processing data: $data")
+        if (!photoPathString.isNullOrBlank()) {
+            val photoPaths = photoPathString.split(";")
 
-            if (!photoPathString.isNullOrBlank()) {
-                // Split by semicolon to handle multiple photos
-                val photoPaths = photoPathString.split(";")
-
-                photoPaths.forEach { photoPath ->
-                    if (photoPath.isNotBlank()) {
-                        // Determine the file name from the path
-                        val photoFileName = photoPath.trim().substringAfterLast("/")
-
-                        // First try: Look for the exact file
-                        val photoFile = File(photoPath.trim())
-
-                        // Track if we found the photo
-                        var photoFound = false
-
-                        if (photoFile.exists() && photoFile.isFile) {
-                            try {
-                                // Add the photo to the zip file in the appropriate feature folder
-                                val targetPath = "$featureKey/photos/$photoFileName"
-                                zipParams.fileNameInZip = targetPath
-                                zip.addFile(photoFile, zipParams)
-                                photoFound = true
-                                AppLogger.d("Added photo to zip (direct path): ${photoFile.absolutePath} -> $targetPath")
-                            } catch (e: Exception) {
-                                AppLogger.e("Failed to add photo to zip: ${photoFile.absolutePath}, Error: ${e.message}")
-                            }
-                        } else {
-                            // Find photo by trying multiple search strategies
-                            val foundFile =
-                                findPhotoFile(allCmpDirectories, photoPath.trim(), photoFileName)
-
-                            if (foundFile != null) {
-                                try {
-                                    zipParams.fileNameInZip = "$featureKey/photos/${foundFile.name}"
-                                    zip.addFile(foundFile, zipParams)
-                                    photoFound = true
-                                    AppLogger.d("Added photo to zip (from search): ${foundFile.absolutePath}")
-                                } catch (e: Exception) {
-                                    AppLogger.e("Failed to add photo to zip: ${foundFile.absolutePath}, Error: ${e.message}")
-                                }
-                            }
-                        }
-
-                        if (!photoFound) {
-                            AppLogger.w("Photo not found in any directory: $photoPath")
-
-                            // One last attempt - check if it's a relative path from app's external files directory
-                            val relativePathFile =
-                                File(context.getExternalFilesDir(null), photoPath.trim())
-                            if (relativePathFile.exists() && relativePathFile.isFile) {
-                                try {
-                                    zipParams.fileNameInZip = "$featureKey/photos/$photoFileName"
-                                    zip.addFile(relativePathFile, zipParams)
-                                    AppLogger.d("Added photo to zip (relative path): ${relativePathFile.absolutePath}")
-                                } catch (e: Exception) {
-                                    AppLogger.e("Failed to add photo to zip: ${relativePathFile.absolutePath}, Error: ${e.message}")
-                                }
-                            }
-                        }
-                    }
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "inspeksi/photos/inspeksi", // Main inspeksi photos folder
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
                 }
             }
         }
     }
 
-    /**
-     * Helper function to find a photo file using multiple search strategies
-     */
+
+    private fun processRegularPhotos(
+        data: Map<String, Any>,
+        featureKey: String,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        val photoPathString = data["foto"] as? String
+        AppLogger.d("Processing regular photos for feature: $featureKey, id: ${data["id"]}")
+
+        if (!photoPathString.isNullOrBlank()) {
+            val photoPaths = photoPathString.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "$featureKey/photos", // Regular feature photos folder
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+    }
+
+    private fun addPhotoToZip(
+        photoPath: String,
+        photoFileName: String,
+        targetFolder: String,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        var photoFound = false
+
+        // First try: Look for the exact file
+        val photoFile = File(photoPath)
+
+        if (photoFile.exists() && photoFile.isFile) {
+            try {
+                val targetPath = "$targetFolder/$photoFileName"
+                zipParams.fileNameInZip = targetPath
+                zip.addFile(photoFile, zipParams)
+                photoFound = true
+                AppLogger.d("Added photo to zip (direct path): ${photoFile.absolutePath} -> $targetPath")
+            } catch (e: Exception) {
+                AppLogger.e("Failed to add photo to zip: ${photoFile.absolutePath}, Error: ${e.message}")
+            }
+        } else {
+            // Find photo by searching in CMP directories
+            val foundFile = findPhotoFile(allCmpDirectories, photoPath, photoFileName)
+
+            if (foundFile != null) {
+                try {
+                    val targetPath = "$targetFolder/${foundFile.name}"
+                    zipParams.fileNameInZip = targetPath
+                    zip.addFile(foundFile, zipParams)
+                    photoFound = true
+                    AppLogger.d("Added photo to zip (from search): ${foundFile.absolutePath} -> $targetPath")
+                } catch (e: Exception) {
+                    AppLogger.e("Failed to add photo to zip: ${foundFile.absolutePath}, Error: ${e.message}")
+                }
+            }
+        }
+
+        if (!photoFound) {
+            AppLogger.w("Photo not found in any directory: $photoPath")
+
+            // One last attempt - check if it's a relative path
+            val relativePathFile = File(context.getExternalFilesDir(null), photoPath)
+            if (relativePathFile.exists() && relativePathFile.isFile) {
+                try {
+                    val targetPath = "$targetFolder/$photoFileName"
+                    zipParams.fileNameInZip = targetPath
+                    zip.addFile(relativePathFile, zipParams)
+                    AppLogger.d("Added photo to zip (relative path): ${relativePathFile.absolutePath} -> $targetPath")
+                } catch (e: Exception) {
+                    AppLogger.e("Failed to add photo to zip: ${relativePathFile.absolutePath}, Error: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // You'll need this helper function (if not already exists)
     private fun findPhotoFile(
-        directories: List<File>,
+        cmpDirectories: List<File>,
         photoPath: String,
         photoFileName: String
     ): File? {
-        // Strategy 1: Direct filename match in any CMP directory
-        for (dir in directories) {
-            val file = File(dir, photoFileName)
-            if (file.exists() && file.isFile) {
-                AppLogger.d("Found photo with exact name match: ${file.absolutePath}")
-                return file
+        for (cmpDir in cmpDirectories) {
+            val photoFile = File(cmpDir, photoFileName)
+            if (photoFile.exists() && photoFile.isFile) {
+                return photoFile
             }
         }
-
-        // Strategy 2: Find files containing this filename
-        for (dir in directories) {
-            val matchingFiles = dir.listFiles { file ->
-                file.isFile && file.name.contains(photoFileName)
-            } ?: emptyArray()
-
-            if (matchingFiles.isNotEmpty()) {
-                AppLogger.d("Found photo with partial name match: ${matchingFiles.first().absolutePath}")
-                return matchingFiles.first()
-            }
-        }
-
-        // Strategy 3: For cases like "Panen TBS_1_2025227_112824.jpg",
-        // extract the base pattern and number
-        val patternMatch = """(.*?)_(\d+)_\d+_\d+\.jpg""".toRegex().find(photoFileName)
-        if (patternMatch != null) {
-            val (baseName, number) = patternMatch.destructured
-
-            // Look for files matching the pattern
-            for (dir in directories) {
-                if (dir.name.contains(baseName, ignoreCase = true)) {
-                    val matchingFiles = dir.listFiles { file ->
-                        file.isFile && file.name.contains("${baseName}_${number}")
-                    } ?: emptyArray()
-
-                    if (matchingFiles.isNotEmpty()) {
-                        AppLogger.d("Found photo with pattern match: ${matchingFiles.first().absolutePath}")
-                        return matchingFiles.first()
-                    }
-                }
-            }
-
-            // Try finding any file with the base name and number
-            for (dir in directories) {
-                val matchingFiles = dir.listFiles { file ->
-                    file.isFile && file.name.contains("${baseName}_${number}")
-                } ?: emptyArray()
-
-                if (matchingFiles.isNotEmpty()) {
-                    AppLogger.d("Found photo with loose pattern match: ${matchingFiles.first().absolutePath}")
-                    return matchingFiles.first()
-                }
-            }
-        }
-
         return null
-    }
-
-
-    // Convert List<Map<String, Any>> to JSON String
-    private fun convertDataToJsonString(data: List<Map<String, Any>>): String {
-        val jsonArray = JSONArray()
-        data.forEach { entry ->
-            val jsonObject = JSONObject()
-            entry.forEach { (key, value) -> jsonObject.put(key, value) }
-            jsonArray.put(jsonObject)
-        }
-        return jsonArray.toString()
     }
 
     /**
@@ -1290,23 +1316,35 @@ object AppUtils {
         return if (featureName == ListFeatureNames.RekapHasilPanen ||
             featureName == ListFeatureNames.RekapPanenDanRestan ||
             featureName == ListFeatureNames.DetailESPB ||
-            featureName == ListFeatureNames.TransferHektarPanen) {
+            featureName == ListFeatureNames.TransferHektarPanen ||
+            featureName == ListFeatureNames.TransferInspeksiPanen) {
 
-            val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
+            if (featureName == ListFeatureNames.TransferInspeksiPanen) {
+                // For TransferInspeksiPanen, just show blok names without sum/count
+                mappedData
+                    .filter { it["blok_name"].toString() != "-" }
+                    .map { it["blok_name"].toString() }
+                    .distinct()
+                    .sorted()
+                    .joinToString(", ")
+            } else {
+                // For other features, show with sum and count
+                val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
-            mappedData
-                .filter { it["blok_name"].toString() != "-" }
-                .groupBy { it["blok_name"].toString() }
-                .mapValues { (_, items) ->
-                    val count = items.size
-                    val paSum = items.sumOf { item ->
-                        extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                mappedData
+                    .filter { it["blok_name"].toString() != "-" }
+                    .groupBy { it["blok_name"].toString() }
+                    .mapValues { (_, items) ->
+                        val count = items.size
+                        val paSum = items.sumOf { item ->
+                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                        }
+                        "${paSum.toInt()}/$count"  // Convert double sum to integer for display
                     }
-                    "${paSum.toInt()}/$count"  // Convert double sum to integer for display
-                }
-                .toSortedMap() // Sort by blok_name
-                .map { (blokName, summary) -> "$blokName ($summary)" }
-                .joinToString(", ")
+                    .toSortedMap() // Sort by blok_name
+                    .map { (blokName, summary) -> "$blokName ($summary)" }
+                    .joinToString(", ")
+            }
         } else {
             getDistinctBlokNames(mappedData)
         }

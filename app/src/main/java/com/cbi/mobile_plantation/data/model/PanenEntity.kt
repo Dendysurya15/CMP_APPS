@@ -38,6 +38,9 @@ data class PanenEntity(
     val status_pengangkutan: Int = 0, //1 diangkut unit, 0 belum diangkut, 2 status angkut manual
     val status_insert_mpanen: Int = 0,
     val status_scan_mpanen: Int = 0,
+    val status_scan_inspeksi: Int = 0,
+    val archive_transfer_inspeksi: Int = 0,
     val jumlah_pemanen: Int = 1,
-    val archive_mpanen: Int=0
+    val archive_mpanen: Int=0,
+    val isPushedToServer: Int = 0
     )

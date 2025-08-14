@@ -1,7 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
-import com.cbi.markertph.data.model.JenisTPHModel
+
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.KaryawanDao
@@ -13,13 +13,15 @@ import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.DepartmentInfo
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -30,9 +32,6 @@ import okhttp3.ResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Response
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 class DatasetRepository(
     context: Context,
@@ -51,12 +50,16 @@ class DatasetRepository(
     private val blokDao = database.blokDao()
     private val afdelingDao = database.afdelingDao()
     private val jenisTPHDao = database.jenisTPHDao()
+    private val parameterDao = database.parameterDao()
 
 
     suspend fun updateOrInsertKaryawan(karyawans: List<KaryawanModel>) =
         karyawanDao.updateOrInsertKaryawan(karyawans)
 
     suspend fun updateOrInsertMill(mills: List<MillModel>) = millDao.updateOrInsertMill(mills)
+
+    suspend fun updateOrInsertParameter(parameter: List<ParameterModel>) = parameterDao.updateOrInsertParameter(parameter)
+
     suspend fun InsertKendaraan(kendaraan: List<KendaraanModel>) =
         kendaraanDao.InsertKendaraan(kendaraan)
 
@@ -146,8 +149,21 @@ class DatasetRepository(
         tphDao.getTPHDetailsByID(tphId)
     }
 
+
     suspend fun getLatLonDivisi(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
         return tphDao.getLatLonByDivisi(idEstate, idDivisi)
+    }
+
+    suspend fun getLatLonDivisiByTPHIds(
+        idEstate: Int,
+        idDivisi: Int,
+        tphIds: List<Int>
+    ): List<TPHNewModel> {
+        return if (tphIds.isEmpty()) {
+            emptyList()
+        } else {
+            tphDao.getLatLonByDivisiAndTPHIds(idEstate, idDivisi, tphIds)
+        }
     }
 
     suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
@@ -208,6 +224,27 @@ class DatasetRepository(
         return apiService.downloadDataset(request)
     }
 
+    suspend fun getParameter(): Response<ResponseBody> {
+        // Create the JSON request using JSONObject
+        val jsonObject = JSONObject().apply {
+            put("table", "parameter")
+            put("select", JSONArray().apply {
+                put("id")
+                put("isjson")
+                put("param_val")
+                put("keterangan")
+            })
+        }
+
+        // Convert JSONObject to RequestBody
+        val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("Parameter API Request: ${jsonObject.toString()}")
+
+        // Make the API call
+        return apiService.getDataRaw(requestBody)
+    }
+
     suspend fun downloadSmallDataset(regional: Int): Response<ResponseBody> {
         return apiService.downloadSmallDataset(mapOf("regional" to regional))
     }
@@ -226,7 +263,10 @@ class DatasetRepository(
         return apiService.downloadSettingJson(requestBody)
     }
 
-    // Add this to your repository - with pagination
+    suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
+        return tphDao.getTPHsByIds(tphIds)
+    }
+
     suspend fun getTPHEstate(estateAbbr: String): Response<ResponseBody> {
         // Build the JSON object for the request
         val jsonObject = JSONObject().apply {
@@ -265,10 +305,5 @@ class DatasetRepository(
 
         // Perform API call
         return apiService.getDataRaw(requestBody)
-    }
-
-
-    suspend fun getTPHsByIds(tphIds: List<Int>): List<TPHNewModel> {
-        return tphDao.getTPHsByIds(tphIds)
     }
 }

@@ -21,6 +21,7 @@
     <string name="al_confirm_delete_photo">Apakah Anda yakin untuk menghapus foto ini?</string>
     <string name="al_confirm_asistensi">Menu ini digunakan untuk input panen asistensi ke estate lain, Pastikan pilihan anda benar!</string>
     <string name="al_confirm_download_data_panen_case_inspection">Apakah Anda yakin untuk mengunduh data panen H+1 hingga H+7?</string>
+    <string name="al_confirm_download_data_inspeksi_case_inspection">Apakah Anda yakin untuk mengunduh data inspeksi H+1 hingga H+7?</string>
     <string name="al_confirm_upload">Apakah anda yakin untuk upload data CMP?</string>
     <string name="al_confirm_download_tph_asistensi">Apakah anda yakin untuk mengunduh data TPH Asistensi dari estate tersebut?</string>
     <string name="al_confirm_sinkronisasi_master_dataset">Apakah anda yakin untuk melakukan sinkronisasi master dataset?</string>
@@ -121,6 +122,8 @@
     <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
     <string name="al_must_checked_master_estate">Centang pilihan estate diatas!</string>
     <string name="al_validation_qr_krani_scan">Data blok tidak tervalidasi dalam database. Pastikan QR Code yang dipindai merupakan QR Code dari Kerani panen estate yang sesuai.</string>
+    <string name="response_no_data_in_panen">Semua data sudah ada di database lokal. Tidak ada data baru untuk diunduh.</string>
+    <string name="alert_take_foto_for_inspection"><![CDATA[- Brondolan kurang dari 50 tidak perlu di foto\n- Pruning tidak perlu difoto]]></string>
 
     <string-array name="tipe_panen_options">
         <item>Normal</item>
@@ -132,5 +135,6 @@
         <item>12sp</item>
         <item>17sp</item>
     </array>
+    <string name="title_activity_follow_up_inspeksi">FollowUpInspeksi</string>
 
 </resources>

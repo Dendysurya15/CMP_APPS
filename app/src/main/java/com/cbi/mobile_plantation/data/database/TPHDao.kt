@@ -6,7 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.repository.DatasetRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 
@@ -43,7 +43,6 @@ abstract class TPHDao {
     @Query("SELECT COUNT(*) FROM tph WHERE dept = :deptId")
     abstract suspend fun getCountByDept(deptId: Int): Int
 
-    // The update transaction now checks for department ID
     @Transaction
     open suspend fun updateOrInsertTPH(tph: List<TPHNewModel>) {
         AppLogger.d("TPH Upsert - Starting with ${tph.size} records")
@@ -78,8 +77,7 @@ abstract class TPHDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun upsertBatch(tph: List<TPHNewModel>)
 
-
-    @Query("SELECT * FROM tph WHERE blok_ppro = :blockId LIMIT 1")
+    @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
     abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -126,6 +124,20 @@ abstract class TPHDao {
         idDivisi: Int,
     ): List<TPHNewModel>
 
+    @Query(
+        """
+SELECT * FROM tph 
+WHERE dept = :idEstate 
+AND divisi = :idDivisi
+AND id IN (:tphIds)
+"""
+    )
+    abstract fun getLatLonByDivisiAndTPHIds(
+        idEstate: Int,
+        idDivisi: Int,
+        tphIds: List<Int>
+    ): List<TPHNewModel>
+
     // If you need the values separately, keep these queries as well
     @Query("SELECT nomor FROM tph WHERE id = :id")
     abstract suspend fun getNomorTPHbyId(id: Int): String?
@@ -141,7 +153,7 @@ abstract class TPHDao {
     SELECT * FROM tph 
     WHERE dept = :idEstate 
     AND  divisi = :idDivisi
-    AND tahun = :tahunTanam 
+    AND tahun = :tahunTanam
     AND blok = :idBlok
     """
     )

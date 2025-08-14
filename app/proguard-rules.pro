@@ -131,3 +131,63 @@
 -keep class java.util.zip.GZIPInputStream { *; }
 -keep class java.util.zip.GZIPOutputStream { *; }
 
+# ===== ADD THESE RULES FOR SEALED CLASSES =====
+
+# Keep all sealed classes and their subclasses
+-keep class * extends kotlin.** { *; }
+-keepclassmembers class * extends kotlin.** { *; }
+
+# Keep your specific sealed class
+-keep class com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel$SaveDataInspectionDetailsState** { *; }
+-keep class com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel$SaveDataInspectionState** { *; }
+
+# Keep all ViewModels and their nested classes
+-keep class com.cbi.mobile_plantation.ui.viewModel.** { *; }
+-keepclassmembers class com.cbi.mobile_plantation.ui.viewModel.** { *; }
+
+# Keep sealed classes specifically
+-keep class * extends kotlin.* { *; }
+-keepclassmembers class * {
+    synthetic <methods>;
+}
+
+# Keep Kotlin metadata for sealed classes
+-keepattributes RuntimeVisibleAnnotations
+-keepattributes RuntimeInvisibleAnnotations
+-keepattributes RuntimeVisibleParameterAnnotations
+-keepattributes RuntimeInvisibleParameterAnnotations
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
+# Keep Kotlin When mappings (crucial for sealed classes)
+-keepclassmembers class **$WhenMappings {
+    <fields>;
+}
+
+# Keep enum methods
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# ===== ROOM DATABASE FIXES =====
+
+# More specific Room rules (replace your existing Room rules with these)
+-keep class androidx.room.** { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao class * { *; }
+-keep @androidx.room.Database class * { *; }
+
+# Keep your specific Room models
+-keep class com.cbi.mobile_plantation.data.local.entity.** { *; }
+-keep class com.cbi.mobile_plantation.data.model.InspectionDetailModel { *; }
+
+# Keep Room generated classes
+-keep class com.cbi.mobile_plantation.data.local.dao.**_Impl { *; }
+-keep class com.cbi.mobile_plantation.data.local.database.**_Impl { *; }
+
+# ===== KOTLIN COROUTINES (Enhanced) =====
+-keep class kotlinx.coroutines.** { *; }
+-keepclassmembernames class kotlinx.** {
+    volatile <fields>;
+}

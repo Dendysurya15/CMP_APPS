@@ -1,9 +1,11 @@
 package com.cbi.mobile_plantation.data.database
 
 import androidx.room.*
+import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 
 @Dao
 abstract class PanenDao {
@@ -24,8 +26,29 @@ abstract class PanenDao {
         }
     }
 
+
+    @Query("""
+        SELECT * FROM ${AppUtils.DatabaseTables.PANEN} 
+        WHERE tph_id = :tphId 
+        AND date_created = :createdDate 
+        AND created_by = :createdBy 
+        AND no_espb = :spbKode 
+        AND ancak = :ancak 
+        LIMIT 1
+    """)
+    abstract suspend fun checkExistingRecord(
+        tphId: String,
+        createdDate: String,
+        createdBy: Int,
+        spbKode: String,
+        ancak: Int
+    ): PanenEntity?
+
     @Query("SELECT EXISTS(SELECT 1 FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated)")
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
+
+    @Query("SELECT * FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
+    abstract suspend fun existsModel(tphId: String, dateCreated: String): PanenEntity?
 
     @Query("SELECT id FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
     abstract suspend fun getIdByTphIdAndDateCreated(tphId: String, dateCreated: String): Int
@@ -48,6 +71,9 @@ abstract class PanenDao {
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0 AND status_espb = 0 AND date(date_created) = date('now', 'localtime') AND scan_status = 0")
     abstract suspend fun getCount(): Int
 
+    @Query("SELECT COUNT(*) FROM panen_table WHERE archive_transfer_inspeksi = 0 AND status_espb = 0 AND date(date_created) = date('now', 'localtime') AND status_scan_inspeksi = 0")
+    abstract suspend fun getCountForTransferInspeksi(): Int
+
     @Query("""
     SELECT COUNT(*) FROM panen_table 
     WHERE archive = :archive 
@@ -58,33 +84,57 @@ abstract class PanenDao {
     abstract suspend fun getCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
 
+    @Query("UPDATE panen_table SET status_espb = 0 WHERE tph_id = :tphId AND date_created = :dateCreated")
+    abstract suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int
+
+
+    @Query("""
+    SELECT * FROM ${AppUtils.DatabaseTables.PANEN}
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+    AND archive_transfer_inspeksi = :archive_transfer_inspeksi
+""")
+    abstract suspend fun getPanenForTransferInspeksi(
+        date: String? = null,
+        archive_transfer_inspeksi: Int? = null
+    ): List<PanenEntityWithRelations>
+
+    @Query("""
+    SELECT COUNT(*) FROM panen_table 
+    WHERE (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
+    AND archive_transfer_inspeksi = :archive_transfer_inspeksi
+""")
+    abstract suspend fun getCountPanenForTransferInspeksi(
+        date: String? = null,
+        archive_transfer_inspeksi: Int
+    ): Int
+
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 1 AND status_espb = 0 AND date(date_created) = date('now', 'localtime')")
     abstract suspend fun getCountArchive(): Int
 
-    @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0 AND status_espb = 0 AND scan_status = 1 AND date(date_created) = date('now', 'localtime')" )
+    @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 0  AND status_transfer_restan = 0 AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') AND date(date_created) = date('now', 'localtime') AND scan_status == 1" )
     abstract suspend fun getCountApproval(): Int
 
 
     @Query("""
     SELECT * FROM panen_table 
-    WHERE archive = :archive 
-    AND status_espb = :statusEspb 
-    AND scan_status = :scanStatus
+    WHERE archive = :archive
+    AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') = :hasNoEspb
     AND status_transfer_restan = :statusTransferRestan
+    AND scan_status = :scanStatus
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
     ORDER BY date_created DESC
 """)
-    abstract suspend fun loadESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
+    abstract suspend fun loadESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
 
     @Query("""
     SELECT COUNT(*) FROM panen_table 
     WHERE archive = :archive 
-    AND status_espb = :statusEspb 
-    AND scan_status = :scanStatus
+    AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') = :hasNoEspb
     AND status_transfer_restan = :statusTransferRestan
+    AND scan_status = :scanStatus
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
 """)
-    abstract suspend fun countESPB(archive: Int, statusEspb: Int,statusTransferRestan:Int, scanStatus: Int, date: String?): Int
+    abstract suspend fun countESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): Int
 
     @Query("""
     UPDATE panen_table
@@ -128,6 +178,9 @@ abstract class PanenDao {
     @Query("UPDATE panen_table SET status_transfer_restan = 1 WHERE id = :id")
     abstract fun changeStatusTransferRestan(id: Int): Int
 
+    @Query("UPDATE panen_table SET archive_transfer_inspeksi = 1 WHERE id = :id")
+    abstract fun changeStatusTransferInspeksiPanen(id: Int): Int
+
     @Query("UPDATE panen_table SET archive_mpanen = 1 WHERE id = :id")
     abstract fun archiveMpanenByID(id: Int): Int
 
@@ -149,12 +202,28 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen = 0 and status_transfer_restan = 0")
+    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen = 0 and status_transfer_restan = 0 AND isPushedToServer = 0")
     abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE archive != 1")
     abstract fun getAllTPHHasBeenSelected(): List<PanenEntityWithRelations>
+
+    @Query("""
+        SELECT * FROM panen_table 
+        WHERE datetime(date_created) >= datetime('now', '-7 days')
+        AND karyawan_nik IS NOT NULL 
+        AND karyawan_nik != ''
+        AND karyawan_nik != 'NULL'
+        AND karyawan_nama IS NOT NULL 
+        AND karyawan_nama != ''
+        AND karyawan_nama != 'NULL'
+    """)
+    abstract fun getAllTPHinWeek(): List<PanenEntityWithRelations>
+
+    @Transaction
+    @Query("SELECT * FROM panen_table WHERE scan_status = 0 and status_restan = 0")
+    abstract fun getAllPanenForInspection(): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE status_espb = :status")
@@ -180,6 +249,13 @@ abstract class PanenDao {
 
     @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen AND strftime('%Y-%m-%d', date_created) = :date")
     abstract fun getAllScanMPanenByDateWithFilter(status_scan_mpanen: Int, date: String): List<PanenEntityWithRelations>
+
+    @Query("SELECT * FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
+    abstract  suspend fun findByTphAndDate(tphId: String, dateCreated: String): PanenEntity?
+
+    // Update status_scan_inspeksi
+    @Query("UPDATE panen_table SET status_scan_inspeksi = :status WHERE id = :id")
+    abstract  suspend fun updateScanInspeksiStatus(id: Int, status: Int): Int
 
     @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen")
     abstract fun getAllScanMPanenWithoutDateFilter(status_scan_mpanen: Int): List<PanenEntityWithRelations>

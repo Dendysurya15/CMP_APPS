@@ -5,7 +5,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import com.cbi.markertph.data.model.JenisTPHModel
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
+
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.utils.AppUtils
 

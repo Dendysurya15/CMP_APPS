@@ -1,16 +1,13 @@
 package com.cbi.mobile_plantation.data.database
 
 import android.content.Context
-import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.cbi.markertph.data.model.JenisTPHModel
-import com.cbi.mobile_plantation.data.database.InspectionDao
 import com.cbi.mobile_plantation.data.model.InspectionModel
-import com.cbi.mobile_plantation.data.model.InspectionPathModel
+import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.AbsensiModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.FlagESPBModel
@@ -20,15 +17,16 @@ import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
+import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.utils.AppUtils
-import java.util.concurrent.Executors
 
 /**
  * Database Version History
@@ -70,16 +68,17 @@ import java.util.concurrent.Executors
         UploadCMPModel::class,
         AbsensiModel::class,
         InspectionModel::class,
-        InspectionPathModel::class,
+        InspectionDetailModel::class,
         KendaraanModel::class,
         BlokModel::class,
         HektarPanenEntity::class,
         EstateModel::class,
         AfdelingModel::class,
         JenisTPHModel::class,
+        ParameterModel::class,
         MutuBuahEntity::class
     ],
-    version = 50
+    version = 51
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -93,7 +92,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun uploadCMPDao(): UploadCMPDao
     abstract fun absensiDao(): AbsensiDao
     abstract fun inspectionDao(): InspectionDao
-    abstract fun inspectionPathDao(): InspectionPathDao
+    abstract fun inspectionDetailDao(): InspectionDetailDao
     abstract fun kendaraanDao(): KendaraanDao
     abstract fun blokDao(): BlokDao
     abstract fun estateDao(): EstateDao
@@ -101,6 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun hektarPanenDao(): HektarPanenDao
     abstract fun jenisTPHDao(): JenisTPHDao
     abstract fun mutuBuahDao(): MutuBuahDao
+    abstract fun parameterDao(): ParameterDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {
@@ -160,8 +160,7 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_43_44,
                         MIGRATION_44_45,
                         MIGRATION_46_47,
-                        MIGRATION_47_48,
-                                MIGRATION_48_49
+                        MIGRATION_47_48
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -629,13 +628,100 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_47_48 = object : Migration(47, 48) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE estate ADD COLUMN tph_otomatis INTEGER")
-            }
-        }
+                // Create new InspectionModel table structure
+                database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `inspeksi_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `created_date` TEXT NOT NULL,
+                `created_by` TEXT NOT NULL,
+                `tph_id` INTEGER NOT NULL,
+                `date_panen` TEXT NOT NULL,
+                `jalur_masuk` TEXT NOT NULL,
+                `brd_tinggal` INTEGER NOT NULL,
+                `buah_tinggal` INTEGER NOT NULL,
+                `jenis_kondisi` INTEGER NOT NULL,
+                `baris1` INTEGER NOT NULL,
+                `baris2` INTEGER,
+                `jml_pkk_inspeksi` INTEGER NOT NULL,
+                `tracking_path` TEXT NOT NULL,
+                `app_version` TEXT NOT NULL,
+                `status_upload` TEXT NOT NULL
+            )
+        """)
 
-        val MIGRATION_48_49 = object : Migration(47, 48) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE panen_table ADD COLUMN status_transfer_restan INTEGER NOT NULL DEFAULT 0")
+                // Create new InspectionDetailModel table
+                database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `inspeksi_detail` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `id_inspeksi` TEXT NOT NULL,
+                `no_pokok` INTEGER NOT NULL,
+                `prioritas` INTEGER,
+                `pokok_panen` INTEGER,
+                `serangan_tikus` INTEGER,
+                `ganoderma` INTEGER,
+                `susunan_pelepah` INTEGER,
+                `pelepah_sengkleh` INTEGER,
+                `kondisi_pruning` INTEGER,
+                `brd_tidak_dikutip` INTEGER,
+                `foto` TEXT,
+                `komentar` TEXT,
+                `created_by` INTEGER NOT NULL,
+                `created_date` TEXT NOT NULL,
+                `status_upload` TEXT NOT NULL,
+                `status_uploaded_image` TEXT NOT NULL
+            )
+        """)
+
+                // Migrate existing data from old inspeksi table to new tables
+                // This is a complex migration - you might want to handle this based on your specific data migration needs
+
+                // Example migration (adjust based on your needs):
+                database.execSQL("""
+            INSERT INTO inspeksi_new (
+                created_date, created_by, tph_id, date_panen, jalur_masuk, 
+                brd_tinggal, buah_tinggal, jenis_kondisi, baris1, baris2,
+                jml_pkk_inspeksi, tracking_path, app_version, status_upload
+            )
+            SELECT 
+                created_date, 
+                CAST(created_by AS TEXT), 
+                tph_id, 
+                created_date as date_panen, 
+                jalur_masuk,
+                brd_tinggal, 
+                buah_tinggal, 
+                jenis_kondisi, 
+                baris1, 
+                baris2,
+                jml_pokok as jml_pkk_inspeksi,
+                '' as tracking_path,
+                '' as app_version,
+                '' as status_upload
+            FROM inspeksi
+        """)
+
+                // Migrate detail data
+                database.execSQL("""
+            INSERT INTO inspeksi_detail (
+                id_inspeksi, no_pokok, prioritas, pokok_panen, serangan_tikus,
+                ganoderma, susunan_pelepah, pelepah_sengkleh, kondisi_pruning,
+                brd_tidak_dikutip, foto, komentar, created_by, created_date,
+                status_upload, status_uploaded_image
+            )
+            SELECT 
+                CAST(id AS TEXT) as id_inspeksi,
+                no_pokok, prioritas, pokok_panen, serangan_tikus,
+                ganoderma, susunan_pelepah, pelepah_sengkleh, kondisi_pruning,
+                brd_tidak_dikutip, foto, komentar, created_by, created_date,
+                '' as status_upload,
+                '' as status_uploaded_image
+            FROM inspeksi 
+            WHERE no_pokok IS NOT NULL
+        """)
+
+                // Drop old table and rename new one
+                database.execSQL("DROP TABLE inspeksi")
+                database.execSQL("ALTER TABLE inspeksi_new RENAME TO inspeksi")
             }
         }
 

@@ -5,7 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.MillModel
 
@@ -35,6 +35,7 @@ abstract class BlokDao {
 
     @Query("SELECT * FROM blok WHERE dept_abbr = :est AND divisi_abbr = :afd AND id = :blockId LIMIT 1")
     abstract suspend fun getBlokByIdEstAfd(blockId: Int, est: String, afd: String): BlokModel?
+
 
     @Query("SELECT COUNT(*) FROM blok")
     abstract suspend fun getCount(): Int
