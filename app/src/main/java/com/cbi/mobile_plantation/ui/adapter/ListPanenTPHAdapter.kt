@@ -508,6 +508,168 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                             bottomSheet.layoutParams?.height = maxHeight
                         }
                 }
+            } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah){
+                binding.td1.text = extractedData.blokText
+                binding.td2.text = extractedData.tphText
+                binding.td3.text = extractedData.gradingText
+                binding.td4.text = extractedData.tanggalText
+
+
+                itemView.isClickable = true
+                itemView.isFocusable = true
+
+                itemView.setOnClickListener {
+                    val context = itemView.context
+                    val bottomSheetDialog = BottomSheetDialog(context)
+                    val view = LayoutInflater.from(context)
+                        .inflate(R.layout.layout_bottom_sheet_detail_table, null)
+
+                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                        "Detail Panen - ${extractedData.blokText} TPH ${extractedData.tphText}"
+
+                    view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
+                        bottomSheetDialog.dismiss()
+                    }
+
+                    val btnEditPemanen = view.findViewById<Button>(R.id.btnEditPemanen)
+                    if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1){
+                        btnEditPemanen.visibility = View.GONE
+                    }else{
+                        btnEditPemanen.visibility = View.VISIBLE
+                    }
+
+                    // Handle Edit Pemanen button click
+                    btnEditPemanen.setOnClickListener {
+                        showEditPemanenDialog(
+                            context,
+                            data,
+                            bottomSheetDialog,
+                            adapterPosition, // Pass the current position
+                            onDataRefreshCallback // Pass the callback
+                        )
+                    }
+
+                    val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
+
+                    if (recyclerView != null) {
+                        // Enable horizontal scrolling with custom layout manager
+                        val scrollableLayoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+                        recyclerView.layoutManager = scrollableLayoutManager
+
+                        // Add item decoration for even spacing
+                        val itemSpacing = (8 * context.resources.displayMetrics.density).toInt()
+                        recyclerView.addItemDecoration(object : RecyclerView.ItemDecoration() {
+                            override fun getItemOffsets(
+                                outRect: Rect,
+                                view: View,
+                                parent: RecyclerView,
+                                state: RecyclerView.State
+                            ) {
+                                outRect.left = itemSpacing / 2
+                                outRect.right = itemSpacing / 2
+                            }
+                        })
+
+                        // Enable overscroll effect for better UX
+                        recyclerView.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+
+                        val photoUrls = getPhotoUrlsFromItem(data, context)
+
+                        // Create adapter - shows up to 5 items
+                        val photoAdapter = PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
+                            // Handle photo click - show fullscreen
+                            if (position < photoUrls.size) {
+                                // Check if file exists before showing
+                                val photoFile = File(photoUrls[position])
+                                if (photoFile.exists()) {
+                                    // Show fullscreen photo
+                                    showFullscreenImage(context, photoFile)
+                                } else {
+                                    Toast.makeText(context, "Photo file not found", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+
+                        // Set the adapter
+                        recyclerView.adapter = photoAdapter
+                    } else {
+                        Log.e("BottomSheet", "RecyclerView not found in layout!")
+                    }
+
+
+                    bottomSheetDialog.setContentView(view)
+
+                    val maxHeight =
+                        (context.resources.displayMetrics.heightPixels * 0.85).toInt()
+
+                    val dateCreatedRaw = data["date_created"] as? String ?: "-"
+
+                    val originalFormat =
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val displayFormat =
+                        SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+
+                    val formattedDate = try {
+                        val date = originalFormat.parse(dateCreatedRaw)
+                        date?.let { displayFormat.format(it) } ?: "-"
+                    } catch (e: Exception) {
+                        "-"
+                    }
+
+                    val jjgJsonStr =
+                        data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
+                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
+                    val blokBanjir = data["blok_banjir"] as? Int ?: 0
+                    val blokBanjirText = when (blokBanjir) {
+                        1 -> "Ya"
+                        0 -> "Tidak"
+                        else -> "Tidak diketahui"
+                    }
+                    val infoItems = listOf(
+                        DetailInfoType.TANGGAL_BUAT to formattedDate,
+                        DetailInfoType.BLOK_BANJIR to blokBanjirText,
+                        DetailInfoType.ESTATE_AFDELING to "${data["nama_estate"]} / ${data["nama_afdeling"]}",
+                        DetailInfoType.BLOK_TAHUN to "${extractedData.blokText} / ${data["tahun_tanam"]}",
+                        DetailInfoType.ANCAK to "${data["ancak"]}",
+                        DetailInfoType.NO_TPH to extractedData.tphText,
+                        DetailInfoType.KEMANDORAN to "${data["nama_kemandorans"]}",
+                        DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
+                        DetailInfoType.TOTAL_JANJANG to data["jjgPanen"],
+                        DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to data["jjgKirim"],
+                        DetailInfoType.TOTAL_JANJANG_DI_BAYAR to data["jjgBayar"],
+                        DetailInfoType.TOTAL_DATA_BUAH_MENTAH to data["jjgMentah"],
+                        DetailInfoType.TOTAL_DATA_LEWAT_MASAK to data["jjgMasak"],
+                        DetailInfoType.TOTAL_DATA_JJG_KOSONG to data["jjgKosong"],
+                        DetailInfoType.TOTAL_DATA_ABNORMAL to data["jjgAbnormal"],
+                        DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to data["jjgSeranganTikus"],
+                        DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to data["jjgPanjang"],
+                        DetailInfoType.TOTAL_DATA_TIDAK_VCUT to data["jjgTidakVcut"],
+                    )
+
+                    // Set values for all items
+                    infoItems.forEach { (type, value) ->
+                        val itemView = view.findViewById<View>(type.id)
+                        // Only call setInfoItemValues if the itemView exists
+                        if (itemView != null) {
+                            setInfoItemValues(itemView, type.label, value.toString())
+                        }
+                    }
+
+                    bottomSheetDialog.show()
+
+                    bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                        ?.let { bottomSheet ->
+                            val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                            behavior.apply {
+                                this.peekHeight = maxHeight
+                                this.state = BottomSheetBehavior.STATE_EXPANDED
+                                this.isFitToContents = true
+                                this.isDraggable = false
+                            }
+                            bottomSheet.layoutParams?.height = maxHeight
+                        }
+                }
             }
             else if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 3) {
                 binding.td1.text = data["blok_name"].toString()
@@ -517,9 +679,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 itemView.isClickable = true
                 itemView.isFocusable = true
 
-
                 itemView.setOnClickListener {
-
 
                     val context = itemView.context
                     val bottomSheetDialog = BottomSheetDialog(context)
