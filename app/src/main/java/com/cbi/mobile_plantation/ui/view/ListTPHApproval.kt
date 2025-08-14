@@ -65,6 +65,7 @@ class ListTPHApproval : AppCompatActivity() {
     private val repository by lazy { AppRepository(this) }
 
     private var featureName: String? = null
+    private val saveDataTransferInspeksiList = mutableListOf<PanenEntity>()
 
     companion object {
         const val EXTRA_QR_RESULT = "scannedResult"
@@ -253,6 +254,13 @@ class ListTPHApproval : AppCompatActivity() {
                             val result =
                                 if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                                     repository.saveTPHDataList(saveData)
+                                } else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
+                                    repository.saveTransferInspeksi(
+                                        saveDataTransferInspeksiList,
+                                        createdBy,
+                                        creatorInfo,
+                                        this@ListTPHApproval
+                                    )
                                 } else {
                                     repository.saveScanMPanen(
                                         saveDataMPanenList,
@@ -271,29 +279,6 @@ class ListTPHApproval : AppCompatActivity() {
                                             _saveDataPanenState.value =
                                                 SaveDataPanenState.Success(saveResult.savedIds)
 
-                                            playSound(R.raw.berhasil_simpan)
-                                            Toasty.success(
-                                                this@ListTPHApproval,
-                                                "Data berhasil disimpan",
-                                                Toast.LENGTH_LONG,
-                                                true
-                                            ).show()
-                                            startActivity(
-                                                Intent(
-                                                    this@ListTPHApproval,
-                                                    HomePageActivity::class.java
-                                                )
-                                            )
-                                            finish()
-                                        }
-
-                                        is SaveTPHResult.PartialSuccess -> {
-                                            _saveDataPanenState.value =
-                                                SaveDataPanenState.PartialSuccess(
-                                                    savedIds = saveResult.savedIds,
-                                                    duplicateCount = saveResult.duplicateCount,
-                                                    duplicateInfo = saveResult.duplicateInfo
-                                                )
                                             playSound(R.raw.berhasil_simpan)
                                             delay(300)
                                             Toasty.success(
@@ -319,15 +304,50 @@ class ListTPHApproval : AppCompatActivity() {
                                                     duplicateInfo = saveResult.duplicateInfo
                                                 )
 
-                                            // Play success sound but show partial success message
+                                            // Play success sound
                                             playSound(R.raw.berhasil_simpan)
+                                            delay(300)
+                                            // Format duplicate info for user display
+                                            val duplicateDetails =
+                                                saveResult.duplicateInfo.replace("TPH ID:", "TPH:")
+                                                    .replace("Date:", "Tanggal:")
 
+                                            // Show alert for partial success with duplicates
                                             AlertDialogUtility.withSingleAction(
                                                 this@ListTPHApproval,
                                                 "OK",
-                                                "Sebagian data berhasil disimpan",
-                                                "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati.",
-                                                "warning.json"
+                                                "Beberapa data yang tidak terduplikat sudah tersimpan",
+                                                "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati.\n\nData duplikat:\n$duplicateDetails",
+                                                "warning.json",
+                                                color = R.color.orange
+                                            ) {
+                                                startActivity(
+                                                    Intent(
+                                                        this@ListTPHApproval,
+                                                        HomePageActivity::class.java
+                                                    )
+                                                )
+                                                finish()
+                                            }
+                                        }
+
+                                        is SaveTPHResult.AllDuplicate -> {
+                                            _saveDataPanenState.value =
+                                                SaveDataPanenState.Error("All data is duplicate")
+
+                                            // Format duplicate info for user display
+                                            val duplicateDetails =
+                                                saveResult.duplicateInfo.replace("TPH ID:", "TPH:")
+                                                    .replace("Date:", "Tanggal:")
+
+                                            // Show alert for all duplicate
+                                            AlertDialogUtility.withSingleAction(
+                                                this@ListTPHApproval,
+                                                "OK",
+                                                "Data duplikat, anda telah melakukan scan untuk data panen ini!",
+                                                "Semua ${saveResult.duplicateCount} data yang dipilih sudah ada di database.\n\nData duplikat:\n$duplicateDetails",
+                                                "warning.json",
+                                                color = R.color.colorRedDark
                                             ) {
                                                 startActivity(
                                                     Intent(
@@ -344,23 +364,11 @@ class ListTPHApproval : AppCompatActivity() {
                                     _saveDataPanenState.value = SaveDataPanenState.Error(
                                         exception.message ?: "Unknown error occurred"
                                     )
-                                    if (exception.message?.contains("All data is duplicate") == true) {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@ListTPHApproval,
-                                            "OK",
-                                            "Data duplikat, anda telah melakukan scan untuk data panen ini!",
-                                            "Error: ${exception.message}",
-                                            "warning.json"
-                                        ) {
-                                            // Stay on the same screen
-                                        }
-                                    } else {
-                                        Toasty.error(
-                                            this@ListTPHApproval,
-                                            "Error: ${exception.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
+                                    Toasty.error(
+                                        this@ListTPHApproval,
+                                        "Error: ${exception.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 }
                             )
                         } catch (e: Exception) {
@@ -380,10 +388,18 @@ class ListTPHApproval : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         // Set headers based on featureName
-        val headers = if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
-            listOf("BLOK-TPH", "PEMANEN", "JAM", "JJG")
-        } else {
-            listOf("BLOK", "TPH/JJG", "JAM", "KP")
+        val headers = when (featureName) {
+            AppUtils.ListFeatureNames.ScanPanenMPanen -> {
+                listOf("BLOK-TPH", "PEMANEN", "JAM", "JJG")
+            }
+
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                listOf("BLOK-TPH", "TANGGAL", "TIPE PANEN/\nANCAK") // Only 3 headers
+            }
+
+            else -> {
+                listOf("BLOK", "TPH/JJG", "JAM", "KP")
+            }
         }
 
         updateTableHeaders(headers)
@@ -450,7 +466,6 @@ class ListTPHApproval : AppCompatActivity() {
                 withContext(Dispatchers.IO) {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
 
-
                     AppLogger.d(jsonStr.toString())
                     jsonStr?.let {
                         data = parseTphData(it)
@@ -466,19 +481,46 @@ class ListTPHApproval : AppCompatActivity() {
                                 val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
                                 val totalTphTextView: TextView = findViewById(R.id.totalTPH)
                                 val listBlokTextView: TextView = findViewById(R.id.listBlok)
+                                val totalJjgSection: LinearLayout =
+                                    findViewById(R.id.totalJjgSection)
 
-                                val totalJjg = data.sumOf { it.jjg.toInt() }
-                                val totalTphCount = data.size
+                                // Handle different calculations based on feature
+                                when (featureName) {
+                                    AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                                        val blokSummary = calculateBlokSummary(
+                                            data,
+                                            featureName
+                                        ) // Pass featureName
+                                        val totalTransaksi = data.size
 
-                                val blokSummary = calculateBlokSummary(data)
+                                        totalSection.visibility = View.VISIBLE
+                                        totalJjgSection.visibility = View.GONE
+                                        blokSection.visibility = View.VISIBLE
+                                        totalTphTextView.text = totalTransaksi.toString()
+                                        listBlokTextView.text = blokSummary
+                                    }
 
+                                    else -> {
+                                        // For other features (ScanHasilPanen, ScanPanenMPanen)
+                                        val totalJjg = data.sumOf {
+                                            try {
+                                                it.jjg.toInt()
+                                            } catch (e: NumberFormatException) {
+                                                0 // Return 0 if jjg is "NULL" or invalid
+                                            }
+                                        }
+                                        val totalTphCount = data.size
+                                        val blokSummary = calculateBlokSummary(data, featureName)
 
-                                totalSection.visibility = View.VISIBLE
-                                blokSection.visibility = View.VISIBLE
-                                titleTotalJjg.text = if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) "Kirim Pabrik: " else "Jjg Bayar: "
-                                totalJjgTextView.text = totalJjg.toString()
-                                totalTphTextView.text = totalTphCount.toString()
-                                listBlokTextView.text = blokSummary
+                                        totalSection.visibility = View.VISIBLE
+                                        blokSection.visibility = View.VISIBLE
+                                        titleTotalJjg.text =
+                                            if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) "Kirim Pabrik: " else "Jjg Bayar: "
+                                        totalJjgTextView.text = totalJjg.toString()
+                                        totalTphTextView.text = totalTphCount.toString()
+                                        listBlokTextView.text = blokSummary
+                                    }
+                                }
                             }
 
                             adapter.updateList(data)
@@ -495,23 +537,34 @@ class ListTPHApproval : AppCompatActivity() {
                     ).show()
                 }
             }
-
         }
     }
 
-    private fun calculateBlokSummary(data: List<TphRvData>): String {
+    private fun calculateBlokSummary(data: List<TphRvData>, featureName: String? = null): String {
         // Group by normalized blok name (without trailing -xx)
         val blokGroups = data.groupBy { it.namaBlok.substringBeforeLast("-") }
 
-        // For each blok, calculate total jjg and count of unique TPH numbers
-        val blokSummaries = blokGroups.map { (blokName, entries) ->
-            val totalJjg = entries.sumOf { it.jjg.toInt() }
-            val uniqueTphCount = entries.distinctBy { it.noTPH }.size
-            "$blokName($totalJjg/$uniqueTphCount)"
-        }
+        if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
+            // For ScanTransferInspeksiPanen, just return the block names
+            val blokNames = blokGroups.keys.toList()
+            return blokNames.joinToString(", ")
+        } else {
+            // For other features, calculate total jjg and count of unique TPH numbers
+            val blokSummaries = blokGroups.map { (blokName, entries) ->
+                val totalJjg = entries.sumOf {
+                    try {
+                        it.jjg.toInt()
+                    } catch (e: NumberFormatException) {
+                        0 // Return 0 if jjg is "NULL" or invalid
+                    }
+                }
+                val uniqueTphCount = entries.distinctBy { it.noTPH }.size
+                "$blokName($totalJjg/$uniqueTphCount)"
+            }
 
-        // Join all summaries with comma
-        return blokSummaries.joinToString(", ")
+            // Join all summaries with comma
+            return blokSummaries.joinToString(", ")
+        }
     }
 
     override fun onResume() {
@@ -536,6 +589,8 @@ class ListTPHApproval : AppCompatActivity() {
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
+
+    // COMPLETE FUNCTION:
     private suspend fun parseTphData(jsonString: String): List<TphRvData> =
         withContext(Dispatchers.IO) {
             try {
@@ -596,23 +651,7 @@ class ListTPHApproval : AppCompatActivity() {
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
 
-
-                    AppLogger.d(tph0String.toString())
-                    val parts = entry.split(",")
-
-                    if (parts.size != 4 && featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
-                        Log.e(
-                            TAG,
-                            "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
-                        )
-                        return@mapNotNull null
-                    } else if (parts.size != 9 && featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
-                        Log.e(
-                            TAG,
-                            "Invalid entry format, expected 9 parts but got ${parts.size}: $entry"
-                        )
-                        return@mapNotNull null
-                    }
+                    AppLogger.d("Processing entry: $entry")
 
                     try {
                         var idtph = 0
@@ -620,16 +659,37 @@ class ListTPHApproval : AppCompatActivity() {
                         var time = "NULL"
                         var jjg = 0
 
-                        Log.d(
-                            TAG,
-                            "Processing idtph: $idtph, dateIndex: $dateIndex, time: $time, jjg: $jjg"
+                        var displayData = TphRvData(
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL"
+                        )
+                        var saveDataHasilPanen = TphRvData(
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL",
+                            "NULL"
                         )
 
-                        var displayData = TphRvData("NULL", "NULL", "NULL", "NULL", "NULL", "NULL")
-                        var saveDataHasilPanen =
-                            TphRvData("NULL", "NULL", "NULL", "NULL", "NULL", "NULL")
-
                         if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
+                            val parts = entry.split(",")
+                            if (parts.size != 4) {
+                                Log.e(
+                                    TAG,
+                                    "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
+                                )
+                                return@mapNotNull null
+                            }
+
                             idtph = parts[0].toInt()
                             dateIndex = parts[1]
                             time = parts[2]
@@ -639,7 +699,6 @@ class ListTPHApproval : AppCompatActivity() {
                             val fullDateTime = "$fullDate $time"
 
                             Log.d(TAG, "Full datetime: $fullDateTime")
-
 
                             val tphInfo = try {
                                 repository.getTPHAndBlokInfo(idtph)
@@ -663,7 +722,9 @@ class ListTPHApproval : AppCompatActivity() {
                                 time = time,  // Just show the time part for display
                                 jjg = jjg.toString(),
                                 username = usernameString,
-                                ""
+                                kemandoran_id = "",
+                                tipePanen = "NULL",
+                                ancak = "NULL"
                             )
                             // Create save data with original values
                             saveDataHasilPanen = TphRvData(
@@ -672,9 +733,21 @@ class ListTPHApproval : AppCompatActivity() {
                                 time = fullDateTime, // Reconstructed full datetime
                                 jjg = jjg.toString(),
                                 username = usernameString,
-                                ""
+                                kemandoran_id = "",
+                                tipePanen = "NULL",
+                                ancak = "NULL"
                             )
-                        } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                        }
+                        else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                            val parts = entry.split(",")
+                            if (parts.size != 9) {
+                                Log.e(
+                                    TAG,
+                                    "Invalid entry format, expected 9 parts but got ${parts.size}: $entry"
+                                )
+                                return@mapNotNull null
+                            }
+
                             // Extract the values from parts first
                             idtph = parts[2].toInt()         // TPH ID
                             dateIndex = parts[0]             // Date index
@@ -747,7 +820,9 @@ class ListTPHApproval : AppCompatActivity() {
                                 time = time,
                                 jjg = jjg.toString(),
                                 username = usernameString,
-                                ""
+                                kemandoran_id = "",
+                                tipePanen = "NULL",
+                                ancak = "NULL"
                             )
                             // 2. Create separate PanenEntity for each NIK
                             val kP =
@@ -779,6 +854,199 @@ class ListTPHApproval : AppCompatActivity() {
 
                             AppLogger.d("panenEntity $panenEntity")
                             saveDataMPanenList.add(panenEntity)
+                        } else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
+                            // Parse ScanTransferInspeksiPanen with JSON handling
+                            // Format: 222593,0,07:20:48,1,16,{"1232500026":"DANIEL DAWU BORA","1232100169":"ARSYAD"}
+
+                            var idtph: Int
+                            var dateIndex: String
+                            var time: String
+                            var tipePanen: Int
+                            var ancak: Int
+                            var jsonPart = ""
+
+                            // Check if entry contains JSON (has curly braces)
+                            if (entry.contains("{") && entry.contains("}")) {
+                                // Find the JSON part
+                                val jsonStartIndex = entry.indexOf("{")
+                                val jsonEndIndex = entry.lastIndexOf("}") + 1
+                                jsonPart = entry.substring(jsonStartIndex, jsonEndIndex)
+
+                                // Get the part before JSON and split by comma
+                                val beforeJson = entry.substring(0, jsonStartIndex).trimEnd(',')
+                                val parts = beforeJson.split(",")
+
+                                if (parts.size < 5) {
+                                    Log.e(
+                                        TAG,
+                                        "Invalid entry format for ScanTransferInspeksiPanen with JSON, expected at least 5 parts before JSON but got ${parts.size}: $entry"
+                                    )
+                                    return@mapNotNull null
+                                }
+
+                                idtph = parts[0].toInt()
+                                dateIndex = parts[1]
+                                time = parts[2]
+                                tipePanen = parts[3].toInt()
+                                ancak = parts[4].toInt()
+
+                            } else {
+                                // No JSON, just split by comma normally
+                                val parts = entry.split(",")
+
+                                if (parts.size < 5) {
+                                    Log.e(
+                                        TAG,
+                                        "Invalid entry format for ScanTransferInspeksiPanen without JSON, expected at least 5 parts but got ${parts.size}: $entry"
+                                    )
+                                    return@mapNotNull null
+                                }
+
+                                idtph = parts[0].toInt()
+                                dateIndex = parts[1]
+                                time = parts[2]
+                                tipePanen = parts[3].toInt()
+                                ancak = parts[4].toInt()
+                            }
+
+                            // Get the full date from the date map
+                            val fullDate = dateMap[dateIndex] ?: "Unknown Date"
+                            val fullDateTime = "$fullDate $time"
+
+                            Log.d(
+                                TAG,
+                                "Processing ScanTransferInspeksiPanen - idtph: $idtph, dateIndex: $dateIndex, time: $time, tipePanen: $tipePanen, ancak: $ancak"
+                            )
+                            Log.d(TAG, "Full datetime: $fullDateTime")
+                            Log.d(TAG, "JSON part: $jsonPart")
+
+                            // Parse worker information from JSON if exists
+                            val nikNames = mutableListOf<String>()
+                            val nikNumbers = mutableListOf<String>()
+
+                            if (jsonPart.isNotEmpty()) {
+                                try {
+                                    val nikJsonObject = JSONObject(jsonPart)
+                                    val nikKeys = nikJsonObject.keys()
+                                    while (nikKeys.hasNext()) {
+                                        val nik = nikKeys.next()
+                                        val name = nikJsonObject.getString(nik)
+                                        nikNumbers.add(nik)
+                                        nikNames.add(name)
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.d("Error parsing NIK JSON: $e")
+                                    AppLogger.d("JSON part was: $jsonPart")
+                                }
+                            }
+
+                            // Join NIKs and names with commas
+                            val karyawanNik =
+                                if (nikNumbers.isNotEmpty()) nikNumbers.joinToString(",") else "NULL"
+                            val karyawanNama =
+                                if (nikNames.isNotEmpty()) nikNames.joinToString(",") else "NULL"
+
+                            Log.d(TAG, "Parsed NIKs: $karyawanNik")
+                            Log.d(TAG, "Parsed Names: $karyawanNama")
+
+                            // Get karyawan data from database
+                            val karyawanList = try {
+                                if (nikNumbers.isNotEmpty()) {
+                                    repository.getKemandoranByNik(nikNumbers)
+                                } else {
+                                    emptyList()
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.d("Error getting karyawan data: $e")
+                                emptyList()
+                            }
+
+                            // Extract IDs and kemandoran_ids
+                            val karyawanIds = if (karyawanList.isNotEmpty()) {
+                                karyawanList.map { it.id.toString() }.joinToString(",")
+                            } else {
+                                "NULL"
+                            }
+
+                            val kemandoranIds = if (karyawanList.isNotEmpty()) {
+                                karyawanList.map { it.kemandoran_id.toString() }.joinToString(",")
+                            } else {
+                                kemandoranId // Fallback to original kemandoranId if no workers found
+                            }
+
+                            Log.d(TAG, "Karyawan IDs: $karyawanIds")
+                            Log.d(TAG, "Kemandoran IDs: $kemandoranIds")
+
+                            // Get TPH info
+                            val tphInfo = try {
+                                repository.getTPHAndBlokInfo(idtph)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error getting TPH info for idtph $idtph", e)
+                                null
+                            }
+
+                            val displayName = tphInfo?.blokKode ?: "Unknown"
+                            val noTph = try {
+                                tphInfo?.tphNomor?.toInt() ?: 0
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error parsing tphNomor: ${tphInfo?.tphNomor}", e)
+                                0
+                            }
+
+                            // Convert tipe panen to readable format
+                            val tipePanenText = if (tipePanen == 0) "NORMAL" else "CUT & CARRY"
+
+                            // Create display data
+                            displayData = TphRvData(
+                                namaBlok = displayName,               // BLOK only (E019A)
+                                noTPH = noTph.toString(),             // TPH number only (70)
+                                time = fullDateTime,                  // TANGGAL (full date + time)
+                                jjg = "0",                           // Not used for this feature
+                                username = usernameString,
+                                kemandoran_id = kemandoranId,
+                                tipePanen = tipePanenText,           // TIPE_PANEN (NORMAL or CUT & CARRY)
+                                ancak = ancak.toString()             // ANCAK (16)
+                            )
+
+                            // CREATE AND STORE TO GLOBAL VARIABLE
+                            val transferInspeksiEntity = PanenEntity(
+                                tph_id = idtph.toString(),
+                                date_created = fullDateTime,
+                                karyawan_nik = karyawanNik,           // Comma-separated NIKs
+                                karyawan_id = karyawanIds,            // Comma-separated IDs from database
+                                karyawan_nama = karyawanNama,         // Comma-separated names
+                                kemandoran_id = kemandoranIds,
+                                jjg_json = "", // Store tipe_panen and ancak if needed
+                                foto = "NULL",
+                                komentar = "NULL",
+                                asistensi = 0,
+                                lat = 0.0,
+                                lon = 0.0,
+                                jenis_panen = tipePanen,              // Store tipe panen as jenis_panen
+                                ancak = ancak,                        // Store ancak
+                                info = "NULL",
+                                scan_status = 0,
+                                dataIsZipped = 0,
+                                created_by = 0,
+                                jumlah_pemanen = nikNumbers.size,     // Number of workers
+                                status_scan_mpanen = 0,  // Different from MPanen
+                                status_scan_inspeksi = 1
+                            )
+
+                            AppLogger.d("transferInspeksiEntity $transferInspeksiEntity")
+                            saveDataTransferInspeksiList.add(transferInspeksiEntity) // ADD TO GLOBAL LIST!
+
+                            // Create save data (keeping original structure for compatibility)
+                            saveDataHasilPanen = TphRvData(
+                                namaBlok = idtph.toString(), // Use idtph instead of parts[0]
+                                noTPH = idtph.toString(),
+                                time = fullDateTime,
+                                jjg = ancak.toString(),
+                                username = usernameString,
+                                kemandoran_id = kemandoranId,
+                                tipePanen = tipePanenText,
+                                ancak = ancak.toString()
+                            )
                         }
                         Pair(displayData, saveDataHasilPanen)
                     } catch (e: Exception) {
@@ -790,8 +1058,6 @@ class ListTPHApproval : AppCompatActivity() {
                 // Separate display and save data
                 data = parsedEntries.map { it.first }
                 saveData = parsedEntries.map { it.second }
-
-
 
                 return@withContext data
             } catch (e: Exception) {

@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
+import com.cbi.mobile_plantation.data.database.HektarPanenDao
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -36,6 +37,11 @@ sealed class SaveTPHResult {
     data class AllSuccess(val savedIds: List<Long>) : SaveTPHResult()
     data class PartialSuccess(
         val savedIds: List<Long>,
+        val duplicateCount: Int,
+        val duplicateInfo: String
+    ) : SaveTPHResult()
+
+    data class AllDuplicate(
         val duplicateCount: Int,
         val duplicateInfo: String
     ) : SaveTPHResult()
@@ -82,7 +88,7 @@ class AppRepository(context: Context) {
         updated_date_start: String,
         updated_date_end: String,
         updated_by: String,
-        foto_user_pemulihan:String,
+        foto_user_pemulihan: String,
         updated_name: String,
         app_version_pemulihan: String,
     ): Boolean {
@@ -112,7 +118,7 @@ class AppRepository(context: Context) {
         latPemulihan: Double,
         lonPemulihan: Double,
         updatedDate: String,
-        statusPemulihan : Int,
+        statusPemulihan: Int,
         updatedName: String,
         updatedBy: String
     ): Boolean {
@@ -189,6 +195,30 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getPanenForTransferInspeksi(
+        date: String? = null,
+        archive_transfer_inspeksi: Int? = null
+    ): List<PanenEntityWithRelations> {
+        return try {
+            panenDao.getPanenForTransferInspeksi(date, archive_transfer_inspeksi)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading inspection by ID: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun getCountPanenForTransferInspeksi(
+        datetime: String? = null,
+        archive_transfer_inspeksi: Int
+    ): Int {
+        return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+    }
+
+    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int =
+        withContext(Dispatchers.IO) {
+            panenDao.updateStatusEspbToZero(tphId, dateCreated)
+        }
+
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
@@ -200,44 +230,106 @@ class AppRepository(context: Context) {
                 // Keep track of successes and failures
                 val savedIds = mutableListOf<Long>()
                 val duplicates = mutableListOf<PanenEntity>()
+                val updated = mutableListOf<PanenEntity>()
                 val hektarPanenDao = database.hektarPanenDao()
 
                 val kemandoranId = tphDataList.first().kemandoran_id
                 val kemandoranNama = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.nama
                 val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.kode
 
-                // Step 1: First, save all PanenEntity records to the panen table
+                // Step 1: Process each PanenEntity record
                 for (tphData in tphDataList) {
-                    // Check if this specific item is a duplicate
-                    val isDuplicate = panenDao.exists(tphData.tph_id, tphData.date_created)
+                    // Check if this specific item exists in local database
+                    val existingRecord =
+                        panenDao.findByTphAndDate(tphData.tph_id, tphData.date_created)
 
-                    if (isDuplicate) {
-                        // Add to duplicates list
-                        duplicates.add(tphData)
-                    } else {
-                        // Save non-duplicate
+                    if (existingRecord == null) {
+                        // Record doesn't exist -> INSERT
                         val result = panenDao.insertWithTransaction(tphData)
-
                         result.fold(
                             onSuccess = { id -> savedIds.add(id) },
                             onFailure = { throw it }
                         )
+                    } else {
+
+                        if (existingRecord.status_scan_mpanen == 1) {
+                            duplicates.add(tphData)
+                            Log.d(
+                                "AppRepository",
+                                "Already scanned duplicate: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
+                            )
+                        } else {
+                            if (existingRecord.isPushedToServer == 1) {
+                                // Server record exists, update specific fields only
+                                val updatedRecord = existingRecord.copy(
+                                    karyawan_id = if ((existingRecord.karyawan_id.isNullOrEmpty() ||
+                                                existingRecord.karyawan_id == "NULL") &&
+                                        tphData.karyawan_id.isNotEmpty() &&
+                                        tphData.karyawan_id != "NULL"
+                                    ) {
+                                        tphData.karyawan_id
+                                    } else {
+                                        existingRecord.karyawan_id
+                                    },
+
+                                    karyawan_nama = if ((existingRecord.karyawan_nama.isNullOrEmpty() ||
+                                                existingRecord.karyawan_nama == "NULL") &&
+                                        tphData.karyawan_nama.isNotEmpty() &&
+                                        tphData.karyawan_nama != "NULL"
+                                    ) {
+                                        tphData.karyawan_nama
+                                    } else {
+                                        existingRecord.karyawan_nama
+                                    },
+
+                                    jjg_json = if (tphData.jjg_json.isNotEmpty() &&
+                                        tphData.jjg_json != "NULL"
+                                    ) {
+                                        tphData.jjg_json
+                                    } else {
+                                        existingRecord.jjg_json
+                                    },
+
+                                    status_scan_mpanen = tphData.status_scan_mpanen
+                                )
+
+                                panenDao.update(listOf(updatedRecord))
+                                updated.add(updatedRecord)
+
+                                Log.d(
+                                    "AppRepository",
+                                    "Updated existing server record: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
+                                )
+
+                            } else {
+                                // Local record only (not pushed to server) -> Mark as duplicate
+                                duplicates.add(tphData)
+                                Log.d(
+                                    "AppRepository",
+                                    "Local duplicate found: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
+                                )
+                            }
+                        }
+
                     }
                 }
 
                 // Step 2: Group by unique (NIK, Block) combination
-                // Use a map of Pair<NIK, Block> -> List of PanenEntity
+                // Use records that were either saved or updated (not duplicates)
+                val recordsToProcess = tphDataList.filter { tphData ->
+                    !duplicates.contains(tphData)
+                }
+
                 val groupedByNikAndBlock =
                     mutableMapOf<Pair<String, String>, MutableList<PanenEntity>>()
 
                 // Add debug logging for tphDataList
                 Log.d(
                     "AppRepository",
-                    "Processing ${tphDataList.size} TPH entries, with ${duplicates.size} duplicates"
+                    "Processing ${recordsToProcess.size} TPH entries for HektarPanen, with ${duplicates.size} duplicates, ${updated.size} updated"
                 )
 
-                for (tphData in tphDataList) {
-                    if (duplicates.contains(tphData)) continue
+                for (tphData in recordsToProcess) {
                     try {
                         val tphId = tphData.tph_id.toIntOrNull()
                         if (tphId == null) {
@@ -278,7 +370,6 @@ class AppRepository(context: Context) {
                                 tphData.karyawan_nik,
                                 "${blokIdFromTPHid}$${tphData.date_created.split(" ")[0]}"
                             )
-
 
                             // Add logging for grouping
                             Log.d(
@@ -410,10 +501,10 @@ class AppRepository(context: Context) {
                         )
 
                         if (hektarPanen == null) {
-// Get the TPH model
+                            // Get the TPH model
                             val tphModel = tphDao.getTPHByBlockId(blokId)
 
-// Extract luas_area with error handling
+                            // Extract luas_area with error handling
                             val luasArea = try {
                                 val rawValue = tphModel!!.luas_area!!.toFloat()
                                 BigDecimal(rawValue.toDouble()).setScale(2, RoundingMode.HALF_UP)
@@ -423,7 +514,7 @@ class AppRepository(context: Context) {
                                 0f
                             }
 
-// Extract regional with error handling
+                            // Extract regional with error handling
                             val regional = try {
                                 tphModel!!.regional
                             } catch (e: Exception) {
@@ -431,7 +522,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract company with error handling
+                            // Extract company with error handling
                             val company = try {
                                 tphModel!!.company
                             } catch (e: Exception) {
@@ -439,7 +530,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract company_abbr with error handling
+                            // Extract company_abbr with error handling
                             val companyAbbr = try {
                                 tphModel!!.company_abbr
                             } catch (e: Exception) {
@@ -447,7 +538,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract company_nama with error handling
+                            // Extract company_nama with error handling
                             val companyNama = try {
                                 tphModel!!.company_nama
                             } catch (e: Exception) {
@@ -455,7 +546,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract wilayah with error handling
+                            // Extract wilayah with error handling
                             val wilayah = try {
                                 tphModel!!.wilayah
                             } catch (e: Exception) {
@@ -463,7 +554,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract dept with error handling
+                            // Extract dept with error handling
                             val dept = try {
                                 tphModel!!.dept
                             } catch (e: Exception) {
@@ -471,7 +562,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract dept_ppro with error handling
+                            // Extract dept_ppro with error handling
                             val deptPpro = try {
                                 tphModel!!.dept_ppro
                             } catch (e: Exception) {
@@ -479,7 +570,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract dept_abbr with error handling
+                            // Extract dept_abbr with error handling
                             val deptAbbr = try {
                                 tphModel!!.dept_abbr
                             } catch (e: Exception) {
@@ -487,7 +578,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract dept_nama with error handling
+                            // Extract dept_nama with error handling
                             val deptNama = try {
                                 tphModel!!.dept_nama
                             } catch (e: Exception) {
@@ -495,7 +586,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract divisi with error handling
+                            // Extract divisi with error handling
                             val divisi = try {
                                 tphModel!!.divisi
                             } catch (e: Exception) {
@@ -503,7 +594,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract divisi_ppro with error handling
+                            // Extract divisi_ppro with error handling
                             val divisiPpro = try {
                                 tphModel!!.divisi_ppro
                             } catch (e: Exception) {
@@ -511,7 +602,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract divisi_abbr with error handling
+                            // Extract divisi_abbr with error handling
                             val divisiAbbr = try {
                                 tphModel!!.divisi_abbr
                             } catch (e: Exception) {
@@ -519,7 +610,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract divisi_nama with error handling
+                            // Extract divisi_nama with error handling
                             val divisiNama = try {
                                 tphModel!!.divisi_nama
                             } catch (e: Exception) {
@@ -527,7 +618,7 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-// Extract blok with error handling
+                            // Extract blok with error handling
                             val blok = try {
                                 tphModel!!.blok
                             } catch (e: Exception) {
@@ -535,7 +626,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract blok_ppro with error handling
+                            // Extract blok_ppro with error handling
                             val blokPpro = try {
                                 tphModel!!.blok_ppro
                             } catch (e: Exception) {
@@ -543,7 +634,7 @@ class AppRepository(context: Context) {
                                 0
                             }
 
-// Extract blok_kode with error handling
+                            // Extract blok_kode with error handling
                             val blokKode = try {
                                 tphModel!!.blok_kode
                             } catch (e: Exception) {
@@ -559,7 +650,6 @@ class AppRepository(context: Context) {
                                 "NULL"
                             }
 
-
                             // Get employee details from KaryawanDao
                             val pemanen = try {
                                 karyawanDao.getNamaByNik(nik)
@@ -570,7 +660,7 @@ class AppRepository(context: Context) {
 
                             // Extract kemandoran details
                             val kemandoranId = try {
-                                tphDataList.first().kemandoran_id
+                                recordsToProcess.first().kemandoran_id
                             } catch (e: Exception) {
                                 Log.e("AppRepository", "Error getting kemandoran_id: ${e.message}")
                                 "0"
@@ -729,10 +819,10 @@ class AppRepository(context: Context) {
                 // Return appropriate result based on success/failure
                 when {
                     duplicates.isEmpty() -> {
-                        Result.success(SaveTPHResult.AllSuccess(savedIds))
+                        Result.success(SaveTPHResult.AllSuccess(savedIds + updated.map { it.id.toLong() }))
                     }
 
-                    savedIds.isEmpty() -> {
+                    savedIds.isEmpty() && updated.isEmpty() -> {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
                         }
@@ -745,7 +835,7 @@ class AppRepository(context: Context) {
                         }
                         Result.success(
                             SaveTPHResult.PartialSuccess(
-                                savedIds = savedIds,
+                                savedIds = savedIds + updated.map { it.id.toLong() },
                                 duplicateCount = duplicates.size,
                                 duplicateInfo = duplicateInfo
                             )
@@ -795,22 +885,168 @@ class AppRepository(context: Context) {
         hektarPanenDao.updateStatusUploadHektarPanen(ids, statusUpload)
     }
 
+    suspend fun saveTransferInspeksi(
+        transferInspeksiList: List<PanenEntity>,
+        createdBy: String,
+        creatorInfo: String,
+        context: Context
+    ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
+        try {
+            val processedIds = mutableListOf<Long>()
+
+            Log.d(
+                "TransferInspeksi",
+                "Starting saveTransferInspeksi with ${transferInspeksiList.size} items"
+            )
+
+            // Check each item individually
+            for ((index, transferInspeksi) in transferInspeksiList.withIndex()) {
+                Log.d(
+                    "TransferInspeksi",
+                    "Processing item $index: tph_id=${transferInspeksi.tph_id}, date_created=${transferInspeksi.date_created}"
+                )
+
+                // Check if this specific item exists based on tph_id and date_created
+                val existingEntity = panenDao.findByTphAndDate(
+                    transferInspeksi.tph_id,
+                    transferInspeksi.date_created
+                )
+
+                if (existingEntity != null) {
+                    // EXISTS: Update fields if they are empty/null and set status_scan_inspeksi = 1
+                    Log.d(
+                        "TransferInspeksi",
+                        "EXISTING RECORD FOUND - ID: ${existingEntity.id}, updating fields and status_scan_inspeksi to 1"
+                    )
+
+                    val updatedRecord = existingEntity.copy(
+                        // Always update status_scan_inspeksi to 1
+                        status_scan_inspeksi = 1,
+
+                        // Update kemandoran_id if existing is null/empty
+                        kemandoran_id = if (existingEntity.kemandoran_id.isNullOrEmpty() || existingEntity.kemandoran_id == "NULL") {
+                            transferInspeksi.kemandoran_id
+                        } else {
+                            existingEntity.kemandoran_id
+                        },
+
+                        // Update karyawan_nik if existing is null/empty
+                        karyawan_nik = if (existingEntity.karyawan_nik.isNullOrEmpty() || existingEntity.karyawan_nik == "NULL") {
+                            transferInspeksi.karyawan_nik
+                        } else {
+                            existingEntity.karyawan_nik
+                        },
+
+                        // Update karyawan_nama if existing is null/empty
+                        karyawan_nama = if (existingEntity.karyawan_nama.isNullOrEmpty() || existingEntity.karyawan_nama == "NULL") {
+                            transferInspeksi.karyawan_nama
+                        } else {
+                            existingEntity.karyawan_nama
+                        },
+
+                        // Update jenis_panen if existing is 0 (default/empty)
+                        jenis_panen = if (existingEntity.jenis_panen == 0) {
+                            transferInspeksi.jenis_panen
+                        } else {
+                            existingEntity.jenis_panen
+                        },
+
+                        // Update ancak if existing is 0 (default/empty)
+                        ancak = if (existingEntity.ancak == 0) {
+                            transferInspeksi.ancak
+                        } else {
+                            existingEntity.ancak
+                        },
+
+                        // Also update karyawan_id if existing is empty
+                        karyawan_id = if (existingEntity.karyawan_id.isNullOrEmpty()) {
+                            transferInspeksi.karyawan_id
+                        } else {
+                            existingEntity.karyawan_id
+                        }
+                    )
+
+                    // Use the general update method instead of specific status update
+                    panenDao.update(listOf(updatedRecord))
+                    processedIds.add(existingEntity.id.toLong())
+
+                    Log.d(
+                        "TransferInspeksi",
+                        "Successfully updated existing record ID: ${existingEntity.id}"
+                    )
+                    Log.d(
+                        "TransferInspeksi",
+                        "Updated fields - kemandoran_id: ${updatedRecord.kemandoran_id}, karyawan_nik: ${updatedRecord.karyawan_nik}, karyawan_nama: ${updatedRecord.karyawan_nama}, jenis_panen: ${updatedRecord.jenis_panen}, ancak: ${updatedRecord.ancak}"
+                    )
+
+                } else {
+                    // DOESN'T EXIST: Insert new record
+                    Log.d(
+                        "TransferInspeksi",
+                        "NEW RECORD - No existing record found, inserting new record"
+                    )
+
+                    val entityToSave = transferInspeksi.copy(
+                        created_by = createdBy.toIntOrNull() ?: 0,
+                        info = creatorInfo
+                    )
+
+                    val result = panenDao.insertWithTransaction(entityToSave)
+
+                    result.fold(
+                        onSuccess = { id ->
+                            processedIds.add(id)
+                            Log.d(
+                                "TransferInspeksi",
+                                "Successfully inserted new record with ID: $id"
+                            )
+                        },
+                        onFailure = {
+                            Log.e("TransferInspeksi", "Failed to insert new record: ${it.message}")
+                            throw it
+                        }
+                    )
+                }
+            }
+
+            Log.d(
+                "TransferInspeksi",
+                "Completed processing. Total processed IDs: ${processedIds.size}"
+            )
+
+            // Always return success
+            Result.success(SaveTPHResult.AllSuccess(processedIds))
+
+        } catch (e: Exception) {
+            Log.e("TransferInspeksi", "Error in saveTransferInspeksi: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun saveTPHDataList(tphDataList: List<TphRvData>): Result<SaveTPHResult> =
         withContext(Dispatchers.IO) {
             try {
+                AppLogger.d("=== SAVE TPH DATA LIST START ===")
+                AppLogger.d("Total items to process: ${tphDataList.size}")
+
                 // Keep track of successes and failures
                 val savedIds = mutableListOf<Long>()
                 val duplicates = mutableListOf<TphRvData>()
 
                 // Check each item individually
-                for (tphData in tphDataList) {
+                for ((index, tphData) in tphDataList.withIndex()) {
+                    AppLogger.d("Processing item ${index + 1}/${tphDataList.size}: TPH=${tphData.namaBlok}, Date=${tphData.time}, JJG=${tphData.jjg}, User=${tphData.username}")
+
                     // Check if this specific item is a duplicate
                     val isDuplicate = panenDao.exists(tphData.namaBlok, tphData.time)
 
                     if (isDuplicate) {
                         // Add to duplicates list
                         duplicates.add(tphData)
+                        AppLogger.w("⚠️ Duplicate found: TPH=${tphData.namaBlok}, Date=${tphData.time}")
                     } else {
+                        AppLogger.d("Creating new record for TPH=${tphData.namaBlok}, Date=${tphData.time}")
+
                         // Save non-duplicate
                         val result = panenDao.insertWithTransaction(
                             PanenEntity(
@@ -839,26 +1075,46 @@ class AppRepository(context: Context) {
                         )
 
                         result.fold(
-                            onSuccess = { id -> savedIds.add(id) },
-                            onFailure = { throw it }
+                            onSuccess = { id ->
+                                savedIds.add(id)
+                                AppLogger.d("✅ Successfully saved: TPH=${tphData.namaBlok}, ID=$id")
+                            },
+                            onFailure = {
+                                AppLogger.e("❌ Failed to save: TPH=${tphData.namaBlok}, Error: ${it.message}")
+                                throw it
+                            }
                         )
                     }
                 }
 
+                AppLogger.d("=== PROCESSING SUMMARY ===")
+                AppLogger.d("Total processed: ${tphDataList.size}")
+                AppLogger.d("Successfully saved: ${savedIds.size}")
+                AppLogger.d("Duplicates found: ${duplicates.size}")
+                AppLogger.d("==========================")
+
                 // Create result based on what happened
+                // In your saveTPHDataList function, change the result handling:
+
                 when {
                     duplicates.isEmpty() -> {
                         // All items were saved successfully
+                        AppLogger.d("🎉 All ${savedIds.size} items saved successfully!")
                         Result.success(SaveTPHResult.AllSuccess(savedIds))
                     }
 
                     savedIds.isEmpty() -> {
-                        // Everything was a duplicate
+                        // Everything was a duplicate - return as success so we can show alert
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
-                        Result.failure(
-                            Exception("All data is duplicate:\n$duplicateInfo")
+                        AppLogger.w("⚠️ All data is duplicate - returning as success to show alert")
+                        AppLogger.w("Duplicate details:\n$duplicateInfo")
+                        Result.success(
+                            SaveTPHResult.AllDuplicate(
+                                duplicateCount = duplicates.size,
+                                duplicateInfo = duplicateInfo
+                            )
                         )
                     }
 
@@ -867,6 +1123,9 @@ class AppRepository(context: Context) {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
+                        AppLogger.w("⚠️ Partial success: ${savedIds.size} saved, ${duplicates.size} duplicates")
+                        AppLogger.d("Saved IDs: $savedIds")
+                        AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.PartialSuccess(
                                 savedIds = savedIds,
@@ -877,7 +1136,11 @@ class AppRepository(context: Context) {
                     }
                 }
             } catch (e: Exception) {
+                AppLogger.e("💥 Error saving TPH data: ${e.message}")
+                AppLogger.e("Exception details: ${e.stackTraceToString()}")
                 Result.failure(e)
+            } finally {
+                AppLogger.d("=== SAVE TPH DATA LIST END ===")
             }
         }
 
@@ -899,13 +1162,13 @@ class AppRepository(context: Context) {
 
     suspend fun loadESPB(
         archive: Int,
-        statusEspb: Int,
-        statusTransferRestan:Int,
+        statusTransferRestan: Int,
+        hasNoEspb: Boolean,
         scanStatus: Int,
         date: String? = null
     ): List<PanenEntityWithRelations> {
         return try {
-            panenDao.loadESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            panenDao.loadESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
         } catch (e: Exception) {
             AppLogger.e("Error loading ESPB: ${e.message}")
             emptyList()  // Return empty list if there's an error
@@ -914,13 +1177,13 @@ class AppRepository(context: Context) {
 
     suspend fun countESPB(
         archive: Int,
-        statusEspb: Int,
-        statusTransferRestan:Int,
+        statusTransferRestan: Int,
+        hasNoEspb: Boolean,
         scanStatus: Int,
         date: String? = null
     ): Int {
         return try {
-            panenDao.countESPB(archive, statusEspb,statusTransferRestan, scanStatus, date)
+            panenDao.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB: ${e.message}")
             0  // Return 0 if there's an error
@@ -979,6 +1242,10 @@ class AppRepository(context: Context) {
         return panenDao.getCount()
     }
 
+    suspend fun getPanenCountForTransferInspeksi(): Int {
+        return panenDao.getCountForTransferInspeksi()
+    }
+
     suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
         return hektarPanenDao.countWhereLuasPanenIsZeroAndDate()
     }
@@ -999,8 +1266,8 @@ class AppRepository(context: Context) {
         return hektarPanenDao.getLuasBlokByBlok(blok)
     }
 
-    suspend fun getDistinctBlokByDate(date: String): List<Int> {
-        return hektarPanenDao.getDistinctBlokByDate(date)
+    suspend fun getDistinctBlokParamsByDate(date: String): List<HektarPanenDao.BlokParams> {
+        return hektarPanenDao.getDistinctBlokParamsByDate(date)
     }
 
     suspend fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(
@@ -1173,6 +1440,10 @@ class AppRepository(context: Context) {
 
     suspend fun changeStatusTransferRestan(id: Int) = withContext(Dispatchers.IO) {
         panenDao.changeStatusTransferRestan(id)
+    }
+
+    suspend fun changeStatusTransferInspeksiPanen(id: Int) = withContext(Dispatchers.IO) {
+        panenDao.changeStatusTransferInspeksiPanen(id)
     }
 
     suspend fun archiveMpanenByID(id: Int) = withContext(Dispatchers.IO) {
@@ -1384,26 +1655,40 @@ class AppRepository(context: Context) {
         return blokDao.getDataByIdInBlok(listBlokId)
     }
 
-    suspend fun fetchBlokListbyIdorIdPpro(blockIds: List<Int>): List<BlokModel> = withContext(Dispatchers.IO) {
-        val blokList = mutableListOf<BlokModel>()
+    suspend fun fetchBlokbyParams(
+        blockId: Int,
+        blokPpro: Int?,
+        dept: String?,
+        divisi: String?
+    ): Result<BlokModel?> = withContext(Dispatchers.IO) {
+        try {
+            var blokData: BlokModel? = null
 
-        blockIds.forEach { blockId ->
-            try {
-                var blokData: BlokModel? = null
-
-                blokData = blokDao.getBlokByIdPPRO(blockId)
-
-                if (blokData == null) {
-                    blokData = blokDao.getBlokById(blockId)
+            // Try with blok_ppro first if available
+            if (blokPpro != null && dept != null && divisi != null) {
+                blokData = blokDao.getBlokByEstAfdKode(blokPpro.toString(), dept, divisi)
+                if (blokData != null) {
+                    AppLogger.d("Blok found using blok_ppro: $blokPpro, dept: $dept, divisi: $divisi")
                 }
-
-                blokData?.let { blokList.add(it) }
-            } catch (e: Exception) {
-                AppLogger.e("Error fetching blok with id $blockId: ${e.message}")
             }
-        }
 
-        return@withContext blokList
+            // If not found and we have blockId, try with blockId
+            if (blokData == null && dept != null && divisi != null) {
+                blokData = blokDao.getBlokByIdEstAfd(blockId, dept, divisi)
+                if (blokData != null) {
+                    AppLogger.d("Blok found using blockId: $blockId, dept: $dept, divisi: $divisi")
+                }
+            }
+
+            if (blokData == null) {
+                AppLogger.d("No blok found with any parameter combination")
+            }
+
+            Result.success(blokData)
+        } catch (e: Exception) {
+            AppLogger.e("Error in fetchBlokbyParams: ${e.message}")
+            Result.failure(e)
+        }
     }
 
     suspend fun getTransporterNameById(id: Int): String? {

@@ -163,6 +163,9 @@ class FormAncakViewModel : ViewModel() {
         val currentData = getPageData(pokokNumber) ?: PageData()
         val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
+
+        AppLogger.d("lat $lat")
+        AppLogger.d("lon $lon")
         if (shouldSetLatLonIssue(currentData)) {
             // ✅ NEW: Check if location already exists
             if (currentData.latIssue != null && currentData.lonIssue != null) {
@@ -170,6 +173,8 @@ class FormAncakViewModel : ViewModel() {
 
                 // Just update metadata without changing location
                 val updatedData = currentData.copy(
+                    latIssue =  lat,
+                    lonIssue = lon,
                     createdDate = currentDate,
                     createdBy = prefManager.idUserLogin,
                     createdName = prefManager.nameUserLogin
@@ -177,7 +182,7 @@ class FormAncakViewModel : ViewModel() {
                 savePageData(pokokNumber, updatedData)
 
                 // Show toast with existing location
-                Toasty.info(context, "Lokasi sudah tersimpan: Lat:${currentData.latIssue} Lon:${currentData.lonIssue}", Toast.LENGTH_SHORT, true).show()
+//                Toasty.info(context, "Lokasi sudah tersimpan: Lat:${currentData.latIssue} Lon:${currentData.lonIssue}", Toast.LENGTH_SHORT, true).show()
 
                 return true // Still should track this location
             } else {
@@ -193,15 +198,15 @@ class FormAncakViewModel : ViewModel() {
                 AppLogger.d("Saved new location data for pokok $pokokNumber")
 
                 // Show success toast with new location
-                Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
+//                Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
 
                 return true // Should track this location
             }
         } else {
             // Conditions are NOT met: Save metadata but clear location
             val updatedData = currentData.copy(
-                latIssue = null,
-                lonIssue = null,
+                latIssue = lat,
+                lonIssue = lon,
                 createdDate = currentDate,
                 createdBy = prefManager.idUserLogin,
                 createdName = prefManager.nameUserLogin
@@ -237,10 +242,15 @@ class FormAncakViewModel : ViewModel() {
         if (data?.emptyTree == 1) {
             AppLogger.d("emptyTree == 1, validating other fields...")
 
-
             if (data?.harvestTree == 0) {
                 errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
                 AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+            }
+
+            // NEW VALIDATION: If harvestTree == 1, then harvestJjg must not be 0
+            if (data?.harvestTree == 1 && data?.harvestJjg == 0) {
+                errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi!"
+                AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg == 0")
             }
 
             if (data?.neatPelepah == 0) {
@@ -257,7 +267,6 @@ class FormAncakViewModel : ViewModel() {
                 errors[R.id.lyKondisiPruningInspect] = "Kondisi OverPruning wajib diisi!"
                 AppLogger.d("VALIDATION FAILED: pruning == 0")
             }
-
 
         } else {
             AppLogger.d("emptyTree == ${data?.emptyTree} (Tidak/Titik Kosong), skipping field validation")

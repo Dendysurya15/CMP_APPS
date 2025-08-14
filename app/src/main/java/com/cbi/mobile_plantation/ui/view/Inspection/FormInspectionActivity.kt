@@ -93,8 +93,6 @@ import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter.Companion.CAMERA_PERMISSION_REQUEST_CODE
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi.LatLon
-import com.cbi.mobile_plantation.ui.view.followUpInspeksi.FollowUpInspeksi.TrackingPath
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
@@ -281,7 +279,9 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var br1Value: String = ""
     private var br2Value: String = ""
     private var isForFollowUp = false
-    private lateinit var rvSelectedPemanen: RecyclerView
+    private var isBottomSheetOpen = false
+    private var isCameraViewOpen = false
+    private var keyboardOpenedWhileBottomSheetVisible = false
 
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
@@ -525,6 +525,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
                             panenTPH = list ?: emptyList()
                             panenDeferred.complete(list ?: emptyList())
+
+                            AppLogger.d("panenTPH $panenTPH")
                         }
                     }
 
@@ -636,9 +638,26 @@ open class FormInspectionActivity : AppCompatActivity(),
                         if (shouldReopenBottomSheet) {
                             shouldReopenBottomSheet = false
                             Handler(Looper.getMainLooper()).postDelayed({
-                                bottomNavInspect.visibility = View.VISIBLE
+                                showWithAnimation(bottomNavInspect)
+                                showWithAnimation(fabPrevFormAncak)
+                                showWithAnimation(fabNextFormAncak)
                                 showViewPhotoBottomSheet(null, isInTPH)
                             }, 100)
+                        }
+                    }
+
+                    isCameraViewOpen && !cameraViewModel.statusCamera() -> {
+                        val zoomView = findViewById<View>(R.id.incEditPhotoInspect)
+                        if (zoomView.visibility == View.VISIBLE) {
+                            val cardCloseZoom =
+                                zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)
+                            cardCloseZoom?.performClick()  // This triggers the same logic as clicking close
+                        }
+                        isCameraViewOpen = false
+                        if (!keyboardOpenedWhileBottomSheetVisible) {
+                            showWithAnimation(bottomNavInspect)
+                            showWithAnimation(fabPrevFormAncak)
+                            showWithAnimation(fabNextFormAncak)
                         }
                     }
 
@@ -1023,7 +1042,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupViewPager() {
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-        formAncakPagerAdapter = FormAncakPagerAdapter(this, totalPages)
+
+        // Pass the featureName to the adapter!
+        formAncakPagerAdapter = FormAncakPagerAdapter(this, totalPages, featureName)
 
         vpFormAncak.apply {
             adapter = formAncakPagerAdapter
@@ -1031,7 +1052,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             setPageTransformer(createPageTransformer())
             offscreenPageLimit = 1
         }
-
     }
 
     private fun createPageTransformer(): ViewPager2.PageTransformer {
@@ -1318,7 +1338,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         formAncakViewModel.formData.observe(this) { formData ->
             updatePhotoBadgeVisibility()
-            AppLogger.d("klajsd lkfakls jdlfka jsdfklj")
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val pageData = formData[currentPage]
             val emptyTreeValue = pageData?.emptyTree ?: 0
@@ -1474,8 +1493,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             val validationResult = formAncakViewModel.validateCurrentPage(1)
 
-            AppLogger.d("df")
-
             if (!validationResult.isValid) {
                 vibrate(500)
                 AlertDialogUtility.withSingleAction(
@@ -1501,12 +1518,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                         this@FormInspectionActivity
                     )
                 } else {
-                    // Just update metadata without location
-                    val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val currentDate =
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                     val updatedData = data.copy(
                         createdDate = currentDate,
                         createdBy = prefManager!!.idUserLogin,
-                        createdName = prefManager!!.nameUserLogin
+                        createdName = prefManager!!.nameUserLogin,
+                        latIssue = lat,
+                        lonIssue = lon
                     )
                     formAncakViewModel.savePageData(currentPokok, updatedData)
                     AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
@@ -1624,11 +1643,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                     )
                 } else {
                     // Just update metadata without location
-                    val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val currentDate =
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                     val updatedData = data.copy(
                         createdDate = currentDate,
                         createdBy = prefManager!!.idUserLogin,
-                        createdName = prefManager!!.nameUserLogin
+                        createdName = prefManager!!.nameUserLogin,
+                        latIssue = lat,
+                        lonIssue = lon
                     )
                     formAncakViewModel.savePageData(currentPokok, updatedData)
                     AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
@@ -1689,12 +1711,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         fabNextToFormAncak.setOnClickListener {
-            if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnClickListener
-                }
+
+            if (!validateAndShowErrors()) {
+                vibrate(500)
+                return@setOnClickListener
             }
+
 
             bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
             lifecycleScope.launch {
@@ -1866,6 +1888,20 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     throw Exception("TPH ID tidak boleh kosong")
                                 }
 
+                                val entriesWithEmptyTree1 =
+                                    formData.values.filter { it.emptyTree == 1 }
+
+                                val allEntriesComplete = entriesWithEmptyTree1.all { pageData ->
+                                    val isComplete =
+                                        !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
+                                    isComplete
+                                }
+
+                                val allConditionsMet =
+                                    allEntriesComplete && photoTPHFollowUp != null
+
+                                val inspeksiPutaran = if (allConditionsMet) 2 else 1
+
                                 inspectionViewModel.saveDataInspection(
                                     created_date_start = dateStartInspection,
                                     created_by = userId.toString(),
@@ -1875,6 +1911,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     date_panen = selectedTanggalPanenByScan!!,
                                     foto_user = photoSelfie ?: "",
                                     jjg_panen = totalHarvestTree,
+                                    inspeksi_putaran = inspeksiPutaran,
                                     jalur_masuk = selectedJalurMasuk,
                                     jenis_kondisi = selectedKondisiValue.toInt(),
                                     baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
@@ -1889,7 +1926,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                             when (result) {
                                 is InspectionViewModel.SaveDataInspectionState.Success -> {
                                     inspectionId = result.inspectionId.toString()
-                                    AppLogger.d("globalInspectionId $inspectionId")
                                     if (!isFollowUp) {
                                         val formData =
                                             formAncakViewModel.formData.value ?: mutableMapOf()
@@ -2018,7 +2054,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         isForSelfie: Boolean? = null,
         isForFollowUp: Boolean? = null
     ) {
-
+        isBottomSheetOpen = true
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
             formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
@@ -2052,7 +2088,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
                 etPhotoComment.clearFocus()
-                bottomNavInspect.visibility = View.GONE
+//                bottomNavInspect.visibility = View.GONE
                 true
             } else {
                 false
@@ -2063,6 +2099,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             etPhotoComment.requestFocus()
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showSoftInput(etPhotoComment, InputMethodManager.SHOW_IMPLICIT)
+            if (bottomNavInspect.visibility == View.VISIBLE) {
+                hideWithAnimation(bottomNavInspect, 50)
+            }
+
+
         }
 
         bottomSheetDialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -2204,7 +2245,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             updatePhotoBadgeVisibility()
-            bottomNavInspect.visibility = View.VISIBLE
+            showWithAnimation(bottomNavInspect)
+            showWithAnimation(fabPrevFormAncak)
+            showWithAnimation(fabNextFormAncak)
             bottomSheetDialog.dismiss()
             Handler(Looper.getMainLooper()).postDelayed({
                 showViewPhotoBottomSheet(null, isInTPH, isForSelfie, isForFollowUp)
@@ -2331,13 +2374,22 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val filePath = File(rootApp, resultFileName)
         ivAddPhoto.setOnClickListener {
-            bottomNavInspect.visibility = View.GONE
+
+            if (bottomNavInspect.visibility == View.VISIBLE) {
+                hideWithAnimation(bottomNavInspect, 50)
+            }
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
+            etPhotoComment.clearFocus()
+
+
             when {
                 ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.CAMERA
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    bottomNavInspect.visibility = View.GONE
+                    isCameraViewOpen = true
                     bottomSheetDialog.dismiss()
 
                     if (resultFileName.isNotEmpty()) {
@@ -2349,6 +2401,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     shouldReopenBottomSheet = true
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         headerFormInspection.visibility = View.GONE
+                                        bottomNavInspect.visibility = View.GONE
                                         cameraViewModel.takeCameraPhotos(
                                             this,
                                             currentPage.toString(),
@@ -2368,7 +2421,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     performDeleteAction()
                                 },
                                 onClosePhoto = {
-                                    bottomNavInspect.visibility = View.VISIBLE
+                                    isCameraViewOpen = false
+                                    if (!keyboardOpenedWhileBottomSheetVisible) {
+                                        showWithAnimation(bottomNavInspect)
+                                        showWithAnimation(fabPrevFormAncak)
+                                        showWithAnimation(fabNextFormAncak)
+                                    }
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         showViewPhotoBottomSheet(
                                             null,
@@ -2381,18 +2439,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                             )
                         }, 100)
                     } else {
-
                         shouldReopenBottomSheet = true
                         Handler(Looper.getMainLooper()).postDelayed({
-
-                            bottomNavInspect.visibility = View.GONE
+                            hideWithAnimation(bottomNavInspect, 50)
                             cameraViewModel.takeCameraPhotos(
                                 this,
                                 currentPage.toString(),
                                 ivAddPhoto,
                                 currentPage,
                                 null,
-                                "", // soon assign lat lon
+                                "",
                                 currentPage.toString(),
                                 watermarkType,
                                 lat,
@@ -2448,6 +2504,20 @@ open class FormInspectionActivity : AppCompatActivity(),
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
 
+        bottomSheetDialog.setOnDismissListener {
+            isBottomSheetOpen = false
+
+            // Only show bottom nav if:
+            // 1. Camera view is not open AND
+            // 2. Keyboard was not opened while bottom sheet was visible
+            if (!isCameraViewOpen && !keyboardOpenedWhileBottomSheetVisible) {
+                showWithAnimation(bottomNavInspect)
+                showWithAnimation(fabPrevFormAncak)
+                showWithAnimation(fabNextFormAncak)
+            }
+        }
+
+
         bottomSheetDialog.show()
     }
 
@@ -2458,7 +2528,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             } else {
                 komentarInTPH ?: ""
             }
-            "$limitedKomentar\n$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+
+            val locationInfo =
+                "$selectedEstateByScan $selectedAfdelingByScan $selectedBlokByScan TPH $selectedTPHNomorByScan"
+
+            // Only add newline if comment exists and is not empty
+            if (limitedKomentar.isNotEmpty()) {
+                "$limitedKomentar\n$locationInfo"
+            } else {
+                locationInfo
+            }
         } else {
             val kondisi = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                 // Use data from currentInspectionData for follow-up
@@ -2474,7 +2553,15 @@ open class FormInspectionActivity : AppCompatActivity(),
             } else {
                 data.comment ?: ""
             }
-            "$limitedComment\n$kondisi #Pokok ${data.pokokNumber}"
+
+            val pokokInfo = "$kondisi #Pokok ${data.pokokNumber}"
+
+            // Only add newline if comment exists and is not empty
+            if (limitedComment.isNotEmpty()) {
+                "$limitedComment\n$pokokInfo"
+            } else {
+                pokokInfo
+            }
         }
     }
 
@@ -2486,19 +2573,34 @@ open class FormInspectionActivity : AppCompatActivity(),
             object : SoftKeyboardStateWatcher.OnSoftKeyboardStateChangedListener {
                 override fun onSoftKeyboardOpened(keyboardHeight: Int) {
                     bottomNavInspect.post {
-                        hideWithAnimation(bottomNavInspect, 100)
-                        hideWithAnimation(fabPrevFormAncak, 100)
-                        hideWithAnimation(fabNextFormAncak, 100)
-//                        hideWithAnimation(fabPhotoFormAncak, 100)
+                        // Always hide bottom nav when keyboard opens
+                        if (bottomNavInspect.visibility == View.VISIBLE) {
+                            hideWithAnimation(bottomNavInspect, 50)
+                            hideWithAnimation(fabPrevFormAncak, 50)
+                            hideWithAnimation(fabNextFormAncak, 50)
+                        }
+
+                        // Track if keyboard opened while bottom sheet is visible
+                        keyboardOpenedWhileBottomSheetVisible = isBottomSheetOpen
                     }
                 }
 
                 override fun onSoftKeyboardClosed() {
                     bottomNavInspect.post {
-                        showWithAnimation(bottomNavInspect)
-                        showWithAnimation(fabPrevFormAncak)
-                        showWithAnimation(fabNextFormAncak)
-//                        showWithAnimation(fabPhotoFormAncak)
+                        // Only show bottom nav if:
+                        // 1. No bottom sheet is open AND
+                        // 2. No camera view is open
+                        AppLogger.d("masuk gess")
+                        // Note: showWithAnimation handles visibility check internally
+                        AppLogger.d(" isBottomSheetOpen $isBottomSheetOpen")
+                        AppLogger.d(" isCameraViewOpen $isCameraViewOpen")
+                        if (!isBottomSheetOpen && !isCameraViewOpen) {
+                            AppLogger.d("masukgak sih  gess")
+                            showWithAnimation(bottomNavInspect)
+                            showWithAnimation(fabPrevFormAncak)
+                            showWithAnimation(fabNextFormAncak)
+                        }
+                        keyboardOpenedWhileBottomSheetVisible = false
                     }
                 }
             })
@@ -2747,6 +2849,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 prefManager!!,
                                 this@FormInspectionActivity
                             )
+                        }else{
+                            AppLogger.d("masuk ges $lat")
+                            AppLogger.d("masuk ndak $lon")
+                            formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                                currentPokok,
+                                lat,
+                                lon,
+                                prefManager!!,
+                                this@FormInspectionActivity
+                            )
                         }
                     } else {
                         AppLogger.d("Skipping findings check - emptyTree is not 1 (value: $emptyTreeValue)")
@@ -2755,13 +2867,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             if (activeBottomNavId == R.id.navMenuBlokInspect) {
-                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    if (!validateAndShowErrors()) {
-                        vibrate(500)
-                        return@setOnItemSelectedListener false
-                    }
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
                 }
-
             }
 
             loadingDialog.show()
@@ -5775,6 +5884,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    data class TrackingPath(
+        val start: LatLon,
+        val end: LatLon
+    )
+
+    data class LatLon(
+        val lat: Double,
+        val lon: Double
+    )
+
     private fun parseTrackingPath(trackingPathJson: String?): TrackingPath? {
         return try {
             if (trackingPathJson.isNullOrEmpty()) return null
@@ -6312,163 +6431,181 @@ open class FormInspectionActivity : AppCompatActivity(),
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
-        if (photoInTPH == null) {
-
-            isValid = false
-            showViewPhotoBottomSheet(null, isInTPH, false, false)
-            errorMessages.add("Foto di TPH wajib")
-            missingFields.add("Foto TPH")
-        }
-
-        val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
-        val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
-        val totalSelectedWorkers = automaticWorkers.size + manualWorkers.size
-
-        if (totalSelectedWorkers == 0) {
-            AppLogger.d("No workers selected in any adapter!")
-            errorMessages.add("Minimal 1 pemanen yang dipilih!")
-            missingFields.add("Pilih Pemanen")
-
-            // Show error ONLY on automatic spinner (manual is optional)
-            val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-            val tvErrorOtomatis =
-                layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-            val mcvOtomatis = layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-            tvErrorOtomatis.text = "Minimal 1 pemanen yang dipilih!"
-            tvErrorOtomatis.visibility = View.VISIBLE
-            mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-
-            isValid = false
-        } else {
-            AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
-
-            // Hide error ONLY from automatic spinner (manual doesn't show errors)
-            val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-            val tvErrorOtomatis =
-                layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-            val mcvOtomatis = layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-            tvErrorOtomatis.visibility = View.GONE
-            mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
-        }
-
-        if (selectedKaryawanList.isEmpty()) {
-            AppLogger.d("selectedKaryawanList $selectedKaryawanList")
-            errorMessages.add("Minimal 1 pemanen yang dipilih!")
-            missingFields.add("Pilih Pemanen")
-
-            val layoutBaris2 = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-            val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-            val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-            tvErrorBaris2.text = "Minimal 1 pemanen yang dipilih!"
-            tvErrorBaris2.visibility = View.VISIBLE
-        }
-
-        if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-            isValid = false
-            errorMessages.add(stringXML(R.string.al_location_description_failed))
-            missingFields.add("Location")
-        }
+        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
 
 
-        inputMappings.forEach { (layout, key, inputType) ->
-            if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+            if (photoTPHFollowUp == null) {
 
-                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
-
-                val isEmpty = when (inputType) {
-                    InputType.SPINNER -> {
-                        when (layout.id) {
-                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
-                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
-                            else -> spinner.selectedIndex == -1
-                        }
-                    }
-
-                    InputType.EDITTEXT -> {
-                        when (layout.id) {
-                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
-                                .isEmpty() else false
-
-                            else -> editText.text.toString().trim().isEmpty()
-                        }
-                    }
-
-                    InputType.RADIO -> {
-                        when (layout.id) {
-                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
-                            else -> false
-                        }
-                    }
-
-                }
-
-                if (isEmpty) {
-                    tvError.visibility = View.VISIBLE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                    missingFields.add(key)
-                    isValid = false
-                } else {
-                    tvError.visibility = View.GONE
-                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
-                }
-            }
-        }
-
-        if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
-            if (isTriggeredBtnScanned) {
-                if (isEmptyScannedTPH) {
-                    tvErrorScannedNotSelected.text =
-                        stringXML(R.string.al_no_tph_detected_trigger_submit)
-                    tvErrorScannedNotSelected.visibility = View.VISIBLE
-                    errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
-                    isValid = false
-                } else {
-                    // Search was done and TPH found, but user hasn't selected one
-                    tvErrorScannedNotSelected.text =
-                        "Silakan untuk memilih TPH yang ingin diperiksa!"
-                    tvErrorScannedNotSelected.visibility = View.VISIBLE
-                    errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
-                    isValid = false
-                }
-            } else {
-                // Button not triggered yet - ask user to search first
-                tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
-                tvErrorScannedNotSelected.visibility = View.VISIBLE
-                errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
                 isValid = false
+                isInTPH = true
+                isForSelfie = false
+                isForFollowUp = true
+                showViewPhotoBottomSheet(null, true, false, true)
+                errorMessages.add("Foto Pemuliahan di TPH wajib")
+                missingFields.add("Foto Pemulihan TPH")
             }
         } else {
-            // TPH is selected or no afdeling selected - hide error
-            tvErrorScannedNotSelected.visibility = View.GONE
-        }
+            if (photoInTPH == null) {
+                isValid = false
+                showViewPhotoBottomSheet(null, isInTPH, false, false)
+                errorMessages.add("Foto di TPH wajib")
+                missingFields.add("Foto TPH")
+            }
 
-        // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
-        if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim()
-                .isNotEmpty()
-        ) {
-            val br1Int = br1Value.trim().toIntOrNull() ?: 0
-            val br2Int = br2Value.trim().toIntOrNull() ?: 0
+            val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
+            val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+            val totalSelectedWorkers = automaticWorkers.size + manualWorkers.size
 
-            AppLogger.d(br1Int.toString())
-            AppLogger.d(br2Int.toString())
-            if (br1Int == br2Int) {
-                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
+            if (totalSelectedWorkers == 0) {
+                AppLogger.d("No workers selected in any adapter!")
+                errorMessages.add("Minimal 1 pemanen yang dipilih!")
+                missingFields.add("Pilih Pemanen")
+
+                // Show error ONLY on automatic spinner (manual is optional)
+                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+                val tvErrorOtomatis =
+                    layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvOtomatis =
+                    layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+                tvErrorOtomatis.text = "Minimal 1 pemanen yang dipilih!"
+                tvErrorOtomatis.visibility = View.VISIBLE
+                mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+
+                isValid = false
+            } else {
+                AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
+
+                // Hide error ONLY from automatic spinner (manual doesn't show errors)
+                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+                val tvErrorOtomatis =
+                    layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvOtomatis =
+                    layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+                tvErrorOtomatis.visibility = View.GONE
+                mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+            }
+
+            if (selectedKaryawanList.isEmpty()) {
+                AppLogger.d("selectedKaryawanList $selectedKaryawanList")
+                errorMessages.add("Minimal 1 pemanen yang dipilih!")
+                missingFields.add("Pilih Pemanen")
+
+                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
                 val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
                 val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
 
-                tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
+                tvErrorBaris2.text = "Minimal 1 pemanen yang dipilih!"
                 tvErrorBaris2.visibility = View.VISIBLE
-                mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
-                isValid = false
             }
+
+            if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+                isValid = false
+                errorMessages.add(stringXML(R.string.al_location_description_failed))
+                missingFields.add("Location")
+            }
+
+
+            inputMappings.forEach { (layout, key, inputType) ->
+                if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+
+                    val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                    val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+                    val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                    val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
+
+                    val isEmpty = when (inputType) {
+                        InputType.SPINNER -> {
+                            when (layout.id) {
+                                R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
+                                R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
+                                else -> spinner.selectedIndex == -1
+                            }
+                        }
+
+                        InputType.EDITTEXT -> {
+                            when (layout.id) {
+                                R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
+                                R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
+                                    .isEmpty() else false
+
+                                else -> editText.text.toString().trim().isEmpty()
+                            }
+                        }
+
+                        InputType.RADIO -> {
+                            when (layout.id) {
+                                R.id.lyConditionType -> selectedKondisiValue.isEmpty()
+                                else -> false
+                            }
+                        }
+
+                    }
+
+                    if (isEmpty) {
+                        tvError.visibility = View.VISIBLE
+                        mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                        missingFields.add(key)
+                        isValid = false
+                    } else {
+                        tvError.visibility = View.GONE
+                        mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                    }
+                }
+            }
+
+            if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
+                if (isTriggeredBtnScanned) {
+                    if (isEmptyScannedTPH) {
+                        tvErrorScannedNotSelected.text =
+                            stringXML(R.string.al_no_tph_detected_trigger_submit)
+                        tvErrorScannedNotSelected.visibility = View.VISIBLE
+                        errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
+                        isValid = false
+                    } else {
+                        // Search was done and TPH found, but user hasn't selected one
+                        tvErrorScannedNotSelected.text =
+                            "Silakan untuk memilih TPH yang ingin diperiksa!"
+                        tvErrorScannedNotSelected.visibility = View.VISIBLE
+                        errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
+                        isValid = false
+                    }
+                } else {
+                    // Button not triggered yet - ask user to search first
+                    tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
+                    tvErrorScannedNotSelected.visibility = View.VISIBLE
+                    errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
+                    isValid = false
+                }
+            } else {
+                // TPH is selected or no afdeling selected - hide error
+                tvErrorScannedNotSelected.visibility = View.GONE
+            }
+
+            // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
+            if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim()
+                    .isNotEmpty()
+            ) {
+                val br1Int = br1Value.trim().toIntOrNull() ?: 0
+                val br2Int = br2Value.trim().toIntOrNull() ?: 0
+
+                AppLogger.d(br1Int.toString())
+                AppLogger.d(br2Int.toString())
+                if (br1Int == br2Int) {
+                    val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
+                    val tvErrorBaris2 =
+                        layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                    val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+                    tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
+                    tvErrorBaris2.visibility = View.VISIBLE
+                    mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                    errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
+                    isValid = false
+                }
+            }
+
         }
 
         if (!isValid) {
@@ -6495,6 +6632,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 R.color.colorRedDark
             ) {}
         }
+
+
 
         return isValid
     }
@@ -6560,7 +6699,14 @@ open class FormInspectionActivity : AppCompatActivity(),
     ) {
         if (shouldReopenBottomSheet) {
             shouldReopenBottomSheet = false
-            bottomNavInspect.visibility = View.VISIBLE
+            isCameraViewOpen = false  // Reset camera state
+
+            // Only show bottom nav if keyboard is not currently open
+            if (!keyboardOpenedWhileBottomSheetVisible) {
+                showWithAnimation(bottomNavInspect)
+                showWithAnimation(fabPrevFormAncak)
+                showWithAnimation(fabNextFormAncak)
+            }
 
             val currentPage = formAncakViewModel.currentPage.value ?: 1
             val currentData =

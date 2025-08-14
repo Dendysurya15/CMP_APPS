@@ -122,6 +122,7 @@
     <string name="daftar_tph_sudah_terangkut">Informasi TPH Sudah Terangkut</string>
     <string name="al_must_checked_master_estate">Centang pilihan estate diatas!</string>
     <string name="al_validation_qr_krani_scan">Data blok tidak tervalidasi dalam database. Pastikan QR Code yang dipindai merupakan QR Code dari Kerani panen estate yang sesuai.</string>
+    <string name="response_no_data_in_panen">Semua data sudah ada di database lokal. Tidak ada data baru untuk diunduh.</string>
     <string name="alert_take_foto_for_inspection"><![CDATA[- Brondolan kurang dari 50 tidak perlu di foto\n- Pruning tidak perlu difoto]]></string>
 
     <string-array name="tipe_panen_options">

@@ -229,7 +229,9 @@ object AppUtils {
         const val ScanPanenMPanen = "Scan Mandor Panen"
         const val DaftarHektarPanen = "Daftar Hektar Panen"
         const val TransferHektarPanen = "Transfer Hektar Panen"
+        const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
+        const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
     }
 
     object WaterMarkFotoDanFolder {
@@ -1310,23 +1312,35 @@ object AppUtils {
         return if (featureName == ListFeatureNames.RekapHasilPanen ||
             featureName == ListFeatureNames.RekapPanenDanRestan ||
             featureName == ListFeatureNames.DetailESPB ||
-            featureName == ListFeatureNames.TransferHektarPanen) {
+            featureName == ListFeatureNames.TransferHektarPanen ||
+            featureName == ListFeatureNames.TransferInspeksiPanen) {
 
-            val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
+            if (featureName == ListFeatureNames.TransferInspeksiPanen) {
+                // For TransferInspeksiPanen, just show blok names without sum/count
+                mappedData
+                    .filter { it["blok_name"].toString() != "-" }
+                    .map { it["blok_name"].toString() }
+                    .distinct()
+                    .sorted()
+                    .joinToString(", ")
+            } else {
+                // For other features, show with sum and count
+                val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
-            mappedData
-                .filter { it["blok_name"].toString() != "-" }
-                .groupBy { it["blok_name"].toString() }
-                .mapValues { (_, items) ->
-                    val count = items.size
-                    val paSum = items.sumOf { item ->
-                        extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                mappedData
+                    .filter { it["blok_name"].toString() != "-" }
+                    .groupBy { it["blok_name"].toString() }
+                    .mapValues { (_, items) ->
+                        val count = items.size
+                        val paSum = items.sumOf { item ->
+                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                        }
+                        "${paSum.toInt()}/$count"  // Convert double sum to integer for display
                     }
-                    "${paSum.toInt()}/$count"  // Convert double sum to integer for display
-                }
-                .toSortedMap() // Sort by blok_name
-                .map { (blokName, summary) -> "$blokName ($summary)" }
-                .joinToString(", ")
+                    .toSortedMap() // Sort by blok_name
+                    .map { (blokName, summary) -> "$blokName ($summary)" }
+                    .joinToString(", ")
+            }
         } else {
             getDistinctBlokNames(mappedData)
         }

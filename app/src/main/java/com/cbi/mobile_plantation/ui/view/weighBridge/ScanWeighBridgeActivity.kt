@@ -873,7 +873,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         )
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
-                                        AppLogger.d(espbJson)
+                                        AppLogger.d("espbJson $espbJson")
                                         weightBridgeViewModel.checkTPHDuplicates(basicProcessingResult.millIP, espbJson)
                                         delay(100)
 
