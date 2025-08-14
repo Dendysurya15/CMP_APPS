@@ -2,20 +2,25 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
-import com.cbi.markertph.data.model.JenisTPHModel
+
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.HektarPanenDao
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
@@ -24,6 +29,8 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.MathFun
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.math.BigDecimal
@@ -64,6 +71,17 @@ class AppRepository(context: Context) {
     private val kendaraanDao = database.kendaraanDao()
     private val hektarPanenDao = database.hektarPanenDao()
     private val jenisTPHDao = database.jenisTPHDao()
+    private val mutuBuahDao = database.mutuBuahDao()
+
+    private val _tphData = MutableLiveData<TPHNewModel?>()
+    val tphData: LiveData<TPHNewModel?> = _tphData
+
+    suspend fun loadTPH(tphId: Int) {
+        withContext(Dispatchers.IO) {
+            val result = tphDao.getTPHById(tphId)
+            _tphData.postValue(result)
+        }
+    }
     private val afdelingDao = database.afdelingDao()
     private val parameterDao = database.parameterDao()
 
@@ -71,6 +89,11 @@ class AppRepository(context: Context) {
     sealed class SaveResultPanen {
         object Success : SaveResultPanen()
         data class Error(val exception: Exception) : SaveResultPanen()
+    }
+
+    sealed class SaveResultMutuBuah {
+        object Success : SaveResultMutuBuah()
+        data class Error(val exception: Exception) : SaveResultMutuBuah()
     }
 
     suspend fun saveDataPanen(data: PanenEntity) {
@@ -218,6 +241,10 @@ class AppRepository(context: Context) {
         withContext(Dispatchers.IO) {
             panenDao.updateStatusEspbToZero(tphId, dateCreated)
         }
+
+    suspend fun saveMutuBuah(data: MutuBuahEntity) {
+        mutuBuahDao.insert(data)
+    }
 
     suspend fun saveScanMPanen(
         tphDataList: List<PanenEntity>,
@@ -1175,6 +1202,30 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun loadMutuBuah(
+        statusUpload: Int,
+        date: String? = null
+    ): List<MutuBuahEntity> {
+        return try {
+            mutuBuahDao.loadMutuBuahByStatusUploadAndDate(statusUpload, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah: ${e.message}")
+            emptyList()  // Return empty list if there's an error
+        }
+    }
+
+    suspend fun countMutuBuah(
+        statusUpload: Int,
+        date: String? = null
+    ): Int {
+        return try {
+            mutuBuahDao.countMutuBuahByStatusUploadAndDate(statusUpload, date)
+        } catch (e: Exception) {
+            AppLogger.e("Error loading MutuBuah: ${e.message}")
+            0
+        }
+    }
+
     suspend fun countESPB(
         archive: Int,
         statusTransferRestan: Int,
@@ -1228,6 +1279,10 @@ class AppRepository(context: Context) {
 
     suspend fun getBlokKodeByTphId(tphId: Int): String? = withContext(Dispatchers.IO) {
         tphDao.getBlokKodeByTphId(tphId)
+    }
+
+    suspend fun getTPHById(tphId: Int): TPHNewModel = withContext(Dispatchers.IO) {
+        tphDao.getTPHById(tphId)
     }
 
     suspend fun getNamaByNik(nik: String): String? = withContext(Dispatchers.IO) {
@@ -1651,6 +1706,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getMBCountCreatedToday(): Int {
+        return try {
+            mutuBuahDao.getCountCreatedToday()
+        } catch (e: Exception) {
+            AppLogger.e("Error counting ESPB created today: ${e.message}")
+            0
+        }
+    }
+
     fun getBlokById(listBlokId: List<Int>): List<BlokModel> {
         return blokDao.getDataByIdInBlok(listBlokId)
     }
@@ -1739,6 +1803,9 @@ class AppRepository(context: Context) {
 //        }
 //    }
 
+//    suspend fun getInspectionPathWithTphAndCount(pathId: String): PathWithInspectionTphRelations {
+//        return inspectionPathDao.getInspectionPathWithTphAndCount(pathId)
+//    }
 //    suspend fun getInspectionCountCard(archive: Int): Int {
 //        return inspectionDao.countCard(archive)
 //    }

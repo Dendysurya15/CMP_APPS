@@ -79,7 +79,7 @@ class DataPanenInspectionRepository(
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
@@ -250,6 +250,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return TestingApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 }

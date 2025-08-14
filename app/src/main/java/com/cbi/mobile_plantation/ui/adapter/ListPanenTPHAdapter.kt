@@ -124,6 +124,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         notifyDataSetChanged()
     }
 
+// In ListPanenTPHAdapter.kt, update the extractData function around line 100-120
+
     fun extractData(item: Map<String, Any>): ExtractedData {
         Log.d("ListPanenTPHAdapterTest", "extractData: $item")
 
@@ -141,25 +143,40 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             JSONObject()
         }
 
-//        val totalJjg = if (featureName == "Buat eSPB" || featureName == "Rekap panen dan restan" || featureName == AppUtils.ListFeatureNames.DetailESPB) {
-//            jjgJson.optInt("KP", 0)
-//        } else {
-//            jjgJson.optInt("TO", 0) //diganti KP
-//        }
-
-        val totalJjg =  jjgJson.optInt("KP", 0)
+        // Fix: Handle different jjg values based on feature
+        val totalJjg = when (featureName) {
+            AppUtils.ListFeatureNames.RekapMutuBuah -> {
+                // For Mutu Buah, try to get jjg_panen directly from item first
+                val jjgPanen = item["jjg_panen"] as? Int
+                if (jjgPanen != null && jjgPanen > 0) {
+                    jjgPanen
+                } else {
+                    // Fallback to PANEN from JSON if jjg_panen field doesn't exist
+                    jjgJson.optInt("PANEN", 0)
+                }
+            }
+            "Buat eSPB",
+            "Rekap panen dan restan",
+            AppUtils.ListFeatureNames.DetailESPB -> {
+                jjgJson.optInt("KP", 0)
+            }
+            else -> {
+                jjgJson.optInt("KP", 0)
+            }
+        }
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID")) // Indonesian format
+            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID"))
             val date = inputFormat.parse(dateCreated)
             outputFormat.format(date ?: "-")
         } catch (e: Exception) {
             "-"
         }
+
         val username = try {
             item["username"] as? String ?: "-"
-        }catch (e: Exception){
+        } catch (e: Exception) {
             AppLogger.e(e.toString())
             "-"
         }
@@ -262,11 +279,13 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
 
 
+// In ListPanenTPHAdapter.kt, update the calculateTotals function around line 200-300
+
     private fun calculateTotals() {
         var jjgCount = 0
         var tphCount = 0
-        checkedBlocks.clear() // Clear previous blocks
-        checkedBlocksDetails.clear() // Clear previous block details
+        checkedBlocks.clear()
+        checkedBlocksDetails.clear()
 
         val tphMap = mutableMapOf<String, Int>()
 
@@ -276,89 +295,121 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 val tphId = item["tph_id"].toString()
                 val extractedData = extractData(item)
 
-                // Get block name directly from item data
                 val blokName = item["blok_name"].toString()
-
-                // Add block name to the set
                 checkedBlocks.add(blokName)
 
-                // Extract jjg count from the item
-                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
-                try {
-                    val jjgJson = JSONObject(jjgJsonString)
-                    // Use different fields based on feature name
-                    val jjgValue =
-                        jjgJson.optInt("KP", 0)
-
-
-                    // Update block details - add jjgValue to total and increment count
-                    val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
-                    checkedBlocksDetails[blokName] = Pair(
-                        currentDetails.first + jjgValue,  // Sum of jjg values
-                        currentDetails.second + 1         // Count of occurrences
-                    )
-
-                    // Add to the map - if TPH ID already exists, sum the values
-                    tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
-                    jjgCount += jjgValue
-
-                    // Count each TPH even if it's a duplicate ID
-                    tphCount++
-                } catch (e: Exception) {
-                    Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                // Handle different JJG values based on feature
+                val jjgValue = when (featureName) {
+                    AppUtils.ListFeatureNames.RekapMutuBuah -> {
+                        // For Mutu Buah, get jjg_panen directly from item
+                        val jjgPanen = item["jjg_panen"] as? Int
+                        if (jjgPanen != null && jjgPanen > 0) {
+                            jjgPanen
+                        } else {
+                            // Fallback to JSON parsing
+                            try {
+                                val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                                val jjgJson = JSONObject(jjgJsonString)
+                                jjgJson.optInt("PANEN", 0)
+                            } catch (e: Exception) {
+                                Log.e("ListPanenTPHAdapter", "Error parsing jjg_json for Mutu Buah: ${e.message}")
+                                0
+                            }
+                        }
+                    }
+                    else -> {
+                        // For other features, use existing logic
+                        try {
+                            val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                            val jjgJson = JSONObject(jjgJsonString)
+                            jjgJson.optInt("KP", 0)
+                        } catch (e: Exception) {
+                            Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
+                            0
+                        }
+                    }
                 }
+
+                // Update block details
+                val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
+                checkedBlocksDetails[blokName] = Pair(
+                    currentDetails.first + jjgValue,
+                    currentDetails.second + 1
+                )
+
+                tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
+                jjgCount += jjgValue
+                tphCount++
             }
         }
 
-        // Process scanned items
+        // Process scanned items (similar logic for scanned items)
         if (!isRestoringFromPrevious) {
-            for (item in tphList) {
-                val tphId = item["tph_id"].toString()
-                if (tphListScan.contains(tphId) && !selectedItems.contains(tphList.indexOf(item))) {
-                    val blokName = item["blok_name"].toString()
+            for (i in tphList.indices) {
+                if (!manuallyDeselectedItems.contains(i) && !selectedItems.contains(i)) {
+                    val item = tphList[i]
+                    val isScannedMatch = if (isRestoringFromPrevious) {
+                        val panenId = item["id"]?.toString() ?: ""
+                        tphListScan.contains(panenId)
+                    } else {
+                        val tphId = extractData(item).tphId.toString()
+                        tphListScan.contains(tphId)
+                    }
 
-                    // Add block name to the set
-                    checkedBlocks.add(blokName)
+                    if (isScannedMatch) {
+                        val blokName = item["blok_name"].toString()
+                        checkedBlocks.add(blokName)
 
-                    // Extract jjg count from the item
-                    val jjgJsonString = item["jjg_json"] as? String ?: "{}"
-                    try {
-                        val jjgJson = JSONObject(jjgJsonString)
-                        // Use different fields based on feature name
-                        val jjgValue =
-                            jjgJson.optInt("KP", 0)
+                        // Handle different JJG values based on feature (same logic as above)
+                        val jjgValue = when (featureName) {
+                            AppUtils.ListFeatureNames.RekapMutuBuah -> {
+                                val jjgPanen = item["jjg_panen"] as? Int
+                                if (jjgPanen != null && jjgPanen > 0) {
+                                    jjgPanen
+                                } else {
+                                    try {
+                                        val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                                        val jjgJson = JSONObject(jjgJsonString)
+                                        jjgJson.optInt("PANEN", 0)
+                                    } catch (e: Exception) {
+                                        0
+                                    }
+                                }
+                            }
+                            else -> {
+                                try {
+                                    val jjgJsonString = item["jjg_json"] as? String ?: "{}"
+                                    val jjgJson = JSONObject(jjgJsonString)
+                                    jjgJson.optInt("KP", 0)
+                                } catch (e: Exception) {
+                                    0
+                                }
+                            }
+                        }
 
-                        // Update block details - add jjgValue to total and increment count
                         val currentDetails = checkedBlocksDetails[blokName] ?: Pair(0, 0)
                         checkedBlocksDetails[blokName] = Pair(
-                            currentDetails.first + jjgValue,  // Sum of jjg values
-                            currentDetails.second + 1         // Count of occurrences
+                            currentDetails.first + jjgValue,
+                            currentDetails.second + 1
                         )
 
-                        // Add to the map
+                        val tphId = extractData(item).tphId.toString()
                         tphMap[tphId] = (tphMap[tphId] ?: 0) + jjgValue
                         jjgCount += jjgValue
-
-                        // Count each TPH even if it's a duplicate ID
                         tphCount++
-                    } catch (e: Exception) {
-                        Log.e("ListPanenTPHAdapter", "Error parsing jjg_json: ${e.message}")
                     }
                 }
             }
         }
 
-        // Store the raw count instead of unique IDs count
         totalCheckedTPH = tphCount
         totalCheckedJjg = jjgCount
 
-        // Create formatted block list with counts and jjg totals
         val formattedBlocks = checkedBlocksDetails.map { (blokName, details) ->
             val (jjgTotal, count) = details
             "$blokName ($jjgTotal/$count)"
         }.sorted()
 
-        // Notify listener with the formatted blocks list
         onTotalsUpdateListener?.invoke(totalCheckedTPH, totalCheckedJjg, formattedBlocks)
     }
 
@@ -768,6 +819,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             else if (archiveState == 2 && featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
                 binding.checkBoxPanen.visibility = View.GONE
                 binding.numListTerupload.visibility = View.GONE
+                binding.flCheckBoxItemTph.visibility = View.GONE
+            } else if(featureName == AppUtils.ListFeatureNames.RekapMutuBuah){
                 binding.flCheckBoxItemTph.visibility = View.GONE
             }
             else {

@@ -73,20 +73,22 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
-import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.ui.fragment.FormAncakFragment
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.utils.SoftKeyboardStateWatcher
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.CameraRepository
+import com.cbi.mobile_plantation.data.repository.CameraRepository.CameraType
+import com.cbi.mobile_plantation.data.repository.CameraRepository.CameraType.*
 import com.cbi.mobile_plantation.ui.adapter.FormAncakPagerAdapter
 import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
 import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
@@ -2413,7 +2415,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             watermarkType,
                                             lat,
                                             lon,
-                                            generateSourceFoto(currentData)
+                                            generateSourceFoto(currentData),
+                                            if (isForSelfie == true) CameraType.FRONT
+                                            else CameraType.BACK
                                         )
                                     }, 100)
                                 },
@@ -2453,7 +2457,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 watermarkType,
                                 lat,
                                 lon,
-                                generateSourceFoto(currentData)
+                                generateSourceFoto(currentData),
+                                if (isForSelfie == true) CameraType.FRONT
+                                else CameraType.BACK
                             )
                         }, 100)
                     }

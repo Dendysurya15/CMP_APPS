@@ -73,6 +73,11 @@ class CameraRepository(
     private val zoomView: View
 ) {
 
+    enum class CameraType {
+        BACK,
+        FRONT
+    }
+
     interface PhotoCallback {
         fun onPhotoTaken(
             photoFile: File,
@@ -274,22 +279,30 @@ class CameraRepository(
         featureName: String?,
         latitude: Double? = null,
         longitude: Double? = null,
-        sourceFoto: String
+        sourceFoto: String,
+        cameraType: CameraType = CameraType.BACK // Default to back camera
     ) {
+        // Set the camera ID based on the specified camera type
+        lastCameraId = when (cameraType) {
+            CameraType.BACK -> 0
+            CameraType.FRONT -> 1
+        }
 
         orientationHandler = CameraOrientationHandler(context)
         orientationHandler.startListening()
         prefManager = PrefManager(context)
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
+
+        // Rest of your existing code remains the same...
         val rootDCIM = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-            "CMP-$featureName" // Store under "CMP-featureName"
+            "CMP-$featureName"
         ).toString()
 
         val rootApp = File(
             context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-            "CMP-$featureName" // Store under "CMP-featureName"
+            "CMP-$featureName"
         ).toString()
 
         AppLogger.d(rootApp)
@@ -470,6 +483,9 @@ class CameraRepository(
                                                 0
                                             }
 
+                                            // Convert lastCameraId back to CameraType for the recursive call
+                                            val newCameraType = if (lastCameraId == 0) CameraType.BACK else CameraType.FRONT
+
                                             takeCameraPhotos(
                                                 context,
                                                 resultCode,
@@ -481,7 +497,8 @@ class CameraRepository(
                                                 featureName,
                                                 latitude,
                                                 longitude,
-                                                sourceFoto
+                                                sourceFoto,
+                                                newCameraType // Pass the new camera type
                                             )
                                         }
                                     }

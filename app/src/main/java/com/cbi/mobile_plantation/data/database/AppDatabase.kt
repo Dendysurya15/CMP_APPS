@@ -6,7 +6,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.cbi.markertph.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.AbsensiModel
@@ -18,12 +17,14 @@ import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.utils.AppUtils
 
@@ -75,8 +76,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
         AfdelingModel::class,
         JenisTPHModel::class,
         ParameterModel::class,
+        MutuBuahEntity::class
     ],
-    version = 50
+    version = 51
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -97,6 +99,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun afdelingDao(): AfdelingDao
     abstract fun hektarPanenDao(): HektarPanenDao
     abstract fun jenisTPHDao(): JenisTPHDao
+    abstract fun mutuBuahDao(): MutuBuahDao
     abstract fun parameterDao(): ParameterDao
 
     // Function to restore data from backup tables if needed

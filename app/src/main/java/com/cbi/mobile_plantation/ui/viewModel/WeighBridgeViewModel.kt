@@ -12,7 +12,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.network.StagingApiClient
@@ -151,7 +151,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 
                 // Update base URL with mill IP
                 StagingApiClient.updateBaseUrl("http://$millIP:3005")
-//                StagingApiClient.updateBaseUrl("http://10.9.116.175:8000")
+//                StagingApiClient.updateBaseUrl("http://10.9.116.125:3005")
 
                 // Create request body with raw JSON
                 val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())

@@ -22,7 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.google.gson.Gson
@@ -163,6 +163,7 @@ object AppUtils {
     }
 
     object DatabaseTables {
+        const val MUTU_BUAH = "mutu_buah"
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
@@ -203,6 +204,7 @@ object AppUtils {
     }
 
 
+
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
@@ -229,6 +231,8 @@ object AppUtils {
         const val ScanPanenMPanen = "Scan Mandor Panen"
         const val DaftarHektarPanen = "Daftar Hektar Panen"
         const val TransferHektarPanen = "Transfer Hektar Panen"
+        const val MutuBuah = "Inspeksi Mutu Buah"
+        const val RekapMutuBuah = "Rekap Mutu Buah"
         const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
         const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
@@ -1391,6 +1395,28 @@ object AppUtils {
      * Get a map of all calculated data for easy access
      */
     fun getPanenProcessedData(mappedData: List<Map<String, Any?>>, featureName: String?): Map<String, Any> {
+        val totalJjgCount = if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+            // For Mutu Buah, use jjg_panen instead of jjg_kirim
+            mappedData.sumOf { data ->
+                val jjgPanen = data["jjg_panen"] as? Int ?: 0
+                jjgPanen
+            }
+        } else {
+            // For other features, use the existing logic with jjg_json
+            mappedData.sumOf { data ->
+                try {
+                    val jjgJsonStr = data["jjg_json"]?.toString() ?: "{}"
+                    val jjgJson = JSONObject(jjgJsonStr)
+
+                    when (featureName) {
+                        AppUtils.ListFeatureNames.RekapPanenDanRestan -> jjgJson.optInt("KP", 0)
+                        else -> jjgJson.optInt("KP", 0) // Default to KP for other features
+                    }
+                } catch (e: Exception) {
+                    0
+                }
+            }
+        }
         return mapOf(
             "blokNames" to getDistinctBlokNames(mappedData),
             "blokDisplay" to getBlokDisplay(mappedData, featureName),

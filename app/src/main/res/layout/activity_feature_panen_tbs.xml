@@ -490,7 +490,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:fontFamily="@font/manrope_medium"
-
                         android:gravity="center|left"
                         android:text="@string/desc_data_grading"
                         android:textColor="@color/black"
@@ -734,7 +733,7 @@
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <TextView
-
+                        android:id="@+id/tvDescFoto"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:fontFamily="@font/manrope_semibold"
@@ -746,12 +745,20 @@
                         android:visibility="visible"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
+                    <include
+                        android:id="@+id/layoutSelfiePhoto"
+                        layout="@layout/take_and_preview_foto_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:paddingHorizontal="10dp"
+                        android:visibility="gone" />
+
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recyclerViewFotoPreview"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_below="@id/tvTitleFormPanenTBS"
                         android:clipToPadding="false"
                         android:orientation="vertical"
                         android:layout_marginTop="10dp"
@@ -760,6 +767,7 @@
                         tools:itemCount="1"
                         tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/take_and_preview_foto_layout" />
+
 
                     <TextView
                         android:id="@+id/tvErrorNotAttachPhotos"
