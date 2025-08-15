@@ -156,9 +156,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int {
+    suspend fun updateStatusEspbAndNoESPB(tphId: String, dateCreated: String): Int {
         return withContext(Dispatchers.IO) {
-            repository.updateStatusEspbToZero(tphId, dateCreated)
+            repository.updateStatusEspbAndNoESPB(tphId, dateCreated)
         }
     }
 

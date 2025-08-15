@@ -84,8 +84,8 @@ abstract class PanenDao {
     abstract suspend fun getCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
 
-    @Query("UPDATE panen_table SET status_espb = 0 WHERE tph_id = :tphId AND date_created = :dateCreated")
-    abstract suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int
+    @Query("UPDATE panen_table SET status_espb = 0, no_espb = '' WHERE tph_id = :tphId AND date_created = :dateCreated")
+    abstract suspend fun updateStatusEspbAndNoESPB(tphId: String, dateCreated: String): Int
 
 
     @Query("""

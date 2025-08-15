@@ -241,9 +241,9 @@ class AppRepository(context: Context) {
         return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
     }
 
-    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int =
+    suspend fun updateStatusEspbAndNoESPB(tphId: String, dateCreated: String): Int =
         withContext(Dispatchers.IO) {
-            panenDao.updateStatusEspbToZero(tphId, dateCreated)
+            panenDao.updateStatusEspbAndNoESPB(tphId, dateCreated)
         }
 
     suspend fun saveMutuBuah(data: MutuBuahEntity) {

@@ -2057,8 +2057,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         btnScanTPHRadius.setOnClickListener {
 
-            if (currentAccuracy <= boundaryAccuracy) {
-                // GPS is within boundary - proceed directly
+//            if (currentAccuracy <= boundaryAccuracy) {
+//                // GPS is within boundary - proceed directly
                 isTriggeredBtnScanned = true
                 // Reset the selectedTPHIdByScan when manually refreshing
                 selectedTPHIdByScan = null
@@ -2067,11 +2067,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 Handler(Looper.getMainLooper()).postDelayed({
                     checkScannedTPHInsideRadius()
                 }, 400)
-            } else {
-                // GPS is outside boundary - show error toast
-                Toasty.error(this, "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!", Toast.LENGTH_LONG, true)
-                    .show()
-            }
+//            } else {
+//                // GPS is outside boundary - show error toast
+//                Toasty.error(this, "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!", Toast.LENGTH_LONG, true)
+//                    .show()
+//            }
 
         }
 
@@ -5557,6 +5557,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         selectedTPH = selectedTPHInLIst.number
         if (featureName != AppUtils.ListFeatureNames.MutuBuah){
             layoutAncak.visibility = View.VISIBLE
+            layoutNomorPemanen.visibility = View.VISIBLE
             layoutTipePanen.visibility = View.VISIBLE
             layoutKemandoran.visibility = View.VISIBLE
             layoutPemanen.visibility = View.VISIBLE

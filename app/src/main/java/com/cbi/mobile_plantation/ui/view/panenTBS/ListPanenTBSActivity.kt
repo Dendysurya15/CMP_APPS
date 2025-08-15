@@ -317,33 +317,33 @@ class ListPanenTBSActivity : AppCompatActivity() {
             dateButton.text = todayDisplayDate
             triggerViewModelByFeature(todayBackendDate)
 
-            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
-                if (currentState == 0) {
-                    panenViewModel.loadTPHNonESPB(0, 0, true, 0, todayBackendDate)
-                    panenViewModel.countTPHNonESPB(0, 0, true, 0, todayBackendDate)
-                    panenViewModel.countTPHESPB(1, 0, true, 0, todayBackendDate)
-                } else if (currentState == 1) {
-                    panenViewModel.loadTPHESPB(1, 0, true, 0, todayBackendDate)
-                    panenViewModel.countTPHNonESPB(0, 0, true, 0, todayBackendDate)
-                    panenViewModel.countTPHESPB(1, 0, true, 0, todayBackendDate)
-                } else if (currentState == 2) {
-                    panenViewModel.loadTPHNonESPB(1, 0, true, 0, todayBackendDate)
-                    panenViewModel.countTPHNonESPB(0, 0, true, 0, todayBackendDate)
-                    panenViewModel.countTPHESPB(1, 0, true, 0, todayBackendDate)
-                }
-            } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                if (currentState == 0) {
-                    panenViewModel.loadTPHNonESPB(0, 0, true, 1, todayBackendDate)
-                    panenViewModel.countTPHNonESPB(0, 0, true, 1, todayBackendDate)
-                    panenViewModel.countTPHESPB(0, 1, false, 1, todayBackendDate)
-                } else {
-                    panenViewModel.loadTPHESPB(0, 0, true, 1, todayBackendDate)
-                    panenViewModel.countTPHNonESPB(0, 0, true, 1, todayBackendDate)
-                    panenViewModel.countTPHESPB(0, 1, false, 1, todayBackendDate)
-                }
-            } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
-                panenViewModel.loadTPHNonESPB(0, 0, true, 0, todayBackendDate)
-            }
+//            if (featureName == AppUtils.ListFeatureNames.RekapHasilPanen) {
+//                if (currentState == 0) {
+//                    panenViewModel.loadTPHNonESPB(0, 0, true, 0, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, true, 0, todayBackendDate)
+//                    panenViewModel.countTPHESPB(1, 0, true, 0, todayBackendDate)
+//                } else if (currentState == 1) {
+//                    panenViewModel.loadTPHESPB(1, 0, true, 0, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, true, 0, todayBackendDate)
+//                    panenViewModel.countTPHESPB(1, 0, true, 0, todayBackendDate)
+//                } else if (currentState == 2) {
+//                    panenViewModel.loadTPHNonESPB(1, 0, true, 0, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, true, 0, todayBackendDate)
+//                    panenViewModel.countTPHESPB(1, 0, true, 0, todayBackendDate)
+//                }
+//            } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
+//                if (currentState == 0) {
+//                    panenViewModel.loadTPHNonESPB(0, 0, true, 1, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, true, 1, todayBackendDate)
+//                    panenViewModel.countTPHESPB(0, 1, false, 1, todayBackendDate)
+//                } else {
+//                    panenViewModel.loadTPHESPB(0, 0, true, 1, todayBackendDate)
+//                    panenViewModel.countTPHNonESPB(0, 0, true, 1, todayBackendDate)
+//                    panenViewModel.countTPHESPB(0, 1, false, 1, todayBackendDate)
+//                }
+//            } else if (featureName == AppUtils.ListFeatureNames.BuatESPB) {
+//                panenViewModel.loadTPHNonESPB(0, 0, true, 0, todayBackendDate)
+//            }
 
         }
 
@@ -944,7 +944,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     if (listAdapter.getSelectedItems().isNotEmpty()) View.VISIBLE else View.GONE
             }
 
-            // Check if filterAllData is checked
+            // Check if filterAllData is che    cked
             val isAllDataFiltered = filterAllData.isChecked
             val dateToUse = if (isAllDataFiltered) null else AppUtils.currentDate
 
@@ -5205,7 +5205,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         if (parts.size >= 2) {
                                             val tphId = parts[0].trim()
                                             val dateCreated = parts[1].trim()
-                                            panenViewModel.updateStatusEspbToZero(
+                                            panenViewModel.updateStatusEspbAndNoESPB(
                                                 tphId,
                                                 dateCreated
                                             )
