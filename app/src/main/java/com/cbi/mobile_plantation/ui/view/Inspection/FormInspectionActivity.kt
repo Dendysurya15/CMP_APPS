@@ -2718,34 +2718,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-            if (currentAccuracy > boundaryAccuracy) {
-                AlertDialogUtility.withTwoActions(
-                    this@FormInspectionActivity, // Replace with your actual Activity name
-                    "Lanjutkan",
-                    getString(R.string.confirmation_dialog_title),
-                    "Gps terdeteksi diluar dari ${boundaryAccuracy.toInt()} meter. Apakah tetap akan melanjutkan?",
-                    "warning.json",
-                    ContextCompat.getColor(this@FormInspectionActivity, R.color.greendarkerbutton),
-                    function = {
-                        isTriggeredBtnScanned = true
-                        selectedEstateByScan = null
-                        selectedIdPanenByScan = null
-                        selectedAfdelingByScan = null
-                        selectedBlokByScan = null
-                        selectedTPHNomorByScan = null
-                        selectedAncakByScan = null
-                        selectedTanggalPanenByScan = null
-                        selectedTPHValue = null
-
-                        progressBarScanTPHManual.visibility = View.VISIBLE
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            checkScannedTPHInsideRadius()
-                        }, 500)
-                    },
-                    cancelFunction = {
-                    }
-                )
-            } else {
+            if (currentAccuracy <= boundaryAccuracy) {
+                // GPS is within boundary - proceed directly
                 isTriggeredBtnScanned = true
                 selectedEstateByScan = null
                 selectedIdPanenByScan = null
@@ -2759,6 +2733,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                 Handler(Looper.getMainLooper()).postDelayed({
                     checkScannedTPHInsideRadius()
                 }, 400)
+            } else {
+
+                Toasty.error(
+                    this,
+                    "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!",
+                    Toast.LENGTH_LONG,
+                    true
+                )
+                    .show()
             }
         }
 
@@ -2855,7 +2838,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 prefManager!!,
                                 this@FormInspectionActivity
                             )
-                        }else{
+                        } else {
                             AppLogger.d("masuk ges $lat")
                             AppLogger.d("masuk ndak $lon")
                             formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(

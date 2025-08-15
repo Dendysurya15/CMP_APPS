@@ -356,6 +356,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         radiusMinimum = prefManager!!.radiusMinimum
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
+
+        AppLogger.d("radiusMinimum $radiusMinimum")
+        AppLogger.d("boundaryAccuracy $boundaryAccuracy")
+
         initViewModel()
         initUI()
         initializeJjgJson()
@@ -1999,7 +2003,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val status_location = findViewById<ImageView>(R.id.statusLocation)
         locationViewModel = ViewModelProvider(
             this,
-            LocationViewModel.Factory(application, status_location, this)
+            LocationViewModel.Factory(application, status_location, this, boundaryAccuracy)  // Pass boundaryAccuracy
         )[LocationViewModel::class.java]
 
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
@@ -2053,27 +2057,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         btnScanTPHRadius.setOnClickListener {
 
-            if (currentAccuracy > boundaryAccuracy) {
-                AlertDialogUtility.withTwoActions(
-                    this@FeaturePanenTBSActivity, // Replace with your actual Activity name
-                    "Lanjutkan",
-                    getString(R.string.confirmation_dialog_title),
-                    "Gps terdeteksi diluar dari ${boundaryAccuracy.toInt()} meter. Apakah tetap akan melanjutkan?",
-                    "warning.json",
-                    ContextCompat.getColor(this@FeaturePanenTBSActivity, R.color.greendarkerbutton),
-                    function = {
-                        isTriggeredBtnScanned = true
-                        selectedTPHIdByScan = null
-                        selectedTPHValue = null
-                        progressBarScanTPHManual.visibility = View.VISIBLE
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            checkScannedTPHInsideRadius()
-                        }, 500)
-                    },
-                    cancelFunction = {
-                    }
-                )
-            } else {
+            if (currentAccuracy <= boundaryAccuracy) {
+                // GPS is within boundary - proceed directly
                 isTriggeredBtnScanned = true
                 // Reset the selectedTPHIdByScan when manually refreshing
                 selectedTPHIdByScan = null
@@ -2082,6 +2067,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 Handler(Looper.getMainLooper()).postDelayed({
                     checkScannedTPHInsideRadius()
                 }, 400)
+            } else {
+                // GPS is outside boundary - show error toast
+                Toasty.error(this, "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!", Toast.LENGTH_LONG, true)
+                    .show()
             }
 
         }
