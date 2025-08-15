@@ -1468,8 +1468,11 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                } else {
+                }
+                else {
                     AppLogger.d("Starting JSON data upload for: $filename")
+
+                    AppLogger.d("databaseTable $databaseTable")
                     try {
                         // Validate that we have data
                         if (data.isBlank()) {
@@ -1542,7 +1545,7 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Upload Date: ${responseBody.tanggal_upload}")
                                 AppLogger.d("File Name: ${responseBody.nama_file}")
 
-                                // Log results details
+// Log results details
                                 AppLogger.d("====== RESULTS DETAILS ======")
                                 AppLogger.d("Processed: ${responseBody.results!!.processed}")
                                 AppLogger.d("Created: ${responseBody.results!!.created}")
@@ -1550,36 +1553,48 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Errors: ${responseBody.results!!.errors}")
                                 AppLogger.d("Skipped: ${responseBody.results!!.skipped}")
 
-                                // Check if status is between 1 and 3
+// Check if status is between 1 and 3
                                 val statusInt = responseBody.status.toInt()
                                 val isSuccess = statusInt in 1..3
 
-                                // Update progress based on status
-                                withContext(Dispatchers.Main) {
-                                    if (isSuccess) {
-                                        // Status is valid, mark as success
-                                        onProgressUpdate(100, true, null)
-                                        AppLogger.d("Upload marked as SUCCESS with status: $statusInt")
-                                    } else {
-                                        // Status is outside valid range, mark as failure
-                                        val errorMessage = responseBody.message
-                                            ?: "Upload failed with status: $statusInt"
-                                        onProgressUpdate(100, false, errorMessage)
-                                        AppLogger.d("Upload marked as FAILURE: $errorMessage")
-                                    }
+// Check for special mutu_buah case with skipped records
+                                val isMutuBuahWithSkipped = databaseTable == "mutu_buah" &&
+                                        responseBody.results?.skipped != null &&
+                                        responseBody.results.skipped > 0
+
+// Determine final message and status
+                                // Determine final message, status, and success
+                                val finalMessage = if (isMutuBuahWithSkipped) {
+                                    "Data tidak dapat di-upload, Mohon hubungi Kerani Panen untuk upload data panen"
+                                } else {
+                                    responseBody.message
                                 }
 
+                                val finalStatus = if (isMutuBuahWithSkipped) 5 else responseBody.status
+                                val finalSuccess = if (isMutuBuahWithSkipped) false else responseBody.success
+
                                 val jsonResponse = UploadV3Response(
-                                    success = responseBody.success,
+                                    success = finalSuccess,
                                     trackingId = responseBody.trackingId,
-                                    message = responseBody.message,
-                                    status = responseBody.status,
+                                    message = finalMessage,
+                                    status = finalStatus,
                                     tanggal_upload = responseBody.tanggal_upload,
                                     nama_file = responseBody.nama_file,
                                     results = responseBody.results,
                                     type = "json",
                                     table_ids = tableIds
                                 )
+
+                                AppLogger.d("====== JSON RESPONSE DETAILS ======")
+                                AppLogger.d("Response Success: ${jsonResponse.success}")
+                                AppLogger.d("Response Tracking ID: ${jsonResponse.trackingId}")
+                                AppLogger.d("Response Message: ${jsonResponse.message}")
+                                AppLogger.d("Response Status: ${jsonResponse.status}")
+                                AppLogger.d("Response Upload Date: ${jsonResponse.tanggal_upload}")
+                                AppLogger.d("Response File Name: ${jsonResponse.nama_file}")
+                                AppLogger.d("Response Type: ${jsonResponse.type}")
+                                AppLogger.d("Response Table IDs: ${jsonResponse.table_ids}")
+                                AppLogger.d("Response Results: ${jsonResponse.results}")
 
                                 Result.success(jsonResponse)
                             } else {

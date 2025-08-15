@@ -843,6 +843,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 ancak = 0,
                                 info = "NULL",
                                 scan_status = 0,
+                                nomor_pemanen = 0,
                                 dataIsZipped = 0,
                                 created_by = 0,
                                 karyawan_id = "NULL",
@@ -1026,6 +1027,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 ancak = ancak,                        // Store ancak
                                 info = "NULL",
                                 scan_status = 0,
+                                nomor_pemanen = 0,
                                 dataIsZipped = 0,
                                 created_by = 0,
                                 jumlah_pemanen = nikNumbers.size,     // Number of workers

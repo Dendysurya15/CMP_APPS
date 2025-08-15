@@ -521,6 +521,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         lat: Double,
         lon: Double,
         jenis_panen: Int,
+        nomorPemanenInput:Int,
         ancakInput: Int,
         info:String,
         blokBanjir : Int,
@@ -543,6 +544,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 lon = lon,
                 jenis_panen = jenis_panen,
                 ancak = ancakInput,
+                nomor_pemanen = nomorPemanenInput,
                 info = info,
                 status_banjir = blokBanjir,
                 archive = archive

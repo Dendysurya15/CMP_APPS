@@ -2176,6 +2176,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 ancak = 0,
                                 info = "",
                                 archive = 0,
+                                nomor_pemanen = 0,
                                 status_banjir = 0,
                                 status_espb = statusEspb, // Use actual status from server
                                 status_restan = 1,
@@ -2663,6 +2664,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 status_scan_mpanen = 0,
                                 jumlah_pemanen = karyawanNikList.size,
                                 archive_mpanen = 0,
+                                nomor_pemanen = 0,
                                 isPushedToServer = 1
                             )
 
@@ -4682,6 +4684,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     archive = 0,
                                                     status_banjir = 0,
                                                     status_espb = 0,
+                                                    nomor_pemanen = 0,
                                                     status_restan = 0,
                                                     scan_status = 0,
                                                     dataIsZipped = 0,
@@ -4914,6 +4917,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     lat = 0.0,
                                                     lon = 0.0,
                                                     jenis_panen = 0,
+                                                    nomor_pemanen = 0,
                                                     ancak = 0,
                                                     info = "",
                                                     archive = 0,

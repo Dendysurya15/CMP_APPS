@@ -178,6 +178,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private lateinit var alertTvScannedRadius: TextView
     private lateinit var backButton: ImageView
     private lateinit var layoutAncak: View
+    private lateinit var layoutNomorPemanen: View
     private lateinit var layoutEstate: LinearLayout
     private lateinit var layoutKemandoran: LinearLayout
     private lateinit var layoutKemandoranLain: LinearLayout
@@ -230,6 +231,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private var ancakInput: String = ""
+    private var nomorPemanenInput: String = ""
     private var asistensi: Int = 0
     private var blokBanjir: Int = 0
     private var selectedTipePanen: String = ""
@@ -374,13 +376,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         if (featureName==AppUtils.ListFeatureNames.MutuBuah) {
             val tvDescFoto = findViewById<TextView>(R.id.tvDescFoto)
             tvDescFoto.text =  "Upload foto sebagai bukti pengisian form Mutu Buah (Minimal 1 Foto Selfie dan 1 foto TPH untuk simpan)"
-//            val tvRecyclerViewFotoSelfie = recyclerViewFotoSelfie.findViewById<TextView>(R.id.tvPhotoComment)
-//            tvRecyclerViewFotoSelfie.visibility = View.GONE
-//            val rtRecyclerViewFotoSelfie = recyclerViewFotoSelfie.findViewById<EditText>(R.id.etPhotoComment)
-//            rtRecyclerViewFotoSelfie.visibility = View.GONE
-//            val ivAddFoto = recyclerViewFotoSelfie.findViewById<ImageView>(R.id.ivAddFoto)
-//            ivAddFoto.setImageResource(R.drawable.baseline_camera_front_24)
-//            ivAddFoto.setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN) // make it red
         }
 
         infoApp = AppUtils.getDeviceInfo(this@FeaturePanenTBSActivity).toString()
@@ -1096,6 +1091,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             lat = finalLat ?: 0.0,
                                             lon = finalLon ?: 0.0,
                                             info = infoApp ?: "",
+                                            nomorPemanenInput = nomorPemanenInput.toInt(),
                                             jjgPanen = jumTBS,
                                             jjgMasak = buahMasak,
                                             jjgMentah = bMentah,
@@ -1128,7 +1124,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             lon = finalLon ?: 0.0,
                                             jenis_panen = selectedTipePanen.toIntOrNull()
                                                 ?: 0, // Avoid NumberFormatException
-                                            ancakInput = ancakInput.toInt(), // Default to "0" if null
+                                            ancakInput = ancakInput.toInt(),
+                                            nomorPemanenInput = nomorPemanenInput.toInt(),
                                             info = infoApp ?: "",
                                             archive = 0,
                                             blokBanjir = blokBanjir
@@ -1292,6 +1289,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         layoutEstate = findViewById(R.id.layoutEstate)
         layoutAncak = findViewById(R.id.layoutAncak)
+        layoutNomorPemanen = findViewById(R.id.layoutNomorPemanen)
         layoutPemanen = findViewById(R.id.layoutPemanen)
         layoutPemanenLain = findViewById(R.id.layoutPemanenLain)
         layoutBlok = findViewById(R.id.layoutBlok)
@@ -1683,6 +1681,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
         etAncak.setText("")
         ancakInput = ""
+
+
+        val etNomorPemanen = layoutNomorPemanen.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        etNomorPemanen.setText("")
+        nomorPemanenInput = ""
 
 
         resetAllCounters()
@@ -2123,6 +2126,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             Triple(
                 findViewById<LinearLayout>(R.id.layoutAncak),
                 getString(R.string.field_ancak),
+                InputType.EDITTEXT
+            ),
+            Triple(
+                findViewById<LinearLayout>(R.id.layoutNomorPemanen),
+                getString(R.string.field_nomor_pemanen),
                 InputType.EDITTEXT
             ),
             Triple(
@@ -2915,6 +2923,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         // Set input type based on layout ID
         etHomeMarkerTPH.inputType = when (layoutView.id) {
             R.id.layoutAncak -> AndroidInputType.TYPE_CLASS_NUMBER
+            R.id.layoutNomorPemanen -> AndroidInputType.TYPE_CLASS_NUMBER
             else -> AndroidInputType.TYPE_CLASS_TEXT
         }
 
@@ -3015,6 +3024,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         val otherLayout = findViewById<View>(R.id.layoutTipePanen)
                         otherLayout?.visibility = View.VISIBLE
                     }
+                }
+                else if (layoutView.id == R.id.layoutNomorPemanen) {
+                    val inputText = s?.toString()?.trim() ?: ""
+                    nomorPemanenInput = inputText
+
+
                 }
             }
 
@@ -3121,6 +3136,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         if (blokBanjir == 0) {
             layoutAncak.visibility = View.GONE
+            layoutNomorPemanen.visibility = View.GONE
             layoutNoTPH.visibility = View.GONE
             layoutKemandoran.visibility = View.GONE
             layoutPemanen.visibility = View.GONE
@@ -3525,6 +3541,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
+        val etNomorPemanen = layoutNomorPemanen.findViewById<EditText>(R.id.etHomeMarkerTPH)
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
 
         switchBlokBanjir.setOnCheckedChangeListener { _, isChecked ->
@@ -3582,6 +3599,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 etAncak.setText("")
                 ancakInput = ""
+
+                etNomorPemanen.setText("")
+                nomorPemanenInput = ""
 
                 val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
                 setupSpinnerView(findViewById(R.id.layoutTipePanen), tipePanenOptions)
@@ -3646,6 +3666,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 etAncak.setText("")
                 ancakInput = ""
+
+                etNomorPemanen.setText("")
+                nomorPemanenInput = ""
 
                 selectedTipePanen = ""
                 setupSpinnerView(layoutTipePanen, tipePanenOptions)
@@ -3757,6 +3780,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 InputType.EDITTEXT -> {
                     when (key) {
                         getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
+                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim().isEmpty()
                         else -> editText.text.toString().trim().isEmpty()
                     }
                 }
@@ -3764,7 +3788,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 else -> false
             }
 
-            if (isEmpty && (featureName != AppUtils.ListFeatureNames.MutuBuah)) {
+            val shouldValidate = featureName != AppUtils.ListFeatureNames.MutuBuah ||
+                    key == getString(R.string.field_nomor_pemanen)
+
+            AppLogger.d("shouldValidate $shouldValidate")
+            if (isEmpty && shouldValidate) {
                 tvError.visibility = View.VISIBLE
                 mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
                 missingFields.add(key)
@@ -5544,6 +5572,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             layoutKemandoran.visibility = View.VISIBLE
             layoutPemanen.visibility = View.VISIBLE
             layoutSelAsistensi.visibility = View.VISIBLE
+        }else{
+            layoutNomorPemanen.visibility = View.VISIBLE
         }
 
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)

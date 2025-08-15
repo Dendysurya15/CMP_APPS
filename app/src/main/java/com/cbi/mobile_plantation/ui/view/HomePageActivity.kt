@@ -2841,6 +2841,8 @@ class HomePageActivity : AppCompatActivity() {
                                 "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
                                 "tph_nomor" to (panenWithRelations.tph?.nomor
                                     ?: ""),
+                                "nomor_pemanen" to (panenWithRelations.panen?.nomor_pemanen
+                                    ?: ""),
                                 "ancak" to panenWithRelations.panen.ancak,
                                 "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
                                 "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
@@ -5150,6 +5152,7 @@ class HomePageActivity : AppCompatActivity() {
                                 "tph_nomor" to mutuBuah.tphNomor,
                                 "kemandoran" to mutuBuah.kemandoran,
                                 "jumlah_pemanen" to mutuBuah.jumlahPemanen,
+                                "nomor_pemanen" to mutuBuah.nomorPemanen,
                                 "jjg_panen" to mutuBuah.jjgPanen,
                                 "jjg_masak" to mutuBuah.jjgMasak,
                                 "jjg_mentah" to mutuBuah.jjgMentah,

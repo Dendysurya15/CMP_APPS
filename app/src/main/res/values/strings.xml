@@ -80,6 +80,7 @@
     <string name="field_master_tph_estate">Download Data Estate Asistensi</string>
     <string name="field_tahun_tanam">Tahun Tanam</string>
     <string name="field_blok">Blok</string>
+    <string name="field_nomor_pemanen">Nomor Pemanen</string>
     <string name="field_ancak">Ancak</string>
     <string name="field_tipe_panen">Tipe Panen</string>
     <string name="field_no_tph">No. TPH</string>

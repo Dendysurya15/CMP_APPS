@@ -1095,6 +1095,7 @@ class AppRepository(context: Context) {
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = 0,
+                                nomor_pemanen = 0,
                                 ancak = 0,
                                 info = "",
                                 archive = 0,
