@@ -353,7 +353,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
+        radiusMinimum = 200F
         boundaryAccuracy = prefManager!!.boundaryAccuracy
 
 
@@ -2031,6 +2031,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             findViewById<LinearLayout>(R.id.layoutEstate).visibility = View.GONE
         }
 
+
+        AppLogger.d("radiasdklfjalskdjfladsf")
+        AppLogger.d("radiusMinimum $radiusMinimum")
         val radiusText = "${radiusMinimum.toInt()} m"
         val fullText =
             "Berikut adalah daftar lokasi TPH yang berada dalam radius $radiusText dari lokasi anda:"

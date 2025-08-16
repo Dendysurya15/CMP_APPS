@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
+import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -24,6 +25,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 
@@ -370,7 +373,7 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("photoPart $photoPart")
                                 AppLogger.d("datasetTypeRequestBody $datasetTypeRequestBody")
                                 // Make the API call for single image
-                                val response = TestingAPIClient.instance.uploadPhotos(
+                                val response = CMPApiClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
@@ -922,7 +925,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1503,7 +1506,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1545,7 +1548,7 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Upload Date: ${responseBody.tanggal_upload}")
                                 AppLogger.d("File Name: ${responseBody.nama_file}")
 
-// Log results details
+                                // Log results details
                                 AppLogger.d("====== RESULTS DETAILS ======")
                                 AppLogger.d("Processed: ${responseBody.results!!.processed}")
                                 AppLogger.d("Created: ${responseBody.results!!.created}")
@@ -1553,16 +1556,63 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Errors: ${responseBody.results!!.errors}")
                                 AppLogger.d("Skipped: ${responseBody.results!!.skipped}")
 
-// Check if status is between 1 and 3
+                                // Check if status is between 1 and 3
                                 val statusInt = responseBody.status.toInt()
                                 val isSuccess = statusInt in 1..3
 
-// Check for special mutu_buah case with skipped records
+                                // Check for special mutu_buah case with skipped records
                                 val isMutuBuahWithSkipped = databaseTable == "mutu_buah" &&
                                         responseBody.results?.skipped != null &&
                                         responseBody.results.skipped > 0
 
-// Determine final message and status
+                                // Filter table_ids for mutu_buah if there are skipped records
+                                val filteredTableIds = if (isMutuBuahWithSkipped && tableIds != null) {
+                                    try {
+                                        // Parse the tableIds JSON string
+                                        val originalTableIdsJson = JSONObject(tableIds)
+
+                                        // Get the skipped record IDs from skipErrorDetails
+                                        val skippedIds = mutableSetOf<Int>()
+                                        responseBody.results?.skipErrorDetails?.forEach { skipDetail ->
+                                            skipDetail.data?.let { data ->
+                                                // Extract the ID from the data object
+                                                val dataJson = JSONObject(data.toString())
+                                                if (dataJson.has("id")) {
+                                                    skippedIds.add(dataJson.getInt("id"))
+                                                }
+                                            }
+                                        }
+
+                                        // Filter mutu_buah IDs by removing skipped ones
+                                        if (originalTableIdsJson.has("mutu_buah")) {
+                                            val originalMutuBuahIdsArray = originalTableIdsJson.getJSONArray("mutu_buah")
+                                            val originalMutuBuahIds = (0 until originalMutuBuahIdsArray.length()).map {
+                                                originalMutuBuahIdsArray.getInt(it)
+                                            }
+
+                                            val filteredMutuBuahIds = originalMutuBuahIds.filter { id -> !skippedIds.contains(id) }
+
+                                            AppLogger.d("Original mutu_buah IDs: $originalMutuBuahIds")
+                                            AppLogger.d("Skipped IDs: $skippedIds")
+                                            AppLogger.d("Filtered mutu_buah IDs: $filteredMutuBuahIds")
+
+                                            // Create new JSON with filtered IDs
+                                            val filteredTableIdsJson = JSONObject(tableIds) // Copy original
+                                            val filteredIdsArray = JSONArray()
+                                            filteredMutuBuahIds.forEach { filteredIdsArray.put(it) }
+                                            filteredTableIdsJson.put("mutu_buah", filteredIdsArray)
+
+                                            filteredTableIdsJson.toString()
+                                        } else {
+                                            tableIds
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error filtering table_ids: ${e.message}")
+                                        tableIds
+                                    }
+                                } else {
+                                    tableIds
+                                }
                                 // Determine final message, status, and success
                                 val finalMessage = if (isMutuBuahWithSkipped) {
                                     "Data tidak dapat di-upload, Mohon hubungi Kerani Panen untuk upload data panen"
@@ -1570,7 +1620,7 @@ class UploadCMPRepository(context: Context) {
                                     responseBody.message
                                 }
 
-                                val finalStatus = if (isMutuBuahWithSkipped) 5 else responseBody.status
+                                val finalStatus = responseBody.status
                                 val finalSuccess = if (isMutuBuahWithSkipped) false else responseBody.success
 
                                 val jsonResponse = UploadV3Response(
@@ -1582,7 +1632,7 @@ class UploadCMPRepository(context: Context) {
                                     nama_file = responseBody.nama_file,
                                     results = responseBody.results,
                                     type = "json",
-                                    table_ids = tableIds
+                                    table_ids = filteredTableIds // Use filtered table_ids
                                 )
 
                                 AppLogger.d("====== JSON RESPONSE DETAILS ======")
@@ -1741,7 +1791,7 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request...")
 
-                val response = TestingAPIClient.instance.uploadZip(filePart)
+                val response = CMPApiClient.instance.uploadZip(filePart)
 
                 AppLogger.d(response.toString())
                 if (response.isSuccessful) {

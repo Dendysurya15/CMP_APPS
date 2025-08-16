@@ -6912,12 +6912,25 @@ class HomePageActivity : AppCompatActivity() {
 
                             val keyJsonName = response.trackingId.toString()
 
-                            if (response.success) {
+                            AppLogger.d("response nya masuuk apa gessss ${response.success}")
+
+                            // Check if this is a mutu_buah feature
+                            val isMutuBuahFeature = try {
+                                response.table_ids?.let {
+                                    val tableIdsJson = JSONObject(it)
+                                    tableIdsJson.has(AppUtils.DatabaseTables.MUTU_BUAH)
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
+
+                            // Process table_ids if success OR if it's mutu_buah feature (even with success=false)
+                            if (response.success || isMutuBuahFeature) {
                                 try {
                                     // Extract table_ids from the response
                                     val tableIds = response.table_ids
                                     if (tableIds != null) {
-                                        // Parse the table_ids to determine table types
+                                        // Parse the table_ids JSON string to determine table types
                                         val tableIdsJson = JSONObject(tableIds)
                                         AppLogger.d("tableIdsJson $tableIdsJson")
 
@@ -7003,7 +7016,7 @@ class HomePageActivity : AppCompatActivity() {
                                                         }
                                                     globalMutuBuahIdsByPart[keyJsonName] =
                                                         MutuBuahIds
-                                                    AppLogger.d("Extracted Inspeksi Detail IDs from response: $MutuBuahIds")
+                                                    AppLogger.d("Extracted Mutu Buah IDs from response: $MutuBuahIds")
                                                 }
                                             }
                                         }
