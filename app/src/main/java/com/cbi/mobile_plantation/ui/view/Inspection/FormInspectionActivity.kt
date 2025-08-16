@@ -464,7 +464,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
+        radiusMinimum = prefManager!!.boundaryAccuracy
         boundaryAccuracy = prefManager!!.boundaryAccuracy
         initViewModel()
         initUI()
@@ -2718,8 +2718,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-//            if (currentAccuracy <= boundaryAccuracy) {
-//                // GPS is within boundary - proceed directly
+            if (currentAccuracy <= boundaryAccuracy) {
+                // GPS is within boundary - proceed directly
                 isTriggeredBtnScanned = true
                 selectedEstateByScan = null
                 selectedIdPanenByScan = null
@@ -2733,16 +2733,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                 Handler(Looper.getMainLooper()).postDelayed({
                     checkScannedTPHInsideRadius()
                 }, 400)
-//            } else {
-//
-//                Toasty.error(
-//                    this,
-//                    "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!",
-//                    Toast.LENGTH_LONG,
-//                    true
-//                )
-//                    .show()
-//            }
+            } else {
+
+                Toasty.error(
+                    this,
+                    "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!",
+                    Toast.LENGTH_LONG,
+                    true
+                )
+                    .show()
+            }
         }
 
         bottomNavInspect.setOnItemSelectedListener { item ->
