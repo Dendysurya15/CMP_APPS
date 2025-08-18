@@ -21,7 +21,7 @@ class DataPanenInspectionRepository(
     private val TestingApiService: ApiService = TestingAPIClient.instance,
 ){
 
-    suspend fun getDataPanen(estate: Int, afdeling: String): Response<ResponseBody> {
+    suspend fun getDataPanen(estate: Any, afdeling: String): Response<ResponseBody> {
         // Calculate date range - from yesterday to 7 days ago (excluding today)
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
@@ -61,9 +61,27 @@ class DataPanenInspectionRepository(
 
             // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition
-                put("dept", estate)
-
+                // Estate condition - handle both Int and List<Int>
+                when (estate) {
+                    is Int -> {
+                        // Single estate: "dept": 112
+                        put("dept", estate)
+                    }
+                    is List<*> -> {
+                        // Multiple estates: "dept": {"in": [112, 134, 145, 129]}
+                        put("dept", JSONObject().apply {
+                            put("in", JSONArray().apply {
+                                (estate as List<Int>).forEach { estateId ->
+                                    put(estateId)
+                                }
+                            })
+                        })
+                    }
+                    else -> {
+                        // Fallback to Int
+                        put("dept", estate as Int)
+                    }
+                }
 
                 // Date range condition using BETWEEN with full datetime
                 put("created_date", JSONObject().apply {
@@ -83,10 +101,10 @@ class DataPanenInspectionRepository(
     }
 
     suspend fun getDataInspeksi(
-        estate: Int,
+        estate: Any, // Changed from Int to Any
         afdeling: String,
         joinTable: Boolean = true,
-        parameterDao: ParameterDao // Add parameterDao parameter
+        parameterDao: ParameterDao
     ): Response<ResponseBody> {
 
         // Get parameter JSON and extract status_ppro = 1 IDs
@@ -177,8 +195,26 @@ class DataPanenInspectionRepository(
 
             // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition
-                put("dept", estate)
+                // Estate condition - handle both Int and List<Int>
+                when (estate) {
+                    is Int -> {
+                        put("dept", estate)
+                    }
+                    is List<*> -> {
+                        // Multiple estates: "dept": {"in": [112, 134, 145, 129]}
+                        put("dept", JSONObject().apply {
+                            put("in", JSONArray().apply {
+                                (estate as List<Int>).forEach { estateId ->
+                                    put(estateId)
+                                }
+                            })
+                        })
+                    }
+                    else -> {
+                        // Fallback to Int
+                        put("dept", estate as Int)
+                    }
+                }
 
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {

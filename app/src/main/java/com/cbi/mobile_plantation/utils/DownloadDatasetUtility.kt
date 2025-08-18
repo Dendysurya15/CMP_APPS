@@ -20,7 +20,7 @@ class DownloadDatasetUtility(
 
     fun getDatasetsToDownload(
         regionalId: Int,
-        estateId: Int,
+        estateId: Any,
         afdelingId: String,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
@@ -44,7 +44,7 @@ class DownloadDatasetUtility(
 
         // Add role-specific datasets
         addRoleSpecificDatasets(
-            datasets, userRole, regionalId, estateId, afdelingId, regionalUser,
+            datasets, userRole, regionalId, estateId, afdelingId, regionalUser,lastModifiedDatasetKemandoran,
             lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
             lastModifiedDatasetPemanen
         )
@@ -72,6 +72,9 @@ class DownloadDatasetUtility(
         MANDOR_1,
         MANDOR_PANEN,
         ASISTEN,
+        ASKEP,
+        MANAGER,
+        GM,
         OTHER
     }
 
@@ -98,9 +101,19 @@ class DownloadDatasetUtility(
             ) -> UserRole.MANDOR_PANEN
 
             jabatan.contains(
-                AppUtils.ListFeatureByRoleUser.Asisten,
+                AppUtils.ListFeatureByRoleUser.ASKEP,
                 ignoreCase = true
-            ) -> UserRole.ASISTEN
+            ) -> UserRole.ASKEP
+
+            jabatan.contains(
+                AppUtils.ListFeatureByRoleUser.Manager,
+                ignoreCase = true
+            ) -> UserRole.MANAGER
+
+            jabatan.contains(
+                AppUtils.ListFeatureByRoleUser.GM,
+                ignoreCase = true
+            ) -> UserRole.GM
 
             else -> UserRole.OTHER
         }
@@ -109,7 +122,7 @@ class DownloadDatasetUtility(
     private fun handleSpecialTriggers(
         datasets: MutableList<DatasetRequest>,
         userRole: UserRole,
-        estateId: Int,
+        estateId: Any,
         afdelingId: String
     ): Boolean {
 
@@ -234,20 +247,20 @@ class DownloadDatasetUtility(
         datasets: MutableList<DatasetRequest>,
         userRole: UserRole,
         regionalId: Int,
-        estateId: Int,
+        estateId: Any,
         afdelingId: String,
         regionalUser: Int,
+        lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?
     ) {
-        // Add parameter dataset (common for most cases)
 
         when (userRole) {
             UserRole.KERANI_TIMBANG -> {
                 addKeraniTimbangDatasets(
-                    datasets, regionalUser, estateId, regionalId,
+                    datasets, regionalUser, estateId, regionalId,lastModifiedDatasetKemandoran,
                     lastModifiedDatasetBlok, lastModifiedDatasetTPH, lastModifiedDatasetPemanen
                 )
             }
@@ -257,6 +270,7 @@ class DownloadDatasetUtility(
                     datasets,
                     regionalUser,
                     estateId,
+                    lastModifiedDatasetKemandoran,
                     lastModifiedDatasetBlok,
                     lastModifiedDatasetTPH,
                     lastModifiedDatasetPemanen,
@@ -264,20 +278,57 @@ class DownloadDatasetUtility(
                 )
             }
 
-            UserRole.KERANI_PANEN, UserRole.OTHER -> {
+            UserRole.KERANI_PANEN, UserRole.MANAGER, UserRole.ASKEP, UserRole.OTHER -> {
                 addDefaultUserDatasets(
-                    datasets, estateId, regionalUser,
+                    datasets, estateId, regionalUser,lastModifiedDatasetKemandoran,
                     lastModifiedDatasetTPH, lastModifiedDatasetPemanen, lastModifiedDatasetEstate
+                )
+            }
+
+            UserRole.GM -> {
+                addGMDatasets(
+                    datasets,  regionalUser,estateId,lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetPemanen, lastModifiedDatasetEstate
                 )
             }
         }
     }
 
+    private fun addGMDatasets(
+        datasets: MutableList<DatasetRequest>,
+        regionalId: Int,
+        estateId: Any,
+        lastModifiedDatasetKemandoran:String?,
+        lastModifiedDatasetTPH: String?,
+        lastModifiedDatasetPemanen: String?
+    ) {
+        datasets.addAll(
+            listOf(
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetTPH,
+                    dataset = AppUtils.DatasetNames.tph
+                ),
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = lastModifiedDatasetKemandoran,
+                    dataset = AppUtils.DatasetNames.kemandoran
+                ),
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = lastModifiedDatasetPemanen,
+                    dataset = AppUtils.DatasetNames.pemanen
+                )
+            )
+        )
+    }
+
     private fun addKeraniTimbangDatasets(
         datasets: MutableList<DatasetRequest>,
         regionalUser: Int,
-        estateId: Int,
+        estateId: Any,
         regionalId: Int,
+        lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?
@@ -291,6 +342,11 @@ class DownloadDatasetUtility(
                 ),
                 DatasetRequest(
                     estate = estateId,
+                    lastModified = lastModifiedDatasetKemandoran,
+                    dataset = AppUtils.DatasetNames.kemandoran
+                ),
+                DatasetRequest(
+                    regional = regionalId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
                 ),
@@ -306,7 +362,8 @@ class DownloadDatasetUtility(
     private fun addMandorDatasets(
         datasets: MutableList<DatasetRequest>,
         regionalUser: Int,
-        estateId: Int,
+        estateId: Any,
+        lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?,
@@ -330,6 +387,11 @@ class DownloadDatasetUtility(
                     dataset = AppUtils.DatasetNames.pemanen
                 ),
                 DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetKemandoran,
+                    dataset = AppUtils.DatasetNames.kemandoran
+                ),
+                DatasetRequest(
                     regional = regionalUser,
                     lastModified = lastModifiedDatasetEstate,
                     dataset = AppUtils.DatasetNames.estate
@@ -340,8 +402,9 @@ class DownloadDatasetUtility(
 
     private fun addDefaultUserDatasets(
         datasets: MutableList<DatasetRequest>,
-        estateId: Int,
+        estateId: Any,
         regionalUser: Int,
+        lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetEstate: String?
@@ -352,6 +415,11 @@ class DownloadDatasetUtility(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph
+                ),
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetKemandoran,
+                    dataset = AppUtils.DatasetNames.kemandoran
                 ),
                 DatasetRequest(
                     estate = estateId,
@@ -370,7 +438,7 @@ class DownloadDatasetUtility(
     private fun addCommonDatasets(
         datasets: MutableList<DatasetRequest>,
         regionalId: Int,
-        estateId: Int,
+        estateId: Any,
         afdelingId:String,
         lastModifiedDatasetJenisTPH: String?,
         lastModifiedDatasetKemandoran: String?,
@@ -389,11 +457,6 @@ class DownloadDatasetUtility(
                 DatasetRequest(
                     lastModified = lastModifiedDatasetJenisTPH,
                     dataset = AppUtils.DatasetNames.jenisTPH
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
                 ),
                 DatasetRequest(
                     lastModified = lastModifiedDatasetTransporter,

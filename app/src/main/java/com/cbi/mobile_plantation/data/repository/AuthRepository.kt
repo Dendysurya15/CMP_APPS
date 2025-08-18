@@ -22,7 +22,7 @@ class AuthRepository {
                 val request = ApiService.LoginRequest(username, password)
                 AppLogger.d("Login Request Body: ${Gson().toJson(request)}")
 
-                val response = CMPApiClient.instance.login(request)
+                val response = TestingAPIClient.instance.login(request)
 
                 if (!response.isSuccessful) {
                     val errorBody = response.errorBody()?.string()
@@ -34,7 +34,6 @@ class AuthRepository {
                     } else {
                         errorBody ?: "{\"message\":\"Unknown server error\"}"
                     }
-                    AppLogger.d("asdasdasdasdasdas")
 
                     Response.error(response.code(),
                         ResponseBody.create("application/json".toMediaType(), customErrorBody))

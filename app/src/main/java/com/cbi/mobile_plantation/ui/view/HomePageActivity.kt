@@ -1,3 +1,5 @@
+@file:Suppress("IMPLICIT_CAST_TO_ANY")
+
 package com.cbi.mobile_plantation.ui.view
 
 import android.Manifest
@@ -138,6 +140,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@Suppress("IMPLICIT_CAST_TO_ANY")
 class HomePageActivity : AppCompatActivity() {
 
     private lateinit var notificationScheduler: NotificationScheduler
@@ -1109,6 +1112,8 @@ class HomePageActivity : AppCompatActivity() {
         setupCheckingAfterLogoutUser()
         setupObserver()
         prefManager!!.registeredDeviceUsername = prefManager!!.username
+
+        AppLogger.d("estate ${prefManager!!.estateIdUserLogin}")
     }
 
     private fun setupObserver() {
@@ -1176,68 +1181,22 @@ class HomePageActivity : AppCompatActivity() {
                         try {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager!!.jabatanUserLogin
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
+                            AppLogger.d("jabatan user $jabatanUser")
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+                            // Check if jabatan contains "askep" or "gm" (case insensitive)
+                            val shouldSkipAfdelingCheck = jabatanUser?.lowercase()?.contains("askep") == true ||
+                                    jabatanUser?.lowercase()?.contains("manager") == true ||
+                                    jabatanUser?.lowercase()?.contains("gm") == true
 
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
-
-                            val afdeling = afdelingDeferred.await()
-
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
-
-                            // Check sinkronisasi_otomatis value
-                            if (afdeling.sinkronisasi_otomatis != 0) {
-                                // Check if sinkronisasi is required
-                                val lastSyncDateTime = prefManager!!.lastSyncDate
-                                val lastSyncDate =
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                        SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).parse(lastSyncDateTime)!!
-                                    )
-                                val currentDate = SimpleDateFormat(
-                                    "yyyy-MM-dd",
-                                    Locale.getDefault()
-                                ).format(Date())
-
-                                if (lastSyncDate != currentDate) {
+                            if (!shouldSkipAfdelingCheck) {
+                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
                                     AlertDialogUtility.withSingleAction(
                                         this@HomePageActivity,
                                         "Kembali",
-                                        "Sinkronisasi Database Diperlukan",
-                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "Afdeling tidak valid",
+                                        "Data afdeling saat ini adalah $afdelingId",
                                         "warning.json",
                                         R.color.colorRedDark
                                     ) {
@@ -1245,7 +1204,65 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                     return@launch
                                 }
+
+                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+
+                                withContext(Dispatchers.IO) {
+                                    val afdelingData =
+                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
+                                    afdelingDeferred.complete(afdelingData)
+                                }
+
+                                val afdeling = afdelingDeferred.await()
+
+                                if (afdeling == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Data Afdeling Tidak Ditemukan",
+                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+
+                                // Check sinkronisasi_otomatis value
+                                if (afdeling.sinkronisasi_otomatis != 0) {
+                                    // Check if sinkronisasi is required
+                                    val lastSyncDateTime = prefManager!!.lastSyncDate
+                                    val lastSyncDate =
+                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                            SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            ).parse(lastSyncDateTime)!!
+                                        )
+                                    val currentDate = SimpleDateFormat(
+                                        "yyyy-MM-dd",
+                                        Locale.getDefault()
+                                    ).format(Date())
+
+                                    if (lastSyncDate != currentDate) {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@HomePageActivity,
+                                            "Kembali",
+                                            "Sinkronisasi Database Diperlukan",
+                                            "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) {
+                                            // Do nothing on click
+                                        }
+                                        return@launch
+                                    }
+                                }
                             }
+
+                            // Check afdeling data and sinkronisasi_otomatis
+
 
                             // All validations passed, proceed with attendance check
                             val absensiDeferred =
@@ -1415,45 +1432,59 @@ class HomePageActivity : AppCompatActivity() {
                         try {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager!!.jabatanUserLogin
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                            AppLogger.d("jabatan user $jabatanUser")
+
+                            // Check if jabatan contains "askep" or "gm" (case insensitive)
+                            val shouldSkipAfdelingCheck = jabatanUser?.lowercase()?.contains("askep") == true ||
+                                    jabatanUser?.lowercase()?.contains("manager") == true ||
+                                    jabatanUser?.lowercase()?.contains("gm") == true
+
+
+                            AppLogger.d("shouledSKip $shouldSkipAfdelingCheck")
+                            if (!shouldSkipAfdelingCheck) {
+                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Afdeling tidak valid",
+                                        "Data afdeling saat ini adalah $afdelingId",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
                                 }
-                                return@launch
-                            }
+                                // Check afdeling data and sinkronisasi_otomatis
+                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
-
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
-
-                            val afdeling = afdelingDeferred.await()
-
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                                withContext(Dispatchers.IO) {
+                                    val afdelingData =
+                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
+                                    afdelingDeferred.complete(afdelingData)
                                 }
-                                return@launch
+
+                                val afdeling = afdelingDeferred.await()
+
+                                if (afdeling == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Data Afdeling Tidak Ditemukan",
+                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+
+
                             }
+
 
 
                             val lastSyncDateTime = prefManager!!.lastSyncDataPanenInspeksi
@@ -1553,46 +1584,52 @@ class HomePageActivity : AppCompatActivity() {
                         try {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager!!.jabatanUserLogin
+                            AppLogger.d("jabatan user $jabatanUser")
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                            // Check if jabatan contains "askep" or "gm" (case insensitive)
+                            val shouldSkipAfdelingCheck = jabatanUser?.lowercase()?.contains("askep") == true ||
+                                    jabatanUser?.lowercase()?.contains("manager") == true ||
+                                    jabatanUser?.lowercase()?.contains("gm") == true
+
+                            if (!shouldSkipAfdelingCheck) {
+                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Afdeling tidak valid",
+                                        "Data afdeling saat ini adalah $afdelingId",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
                                 }
-                                return@launch
-                            }
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
-
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
-
-                            val afdeling = afdelingDeferred.await()
-
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                                // Check afdeling data and sinkronisasi_otomatis
+                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+                                withContext(Dispatchers.IO) {
+                                    val afdelingData =
+                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
+                                    afdelingDeferred.complete(afdelingData)
                                 }
-                                return@launch
-                            }
 
+                                val afdeling = afdelingDeferred.await()
+                                if (afdeling == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Data Afdeling Tidak Ditemukan",
+                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+                            }
 
                             val lastSyncDateTime = prefManager!!.lastSyncFollowUpInspeksi
 
@@ -7791,20 +7828,37 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
-        if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
-            showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
-            loadingDialog.dismiss()
-            return
-        }
+        val jabatanUser = prefManager!!.jabatanUserLogin
+        val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
 
-        try {
-            val estateId = estateIdString.toInt()
-            if (estateId <= 0) {
-                showErrorDialog("Estate ID must be a positive number")
+        if (!isGMUser) {
+            if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
+                showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
                 loadingDialog.dismiss()
                 return
             }
 
+            if (estateIdString.contains(",")) {
+                showErrorDialog("Non-GM users should have only one Estate ID")
+                loadingDialog.dismiss()
+                return
+            }
+
+            try {
+                val estateId = estateIdString.toInt()
+                if (estateId <= 0) {
+                    showErrorDialog("Estate ID must be a positive number")
+                    loadingDialog.dismiss()
+                    return
+                }
+            } catch (e: NumberFormatException) {
+                showErrorDialog("Invalid Estate ID format: '$estateIdString'")
+                loadingDialog.dismiss()
+                return
+            }
+        }
+
+        try {
             // Set the trigger flags in the utility
             downloadDatasetUtility.apply {
                 isTriggerFeatureInspection = this@HomePageActivity.isTriggerFeatureInspection
@@ -7813,10 +7867,20 @@ class HomePageActivity : AppCompatActivity() {
                     this@HomePageActivity.isTriggerButtonSinkronisasiData
             }
 
-            // Use the utility to get datasets
+            val estateIds = if (isGMUser && estateIdString!!.contains(",")) {
+                estateIdString.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .map { it.toInt() }
+            } else {
+                estateIdString!!
+            }
+
+            AppLogger.d("estateIds $estateIds")
+
             val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
                 regionalIdString!!.toInt(),
-                estateId,
+                estateIds,
                 afdelingIdString!!,
                 lastModifiedDatasetEstate,
                 lastModifiedDatasetTPH,
@@ -7828,9 +7892,6 @@ class HomePageActivity : AppCompatActivity() {
                 lastModifiedDatasetKendaraan,
                 lastModifiedSettingJSON
             )
-
-
-            AppLogger.d("allDatasets $allDatasets")
 
             val filteredRequests =
                 if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
@@ -7864,7 +7925,7 @@ class HomePageActivity : AppCompatActivity() {
             }
         } catch (e: NumberFormatException) {
             loadingDialog.dismiss()
-            AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
+            AppLogger.d("Downloads: Failed to parse Estate ID: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
         }
     }

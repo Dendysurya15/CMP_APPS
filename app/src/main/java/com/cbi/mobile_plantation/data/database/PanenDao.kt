@@ -26,6 +26,9 @@ abstract class PanenDao {
         }
     }
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertBatch(entities: List<PanenEntity>): List<Long>
+
 
     @Query("""
         SELECT * FROM ${AppUtils.DatabaseTables.PANEN} 

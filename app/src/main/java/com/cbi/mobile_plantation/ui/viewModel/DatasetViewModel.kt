@@ -1158,7 +1158,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             if (request.dataset == AppUtils.DatasetNames.tph) request.estate else null
 
                         val count = withContext(Dispatchers.IO) {
-                            repository.getDatasetCount(request.dataset, deptId)
+                            repository.getDatasetCount(request.dataset, deptId as Int)
                         }
 
                         if (count == 0) {
@@ -1181,17 +1181,33 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadListEstate(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         response =
-                            restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
+                            restanRepository.getDataRestan(
+                                request.estate as Int,
+                                request.afdeling!!
+                            )
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
                         response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                        val estateId = when (request.estate) {
+                            is Int -> request.estate
+                            is List<*> -> (request.estate as List<Int>).first() // Take first estate for now
+                            else -> request.estate as Int
+                        }
+
                         response = dataPanenInspectionRepository.getDataPanen(
-                            request.estate!!,
+                            estateId!!,
                             request.afdeling!!
                         )
+
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                        val estateId = when (request.estate) {
+                            is Int -> request.estate
+                            is List<*> -> (request.estate as List<Int>).first() // Take first estate for now
+                            else -> request.estate as Int
+                        }
+
                         response = dataPanenInspectionRepository.getDataInspeksi(
-                            request.estate!!,
+                            estateId!!,
                             request.afdeling!!,
                             true,
                             parameterDao
@@ -2119,7 +2135,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     null
                                 }
 
-                            val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                            val username = if (createdName.isNullOrEmpty() || createdName.equals(
+                                    "NULL",
+                                    ignoreCase = true
+                                )
+                            ) {
                                 ""
                             } else {
                                 extractUsernameFromCreatedName(createdName)
@@ -2135,6 +2155,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         status0WithNonNullSpb++
                                     }
                                 }
+
                                 1 -> {
                                     status1Count++
                                     if (spbKode.isNullOrEmpty()) {
@@ -2143,6 +2164,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         status1WithNonNullSpb++
                                     }
                                 }
+
                                 2 -> {
                                     status2Count++
                                     if (spbKode.isNullOrEmpty()) {
@@ -2553,7 +2575,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val jjgJson = "{\"KP\": $jjgKirim}"
                             val createdName = item.optString("created_name", "")
-                            val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                            val username = if (createdName.isNullOrEmpty() || createdName.equals(
+                                    "NULL",
+                                    ignoreCase = true
+                                )
+                            ) {
                                 ""  // Keep it empty if null/NULL
                             } else {
                                 extractUsernameFromCreatedName(createdName)
@@ -2730,7 +2756,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             existingRecord.jjg_json == "{\"KP\": 0}") &&
                                                     panen.jjg_json.isNotEmpty() &&
                                                     panen.jjg_json != "NULL" &&
-                                                    panen.jjg_json != "{\"KP\": 0}") {
+                                                    panen.jjg_json != "{\"KP\": 0}"
+                                                ) {
                                                     panen.jjg_json
                                                 } else {
                                                     existingRecord.jjg_json
@@ -2741,7 +2768,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 karyawan_id = if ((existingRecord.karyawan_id.isNullOrEmpty() ||
                                                             existingRecord.karyawan_id == "NULL") &&
                                                     panen.karyawan_id.isNotEmpty() &&
-                                                    panen.karyawan_id != "NULL") {
+                                                    panen.karyawan_id != "NULL"
+                                                ) {
                                                     panen.karyawan_id
                                                 } else {
                                                     existingRecord.karyawan_id
@@ -2750,7 +2778,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 kemandoran_id = if ((existingRecord.kemandoran_id.isNullOrEmpty() ||
                                                             existingRecord.kemandoran_id == "NULL") &&
                                                     panen.kemandoran_id.isNotEmpty() &&
-                                                    panen.kemandoran_id != "NULL") {
+                                                    panen.kemandoran_id != "NULL"
+                                                ) {
                                                     panen.kemandoran_id
                                                 } else {
                                                     existingRecord.kemandoran_id
@@ -2759,7 +2788,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 karyawan_nik = if ((existingRecord.karyawan_nik.isNullOrEmpty() ||
                                                             existingRecord.karyawan_nik == "NULL") &&
                                                     panen.karyawan_nik.isNotEmpty() &&
-                                                    panen.karyawan_nik != "NULL") {
+                                                    panen.karyawan_nik != "NULL"
+                                                ) {
                                                     panen.karyawan_nik
                                                 } else {
                                                     existingRecord.karyawan_nik
@@ -2768,7 +2798,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 karyawan_nama = if ((existingRecord.karyawan_nama.isNullOrEmpty() ||
                                                             existingRecord.karyawan_nama == "NULL") &&
                                                     panen.karyawan_nama.isNotEmpty() &&
-                                                    panen.karyawan_nama != "NULL") {
+                                                    panen.karyawan_nama != "NULL"
+                                                ) {
                                                     panen.karyawan_nama
                                                 } else {
                                                     existingRecord.karyawan_nama
@@ -3904,7 +3935,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadListEstate(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         response =
-                            restanRepository.getDataRestan(request.estate!!, request.afdeling!!)
+                            restanRepository.getDataRestan(
+                                request.estate as Int,
+                                request.afdeling!!
+                            )
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
@@ -3921,6 +3955,65 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             true,
                             parameterDao
                         )
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                        val estateId = request.estate as List<Int>
+                        val allTphData = mutableListOf<TPHNewModel>()
+                        var lastSuccessResponse: Response<ResponseBody>? = null
+
+                        results[request.dataset] = Resource.Loading(0)
+                        _downloadStatuses.postValue(results.toMap())
+
+                        results[request.dataset] = Resource.Storing(request.dataset)
+                        _downloadStatuses.postValue(results.toMap())
+
+                        // Loop through provided estate IDs
+                        estateId.forEach { estate ->
+                            try {
+                                val estateResponse =
+                                    repository.getTPHEstate(estate.toString(), false)
+                                AppLogger.d("responseBody $estateResponse for estate $estate")
+                                if (estateResponse.isSuccessful && estateResponse.code() == 200) {
+                                    lastSuccessResponse = estateResponse
+                                    val responseBody = estateResponse.body()?.string() ?: ""
+                                    if (responseBody.isNotBlank()) {
+                                        val tphList = parseTPHJsonToList(responseBody)
+                                        allTphData.addAll(tphList)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error getting TPH data for estate ${estate}: ${e.message}")
+                            }
+                        }
+
+                        // Check if we have any data
+                        if (allTphData.isNotEmpty()) {
+                            updateOrInsertTPH(allTphData, false).join()
+
+                            if (tphStatus.value.isSuccess) {
+                                results[request.dataset] = Resource.Success(
+                                    lastSuccessResponse!!,
+                                    "TPH data processed successfully"
+                                )
+                                prefManager!!.addDataset(request.dataset)
+
+                                // Set lastModified to current datetime
+                                val currentDateTime = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date())
+                                prefManager.lastModifiedDatasetTPH = currentDateTime
+                            } else {
+                                val error = tphStatus.value.exceptionOrNull()
+                                results[request.dataset] =
+                                    Resource.Error("Database error: ${error?.message ?: "Unknown error"}")
+                            }
+                        } else {
+                            results[request.dataset] =
+                                Resource.Error("No TPH data found for any estate")
+                        }
+
+                        _downloadStatuses.postValue(results.toMap())
+                        return@forEach
                     } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         val estatesResult = repository.getAllEstates()
                         if (estatesResult.isSuccess) {
@@ -3937,7 +4030,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             estates.forEach { estate ->
                                 estate.abbr?.let { estateAbbr ->
                                     try {
-                                        val estateResponse = repository.getTPHEstate(estateAbbr)
+                                        val estateResponse = repository.getTPHEstate(estateAbbr, true)
                                         AppLogger.d("responseBody $estateResponse")
                                         if (estateResponse.isSuccessful && estateResponse.code() == 200) {
                                             lastSuccessResponse = estateResponse
@@ -4231,10 +4324,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     )
                                 ) {
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
-                                } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                                     // Process sinkronisasiFollowUpInspeksi JSON data
 
-                                    AppLogger.d("klajsldkfjla skdflasj flas jdfkljsdklf")
+
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())
@@ -4268,7 +4362,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         val item = dataArray.getJSONObject(i)
 
                                                         try {
-                                                            AppLogger.d("--- Processing inspection ${i + 1}/${dataArray.length()} ---")
+//                                                            AppLogger.d("--- Processing inspection ${i + 1}/${dataArray.length()} ---")
 
                                                             val idPanen =
                                                                 item.optString("id_panen", "0")
@@ -4367,7 +4461,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     )
                                                                 ) item.optString("ancak") else null
 
-                                                            AppLogger.d("Inspection details: TPH=$tphId, Date=$tglInspeksi, Dept=$dept, Divisi=$divisi")
+//                                                            AppLogger.d("Inspection details: TPH=$tphId, Date=$tglInspeksi, Dept=$dept, Divisi=$divisi")
 
                                                             // Create InspectionModel
                                                             val inspectionEntity = InspectionModel(
@@ -4416,10 +4510,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 continue // Skip this entire inspection record
                                                             }
 
-                                                            AppLogger.d("Found ${inspectionDetails.length()} details for inspection TPH=${inspectionEntity.tph_id}")
-
-                                                            // Check if inspection record exists by business key
-                                                            AppLogger.d("Checking if inspection exists: TPH=${inspectionEntity.tph_id}, Date=${inspectionEntity.created_date}, Dept=${inspectionEntity.dept}, Divisi=${inspectionEntity.divisi}")
+//                                                            AppLogger.d("Found ${inspectionDetails.length()} details for inspection TPH=${inspectionEntity.tph_id}")
+//
+//                                                            // Check if inspection record exists by business key
+//                                                            AppLogger.d("Checking if inspection exists: TPH=${inspectionEntity.tph_id}, Date=${inspectionEntity.created_date}, Dept=${inspectionEntity.dept}, Divisi=${inspectionEntity.divisi}")
 
                                                             val existingRecord =
                                                                 inspectionDao.getInspectionByBusinessKey(
@@ -4454,7 +4548,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                         )?.id ?: 0
 
                                                                     successCount++
-                                                                    AppLogger.d("✅ Inserted new inspection: TPH=${inspectionEntity.tph_id}, Local ID=$localInspectionId")
+//                                                                    AppLogger.d("✅ Inserted new inspection: TPH=${inspectionEntity.tph_id}, Local ID=$localInspectionId")
 
                                                                     // INSERT all detail records since parent is new
                                                                     insertAllDetailRecordsFollowUp(
@@ -4465,11 +4559,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                                 } else {
                                                                     failCount++
-                                                                    AppLogger.e("❌ Failed to insert inspection: TPH=${inspectionEntity.tph_id}")
+//                                                                    AppLogger.e("❌ Failed to insert inspection: TPH=${inspectionEntity.tph_id}")
                                                                     continue // Skip processing details if inspection failed
                                                                 }
                                                             } else {
-                                                                AppLogger.d("Inspection exists - will UPDATE existing record ID=${existingRecord.id}")
+//                                                                AppLogger.d("Inspection exists - will UPDATE existing record ID=${existingRecord.id}")
 
                                                                 // Record exists -> UPDATE inspection and all its details
                                                                 localInspectionId =
@@ -4488,14 +4582,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     )
                                                                 )
                                                                 successCount++
-                                                                AppLogger.d("✅ Updated existing inspection: TPH=${inspectionEntity.tph_id}, Local ID=$localInspectionId")
-
-                                                                // DELETE old details and INSERT new ones
-                                                                AppLogger.d("Deleting old details for inspection ID=$localInspectionId")
+//                                                                AppLogger.d("✅ Updated existing inspection: TPH=${inspectionEntity.tph_id}, Local ID=$localInspectionId")
+//
+//                                                                // DELETE old details and INSERT new ones
+//                                                                AppLogger.d("Deleting old details for inspection ID=$localInspectionId")
                                                                 inspectionDetailDao.deleteByInspectionId(
                                                                     localInspectionId.toString()
                                                                 )
-                                                                AppLogger.d("Inserting new details for inspection ID=$localInspectionId")
+//                                                                AppLogger.d("Inserting new details for inspection ID=$localInspectionId")
                                                                 insertAllDetailRecordsFollowUp(
                                                                     inspectionDetails,
                                                                     localInspectionId,
@@ -4505,23 +4599,23 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                         } catch (e: Exception) {
                                                             failCount++
-                                                            AppLogger.e("❌ Error processing inspection record: ${e.message}")
+//                                                            AppLogger.e("❌ Error processing inspection record: ${e.message}")
                                                         }
                                                     }
 
                                                     // Final summary
-                                                    AppLogger.d("=== FOLLOW-UP INSPECTION SYNC COMPLETE ===")
-                                                    AppLogger.d("Inserted/Updated: $successCount")
-                                                    AppLogger.d("Failed: $failCount")
-                                                    AppLogger.d("Skipped (no details): $skippedCount")
-                                                    AppLogger.d("Total records processed: ${dataArray.length()}")
-                                                    AppLogger.d("===============================================")
+//                                                    AppLogger.d("=== FOLLOW-UP INSPECTION SYNC COMPLETE ===")
+//                                                    AppLogger.d("Inserted/Updated: $successCount")
+//                                                    AppLogger.d("Failed: $failCount")
+//                                                    AppLogger.d("Skipped (no details): $skippedCount")
+//                                                    AppLogger.d("Total records processed: ${dataArray.length()}")
+//                                                    AppLogger.d("===============================================")
 
                                                     if (dataArray.length() == 0) {
                                                         // No records to process - everything is up to date
                                                         results[request.dataset] =
                                                             Resource.UpToDate(request.dataset)
-                                                        AppLogger.d("No records to process - dataset is up to date")
+//                                                        AppLogger.d("No records to process - dataset is up to date")
                                                     } else if (failCount == 0) {
                                                         results[request.dataset] = Resource.Success(
                                                             response,
@@ -4542,7 +4636,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         )
                                                     }
                                                 } catch (e: Exception) {
-                                                    AppLogger.e("Error processing follow-up inspection data: ${e.message}")
+//                                                    AppLogger.e("Error processing follow-up inspection data: ${e.message}")
                                                     results[request.dataset] =
                                                         Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                                 }
@@ -4561,7 +4655,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
                                 }
                                 else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
-                                    // Process sinkronisasiDataPanen JSON data
+                                    // Process sinkronisasiDataPanen JSON data - FIRST TIME DOWNLOAD (NO COMPARISON NEEDED)
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())
@@ -4570,15 +4664,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val jsonObject = JSONObject(responseBodyString)
 
                                         if (jsonObject.optBoolean("success", false)) {
-                                            val dataArray =
-                                                jsonObject.optJSONArray("data") ?: JSONArray()
-                                            val panenList = mutableListOf<PanenEntity>()
+                                            val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+                                            val allPanenData = mutableListOf<PanenEntity>() // Collect ALL data
+                                            val allKaryawanNikLists = mutableListOf<List<String>>()
 
                                             results[request.dataset] = Resource.Loading(70)
                                             _downloadStatuses.postValue(results.toMap())
 
-                                            AppLogger.d("Processing ${dataArray.length()} panen records...")
+//            AppLogger.d("Processing ${dataArray.length()} panen records for first-time download...")
 
+                                            // STEP 1: Parse ALL JSON records into entities (FAST - no DB checks)
                                             for (i in 0 until dataArray.length()) {
                                                 val item = dataArray.getJSONObject(i)
 
@@ -4588,6 +4683,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val createdDate = item.optString("created_date", "")
                                                 val createdBy = item.optInt("created_by", 0)
                                                 val ancak = item.optInt("ancak", 0)
+                                                val jenis_panen = item.optInt("tipe", 0)
                                                 val jjgKirim = item.optInt("jjg_kirim", 0)
                                                 val jjgJson = "{\"KP\": $jjgKirim}"
                                                 val createdName = item.optString("created_name", "")
@@ -4596,37 +4692,30 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 } else {
                                                     extractUsernameFromCreatedName(createdName)
                                                 }
+
                                                 // Parse kemandoran JSON to extract kemandoran_id and karyawan info
-                                                val kemandoranString =
-                                                    item.optString("kemandoran", "")
+                                                val kemandoranString = item.optString("kemandoran", "")
                                                 var kemandoranId = ""
                                                 var karyawanNikList = mutableListOf<String>()
                                                 var karyawanNamaList = mutableListOf<String>()
 
-                                                if (kemandoranString.isNotEmpty()) {
+                                                // Enhanced kemandoran checking
+                                                if (kemandoranString.isNotEmpty() &&
+                                                    kemandoranString != "null" &&
+                                                    !item.isNull("kemandoran")
+                                                ) {
                                                     try {
-                                                        val kemandoranArray =
-                                                            JSONArray(kemandoranString)
+                                                        val kemandoranArray = JSONArray(kemandoranString)
                                                         if (kemandoranArray.length() > 0) {
-                                                            val kemandoranObj =
-                                                                kemandoranArray.getJSONObject(0)
-                                                            kemandoranId =
-                                                                kemandoranObj.optString("id", "")
+                                                            val kemandoranObj = kemandoranArray.getJSONObject(0)
+                                                            kemandoranId = kemandoranObj.optString("id", "")
 
-                                                            val pemanenArray =
-                                                                kemandoranObj.optJSONArray("pemanen")
+                                                            val pemanenArray = kemandoranObj.optJSONArray("pemanen")
                                                             if (pemanenArray != null) {
                                                                 for (j in 0 until pemanenArray.length()) {
-                                                                    val pemanenObj =
-                                                                        pemanenArray.getJSONObject(j)
-                                                                    val nik = pemanenObj.optString(
-                                                                        "nik",
-                                                                        ""
-                                                                    )
-                                                                    val nama = pemanenObj.optString(
-                                                                        "nama",
-                                                                        ""
-                                                                    )
+                                                                    val pemanenObj = pemanenArray.getJSONObject(j)
+                                                                    val nik = pemanenObj.optString("nik", "")
+                                                                    val nama = pemanenObj.optString("nama", "")
                                                                     if (nik.isNotEmpty()) {
                                                                         karyawanNikList.add(nik)
                                                                         karyawanNamaList.add(nama)
@@ -4635,50 +4724,33 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
                                                         }
                                                     } catch (e: Exception) {
-                                                        AppLogger.e("Error parsing kemandoran JSON: ${e.message}")
+//                        AppLogger.e("Error parsing kemandoran JSON for record ${item.optInt("id", 0)}: ${e.message}")
+//                        AppLogger.d("Kemandoran raw value: '$kemandoranString'")
                                                     }
+                                                } else {
+//                    AppLogger.d("Kemandoran data is null or empty for record ${item.optInt("id", 0)}")
                                                 }
 
-                                                // Get karyawan_id from database using NIK
-                                                var karyawanIdList = mutableListOf<String>()
-                                                if (karyawanNikList.isNotEmpty()) {
-                                                    try {
-                                                        val karyawanList =
-                                                            karyawanDao.getKaryawanByNikList(
-                                                                karyawanNikList
-                                                            )
-                                                        for (karyawan in karyawanList) {
-                                                            karyawan.id?.let { karyawanIdList.add(it.toString()) }
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        AppLogger.e("Error getting karyawan data: ${e.message}")
-                                                    }
-                                                }
+                                                // Store NIK list for bulk karyawan lookup
+                                                allKaryawanNikLists.add(karyawanNikList.toList())
 
-                                                // Join multiple values with comma
-                                                val karyawanId = karyawanIdList.joinToString(",")
-                                                val karyawanNik = karyawanNikList.joinToString(",")
-                                                val karyawanNama =
-                                                    karyawanNamaList.joinToString(",")
-
-                                                AppLogger.d("Creating entity: tphId=$tphId, date=$createdDate, kemandoranId=$kemandoranId, karyawanId=$karyawanId, karyawanNik=$karyawanNik")
-
+                                                // Create entity with empty karyawan_id (will be filled after bulk lookup)
                                                 val panenEntity = PanenEntity(
                                                     id = idPanen,
                                                     tph_id = tphId.toString(),
                                                     date_created = createdDate,
                                                     created_by = createdBy,
-                                                    karyawan_id = karyawanId,
+                                                    karyawan_id = "", // Will be filled after bulk lookup
                                                     kemandoran_id = kemandoranId,
-                                                    karyawan_nik = karyawanNik,
-                                                    karyawan_nama = karyawanNama,
+                                                    karyawan_nik = karyawanNikList.joinToString(","),
+                                                    karyawan_nama = karyawanNamaList.joinToString(","),
                                                     jjg_json = jjgJson,
                                                     foto = "",
                                                     komentar = "",
                                                     asistensi = 0,
                                                     lat = 0.0,
                                                     lon = 0.0,
-                                                    jenis_panen = 0,
+                                                    jenis_panen = jenis_panen,
                                                     ancak = ancak,
                                                     info = "",
                                                     archive = 0,
@@ -4700,121 +4772,93 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     isPushedToServer = 1
                                                 )
 
-                                                panenList.add(panenEntity)
+                                                allPanenData.add(panenEntity)
                                             }
 
-                                            AppLogger.d("=== PANEN PROCESSING SUMMARY ===")
-                                            AppLogger.d("Total records processed: ${dataArray.length()}")
-                                            AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
-                                            AppLogger.d("==================================")
+//            AppLogger.d("=== PANEN PROCESSING SUMMARY ===")
+//            AppLogger.d("Total records processed: ${dataArray.length()}")
+//            AppLogger.d("Records to INSERT: ${allPanenData.size}")
+//            AppLogger.d("==================================")
+
+                                            results[request.dataset] = Resource.Loading(75)
+                                            _downloadStatuses.postValue(results.toMap())
+
+                                            // STEP 2: BULK karyawan lookup for ALL records at once
+                                            val allNiks = allKaryawanNikLists.flatten().distinct()
+                                            val karyawanMap = if (allNiks.isNotEmpty()) {
+                                                try {
+                                                    karyawanDao.getKaryawanByNikList(allNiks)
+                                                        .associateBy { it.nik }
+                                                        .mapValues { it.value.id?.toString() ?: "" }
+                                                } catch (e: Exception) {
+//                    AppLogger.e("Error getting bulk karyawan data: ${e.message}")
+                                                    emptyMap()
+                                                }
+                                            } else {
+                                                emptyMap()
+                                            }
+
+                                            // STEP 3: Update karyawan_id for ALL entities
+                                            allPanenData.forEachIndexed { index, panen ->
+                                                val nikList = allKaryawanNikLists[index]
+                                                val karyawanIdList = nikList.mapNotNull { nik ->
+                                                    karyawanMap[nik]?.takeIf { it.isNotEmpty() }
+                                                }
+                                                allPanenData[index] = panen.copy(
+                                                    karyawan_id = karyawanIdList.joinToString(",")
+                                                )
+                                            }
+
+//            AppLogger.d("Processing ${allPanenData.size} records for bulk insert...")
 
                                             results[request.dataset] = Resource.Loading(80)
                                             _downloadStatuses.postValue(results.toMap())
 
                                             withContext(Dispatchers.IO) {
                                                 try {
-                                                    var successCount = 0
-                                                    var failCount = 0
+                                                    val startTime = System.currentTimeMillis()
 
-                                                    AppLogger.d("Processing ${panenList.size} records for insert/update...")
-
-                                                    for (panen in panenList) {
-                                                        try {
-                                                            // Check if record exists by ID
-                                                            val existingRecord =
-                                                                panenDao.getById(panen.id)
-
-                                                            if (existingRecord == null) {
-                                                                // Record doesn't exist -> INSERT
-                                                                val result =
-                                                                    panenDao.insertWithTransaction(
-                                                                        panen
-                                                                    )
-                                                                if (result.isSuccess) {
-                                                                    successCount++
-                                                                    AppLogger.d("Inserted new panen record: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
-                                                                } else {
-                                                                    failCount++
-                                                                    AppLogger.e("Failed to insert panen record: ${panen.tph_id}, ${panen.date_created}")
-                                                                }
-                                                            } else {
-                                                                // Record exists -> UPDATE (preserve local-only fields)
-                                                                AppLogger.d("Record exists, updating: ID=${panen.id}")
-
-                                                                val updatedRecord = panen.copy(
-                                                                    status_upload = existingRecord.status_upload,
-                                                                    status_uploaded_image = existingRecord.status_uploaded_image,
-                                                                    // Preserve local photos and comments if they exist
-                                                                    foto = if (existingRecord.foto.isNotEmpty()) existingRecord.foto else panen.foto,
-                                                                    komentar = if (existingRecord.komentar.isNotEmpty()) existingRecord.komentar else panen.komentar,
-                                                                    // Preserve local coordinates if they exist
-                                                                    username = if (existingRecord.username.isNullOrEmpty() || existingRecord.username == "NULL") {
-                                                                        panen.username
-                                                                    } else {
-                                                                        existingRecord.username
-                                                                    },
-                                                                    lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
-                                                                    lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
-                                                                )
-
-                                                                panenDao.update(listOf(updatedRecord))
-                                                                successCount++
-                                                                AppLogger.d("Updated existing record ID ${panen.id}")
-                                                            }
-                                                        } catch (e: Exception) {
-                                                            failCount++
-                                                            AppLogger.e("Error processing panen record: ${e.message}")
-                                                        }
+                                                    // STEP 4: BULK INSERT ALL RECORDS (NO COMPARISON NEEDED FOR FIRST TIME)
+                                                    if (allPanenData.isNotEmpty()) {
+                                                        panenDao.insertBatch(allPanenData)
+//                        AppLogger.d("Bulk inserted ${allPanenData.size} panen records successfully!")
                                                     }
 
-                                                    // Final summary
-                                                    AppLogger.d("=== PANEN SYNC COMPLETE ===")
-                                                    AppLogger.d("Inserted/Updated: $successCount")
-                                                    AppLogger.d("Failed: $failCount")
-                                                    AppLogger.d("Total records processed: ${panenList.size}")
-                                                    AppLogger.d("============================")
+                                                    val endTime = System.currentTimeMillis()
+                                                    val processingTime = (endTime - startTime) / 1000.0
 
-                                                    if (panenList.isEmpty()) {
+//                    AppLogger.d("=== PANEN SYNC COMPLETE ===")
+//                    AppLogger.d("Total records processed: ${allPanenData.size}")
+//                    AppLogger.d("All records inserted successfully!")
+//                    AppLogger.d("Processing time: ${processingTime}s")
+//                    AppLogger.d("Records per second: ${if (processingTime > 0) (allPanenData.size / processingTime).toInt() else 0}")
+//                    AppLogger.d("============================")
+
+                                                    // Set final result - since it's first time, everything should be successful
+                                                    if (allPanenData.isEmpty()) {
                                                         // No records to process - everything is up to date
-                                                        results[request.dataset] =
-                                                            Resource.UpToDate(request.dataset)
-                                                        AppLogger.d("No records to process - dataset is up to date")
-                                                    } else if (failCount == 0) {
-                                                        results[request.dataset] = Resource.Success(
-                                                            response,
-                                                            "Panen data processed successfully: $successCount records"
-                                                        )
-                                                        prefManager!!.addDataset(request.dataset)
-                                                    } else if (successCount > 0) {
-                                                        // Partial success
-                                                        results[request.dataset] = Resource.Success(
-                                                            response,
-                                                            "Partial success: $successCount processed, $failCount failed"
-                                                        )
-                                                        prefManager!!.addDataset(request.dataset)
+                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
+//                        AppLogger.d("No records to process - dataset is up to date")
                                                     } else {
-                                                        // Complete failure
-                                                        results[request.dataset] = Resource.Error(
-                                                            "Failed to process panen data: $failCount/${panenList.size} records failed"
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Panen data downloaded successfully: ${allPanenData.size} records in ${processingTime}s"
                                                         )
+                                                        prefManager!!.addDataset(request.dataset)
                                                     }
                                                 } catch (e: Exception) {
-                                                    AppLogger.e("Error processing panen data: ${e.message}")
-                                                    results[request.dataset] =
-                                                        Resource.Error("Error processing panen data: ${e.message}")
+//                    AppLogger.e("Error inserting panen data: ${e.message}")
+                                                    results[request.dataset] = Resource.Error("Error inserting panen data: ${e.message}")
                                                 }
                                             }
                                         } else {
-                                            val errorMessage =
-                                                jsonObject.optString("message", "Unknown error")
-                                            results[request.dataset] =
-                                                Resource.Error("API Error: $errorMessage")
-                                            AppLogger.e("Panen API returned error: $errorMessage")
+                                            val errorMessage = jsonObject.optString("message", "Unknown error")
+                                            results[request.dataset] = Resource.Error("API Error: $errorMessage")
+//            AppLogger.e("Panen API returned error: $errorMessage")
                                         }
                                     } catch (e: Exception) {
-                                        AppLogger.e("Error processing panen JSON: ${e.message}")
-                                        results[request.dataset] =
-                                            Resource.Error("Error processing panen data: ${e.message}")
+//        AppLogger.e("Error processing panen JSON: ${e.message}")
+                                        results[request.dataset] = Resource.Error("Error processing panen data: ${e.message}")
                                     }
                                 }
                                 else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
@@ -4863,11 +4907,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         null
                                                     }
                                                 val createdName = item.optString("created_name", "")
-                                                val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
-                                                    ""  // Keep it empty if null/NULL
-                                                } else {
-                                                    extractUsernameFromCreatedName(createdName)
-                                                }
+                                                val username =
+                                                    if (createdName.isNullOrEmpty() || createdName.equals(
+                                                            "NULL",
+                                                            ignoreCase = true
+                                                        )
+                                                    ) {
+                                                        ""  // Keep it empty if null/NULL
+                                                    } else {
+                                                        extractUsernameFromCreatedName(createdName)
+                                                    }
 
                                                 // Count status_espb values and check spb_kode relationship (for logging only)
                                                 when (statusEspb) {
@@ -4879,6 +4928,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             status0WithNonNullSpb++
                                                         }
                                                     }
+
                                                     1 -> {
                                                         status1Count++
                                                         if (spbKode.isNullOrEmpty()) {
@@ -4887,6 +4937,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             status1WithNonNullSpb++
                                                         }
                                                     }
+
                                                     2 -> {
                                                         status2Count++
                                                         if (spbKode.isNullOrEmpty()) {
@@ -4898,7 +4949,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 }
 
                                                 // ADD ALL RECORDS TO PANEN LIST - regardless of status or spb_kode
-                                                AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb, spbKode=$spbKode")
+//                                                AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb, spbKode=$spbKode")
                                                 val jjgJson = "{\"KP\": $jjgKirim}"
 
                                                 // Create a PanenEntity with the required fields
@@ -4926,7 +4977,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     status_restan = 1,
                                                     scan_status = 1, // ALWAYS set to 1 for restan sync
                                                     dataIsZipped = 0,
-                                                    no_espb = spbKode ?: "", // Use actual spb_kode or empty
+                                                    no_espb = spbKode
+                                                        ?: "", // Use actual spb_kode or empty
                                                     username = username,
                                                     status_upload = 0,
                                                     status_uploaded_image = "0",
@@ -4942,29 +4994,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             }
 
                                             // Enhanced summary with spb_kode relationship check
-                                            AppLogger.d("=== RESTAN PROCESSING SUMMARY ===")
-                                            AppLogger.d("Total records processed: ${dataArray.length()}")
-                                            AppLogger.d("Status_espb = 0: $status0Count")
-                                            AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (will INSERT/UPDATE)")
-                                            AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb")
-                                            AppLogger.d("Status_espb = 1: $status1Count")
-                                            AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
-                                            AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (normal)")
-                                            AppLogger.d("Status_espb = 2: $status2Count")
-                                            AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
-                                            AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (normal)")
-                                            AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
+//                                            AppLogger.d("=== RESTAN PROCESSING SUMMARY ===")
+//                                            AppLogger.d("Total records processed: ${dataArray.length()}")
+//                                            AppLogger.d("Status_espb = 0: $status0Count")
+//                                            AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (will INSERT/UPDATE)")
+//                                            AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb")
+//                                            AppLogger.d("Status_espb = 1: $status1Count")
+//                                            AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
+//                                            AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (normal)")
+//                                            AppLogger.d("Status_espb = 2: $status2Count")
+//                                            AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
+//                                            AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (normal)")
+//                                            AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
 
-                                            // Data consistency check
-                                            if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
-                                                AppLogger.e("🚨 DATA INCONSISTENCY DETECTED!")
-                                                AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
-                                                AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
-                                                AppLogger.e("This suggests data quality issues in the backend!")
-                                            } else {
-                                                AppLogger.d("✅ Data consistency check passed - no inconsistencies found")
-                                            }
-                                            AppLogger.d("==================================")
+//                                            // Data consistency check
+//                                            if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
+////                                                AppLogger.e("🚨 DATA INCONSISTENCY DETECTED!")
+////                                                AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
+////                                                AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
+////                                                AppLogger.e("This suggests data quality issues in the backend!")
+//                                            } else {
+//                                                AppLogger.d("✅ Data consistency check passed - no inconsistencies found")
+//                                            }
+//                                            AppLogger.d("==================================")
 
                                             results[request.dataset] = Resource.Loading(80)
                                             _downloadStatuses.postValue(results.toMap())
@@ -4976,7 +5028,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                     // STEP: Insert or Update records that should be in local DB
                                                     if (panenList.isNotEmpty()) {
-                                                        AppLogger.d("Processing ${panenList.size} records for insert/update...")
+//                                                        AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
                                                         for (panen in panenList) {
                                                             try {
@@ -4995,50 +5047,51 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                         )
                                                                     if (result.isSuccess) {
                                                                         successCount++
-                                                                        AppLogger.d("Inserted new restan record: ${panen.tph_id}, ${panen.date_created}")
+//                                                                        AppLogger.d("Inserted new restan record: ${panen.tph_id}, ${panen.date_created}")
                                                                     } else {
                                                                         failCount++
-                                                                        AppLogger.e("Failed to insert restan record: ${panen.tph_id}, ${panen.date_created}")
+//                                                                        AppLogger.e("Failed to insert restan record: ${panen.tph_id}, ${panen.date_created}")
                                                                     }
                                                                 } else {
 
-                                                                    AppLogger.d("Updating record: ${panen.tph_id}, ${panen.date_created}")
+//                                                                    AppLogger.d("Updating record: ${panen.tph_id}, ${panen.date_created}")
 
-                                                                    val updatedRecord = existingRecord.copy(
-                                                                        // Only update if existing field is null/empty
-                                                                        jjg_json = if (existingRecord.jjg_json.isNullOrEmpty() || existingRecord.jjg_json == "NULL") {
-                                                                            panen.jjg_json
-                                                                        } else {
-                                                                            existingRecord.jjg_json
-                                                                        },
+                                                                    val updatedRecord =
+                                                                        existingRecord.copy(
+                                                                            // Only update if existing field is null/empty
+                                                                            jjg_json = if (existingRecord.jjg_json.isNullOrEmpty() || existingRecord.jjg_json == "NULL") {
+                                                                                panen.jjg_json
+                                                                            } else {
+                                                                                existingRecord.jjg_json
+                                                                            },
 
-                                                                        no_espb = if (existingRecord.no_espb.isNullOrEmpty() || existingRecord.no_espb == "NULL") {
-                                                                            panen.no_espb
-                                                                        } else {
-                                                                            existingRecord.no_espb
-                                                                        },
+                                                                            no_espb = if (existingRecord.no_espb.isNullOrEmpty() || existingRecord.no_espb == "NULL") {
+                                                                                panen.no_espb
+                                                                            } else {
+                                                                                existingRecord.no_espb
+                                                                            },
 
-                                                                        username = if (existingRecord.username.isNullOrEmpty() || existingRecord.username == "NULL") {
-                                                                            panen.username
-                                                                        } else {
-                                                                            existingRecord.username
-                                                                        },
+                                                                            username = if (existingRecord.username.isNullOrEmpty() || existingRecord.username == "NULL") {
+                                                                                panen.username
+                                                                            } else {
+                                                                                existingRecord.username
+                                                                            },
 
-                                                                        status_espb = if (existingRecord.status_espb == 0) {
-                                                                            panen.status_espb
-                                                                        } else {
-                                                                            existingRecord.status_espb
-                                                                        },
+                                                                            status_espb = if (existingRecord.status_espb == 0) {
+                                                                                panen.status_espb
+                                                                            } else {
+                                                                                existingRecord.status_espb
+                                                                            },
 
 
-                                                                        scan_status = if (existingRecord.scan_status == 0) {
-                                                                            panen.scan_status
-                                                                        } else {
-                                                                            existingRecord.scan_status
-                                                                        },
+                                                                            scan_status = if (existingRecord.scan_status == 0) {
+                                                                                panen.scan_status
+                                                                            } else {
+                                                                                existingRecord.scan_status
+                                                                            },
 
-                                                                        isPushedToServer = 1
-                                                                    )
+                                                                            isPushedToServer = 1
+                                                                        )
 
 
                                                                     panenDao.update(
@@ -5058,17 +5111,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     // Final summary
-                                                    AppLogger.d("=== RESTAN SYNC COMPLETE ===")
-                                                    AppLogger.d("Inserted/Updated: $successCount")
-                                                    AppLogger.d("Failed: $failCount")
-                                                    AppLogger.d("Total records processed: ${panenList.size}")
-                                                    AppLogger.d("============================")
+//                                                    AppLogger.d("=== RESTAN SYNC COMPLETE ===")
+//                                                    AppLogger.d("Inserted/Updated: $successCount")
+//                                                    AppLogger.d("Failed: $failCount")
+//                                                    AppLogger.d("Total records processed: ${panenList.size}")
+//                                                    AppLogger.d("============================")
 
                                                     if (panenList.isEmpty()) {
                                                         // No records to process - everything is up to date
                                                         results[request.dataset] =
                                                             Resource.UpToDate(request.dataset)
-                                                        AppLogger.d("No records to process - dataset is up to date")
+//                                                        AppLogger.d("No records to process - dataset is up to date")
                                                     } else if (failCount == 0) {
                                                         results[request.dataset] = Resource.Success(
                                                             response,
@@ -5089,7 +5142,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         )
                                                     }
                                                 } catch (e: Exception) {
-                                                    AppLogger.e("Error processing restan data: ${e.message}")
+//                                                    AppLogger.e("Error processing restan data: ${e.message}")
                                                     results[request.dataset] =
                                                         Resource.Error("Error processing restan data: ${e.message}")
                                                 }
@@ -5099,16 +5152,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 jsonObject.optString("message", "Unknown error")
                                             results[request.dataset] =
                                                 Resource.Error("API Error: $errorMessage")
-                                            AppLogger.e("Restan API returned error: $errorMessage")
+//                                            AppLogger.e("Restan API returned error: $errorMessage")
                                         }
                                     } catch (e: Exception) {
-                                        AppLogger.e("Error processing restan JSON: ${e.message}")
+//                                        AppLogger.e("Error processing restan JSON: ${e.message}")
                                         results[request.dataset] =
                                             Resource.Error("Error processing restan data: ${e.message}")
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                                     if (responseBodyString.isBlank()) {
-                                        Log.e("DownloadResponse", "Received empty JSON response")
+//                                        Log.e("DownloadResponse", "Received empty JSON response")
                                         results[request.dataset] =
                                             Resource.Error("Empty JSON response")
                                         _downloadStatuses.postValue(results.toMap())
@@ -5158,7 +5212,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
                                     }
 
-                                } else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.parameter) {
                                     try {
                                         // Use your existing parseParameter function
                                         val parameterList = parseParameter(responseBodyString)

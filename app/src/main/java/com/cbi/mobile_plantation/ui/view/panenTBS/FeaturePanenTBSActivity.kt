@@ -353,9 +353,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.boundaryAccuracy
-        boundaryAccuracy = prefManager!!.boundaryAccuracy
-
+        radiusMinimum = 200F
+        boundaryAccuracy = 200F
 
         AppLogger.d("radiusMinimum $radiusMinimum")
         AppLogger.d("boundaryAccuracy $boundaryAccuracy")

@@ -261,9 +261,6 @@ class LoginActivity : AppCompatActivity() {
                         prefManager!!.kemandoranKodeUserLogin = loginResponse.data?.user?.kemandoran_kode
                         prefManager!!.afdelingIdUserLogin = loginResponse.data?.user?.divisi
 
-
-                        AppLogger.d(loginResponse.data.user.toString())
-
                         Toasty.success(this, "Login Berhasil!", Toast.LENGTH_LONG, true).show()
                         navigateToHomePage()
                     } else {

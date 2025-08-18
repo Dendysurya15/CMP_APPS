@@ -267,7 +267,7 @@ class DatasetRepository(
         return tphDao.getTPHsByIds(tphIds)
     }
 
-    suspend fun getTPHEstate(estateAbbr: String): Response<ResponseBody> {
+    suspend fun getTPHEstate(estateValue: String, useAbbr: Boolean = true): Response<ResponseBody> {
         // Build the JSON object for the request
         val jsonObject = JSONObject().apply {
             put("table", "tph")
@@ -294,7 +294,13 @@ class DatasetRepository(
             })
 
             put("where", JSONObject().apply {
-                put("dept_abbr", estateAbbr)
+                if (useAbbr) {
+                    // For non-GM users: use dept_abbr with estate abbreviation
+                    put("dept_abbr", estateValue)
+                } else {
+                    // For GM users: use dept with estate ID
+                    put("dept", estateValue.toIntOrNull() ?: estateValue)
+                }
                 put("status", 1)
             })
         }
