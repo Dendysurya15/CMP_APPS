@@ -269,6 +269,8 @@ class DatasetRepository(
 
     suspend fun getTPHEstate(estateValue: String, useAbbr: Boolean = true): Response<ResponseBody> {
         // Build the JSON object for the request
+
+        AppLogger.d("gasdkjalksjf lkasjdlf")
         val jsonObject = JSONObject().apply {
             put("table", "tph")
             put("select", JSONArray().apply {
@@ -291,6 +293,12 @@ class DatasetRepository(
                 put("ancak")
                 put("nomor")
                 put("tahun")
+                put("lat")
+                put("lon")
+                put("update_date")
+                put("status")
+                put("jenis_tph_id")
+                put("limit_tph")
             })
 
             put("where", JSONObject().apply {
@@ -306,8 +314,14 @@ class DatasetRepository(
         }
 
 
+
+
+        AppLogger.d(" json $jsonObject")
+
         // Convert to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("requestBody $requestBody")
 
         // Perform API call
         return apiService.getDataRaw(requestBody)

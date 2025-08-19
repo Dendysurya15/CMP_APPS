@@ -200,7 +200,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var latLonMap: Map<Int, ScannedTPHLocation> = emptyMap()
 
     private lateinit var takeFotoPreviewAdapter: TakeFotoPreviewAdapter
-    private lateinit var takeFotoSelfieAdapter: TakeFotoPreviewAdapter
 
 
     private var masterDeptInfoMap: Map<String, String> = emptyMap()
@@ -2166,10 +2165,28 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 val masterDeptAbbrList = masterDeptInfoMap.values.toList()
                                 setupSpinnerView(layoutView, masterDeptAbbrList)
                             } else {
-                                val namaEstates = listOf(prefManager!!.estateUserLengkapLogin ?: "")
-                                Log.d("testEstate", namaEstates.toString())
-                                setupSpinnerView(layoutView, namaEstates)
-                                findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
+                                val namaEstate = prefManager!!.estateUserLengkapLogin
+                                AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
+                                AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
+
+                                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+
+                                if (isGM) {
+                                    // Split the estate names into a list for GM
+                                    val estateList = namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
+                                    AppLogger.d("GM detected - Estate list: $estateList")
+                                    setupSpinnerView(layoutView, estateList)
+                                } else {
+                                    // Single estate for non-GM users
+                                    val singleEstateList = if (namaEstate.isNullOrEmpty()) {
+                                        emptyList()
+                                    } else {
+                                        listOf(namaEstate)
+                                    }
+                                    AppLogger.d("Non-GM user - Single estate: $singleEstateList")
+                                    setupSpinnerView(layoutView, singleEstateList)
+                                    findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
+                                }
                             }
                         }
 
@@ -3501,8 +3518,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
             }
 
-            if (linearLayout.id == R.id.layoutEstate && featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                spinner.isEnabled = false // Disable spinner
+
+            if (linearLayout.id == R.id.layoutEstate) {
+                // Check if jabatan contains "GM" instead of exact match
+                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+
+                val shouldDisable = featureName != AppUtils.ListFeatureNames.AsistensiEstateLain && !isGM
+
+                spinner.isEnabled = !shouldDisable
+
+                AppLogger.d("Estate spinner - Feature: $featureName, Jabatan: $jabatanUser, IsGM: $isGM, Enabled: ${spinner.isEnabled}")
+                AppLogger.d("Expected GM value: ${AppUtils.ListFeatureByRoleUser.GM}")
             }
 
             spinner.setOnItemSelectedListener { _, position, _, item ->
@@ -3528,7 +3554,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val layoutBlokBanjir = findViewById<LinearLayout>(R.id.layoutBlokBanjir)
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
 
-        layoutBlokBanjir.visibility = View.VISIBLE.takeIf { tph_otomatis_estate != 1 } ?: View.GONE
+        val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+        layoutBlokBanjir.visibility = View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM } ?: View.GONE
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
@@ -3541,7 +3568,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             if (isChecked) {
                 // Stop auto scan if it's running
-                AppLogger.d("aklsjdfkjasdf")
                 autoScanEnabled = false
                 switchAutoScan.isChecked = false
                 autoScanHandler.removeCallbacks(autoScanRunnable)
@@ -3644,7 +3670,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 photoFilesSelfie.clear()
                 komentarFoto.clear()
                 takeFotoPreviewAdapter?.resetAllSections()
-                takeFotoSelfieAdapter?.resetAllSections()
+
             } else {
                 if (karyawanLainList.isNotEmpty()) {
                     switchAsistensi.isChecked = true
@@ -3694,7 +3720,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 photoFilesSelfie.clear()
                 komentarFoto.clear()
                 takeFotoPreviewAdapter?.resetAllSections()
-                takeFotoSelfieAdapter?.resetAllSections()
+
             }
 
             // Restore karyawan lists after all other operations
@@ -4038,31 +4064,72 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             R.id.layoutEstate -> {
                 resetDependentSpinners(linearLayout.rootView)
-                selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key!!
+
+
+
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
+                    selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key!!
+                }else{
+                    selectedEstate = selectedItem
+                }
+
+                val selectedEstateId = try {
+                    // Assuming you have an estate list with IDs corresponding to positions
+                    // You might need to adjust this based on your estate data structure
+                    val estateIds = prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
+                    if (position < estateIds.size) {
+                        estateIds[position]
+                    } else {
+                        AppLogger.e("Invalid estate position: $position")
+                        return
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error getting estate ID: ${e.message}")
+                    return
+                }
+
+                estateId = selectedEstateId.toString()
+
                 selectedEstateIdSpinner = position
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
                         animateLoadingDots(linearLayout)
-                        delay(300) // 1 second delay
+                        delay(300)
                     }
 
-                    val afdelingDeffered = async {
-                        try {
-                            datasetViewModel.getListAfdeling(
-                                selectedEstate
-                            )
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching kemandoranList: ${e.message}")
-                            emptyList()
+                    AppLogger.d("selectedEstate $selectedEstate")
+
+                    if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                        // For AsistensiEstateLain - get afdeling list
+                        val afdelingDeferred = async {
+                            try {
+                                datasetViewModel.getListAfdeling(selectedEstate)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching afdelingList: ${e.message}")
+                                emptyList()
+                            }
                         }
+                        afdelingList = afdelingDeferred.await()
+
+                        val layoutAfdeling = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
+                        setupSpinnerView(layoutAfdeling, afdelingList.mapNotNull { it.abbr })
+
+                    } else {
+                        // For other features - get divisi list
+                        val divisiDeferred = async {
+                            try {
+                                datasetViewModel.getDivisiList(selectedEstateId)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching divisiList: ${e.message}")
+                                emptyList()
+                            }
+                        }
+                        divisiList = divisiDeferred.await()
+
+                        val layoutAfdeling = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
+                        setupSpinnerView(layoutAfdeling, divisiList.mapNotNull { it.divisi_abbr })
                     }
-                    afdelingList = afdelingDeffered.await()
-
-                    val layoutAfdeling =
-                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
-                    setupSpinnerView(layoutAfdeling, afdelingList.mapNotNull { it.abbr })
-
 
                     withContext(Dispatchers.Main) {
                         hideLoadingDots(linearLayout)
@@ -4110,22 +4177,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 selectedDivisiValue = selectedDivisiId
                 selectedDivisiValueBackup = selectedDivisiId
-
-                val allIdAfdeling = try {
-                    divisiList.map { it.divisi }
-                } catch (e: Exception) {
-                    AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
-                    emptyList()
-                }
-
-                val otherDivisiIds = try {
-                    allIdAfdeling.filter { divisiId ->
-                        selectedDivisiId == null || divisiId != selectedDivisiId
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
-                    emptyList()
-                }
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {

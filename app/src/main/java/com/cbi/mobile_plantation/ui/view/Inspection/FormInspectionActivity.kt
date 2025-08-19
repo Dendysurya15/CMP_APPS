@@ -208,6 +208,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var emptyScannedTPHInsideRadius: TextView
     private lateinit var progressBarScanTPHManual: ProgressBar
     private lateinit var progressBarScanTPHAuto: ProgressBar
+    private lateinit var lyEstInspect: LinearLayout
+    private lateinit var lyAfdInspect: LinearLayout
     private var shouldReopenBottomSheet = false
     private var isTriggeredBtnScanned = false
     private lateinit var switchAutoScan: SwitchMaterial
@@ -271,6 +273,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var tphScannedResultRecyclerView: RecyclerView
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
+    private var selectedEstate: String = ""
+    private var selectedEstateIdSpinner: Int = 0
     private var selectedDivisiValue: Int? = null
     private var selectedTPHValue: Int? = null
     private var selectedJalurMasuk: String = ""
@@ -370,6 +374,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         labelFollowUpTPH = findViewById(R.id.labelFollowUpTPH)
         badgePhotoFUTPH = findViewById(R.id.badgePhotoFUTPH)
         badgePhotoInspect = findViewById(R.id.badgePhotoInspect)
+        lyEstInspect = findViewById(R.id.lyEstInspect)
+        lyAfdInspect = findViewById(R.id.lyAfdInspect)
 
         labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
         fabNextToFormAncak = findViewById(R.id.fabNextToFormAncak)
@@ -3041,10 +3047,30 @@ open class FormInspectionActivity : AppCompatActivity(),
                         when (layoutView.id) {
                             R.id.lyEstInspect -> {
                                 val namaEstate = prefManager!!.estateUserLengkapLogin
-                                setupSpinnerView(layoutView, emptyList())
-                                val pemanenSpinner =
-                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                pemanenSpinner.setHint(namaEstate)
+                                AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
+                                AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
+
+                                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+
+                                if (isGM) {
+                                    // Split the estate names into a list for GM
+                                    val estateList = namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
+                                    AppLogger.d("GM detected - Estate list: $estateList")
+                                    setupSpinnerView(layoutView, estateList)
+                                } else {
+                                    // Single estate for non-GM users
+                                    val singleEstateList = if (namaEstate.isNullOrEmpty()) {
+                                        emptyList()
+                                    } else {
+                                        listOf(namaEstate)
+                                    }
+                                    AppLogger.d("Non-GM user - Single estate: $singleEstateList")
+                                    setupSpinnerView(layoutView, singleEstateList)
+                                }
+//                                setupSpinnerView(layoutView, emptyList())
+//                                val pemanenSpinner =
+//                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+//                                pemanenSpinner.setHint(namaEstate)
                             }
 
                             R.id.lyAfdInspect -> {
@@ -4163,8 +4189,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         spinner.setItems(data)
 
-        if (linearLayout.id == R.id.lyEstInspect) {
-            spinner.isEnabled = false // Disable spinner
+        val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+
+        if (!isGM) {
+            if (linearLayout.id == R.id.lyEstInspect) {
+                spinner.isEnabled = false
+            }
         }
 
         spinner.setOnItemSelectedListener { _, position, _, item ->
@@ -4394,6 +4424,72 @@ open class FormInspectionActivity : AppCompatActivity(),
     ) {
         when (linearLayout.id) {
 
+            R.id.lyEstInspect -> { // Add this case for estate selection
+                AppLogger.d("Estate selected: $selectedItem at position $position")
+
+                // Reset related data when estate changes
+                selectedEstate = selectedItem
+                selectedEstateIdSpinner = position
+
+                // Get the estate ID from the estate list
+                val selectedEstateId = try {
+                    // Assuming you have an estate list with IDs corresponding to positions
+                    // You might need to adjust this based on your estate data structure
+                    val estateIds = prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
+                    if (position < estateIds.size) {
+                        estateIds[position]
+                    } else {
+                        AppLogger.e("Invalid estate position: $position")
+                        return
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error getting estate ID: ${e.message}")
+                    return
+                }
+
+                // Update current estate
+                estateId = selectedEstateId.toString()
+                AppLogger.d("Updated estateId to: $estateId")
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                        delay(300)
+                    }
+
+                    try {
+                        val divisiDeferred = async {
+                            try {
+                                datasetViewModel.getDivisiList(selectedEstateId)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching divisi list: ${e.message}")
+                                emptyList()
+                            }
+                        }
+
+                        divisiList = divisiDeferred.await()
+
+                        withContext(Dispatchers.Main) {
+                            setupSpinnerView(lyAfdInspect, divisiList.mapNotNull { it.divisi_abbr })
+                        }
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading estate data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Error loading estate data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) {
+                            hideLoadingDots(linearLayout)
+                        }
+                    }
+                }
+            }
+
             R.id.lyPemanenOtomatis -> {
                 AppLogger.d("Automatic spinner selection triggered: $selectedItem at position $position")
 
@@ -4517,16 +4613,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedAfdelingIdSpinner = position
 
                 isTriggeredBtnScanned = false
-                AppLogger.d("masuk coba $isTriggeredBtnScanned")
+
 
                 val selectedDivisiId = try {
-                    divisiList.find { it.divisi_abbr == selectedAfdeling }?.divisi
+                    divisiList.find {
+                        it.divisi_abbr == selectedAfdeling && it.dept_nama == selectedEstate
+                    }?.divisi
                 } catch (e: Exception) {
+                    AppLogger.e("Error finding divisi: ${e.message}")
                     null
                 }
 
                 val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
-                selectedDivisiValue = selectedDivisiId
+                selectedDivisiValue = selectedDivisiId?.toInt()
 
                 val nonSelectedAfdelingKemandoran = try {
                     divisiList.filter { it.divisi_abbr != selectedAfdeling }
@@ -4544,9 +4643,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                     withContext(Dispatchers.Main) {
                         setupScanTPHTrigger()
                         animateLoadingDots(linearLayout)
-                        // ❌ REMOVED: delay(200) // 1 second delay
+                          delay(300) // 1 second delay
                     }
 
+
+                    AppLogger.d("estate $estateId")
+
+                    AppLogger.d("selectedDivisiId $selectedDivisiId")
                     try {
                         if (estateId == null || selectedDivisiId == null) {
                             throw IllegalStateException("Estate ID or selectedDivisiId is null!")
@@ -4586,15 +4689,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     val batchSize = 500
                                     val allResults = mutableListOf<TPHNewModel>()
 
-                                    selectedTPHIds.chunked(batchSize)
-                                        .forEachIndexed { index, batch ->
-                                            AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
-                                            val batchResults =
-                                                datasetViewModel.getLatLonDivisiByTPHIds(
-                                                    estateIdToUse,
-                                                    selectedDivisiId,
-                                                    batch
-                                                )
+                                        selectedTPHIds.chunked(batchSize)
+                                            .forEachIndexed { index, batch ->
+                                                AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
+                                                val batchResults =
+                                                    datasetViewModel.getLatLonDivisiByTPHIds(
+                                                        estateIdToUse,
+                                                        selectedDivisiId,
+                                                        batch
+                                                    )
                                             allResults.addAll(batchResults)
                                         }
                                     allResults
