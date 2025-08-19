@@ -1075,6 +1075,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         _totalCount.value = requests.size
         _completedCount.value = 0
 
+
+
         // Create mutable maps for tracking progress and status
         val progressMap = mutableMapOf<Int, Int>()
         val statusMap = mutableMapOf<Int, String>()
@@ -1117,6 +1119,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
+
+
                 // Check for sinkronisasiRestan with error data - skip API call if error detected
                 if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                     val downloadItem = downloadItems[index]
@@ -1153,7 +1157,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     )
 
                     var modifiedRequest = request
-                    if (request.dataset in validDatasets) {
+                    if (request.jabatan != AppUtils.ListFeatureByRoleUser.GM && request.dataset in validDatasets) {
                         val deptId =
                             if (request.dataset == AppUtils.DatasetNames.tph) request.estate else null
 
@@ -1196,7 +1200,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         response = dataPanenInspectionRepository.getDataPanen(
                             estateId!!,
-                            request.afdeling!!
                         )
 
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
@@ -1216,6 +1219,110 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                        AppLogger.d("test bro masuk sini gak sih")
+                        val estateId = request.estate as List<*>
+                        val allTphData = mutableListOf<TPHNewModel>()
+                        var lastSuccessResponse: Response<ResponseBody>? = null
+
+                        val totalEstates = estateId.size
+                        var processedEstates = 0
+
+                        estateId.forEach { estate ->
+                            try {
+                                // Calculate progress based on estate processing (0-90% for API calls)
+                                val apiProgress = ((processedEstates.toFloat() / totalEstates) * 90).toInt()
+                                progressMap[itemId] = apiProgress
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
+                                _itemProgressMap.postValue(progressMap.toMap())
+                                _itemStatusMap.postValue(statusMap.toMap())
+
+                                AppLogger.d("Processing estate ${processedEstates + 1}/$totalEstates: $estate (${apiProgress}%)")
+
+                                val estateResponse = repository.getTPHEstate(estate.toString(), false)
+                                AppLogger.d("responseBody $estateResponse for estate $estate")
+
+                                if (estateResponse.isSuccessful && estateResponse.code() == 200) {
+                                    lastSuccessResponse = estateResponse
+                                    val responseBody = estateResponse.body()?.string() ?: ""
+                                    if (responseBody.isNotBlank()) {
+                                        val tphList = parseTPHJsonToList(responseBody)
+                                        allTphData.addAll(tphList)
+                                        AppLogger.d("Estate $estate: Added ${tphList.size} TPH records. Total: ${allTphData.size}")
+                                    }
+                                } else {
+                                    AppLogger.w("Estate $estate failed with code: ${estateResponse.code()}")
+                                }
+
+                                processedEstates++
+
+                                // Update progress after each estate
+                                val currentProgress = ((processedEstates.toFloat() / totalEstates) * 90).toInt()
+                                progressMap[itemId] = currentProgress
+                                _itemProgressMap.postValue(progressMap.toMap())
+
+                            } catch (e: Exception) {
+                                AppLogger.e("Error getting TPH data for estate ${estate}: ${e.message}")
+                                processedEstates++
+                            }
+                        }
+
+                        // Check if we have any data
+                        if (allTphData.isNotEmpty()) {
+                            AppLogger.d("Starting database storage for ${allTphData.size} TPH records")
+
+                            // Set progress to 90% and update status to storing
+                            progressMap[itemId] = 90
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
+                            _itemProgressMap.postValue(progressMap.toMap())
+                            _itemStatusMap.postValue(statusMap.toMap())
+
+                            // Database storage progress (90-100%)
+                            progressMap[itemId] = 95
+                            _itemProgressMap.postValue(progressMap.toMap())
+
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    if (request.isDownloadMasterTPHAsistensi) {
+                                        repository.insertTPH(allTphData)
+                                    } else {
+                                        repository.updateOrInsertTPH(allTphData)
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("Database update error: ${e.message}")
+                                    throw e
+                                }
+                            }
+
+                            // Set final progress and success status
+                            progressMap[itemId] = 100
+                            statusMap[itemId] = if (isDownloadDataset) {
+                                AppUtils.UploadStatusUtils.DOWNLOADED
+                            } else {
+                                AppUtils.UploadStatusUtils.UPDATED
+                            }
+
+                            // Set lastModified to current datetime
+                            val currentDateTime = SimpleDateFormat(
+                                "yyyy-MM-dd HH:mm:ss",
+                                Locale.getDefault()
+                            ).format(Date())
+                            prefManager.lastModifiedDatasetTPH = currentDateTime
+
+                            AppLogger.d("TPH list download completed successfully - ${allTphData.size} records from ${estateId.size} estates")
+                        } else {
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "No TPH data found for any estate"
+                            progressMap[itemId] = 0
+                        }
+
+                        _itemProgressMap.postValue(progressMap.toMap())
+                        _itemStatusMap.postValue(statusMap.toMap())
+                        _itemErrorMap.postValue(errorMap.toMap())
+
+                        incrementCompletedCount()
+                        continue // Skip the normal response processing since we handled everything here
                     }
                     // Add this after the existing API calls but before the response processing
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
@@ -1656,7 +1763,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tempFile.delete()
                                 extractDir.deleteRecursively()
                             }
-                        } else if (contentType?.contains("application/json") == true) {
+                        }
+                        else if (contentType?.contains("application/json") == true) {
                             handleJsonResponse(
                                 request,
                                 itemId,
@@ -1800,12 +1908,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getPreviewDataPanenInspeksiWeek(estate: Int, afdeling: String) {
+    fun getPreviewDataPanenInspeksiWeek(estate: Any) {
         viewModelScope.launch {
-
             try {
+                AppLogger.d("estate $estate")
                 val response = withContext(Dispatchers.IO) {
-                    dataPanenInspectionRepository.getDataPanen(estate, afdeling)
+                    dataPanenInspectionRepository.getDataPanen(estate)
                 }
 
                 AppLogger.d(response.body().toString())
@@ -1813,8 +1921,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     val jsonString = response.body()?.string() ?: ""
 
                     AppLogger.d(jsonString.toString())
-                    // Process the JSON response to create formatted summary
-                    val formattedData = processPreviewDataPanenInspeksi(jsonString)
+                    // Process the JSON response - pass estate to know if grouping is needed
+                    val formattedData = processPreviewDataPanenInspeksi(jsonString, estate)
 
                     _dataPanenInspeksiPreview.value = formattedData
                 } else {
@@ -1826,6 +1934,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
 
 
     private suspend fun handleJsonResponse(
@@ -2590,7 +2699,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             var karyawanNikList = mutableListOf<String>()
                             var karyawanNamaList = mutableListOf<String>()
 
-// Check if kemandoran is not empty, not "null" string, and not actual null
+
                             if (kemandoranString.isNotEmpty() &&
                                 kemandoranString != "null" &&
                                 !item.isNull("kemandoran")
@@ -2713,138 +2822,175 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
-                                for (panen in panenList) {
-                                    try {
-                                        // Check if record exists by tph_id and date_created (NOT by ID)
-                                        val existingRecord = panenDao.findByTphAndDate(
-                                            panen.tph_id,
-                                            panen.date_created
-                                        )
+                                // Batch processing - process in chunks of 50
+                                val batchSize = 500
+                                val batches = panenList.chunked(batchSize)
 
-                                        if (existingRecord == null) {
-                                            // Record doesn't exist -> INSERT
-                                            val result = panenDao.insertWithTransaction(panen)
-                                            if (result.isSuccess) {
-                                                successCount++
-                                                AppLogger.d("Inserted new panen record: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
-                                            } else {
-                                                failCount++
-                                                AppLogger.e("Failed to insert panen record: ${panen.tph_id}, ${panen.date_created}")
-                                            }
-                                        } else {
-                                            // Record exists -> UPDATE (check for null/""/0 values and update them)
-                                            AppLogger.d("Record exists, updating: TPH=${panen.tph_id}, Date=${panen.date_created}")
+                                for ((batchIndex, batch) in batches.withIndex()) {
+                                    AppLogger.d("Processing batch ${batchIndex + 1}/${batches.size} (${batch.size} records)")
 
-                                            val updatedRecord = existingRecord.copy(
-                                                // Update basic info from server
-                                                created_by = panen.created_by,
-                                                jenis_panen = if (existingRecord.jenis_panen == 0 && panen.jenis_panen != 0) {
-                                                    panen.jenis_panen
-                                                } else {
-                                                    existingRecord.jenis_panen
-                                                },
+                                    val insertList = mutableListOf<PanenEntity>()
+                                    val updateList = mutableListOf<PanenEntity>()
 
-                                                ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
-                                                    panen.ancak
-                                                } else {
-                                                    existingRecord.ancak
-                                                },
-
-                                                jjg_json = if ((existingRecord.jjg_json.isNullOrEmpty() ||
-                                                            existingRecord.jjg_json == "NULL" ||
-                                                            existingRecord.jjg_json == "{}" ||
-                                                            existingRecord.jjg_json == "{\"KP\": 0}") &&
-                                                    panen.jjg_json.isNotEmpty() &&
-                                                    panen.jjg_json != "NULL" &&
-                                                    panen.jjg_json != "{\"KP\": 0}"
-                                                ) {
-                                                    panen.jjg_json
-                                                } else {
-                                                    existingRecord.jjg_json
-                                                },
-                                                isPushedToServer = 1,
-
-                                                // Update karyawan info if existing is null/empty
-                                                karyawan_id = if ((existingRecord.karyawan_id.isNullOrEmpty() ||
-                                                            existingRecord.karyawan_id == "NULL") &&
-                                                    panen.karyawan_id.isNotEmpty() &&
-                                                    panen.karyawan_id != "NULL"
-                                                ) {
-                                                    panen.karyawan_id
-                                                } else {
-                                                    existingRecord.karyawan_id
-                                                },
-
-                                                kemandoran_id = if ((existingRecord.kemandoran_id.isNullOrEmpty() ||
-                                                            existingRecord.kemandoran_id == "NULL") &&
-                                                    panen.kemandoran_id.isNotEmpty() &&
-                                                    panen.kemandoran_id != "NULL"
-                                                ) {
-                                                    panen.kemandoran_id
-                                                } else {
-                                                    existingRecord.kemandoran_id
-                                                },
-
-                                                karyawan_nik = if ((existingRecord.karyawan_nik.isNullOrEmpty() ||
-                                                            existingRecord.karyawan_nik == "NULL") &&
-                                                    panen.karyawan_nik.isNotEmpty() &&
-                                                    panen.karyawan_nik != "NULL"
-                                                ) {
-                                                    panen.karyawan_nik
-                                                } else {
-                                                    existingRecord.karyawan_nik
-                                                },
-
-                                                karyawan_nama = if ((existingRecord.karyawan_nama.isNullOrEmpty() ||
-                                                            existingRecord.karyawan_nama == "NULL") &&
-                                                    panen.karyawan_nama.isNotEmpty() &&
-                                                    panen.karyawan_nama != "NULL"
-                                                ) {
-                                                    panen.karyawan_nama
-                                                } else {
-                                                    existingRecord.karyawan_nama
-                                                },
-
-                                                // Update jumlah_pemanen if existing is 0 or 1 (default)
-                                                jumlah_pemanen = if (existingRecord.jumlah_pemanen <= 1 && panen.jumlah_pemanen > 1) {
-                                                    panen.jumlah_pemanen
-                                                } else {
-                                                    existingRecord.jumlah_pemanen
-                                                },
-
-                                                status_upload = existingRecord.status_upload,
-                                                status_uploaded_image = existingRecord.status_uploaded_image,
-                                                status_scan_inspeksi = existingRecord.status_scan_inspeksi,
-
-                                                // Preserve local photos and comments if they exist
-                                                foto = if (existingRecord.foto.isNotEmpty() && existingRecord.foto != "NULL") {
-                                                    existingRecord.foto
-                                                } else {
-                                                    panen.foto
-                                                },
-
-                                                komentar = if (existingRecord.komentar.isNotEmpty() && existingRecord.komentar != "NULL") {
-                                                    existingRecord.komentar
-                                                } else {
-                                                    panen.komentar
-                                                },
-                                                username = if (existingRecord.username.isNullOrEmpty() || existingRecord.username == "NULL") {
-                                                    panen.username
-                                                } else {
-                                                    existingRecord.username
-                                                },
-                                                // Preserve local coordinates if they exist
-                                                lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
-                                                lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
+                                    // Separate records into insert and update lists
+                                    for (panen in batch) {
+                                        try {
+                                            // Check if record exists by tph_id and date_created (NOT by ID)
+                                            val existingRecord = panenDao.findByTphAndDate(
+                                                panen.tph_id,
+                                                panen.date_created
                                             )
 
-                                            panenDao.update(listOf(updatedRecord))
-                                            successCount++
-                                            AppLogger.d("Updated existing record TPH=${panen.tph_id}, Date=${panen.date_created}")
+                                            if (existingRecord == null) {
+                                                // Record doesn't exist -> INSERT
+                                                insertList.add(panen)
+                                                AppLogger.d("Queued for insert: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
+                                            } else {
+                                                // Record exists -> UPDATE (check for null/""/0 values and update them)
+                                                AppLogger.d("Record exists, queued for update: TPH=${panen.tph_id}, Date=${panen.date_created}")
+
+                                                val updatedRecord = existingRecord.copy(
+                                                    // Update basic info from server
+                                                    created_by = panen.created_by,
+                                                    jenis_panen = if (existingRecord.jenis_panen == 0 && panen.jenis_panen != 0) {
+                                                        panen.jenis_panen
+                                                    } else {
+                                                        existingRecord.jenis_panen
+                                                    },
+
+                                                    ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
+                                                        panen.ancak
+                                                    } else {
+                                                        existingRecord.ancak
+                                                    },
+
+                                                    jjg_json = if ((existingRecord.jjg_json.isNullOrEmpty() ||
+                                                                existingRecord.jjg_json == "NULL" ||
+                                                                existingRecord.jjg_json == "{}" ||
+                                                                existingRecord.jjg_json == "{\"KP\": 0}") &&
+                                                        panen.jjg_json.isNotEmpty() &&
+                                                        panen.jjg_json != "NULL" &&
+                                                        panen.jjg_json != "{\"KP\": 0}"
+                                                    ) {
+                                                        panen.jjg_json
+                                                    } else {
+                                                        existingRecord.jjg_json
+                                                    },
+                                                    isPushedToServer = 1,
+
+                                                    // Update karyawan info if existing is null/empty
+                                                    karyawan_id = if ((existingRecord.karyawan_id.isNullOrEmpty() ||
+                                                                existingRecord.karyawan_id == "NULL") &&
+                                                        panen.karyawan_id.isNotEmpty() &&
+                                                        panen.karyawan_id != "NULL"
+                                                    ) {
+                                                        panen.karyawan_id
+                                                    } else {
+                                                        existingRecord.karyawan_id
+                                                    },
+
+                                                    kemandoran_id = if ((existingRecord.kemandoran_id.isNullOrEmpty() ||
+                                                                existingRecord.kemandoran_id == "NULL") &&
+                                                        panen.kemandoran_id.isNotEmpty() &&
+                                                        panen.kemandoran_id != "NULL"
+                                                    ) {
+                                                        panen.kemandoran_id
+                                                    } else {
+                                                        existingRecord.kemandoran_id
+                                                    },
+
+                                                    karyawan_nik = if ((existingRecord.karyawan_nik.isNullOrEmpty() ||
+                                                                existingRecord.karyawan_nik == "NULL") &&
+                                                        panen.karyawan_nik.isNotEmpty() &&
+                                                        panen.karyawan_nik != "NULL"
+                                                    ) {
+                                                        panen.karyawan_nik
+                                                    } else {
+                                                        existingRecord.karyawan_nik
+                                                    },
+
+                                                    karyawan_nama = if ((existingRecord.karyawan_nama.isNullOrEmpty() ||
+                                                                existingRecord.karyawan_nama == "NULL") &&
+                                                        panen.karyawan_nama.isNotEmpty() &&
+                                                        panen.karyawan_nama != "NULL"
+                                                    ) {
+                                                        panen.karyawan_nama
+                                                    } else {
+                                                        existingRecord.karyawan_nama
+                                                    },
+
+                                                    // Update jumlah_pemanen if existing is 0 or 1 (default)
+                                                    jumlah_pemanen = if (existingRecord.jumlah_pemanen <= 1 && panen.jumlah_pemanen > 1) {
+                                                        panen.jumlah_pemanen
+                                                    } else {
+                                                        existingRecord.jumlah_pemanen
+                                                    },
+
+                                                    status_upload = existingRecord.status_upload,
+                                                    status_uploaded_image = existingRecord.status_uploaded_image,
+                                                    status_scan_inspeksi = existingRecord.status_scan_inspeksi,
+
+                                                    // Preserve local photos and comments if they exist
+                                                    foto = if (existingRecord.foto.isNotEmpty() && existingRecord.foto != "NULL") {
+                                                        existingRecord.foto
+                                                    } else {
+                                                        panen.foto
+                                                    },
+
+                                                    komentar = if (existingRecord.komentar.isNotEmpty() && existingRecord.komentar != "NULL") {
+                                                        existingRecord.komentar
+                                                    } else {
+                                                        panen.komentar
+                                                    },
+                                                    username = if (existingRecord.username.isNullOrEmpty() || existingRecord.username == "NULL") {
+                                                        panen.username
+                                                    } else {
+                                                        existingRecord.username
+                                                    },
+                                                    // Preserve local coordinates if they exist
+                                                    lat = if (existingRecord.lat != 0.0) existingRecord.lat else panen.lat,
+                                                    lon = if (existingRecord.lon != 0.0) existingRecord.lon else panen.lon
+                                                )
+
+                                                updateList.add(updatedRecord)
+                                            }
+                                        } catch (e: Exception) {
+                                            failCount++
+                                            AppLogger.e("Error processing panen record: ${e.message}")
                                         }
-                                    } catch (e: Exception) {
-                                        failCount++
-                                        AppLogger.e("Error processing panen record: ${e.message}")
+                                    }
+
+                                    // Batch insert new records
+                                    if (insertList.isNotEmpty()) {
+                                        try {
+                                            AppLogger.d("Batch inserting ${insertList.size} new records...")
+                                            for (panen in insertList) {
+                                                val result = panenDao.insertWithTransaction(panen)
+                                                if (result.isSuccess) {
+                                                    successCount++
+                                                    AppLogger.d("Inserted new panen record: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
+                                                } else {
+                                                    failCount++
+                                                    AppLogger.e("Failed to insert panen record: ${panen.tph_id}, ${panen.date_created}")
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            failCount += insertList.size
+                                            AppLogger.e("Error batch inserting records: ${e.message}")
+                                        }
+                                    }
+
+                                    // Batch update existing records
+                                    if (updateList.isNotEmpty()) {
+                                        try {
+                                            AppLogger.d("Batch updating ${updateList.size} existing records...")
+                                            panenDao.update(updateList)
+                                            successCount += updateList.size
+                                            AppLogger.d("Updated ${updateList.size} existing records")
+                                        } catch (e: Exception) {
+                                            failCount += updateList.size
+                                            AppLogger.e("Error batch updating records: ${e.message}")
+                                        }
                                     }
                                 }
 
@@ -3387,7 +3533,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun processPreviewDataPanenInspeksi(jsonResponse: String): String {
+    fun processPreviewDataPanenInspeksi(jsonResponse: String, estate: Any): String {
         try {
             // Parse the JSON response
             val jsonObject = JSONObject(jsonResponse)
@@ -3398,16 +3544,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter =
-                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
                 // Yesterday
                 calendar.set(Calendar.HOUR_OF_DAY, 23)
                 calendar.set(Calendar.MINUTE, 59)
                 calendar.set(Calendar.SECOND, 59)
-                val todayDate = calendar.time // Store the Date object
-                val today = inputFormatter.format(todayDate) // Store the formatted string
+                val todayDate = calendar.time
+                val today = inputFormatter.format(todayDate)
 
                 // 7 days ago
                 calendar.add(Calendar.DAY_OF_YEAR, -6)
@@ -3419,77 +3564,139 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val tempCalendar = Calendar.getInstance()
                 tempCalendar.time = sevenDaysAgoDate
 
-                while (!tempCalendar.time.after(todayDate)) { // Use todayDate instead of today
+                while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
 
-                // Initialize maps for all dates in range with zeros
-                val tphCountByDate = mutableMapOf<String, Int>() // Total TPH count (not distinct)
-                val recordCountByDate = mutableMapOf<String, Int>() // Track record count by date
-
-                for (date in allDates) {
-                    tphCountByDate[date] = 0
-                    recordCountByDate[date] = 0
-                }
-
-                // Process each item in the array - GET ALL DATA WITHOUT STATUS FILTERING
-                for (i in 0 until dataArray.length()) {
-                    val item = dataArray.getJSONObject(i)
-
-                    // Extract created_date and format to get just the date part
-                    val createdDateFull = item.optString("created_date", "")
-                    val createdDate = if (createdDateFull.isNotEmpty()) {
-                        createdDateFull.split(" ")[0] // Take only the date part (YYYY-MM-DD)
-                    } else {
-                        continue // Skip if no date
-                    }
-
-                    // Skip data outside our date range
-                    if (!allDates.contains(createdDate)) {
-                        continue
-                    }
-
-                    // Increment record count for this date
-                    recordCountByDate[createdDate] =
-                        recordCountByDate.getOrDefault(createdDate, 0) + 1
-
-                    // Simply increment the TPH count for this date (no uniqueness check)
-                    // Only count if tph value is greater than 0
-                    val tphIdInt = item.optInt("tph", 0)
-                    if (tphIdInt > 0) {
-                        tphCountByDate[createdDate] =
-                            tphCountByDate.getOrDefault(createdDate, 0) + 1
-                    }
-                }
-
-                // Build the final string
                 val resultBuilder = StringBuilder()
                 resultBuilder.append("Data Panen dalam 7 hari terakhir\n")
 
-                // Add each date's transactions with TPH count, but only if they have data
-                var hasValidData = false
-                for (date in allDates.sortedDescending()) {
-                    val tphCount = tphCountByDate[date] ?: 0
-                    val recordCount = recordCountByDate[date] ?: 0
+                // Check if we need grouping by dept_abbr
+                if (estate is List<*>) {
+                    // Group by dept_abbr for multiple estates
+                    val dataByEstate = mutableMapOf<String, MutableList<JSONObject>>()
 
-                    // Skip dates with zero records
-                    if (recordCount == 0) {
-                        continue
+                    // Categorize data by dept_abbr
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+                        val deptAbbr = item.optString("dept_abbr", "Unknown")
+
+                        if (!dataByEstate.containsKey(deptAbbr)) {
+                            dataByEstate[deptAbbr] = mutableListOf()
+                        }
+                        dataByEstate[deptAbbr]!!.add(item)
                     }
 
-                    hasValidData = true
+                    resultBuilder.append("\n")
 
-                    // Format date for display (e.g., "20 Mei")
-                    val dateObj = inputFormatter.parse(date)
-                    val dateDisplay = displayFormatter.format(dateObj!!)
+                    // Process each estate
+                    dataByEstate.forEach { (deptAbbr, estateData) ->
+                        resultBuilder.append("=== $deptAbbr ===\n")
 
-                    resultBuilder.append("$dateDisplay - $tphCount TPH\n")
-                }
+                        // Process data for this estate
+                        val tphCountByDate = mutableMapOf<String, Int>()
+                        val recordCountByDate = mutableMapOf<String, Int>()
 
-                // If no valid data found
-                if (!hasValidData) {
-                    resultBuilder.append("Tidak ada data panen dalam periode ini.")
+                        for (date in allDates) {
+                            tphCountByDate[date] = 0
+                            recordCountByDate[date] = 0
+                        }
+
+                        for (item in estateData) {
+                            val createdDateFull = item.optString("created_date", "")
+                            val createdDate = if (createdDateFull.isNotEmpty()) {
+                                createdDateFull.split(" ")[0]
+                            } else {
+                                continue
+                            }
+
+                            if (!allDates.contains(createdDate)) {
+                                continue
+                            }
+
+                            recordCountByDate[createdDate] = recordCountByDate.getOrDefault(createdDate, 0) + 1
+
+                            val tphIdInt = item.optInt("tph", 0)
+                            if (tphIdInt > 0) {
+                                tphCountByDate[createdDate] = tphCountByDate.getOrDefault(createdDate, 0) + 1
+                            }
+                        }
+
+                        // Add this estate's data
+                        var hasValidData = false
+                        for (date in allDates.sortedDescending()) {
+                            val tphCount = tphCountByDate[date] ?: 0
+                            val recordCount = recordCountByDate[date] ?: 0
+
+                            if (recordCount == 0) {
+                                continue
+                            }
+
+                            hasValidData = true
+                            val dateObj = inputFormatter.parse(date)
+                            val dateDisplay = displayFormatter.format(dateObj!!)
+                            resultBuilder.append("$dateDisplay - $tphCount TPH\n")
+                        }
+
+                        if (!hasValidData) {
+                            resultBuilder.append("Tidak ada data panen dalam periode ini.\n")
+                        }
+
+                        resultBuilder.append("\n")
+                    }
+                } else {
+                    // Single estate - use original logic
+                    val tphCountByDate = mutableMapOf<String, Int>()
+                    val recordCountByDate = mutableMapOf<String, Int>()
+
+                    for (date in allDates) {
+                        tphCountByDate[date] = 0
+                        recordCountByDate[date] = 0
+                    }
+
+                    // Process each item in the array
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+
+                        val createdDateFull = item.optString("created_date", "")
+                        val createdDate = if (createdDateFull.isNotEmpty()) {
+                            createdDateFull.split(" ")[0]
+                        } else {
+                            continue
+                        }
+
+                        if (!allDates.contains(createdDate)) {
+                            continue
+                        }
+
+                        recordCountByDate[createdDate] = recordCountByDate.getOrDefault(createdDate, 0) + 1
+
+                        val tphIdInt = item.optInt("tph", 0)
+                        if (tphIdInt > 0) {
+                            tphCountByDate[createdDate] = tphCountByDate.getOrDefault(createdDate, 0) + 1
+                        }
+                    }
+
+                    // Add single estate data
+                    var hasValidData = false
+                    for (date in allDates.sortedDescending()) {
+                        val tphCount = tphCountByDate[date] ?: 0
+                        val recordCount = recordCountByDate[date] ?: 0
+
+                        if (recordCount == 0) {
+                            continue
+                        }
+
+                        hasValidData = true
+                        val dateObj = inputFormatter.parse(date)
+                        val dateDisplay = displayFormatter.format(dateObj!!)
+                        resultBuilder.append("$dateDisplay - $tphCount TPH\n")
+                    }
+
+                    if (!hasValidData) {
+                        resultBuilder.append("Tidak ada data panen dalam periode ini.")
+                    }
                 }
 
                 return resultBuilder.toString().trim()
@@ -3946,7 +4153,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
-                            request.afdeling!!
                         )
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                         response = dataPanenInspectionRepository.getDataInspeksi(
@@ -3956,7 +4162,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             parameterDao
                         )
                     } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
-                        val estateId = request.estate as List<Int>
+                        val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
 
@@ -4326,8 +4532,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     results[request.dataset] = Resource.UpToDate(request.dataset)
                                 }
                                 else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
-                                    // Process sinkronisasiFollowUpInspeksi JSON data
-
 
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
@@ -4337,8 +4541,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val jsonObject = JSONObject(responseBodyString)
 
                                         if (jsonObject.optBoolean("success", false)) {
-                                            val dataArray =
-                                                jsonObject.optJSONArray("data") ?: JSONArray()
+                                            val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
 
                                             results[request.dataset] = Resource.Loading(70)
                                             _downloadStatuses.postValue(results.toMap())
@@ -4355,113 +4558,42 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     var skippedCount = 0
 
                                                     AppLogger.d("=== FOLLOW-UP INSPECTION SYNC START ===")
-                                                    AppLogger.d("Processing ${dataArray.length()} inspection records for insert/update...")
+                                                    AppLogger.d("Processing ${dataArray.length()} inspection records for insert...")
 
                                                     // Process each inspection record with its details
                                                     for (i in 0 until dataArray.length()) {
                                                         val item = dataArray.getJSONObject(i)
 
                                                         try {
-//                                                            AppLogger.d("--- Processing inspection ${i + 1}/${dataArray.length()} ---")
-
-                                                            val idPanen =
-                                                                item.optString("id_panen", "0")
+                                                            val idPanen = item.optString("id_panen", "0")
                                                             val tphId = item.optInt("tph", 0)
-                                                            val tglInspeksi =
-                                                                item.optString("tgl_inspeksi", "")
-                                                            val tglPanen =
-                                                                item.optString("tgl_panen", "")
-                                                            val jjgPanen =
-                                                                item.optInt("jjg_panen", 0)
-                                                            val jalurMasuk =
-                                                                item.optString("rute_masuk", "")
-                                                            val jenisInspeksi =
-                                                                item.optInt("jenis_inspeksi", 0)
+                                                            val tglInspeksi = item.optString("tgl_inspeksi", "")
+                                                            val tglPanen = item.optString("tgl_panen", "")
+                                                            val jjgPanen = item.optInt("jjg_panen", 0)
+                                                            val jalurMasuk = item.optString("rute_masuk", "")
+                                                            val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
                                                             val baris = item.optString("baris", "")
-                                                            val jmlPokokInspeksi =
-                                                                item.optInt("jml_pokok_inspeksi", 0)
-                                                            val createdName =
-                                                                item.optString("created_name", "")
-                                                            val app_version =
-                                                                item.optString("app_version", "")
-                                                            val createdBy =
-                                                                item.optInt("created_by", 0)
-                                                            val trackingPath =
-                                                                item.optString("tracking_path", "")
+                                                            val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
+                                                            val createdName = item.optString("created_name", "")
+                                                            val app_version = item.optString("app_version", "")
+                                                            val createdBy = item.optInt("created_by", 0)
+                                                            val trackingPath = item.optString("tracking_path", "")
 
                                                             // Handle nullable fields
-                                                            val dept =
-                                                                if (item.has("dept") && !item.isNull(
-                                                                        "dept"
-                                                                    )
-                                                                ) item.optInt("dept") else null
-                                                            val deptPpro =
-                                                                if (item.has("dept_ppro") && !item.isNull(
-                                                                        "dept_ppro"
-                                                                    )
-                                                                ) item.optInt("dept_ppro") else null
-                                                            val deptAbbr =
-                                                                if (item.has("dept_abbr") && !item.isNull(
-                                                                        "dept_abbr"
-                                                                    )
-                                                                ) item.optString("dept_abbr") else null
-                                                            val deptNama =
-                                                                if (item.has("dept_nama") && !item.isNull(
-                                                                        "dept_nama"
-                                                                    )
-                                                                ) item.optString("dept_nama") else null
-                                                            val divisi =
-                                                                if (item.has("divisi") && !item.isNull(
-                                                                        "divisi"
-                                                                    )
-                                                                ) item.optInt("divisi") else null
-                                                            val divisiPpro =
-                                                                if (item.has("divisi_ppro") && !item.isNull(
-                                                                        "divisi_ppro"
-                                                                    )
-                                                                ) item.optInt("divisi_ppro") else null
-                                                            val divisiAbbr =
-                                                                if (item.has("divisi_abbr") && !item.isNull(
-                                                                        "divisi_abbr"
-                                                                    )
-                                                                ) item.optString("divisi_abbr") else null
-                                                            val divisiNama =
-                                                                if (item.has("divisi_nama") && !item.isNull(
-                                                                        "divisi_nama"
-                                                                    )
-                                                                ) item.optString("divisi_nama") else null
-                                                            val blok =
-                                                                if (item.has("blok") && !item.isNull(
-                                                                        "blok"
-                                                                    )
-                                                                ) item.optInt("blok") else null
-                                                            val blokPpro =
-                                                                if (item.has("blok_ppro") && !item.isNull(
-                                                                        "blok_ppro"
-                                                                    )
-                                                                ) item.optInt("blok_ppro") else null
-                                                            val blokKode =
-                                                                if (item.has("blok_kode") && !item.isNull(
-                                                                        "blok_kode"
-                                                                    )
-                                                                ) item.optString("blok_kode") else null
-                                                            val blokNama =
-                                                                if (item.has("blok_nama") && !item.isNull(
-                                                                        "blok_nama"
-                                                                    )
-                                                                ) item.optString("blok_nama") else null
-                                                            val tphNomor =
-                                                                if (item.has("tph_nomor") && !item.isNull(
-                                                                        "tph_nomor"
-                                                                    )
-                                                                ) item.optInt("tph_nomor") else null
-                                                            val ancak =
-                                                                if (item.has("ancak") && !item.isNull(
-                                                                        "ancak"
-                                                                    )
-                                                                ) item.optString("ancak") else null
-
-//                                                            AppLogger.d("Inspection details: TPH=$tphId, Date=$tglInspeksi, Dept=$dept, Divisi=$divisi")
+                                                            val dept = if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
+                                                            val deptPpro = if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
+                                                            val deptAbbr = if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
+                                                            val deptNama = if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
+                                                            val divisi = if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
+                                                            val divisiPpro = if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
+                                                            val divisiAbbr = if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
+                                                            val divisiNama = if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
+                                                            val blok = if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
+                                                            val blokPpro = if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
+                                                            val blokKode = if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
+                                                            val blokNama = if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
+                                                            val tphNomor = if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
+                                                            val ancak = if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
 
                                                             // Create InspectionModel
                                                             val inspectionEntity = InspectionModel(
@@ -4500,9 +4632,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 isPushedToServer = 1
                                                             )
 
-                                                            // Check if inspection has details first - if not, skip the entire inspection
-                                                            val inspectionDetails =
-                                                                item.optJSONArray("InspeksiDetails")
+                                                            // Check if inspection has details - if not, skip the entire inspection
+                                                            val inspectionDetails = item.optJSONArray("InspeksiDetails")
 
                                                             if (inspectionDetails == null || inspectionDetails.length() == 0) {
                                                                 AppLogger.d("Skipping inspection TPH=${inspectionEntity.tph_id} - no details found")
@@ -4510,112 +4641,40 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 continue // Skip this entire inspection record
                                                             }
 
-//                                                            AppLogger.d("Found ${inspectionDetails.length()} details for inspection TPH=${inspectionEntity.tph_id}")
-//
-//                                                            // Check if inspection record exists by business key
-//                                                            AppLogger.d("Checking if inspection exists: TPH=${inspectionEntity.tph_id}, Date=${inspectionEntity.created_date}, Dept=${inspectionEntity.dept}, Divisi=${inspectionEntity.divisi}")
-
-                                                            val existingRecord =
-                                                                inspectionDao.getInspectionByBusinessKey(
+                                                            // Direct insert without checking if record exists
+                                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
+                                                            if (result.isSuccess) {
+                                                                // Get the newly inserted ID
+                                                                val localInspectionId = inspectionDao.getInspectionByBusinessKey(
                                                                     inspectionEntity.tph_id,
                                                                     inspectionEntity.created_date,
                                                                     inspectionEntity.dept ?: 0,
                                                                     inspectionEntity.divisi ?: 0,
-                                                                    1 // isPushedToServer = 1 (only check server records)
-                                                                )
+                                                                    1
+                                                                )?.id ?: 0
 
-                                                            var localInspectionId: Int
-
-                                                            if (existingRecord == null) {
-                                                                AppLogger.d("Inspection doesn't exist - will INSERT new record")
-
-                                                                // Record doesn't exist -> INSERT
-                                                                val result =
-                                                                    inspectionDao.insertWithTransaction(
-                                                                        inspectionEntity
-                                                                    )
-                                                                if (result.isSuccess) {
-                                                                    // Get the newly inserted ID
-                                                                    localInspectionId =
-                                                                        inspectionDao.getInspectionByBusinessKey(
-                                                                            inspectionEntity.tph_id,
-                                                                            inspectionEntity.created_date,
-                                                                            inspectionEntity.dept
-                                                                                ?: 0,
-                                                                            inspectionEntity.divisi
-                                                                                ?: 0,
-                                                                            1
-                                                                        )?.id ?: 0
-
-                                                                    successCount++
-//                                                                    AppLogger.d("✅ Inserted new inspection: TPH=${inspectionEntity.tph_id}, Local ID=$localInspectionId")
-
-                                                                    // INSERT all detail records since parent is new
-                                                                    insertAllDetailRecordsFollowUp(
-                                                                        inspectionDetails,
-                                                                        localInspectionId,
-                                                                        tglInspeksi
-                                                                    )
-
-                                                                } else {
-                                                                    failCount++
-//                                                                    AppLogger.e("❌ Failed to insert inspection: TPH=${inspectionEntity.tph_id}")
-                                                                    continue // Skip processing details if inspection failed
-                                                                }
-                                                            } else {
-//                                                                AppLogger.d("Inspection exists - will UPDATE existing record ID=${existingRecord.id}")
-
-                                                                // Record exists -> UPDATE inspection and all its details
-                                                                localInspectionId =
-                                                                    existingRecord.id
-
-                                                                // Update the inspection record
-                                                                val updatedRecord =
-                                                                    inspectionEntity.copy(
-                                                                        id = existingRecord.id, // Keep local auto-increment ID
-                                                                        status_upload = existingRecord.status_upload,
-                                                                        status_uploaded_image = existingRecord.status_uploaded_image
-                                                                    )
-                                                                inspectionDao.update(
-                                                                    listOf(
-                                                                        updatedRecord
-                                                                    )
-                                                                )
                                                                 successCount++
-//                                                                AppLogger.d("✅ Updated existing inspection: TPH=${inspectionEntity.tph_id}, Local ID=$localInspectionId")
-//
-//                                                                // DELETE old details and INSERT new ones
-//                                                                AppLogger.d("Deleting old details for inspection ID=$localInspectionId")
-                                                                inspectionDetailDao.deleteByInspectionId(
-                                                                    localInspectionId.toString()
-                                                                )
-//                                                                AppLogger.d("Inserting new details for inspection ID=$localInspectionId")
+
+                                                                // Insert all detail records
                                                                 insertAllDetailRecordsFollowUp(
                                                                     inspectionDetails,
                                                                     localInspectionId,
                                                                     tglInspeksi
                                                                 )
+
+                                                            } else {
+                                                                failCount++
+                                                                continue // Skip processing details if inspection failed
                                                             }
 
                                                         } catch (e: Exception) {
                                                             failCount++
-//                                                            AppLogger.e("❌ Error processing inspection record: ${e.message}")
                                                         }
                                                     }
 
-                                                    // Final summary
-//                                                    AppLogger.d("=== FOLLOW-UP INSPECTION SYNC COMPLETE ===")
-//                                                    AppLogger.d("Inserted/Updated: $successCount")
-//                                                    AppLogger.d("Failed: $failCount")
-//                                                    AppLogger.d("Skipped (no details): $skippedCount")
-//                                                    AppLogger.d("Total records processed: ${dataArray.length()}")
-//                                                    AppLogger.d("===============================================")
-
                                                     if (dataArray.length() == 0) {
                                                         // No records to process - everything is up to date
-                                                        results[request.dataset] =
-                                                            Resource.UpToDate(request.dataset)
-//                                                        AppLogger.d("No records to process - dataset is up to date")
+                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
                                                     } else if (failCount == 0) {
                                                         results[request.dataset] = Resource.Success(
                                                             response,
@@ -4636,26 +4695,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         )
                                                     }
                                                 } catch (e: Exception) {
-//                                                    AppLogger.e("Error processing follow-up inspection data: ${e.message}")
-                                                    results[request.dataset] =
-                                                        Resource.Error("Error processing follow-up inspection data: ${e.message}")
+                                                    results[request.dataset] = Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                                 }
                                             }
                                         } else {
-                                            val errorMessage =
-                                                jsonObject.optString("message", "Unknown error")
-                                            results[request.dataset] =
-                                                Resource.Error("API Error: $errorMessage")
+                                            val errorMessage = jsonObject.optString("message", "Unknown error")
+                                            results[request.dataset] = Resource.Error("API Error: $errorMessage")
                                             AppLogger.e("Follow-up Inspection API returned error: $errorMessage")
                                         }
                                     } catch (e: Exception) {
                                         AppLogger.e("Error processing follow-up inspection JSON: ${e.message}")
-                                        results[request.dataset] =
-                                            Resource.Error("Error processing follow-up inspection data: ${e.message}")
+                                        results[request.dataset] = Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                     }
                                 }
                                 else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
-                                    // Process sinkronisasiDataPanen JSON data - FIRST TIME DOWNLOAD (NO COMPARISON NEEDED)
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())

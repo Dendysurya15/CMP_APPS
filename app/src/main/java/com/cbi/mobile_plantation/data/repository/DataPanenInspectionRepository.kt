@@ -21,7 +21,7 @@ class DataPanenInspectionRepository(
     private val TestingApiService: ApiService = TestingAPIClient.instance,
 ){
 
-    suspend fun getDataPanen(estate: Any, afdeling: String): Response<ResponseBody> {
+    suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
         // Calculate date range - from yesterday to 7 days ago (excluding today)
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
@@ -52,6 +52,7 @@ class DataPanenInspectionRepository(
                 put("tph_nomor")
                 put("ancak")
                 put("tipe")
+                put("dept_abbr")
                 put("jjg_kirim")
                 put("created_date")
                 put("created_by")
@@ -64,11 +65,9 @@ class DataPanenInspectionRepository(
                 // Estate condition - handle both Int and List<Int>
                 when (estate) {
                     is Int -> {
-                        // Single estate: "dept": 112
                         put("dept", estate)
                     }
                     is List<*> -> {
-                        // Multiple estates: "dept": {"in": [112, 134, 145, 129]}
                         put("dept", JSONObject().apply {
                             put("in", JSONArray().apply {
                                 (estate as List<Int>).forEach { estateId ->

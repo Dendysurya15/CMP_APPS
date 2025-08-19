@@ -482,7 +482,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferred = async { mutuBuahViewModel.loadMutuBuahToday() }
                     countMutuBuah = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapMutuBuah, countMutuBuah.toString())
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.RekapMutuBuah,
+                            countMutuBuah.toString()
+                        )
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapMutuBuah)
                     }
                 } catch (e: Exception) {
@@ -496,7 +499,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferred = async { panenViewModel.loadPanenCountForTransferInspeksi() }
                     countPanenTPHForTransferInspeksi = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.TransferInspeksiPanen, countPanenTPHForTransferInspeksi.toString())
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.TransferInspeksiPanen,
+                            countPanenTPHForTransferInspeksi.toString()
+                        )
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
                     }
                 } catch (e: Exception) {
@@ -849,7 +855,7 @@ class HomePageActivity : AppCompatActivity() {
                 cardBackgroundColor = R.color.greenDefault,
                 featureName = AppUtils.ListFeatureNames.ScanTransferInspeksiPanen,
                 featureNameBackgroundColor = R.color.orange,
-                iconResource =  R.drawable.scan_inspect_icon,
+                iconResource = R.drawable.scan_inspect_icon,
                 count = countPanenTPHForTransferInspeksi.toString(),
                 functionDescription = "Scan data panen untuk proses Inspeksi H+0",
                 displayType = DisplayType.ICON
@@ -924,8 +930,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
@@ -938,8 +944,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
@@ -952,8 +958,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
@@ -961,24 +967,24 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
 
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.GM -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
@@ -987,8 +993,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
@@ -1186,9 +1192,10 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.d("jabatan user $jabatanUser")
 
                             // Check if jabatan contains "askep" or "gm" (case insensitive)
-                            val shouldSkipAfdelingCheck = jabatanUser?.lowercase()?.contains("askep") == true ||
-                                    jabatanUser?.lowercase()?.contains("manager") == true ||
-                                    jabatanUser?.lowercase()?.contains("gm") == true
+                            val shouldSkipAfdelingCheck =
+                                jabatanUser?.lowercase()?.contains("askep") == true ||
+                                        jabatanUser?.lowercase()?.contains("manager") == true ||
+                                        jabatanUser?.lowercase()?.contains("gm") == true
 
                             if (!shouldSkipAfdelingCheck) {
                                 if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
@@ -1437,9 +1444,10 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.d("jabatan user $jabatanUser")
 
                             // Check if jabatan contains "askep" or "gm" (case insensitive)
-                            val shouldSkipAfdelingCheck = jabatanUser?.lowercase()?.contains("askep") == true ||
-                                    jabatanUser?.lowercase()?.contains("manager") == true ||
-                                    jabatanUser?.lowercase()?.contains("gm") == true
+                            val shouldSkipAfdelingCheck =
+                                jabatanUser?.lowercase()?.contains("askep") == true ||
+                                        jabatanUser?.lowercase()?.contains("manager") == true ||
+                                        jabatanUser?.lowercase()?.contains("gm") == true
 
 
                             AppLogger.d("shouledSKip $shouldSkipAfdelingCheck")
@@ -1484,7 +1492,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
                             }
-
 
 
                             val lastSyncDateTime = prefManager!!.lastSyncDataPanenInspeksi
@@ -1588,9 +1595,10 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.d("jabatan user $jabatanUser")
 
                             // Check if jabatan contains "askep" or "gm" (case insensitive)
-                            val shouldSkipAfdelingCheck = jabatanUser?.lowercase()?.contains("askep") == true ||
-                                    jabatanUser?.lowercase()?.contains("manager") == true ||
-                                    jabatanUser?.lowercase()?.contains("gm") == true
+                            val shouldSkipAfdelingCheck =
+                                jabatanUser?.lowercase()?.contains("askep") == true ||
+                                        jabatanUser?.lowercase()?.contains("manager") == true ||
+                                        jabatanUser?.lowercase()?.contains("gm") == true
 
                             if (!shouldSkipAfdelingCheck) {
                                 if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
@@ -1675,7 +1683,10 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                     return@launch
                                 } else {
-                                    val intent = Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
+                                    val intent = Intent(
+                                        this@HomePageActivity,
+                                        ListFollowUpInspeksi::class.java
+                                    )
                                     intent.putExtra(
                                         "FEATURE_NAME",
                                         AppUtils.ListFeatureNames.ListFollowUpInspeksi
@@ -2099,7 +2110,9 @@ class HomePageActivity : AppCompatActivity() {
                                 var previewDataPanenInspeksi = ""
                                 var previewRestanData = ""
                                 var previewDataFollowUpInspeksi = ""
-                                val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
+                                val estateIdString = prefManager!!.estateIdUserLogin!!
+
+
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
                                 // Add debug logging
@@ -2108,10 +2121,25 @@ class HomePageActivity : AppCompatActivity() {
                                     ignoreCase = true
                                 )
 
+                                val isGM = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.GM,
+                                    ignoreCase = true
+                                )
+
+                                val estateIds = if (isGM && estateIdString!!.contains(",")) {
+                                    estateIdString.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .map { it.toInt() }
+                                } else {
+                                    estateIdString!!
+                                }
+
+
                                 // Validate afdelingId and get valid integer value
                                 var validAfdelingId: Int? = null
 
-                                if (!isKeraniPanen) {
+                                if (!isKeraniPanen && !isGM) {
 
                                     // Check if afdelingId is null or empty
                                     if (afdelingIdString.isNullOrEmpty()) {
@@ -2144,58 +2172,55 @@ class HomePageActivity : AppCompatActivity() {
                                     AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
                                 }
 
-                                // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                if (!isKeraniPanen && validAfdelingId != null) {
-                                    // Create a deferred result that will be completed when data is received
-                                    val restanDataDeferred = CompletableDeferred<String>()
-
-                                    // Set up the observer for restanPreviewData
-                                    val restanObserver = Observer<String> { data ->
-                                        if (!restanDataDeferred.isCompleted) {
-                                            restanDataDeferred.complete(data)
+                                if (!isKeraniPanen ) {
+                                    if (!isGM) {
+                                        val restanDataDeferred = CompletableDeferred<String>()
+                                        val restanObserver = Observer<String> { data ->
+                                            if (!restanDataDeferred.isCompleted) {
+                                                restanDataDeferred.complete(data)
+                                            }
                                         }
+                                        datasetViewModel.restanPreviewData.observe(
+                                            this@HomePageActivity,
+                                            restanObserver
+                                        )
+
+                                        // Start the API request with validated afdelingId
+                                        datasetViewModel.getPreviewDataRestanWeek(
+                                            estateIdString as Int,
+                                            validAfdelingId.toString()
+                                        )
+
+                                        try {
+                                            // Wait for the API response with a timeout
+                                            previewRestanData = withTimeout(15000) {
+                                                restanDataDeferred.await()
+                                            }
+
+                                            AppLogger.d("previewRestanData $previewRestanData")
+
+                                            // Remove the observer to prevent memory leaks
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.restanPreviewData.removeObserver(
+                                                    restanObserver
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            // Clean up observer in case of timeout or error
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.restanPreviewData.removeObserver(
+                                                    restanObserver
+                                                )
+                                            }
+
+                                            // Don't throw here, we'll continue with empty previewRestanData
+                                        }
+                                    } else {
+                                        AppLogger.d("Skipping restan data fetch - GM role doesn't have afdeling")
                                     }
 
-                                    // Register the observer
-                                    datasetViewModel.restanPreviewData.observe(
-                                        this@HomePageActivity,
-                                        restanObserver
-                                    )
-
-                                    // Start the API request with validated afdelingId
-                                    datasetViewModel.getPreviewDataRestanWeek(
-                                        estateIdString,
-                                        validAfdelingId.toString()
-                                    )
-
-                                    try {
-                                        // Wait for the API response with a timeout
-                                        previewRestanData = withTimeout(15000) {
-                                            restanDataDeferred.await()
-                                        }
-
-                                        AppLogger.d("previewRestanData $previewRestanData")
-
-                                        // Remove the observer to prevent memory leaks
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.restanPreviewData.removeObserver(
-                                                restanObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        // Clean up observer in case of timeout or error
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.restanPreviewData.removeObserver(
-                                                restanObserver
-                                            )
-                                        }
-                                        AppLogger.e("Error getting restan data: ${e.message}")
-                                        // Don't throw here, we'll continue with empty previewRestanData
-                                    }
-
-
-                                    val dataPanenInspeksiDeffered =
-                                        CompletableDeferred<String>()
+                                    // === DATA PANEN INSPEKSI API (doesn't require afdeling - can call for all roles) ===
+                                    val dataPanenInspeksiDeffered = CompletableDeferred<String>()
 
                                     // Set up the observer for restanPreviewData
                                     val dataPanenObserver = Observer<String> { data ->
@@ -2210,10 +2235,9 @@ class HomePageActivity : AppCompatActivity() {
                                         dataPanenObserver
                                     )
 
-                                    // Start the API request with validated afdelingId
+                                    // Start the API request - no afdeling required
                                     datasetViewModel.getPreviewDataPanenInspeksiWeek(
-                                        estateIdString,
-                                        validAfdelingId.toString(),
+                                        estateIds,
                                     )
 
                                     try {
@@ -2222,68 +2246,71 @@ class HomePageActivity : AppCompatActivity() {
                                             dataPanenInspeksiDeffered.await()
                                         }
 
-                                        AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
-
-                                        // Remove the observer to prevent memory leaks
                                         withContext(Dispatchers.Main) {
                                             datasetViewModel.dataPanenInspeksiPreview.removeObserver(
                                                 dataPanenObserver
                                             )
                                         }
                                     } catch (e: Exception) {
-                                        // Clean up observer in case of timeout or error
                                         withContext(Dispatchers.Main) {
                                             datasetViewModel.dataPanenInspeksiPreview.removeObserver(
                                                 dataPanenObserver
                                             )
                                         }
-                                        AppLogger.e("Error getting panen data: ${e.message}")
-                                        // Don't throw here, we'll continue with empty previewDataPanenInspeksi
                                     }
 
-                                    val dataFollowUpInspeksiDeferred = CompletableDeferred<String>()
+                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
 
-                                    val dataFollowUpInspeksiObserver = Observer<String> { data ->
-                                        if (!dataFollowUpInspeksiDeferred.isCompleted) {  // ✅ Correct variable
-                                            dataFollowUpInspeksiDeferred.complete(data)   // ✅ Correct variable
+                                    // === FOLLOW UP INSPEKSI API (requires afdeling - skip for GM) ===
+                                    if (!isGM) {
+                                        val dataFollowUpInspeksiDeferred =
+                                            CompletableDeferred<String>()
+
+                                        val dataFollowUpInspeksiObserver =
+                                            Observer<String> { data ->
+                                                if (!dataFollowUpInspeksiDeferred.isCompleted) {
+                                                    dataFollowUpInspeksiDeferred.complete(data)
+                                                }
+                                            }
+
+                                        datasetViewModel.followUpInspeksiPreview.observe(
+                                            this@HomePageActivity,
+                                            dataFollowUpInspeksiObserver
+                                        )
+
+                                        datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
+                                            estateIdString as Int,
+                                            validAfdelingId.toString()
+                                        )
+
+                                        try {
+                                            // ✅ FIXED - Await correct deferred
+                                            previewDataFollowUpInspeksi = withTimeout(15000) {
+                                                dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
+                                            }
+
+                                            AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
+
+                                            withContext(Dispatchers.Main) {
+                                                // ✅ FIXED - Remove from correct LiveData
+                                                datasetViewModel.followUpInspeksiPreview.removeObserver(
+                                                    dataFollowUpInspeksiObserver
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            withContext(Dispatchers.Main) {
+                                                // ✅ FIXED - Remove from correct LiveData
+                                                datasetViewModel.followUpInspeksiPreview.removeObserver(
+                                                    dataFollowUpInspeksiObserver
+                                                )
+                                            }
+                                            AppLogger.e("Error getting follow up data: ${e.message}")
                                         }
-                                    }
-
-                                    datasetViewModel.followUpInspeksiPreview.observe(
-                                        this@HomePageActivity,
-                                        dataFollowUpInspeksiObserver
-                                    )
-
-                                    datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
-                                        estateIdString,
-                                        validAfdelingId.toString()
-                                    )
-
-                                    try {
-                                        // ✅ FIXED - Await correct deferred
-                                        previewDataFollowUpInspeksi = withTimeout(15000) {
-                                            dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
-                                        }
-
-                                        AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
-
-                                        withContext(Dispatchers.Main) {
-                                            // ✅ FIXED - Remove from correct LiveData
-                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
-                                                dataFollowUpInspeksiObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            // ✅ FIXED - Remove from correct LiveData
-                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
-                                                dataFollowUpInspeksiObserver
-                                            )
-                                        }
-                                        AppLogger.e("Error getting follow up data: ${e.message}")
+                                    } else {
+                                        AppLogger.d("Skipping follow up inspeksi data fetch - GM role doesn't have afdeling")
                                     }
                                 } else {
-                                    AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
+                                    AppLogger.d("Skipping all API calls - either user is not Mandor1/Asisten or afdelingId is invalid")
                                 }
 
                                 // Wait for estates list with timeout
@@ -2434,6 +2461,7 @@ class HomePageActivity : AppCompatActivity() {
                     startActivity(intent)
                 }
             }
+
             AppUtils.ListFeatureNames.RekapMutuBuah -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
@@ -5014,13 +5042,13 @@ class HomePageActivity : AppCompatActivity() {
 
                                 // Get the appropriate status based on photo type
                                 val uploadStatusImage = when (photoType) {
-                                    "foto"-> mutuBuah.status_uploaded_image
+                                    "foto" -> mutuBuah.status_uploaded_image
                                     "foto_selfie" -> mutuBuah.status_uploaded_image_selfie
                                     else -> mutuBuah.status_uploaded_image // fallback
                                 }
 
                                 val folderServer = when (photoType) {
-                                    "foto"-> AppUtils.DatabaseTables.MUTU_BUAH
+                                    "foto" -> AppUtils.DatabaseTables.MUTU_BUAH
                                     "foto_selfie" -> "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie"
                                     else -> AppUtils.DatabaseTables.MUTU_BUAH
                                 }
@@ -5048,7 +5076,8 @@ class HomePageActivity : AppCompatActivity() {
                                                     uploadStatusImage,
                                                     JsonObject::class.java
                                                 )
-                                                val errorArray = errorJson?.get("error")?.asJsonArray
+                                                val errorArray =
+                                                    errorJson?.get("error")?.asJsonArray
 
                                                 errorArray?.forEach { errorItem ->
                                                     if (errorItem.asString == trimmedName) {
@@ -5082,7 +5111,8 @@ class HomePageActivity : AppCompatActivity() {
                                             outputFormat.format(Date())
                                         }
 
-                                        val basePathImage = formattedDate + prefManager!!.estateUserLogin
+                                        val basePathImage =
+                                            formattedDate + prefManager!!.estateUserLogin
 
                                         if (shouldAdd) {
                                             targetMap[trimmedName] = mapOf(
@@ -5112,8 +5142,18 @@ class HomePageActivity : AppCompatActivity() {
 
                         // Process both foto and foto_selfie for each MutuBuah record
                         for (mutuBuah in mutuBuahList) {
-                            processMutuBuahPhotos(mutuBuah.foto, mutuBuah, "foto", uniquePhotosMutuBuah)
-                            processMutuBuahPhotos(mutuBuah.foto_selfie, mutuBuah, "foto_selfie", uniqueSelfiesMutuBuah)
+                            processMutuBuahPhotos(
+                                mutuBuah.foto,
+                                mutuBuah,
+                                "foto",
+                                uniquePhotosMutuBuah
+                            )
+                            processMutuBuahPhotos(
+                                mutuBuah.foto_selfie,
+                                mutuBuah,
+                                "foto_selfie",
+                                uniqueSelfiesMutuBuah
+                            )
                         }
 
                         // Map MutuBuah data for upload
@@ -5274,8 +5314,6 @@ class HomePageActivity : AppCompatActivity() {
                                 "ids" to mutuBuahIds
                             )
                         }
-
-
 
 
                         // Add photos to upload data
@@ -5559,7 +5597,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
                 AppLogger.d("mutubuahtoupload $mutuBuahToUpload")
-
 
 
                 val hasPhotosMutuBuahToUpload = allPhotosMutuBuah.isNotEmpty()
@@ -7518,7 +7555,7 @@ class HomePageActivity : AppCompatActivity() {
                     title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
-                    data = itemData?: "",
+                    data = itemData ?: "",
                     type = "",
                     databaseTable = ""
                 )
@@ -7892,6 +7929,9 @@ class HomePageActivity : AppCompatActivity() {
                 lastModifiedDatasetKendaraan,
                 lastModifiedSettingJSON
             )
+
+
+            AppLogger.d("allDatasets $allDatasets")
 
             val filteredRequests =
                 if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {

@@ -58,7 +58,7 @@ class DownloadDatasetUtility(
 
         // Add common datasets for all roles (except when special triggers are active)
         addCommonDatasets(
-            datasets, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
+            datasets,userRole, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
             lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
             lastModifiedDatasetKendaraan, lastModifiedSettingJSON
         )
@@ -307,17 +307,20 @@ class DownloadDatasetUtility(
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
+                    dataset = AppUtils.DatasetNames.tph,
+                    jabatan = AppUtils.ListFeatureByRoleUser.GM
                 ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
+                    dataset = AppUtils.DatasetNames.kemandoran,
+                    jabatan = AppUtils.ListFeatureByRoleUser.GM
                 ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
+                    dataset = AppUtils.DatasetNames.pemanen,
+                    jabatan = AppUtils.ListFeatureByRoleUser.GM
                 )
             )
         )
@@ -437,38 +440,56 @@ class DownloadDatasetUtility(
 
     private fun addCommonDatasets(
         datasets: MutableList<DatasetRequest>,
+        userRole: UserRole,
         regionalId: Int,
         estateId: Any,
-        afdelingId:String,
+        afdelingId: String,
         lastModifiedDatasetJenisTPH: String?,
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
         lastModifiedDatasetKendaraan: String?,
         lastModifiedSettingJSON: String?
     ) {
+        // Get the jabatan string based on user role
+        val jabatanValue = when (userRole) {
+            UserRole.KERANI_TIMBANG -> AppUtils.ListFeatureByRoleUser.KeraniTimbang
+            UserRole.KERANI_PANEN -> AppUtils.ListFeatureByRoleUser.KeraniPanen
+            UserRole.MANDOR_1 -> AppUtils.ListFeatureByRoleUser.Mandor1
+            UserRole.MANDOR_PANEN -> AppUtils.ListFeatureByRoleUser.MandorPanen
+            UserRole.ASISTEN -> AppUtils.ListFeatureByRoleUser.Asisten
+            UserRole.ASKEP -> AppUtils.ListFeatureByRoleUser.ASKEP
+            UserRole.MANAGER -> AppUtils.ListFeatureByRoleUser.Manager
+            UserRole.GM -> AppUtils.ListFeatureByRoleUser.GM
+            UserRole.OTHER -> null
+        }
+
         datasets.addAll(
             listOf(
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
+                    dataset = AppUtils.DatasetNames.mill,
+                    jabatan = jabatanValue
                 ),
-
                 DatasetRequest(
                     lastModified = lastModifiedDatasetJenisTPH,
-                    dataset = AppUtils.DatasetNames.jenisTPH
+                    dataset = AppUtils.DatasetNames.jenisTPH,
+                    jabatan = jabatanValue
                 ),
                 DatasetRequest(
                     lastModified = lastModifiedDatasetTransporter,
-                    dataset = AppUtils.DatasetNames.transporter
+                    dataset = AppUtils.DatasetNames.transporter,
+                    jabatan = jabatanValue
                 ),
                 DatasetRequest(
                     lastModified = lastModifiedDatasetKendaraan,
-                    dataset = AppUtils.DatasetNames.kendaraan
+                    dataset = AppUtils.DatasetNames.kendaraan,
+                    jabatan = jabatanValue
                 ),
                 DatasetRequest(
                     lastModified = lastModifiedSettingJSON,
-                    dataset = AppUtils.DatasetNames.settingJSON
+                    dataset = AppUtils.DatasetNames.settingJSON,
+                    jabatan = jabatanValue
                 )
             )
         )

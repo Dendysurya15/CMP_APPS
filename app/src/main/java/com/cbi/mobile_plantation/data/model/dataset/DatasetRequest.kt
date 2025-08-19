@@ -11,6 +11,7 @@ data class DatasetRequest(
     @SerializedName("regional") val regional: Int? = null,
     @SerializedName("last_modified") val lastModified: String?,
     @SerializedName("dataset") val dataset: String,
+    @SerializedName("jabatan") val jabatan: String? = null,
     @SerializedName("data") val data: List<String>? = null,
     @SerializedName("isDownloadMasterTPHAsistensi") val isDownloadMasterTPHAsistensi: Boolean = false
 )
