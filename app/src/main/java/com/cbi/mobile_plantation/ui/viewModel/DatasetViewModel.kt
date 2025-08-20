@@ -1076,6 +1076,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         _completedCount.value = 0
 
 
+        AppLogger.d("gak mungkin dong masuk sini")
 
         // Create mutable maps for tracking progress and status
         val progressMap = mutableMapOf<Int, Int>()
@@ -1158,20 +1159,28 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     var modifiedRequest = request
                     if (request.jabatan != AppUtils.ListFeatureByRoleUser.GM && request.dataset in validDatasets) {
-                        val deptId =
-                            if (request.dataset == AppUtils.DatasetNames.tph) request.estate else null
 
-                        val count = withContext(Dispatchers.IO) {
-                            repository.getDatasetCount(request.dataset, deptId as Int)
+                        val deptId: Int? = if (request.dataset == AppUtils.DatasetNames.tph) {
+                            request.estate?.toString()?.toIntOrNull()  // Returns Int?
+                        } else {
+                            null  // Returns Int? (null)
                         }
 
-                        if (count == 0) {
-                            modifiedRequest = request.copy(lastModified = null)
-                            if (deptId != null) {
-                                AppLogger.d("Dataset ${request.dataset} has no records for department ID $deptId, setting lastModified to null")
-                            } else {
-                                AppLogger.d("Dataset ${request.dataset} has no records, setting lastModified to null")
+                        if (deptId != null || request.dataset != AppUtils.DatasetNames.tph) {
+                            val count = withContext(Dispatchers.IO) {
+                                repository.getDatasetCount(request.dataset, deptId)
                             }
+
+                            if (count == 0) {
+                                modifiedRequest = request.copy(lastModified = null)
+                                if (deptId != null) {
+                                    Log.d("testingterus","Dataset ${request.dataset} has no records for department ID $deptId, setting lastModified to null")
+                                } else {
+                                    Log.d("testingterus","Dataset ${request.dataset} has no records, setting lastModified to null")
+                                }
+                            }
+                        } else {
+                            Log.e("testingterus", "Invalid estate ID for tph dataset: ${request.estate}")
                         }
                     }
 
@@ -1181,9 +1190,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.estate) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         response =
                             restanRepository.getDataRestan(
                                 request.estate as Int,
@@ -1191,9 +1202,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             )
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
                         response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         val estateId = when (request.estate) {
                             is Int -> request.estate
+                            is String -> request.estate
                             is List<*> -> (request.estate as List<Int>).first() // Take first estate for now
                             else -> request.estate as Int
                         }
@@ -1202,9 +1215,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             estateId!!,
                         )
 
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                         val estateId = when (request.estate) {
                             is Int -> request.estate
+                            is String -> request.estate
                             is List<*> -> (request.estate as List<Int>).first() // Take first estate for now
                             else -> request.estate as Int
                         }
@@ -1215,9 +1230,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             true,
                             parameterDao
                         )
-                    } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified ?: "")
-                    } else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
                     }
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
@@ -1324,7 +1341,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         incrementCompletedCount()
                         continue // Skip the normal response processing since we handled everything here
                     }
-                    // Add this after the existing API calls but before the response processing
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         AppLogger.d("Starting TPH regional download for ${request.estateAbbr}")
 
@@ -1458,7 +1474,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             incrementCompletedCount()
                             continue
                         }
-                    } else {
+                    }
+                    else {
+                        AppLogger.d("modifiedRequest $modifiedRequest")
                         response = repository.downloadDataset(modifiedRequest)
                     }
 
@@ -1878,7 +1896,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getPreviewDataFollowUpInspeksiWeek(estate: Int, afdeling: String) {
+    fun getPreviewDataFollowUpInspeksiWeek(estate: Any, afdeling: String) {
         viewModelScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
@@ -3493,7 +3511,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         inspeksiCountByDate[inspeksiDate] =
                             inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
 
-                        AppLogger.d("Found inspection on $inspeksiDate: idPanen=$idPanen, tph=$tphNomor, ancak=$ancak")
+
                     }
                 }
 
@@ -4151,10 +4169,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                        AppLogger.d("sinkronisasi data panen")
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
                         )
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
+                        AppLogger.d("sinkronisasi inspeksi")
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             request.estate!!,
                             request.afdeling!!,
@@ -4162,6 +4182,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             parameterDao
                         )
                     } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                        AppLogger.d("masuk sini gess")
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
@@ -4291,6 +4312,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             return@forEach
                         }
                     } else {
+
+                        AppLogger.d("masuk dong geeeesss")
                         response = repository.downloadDataset(modifiedRequest)
                     }
 

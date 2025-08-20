@@ -43,6 +43,7 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
 
+        AppLogger.d("estate $estate")
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
             put("table", "panen")
@@ -66,6 +67,12 @@ class DataPanenInspectionRepository(
                 when (estate) {
                     is Int -> {
                         put("dept", estate)
+                    }
+                    is String -> {
+                        // Convert string to int, or handle as string depending on your API
+                        put("dept", estate.toIntOrNull() ?: estate)
+                        // OR if your API expects string IDs:
+                        // put("dept", estate)
                     }
                     is List<*> -> {
                         put("dept", JSONObject().apply {
@@ -94,6 +101,8 @@ class DataPanenInspectionRepository(
 
         // Convert JSONObject to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("jsonObject $jsonObject")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
         return apiService.getDataRaw(requestBody)
@@ -198,6 +207,9 @@ class DataPanenInspectionRepository(
                 when (estate) {
                     is Int -> {
                         put("dept", estate)
+                    }
+                    is String ->{
+                        put("dept", estate.toIntOrNull() ?: estate)
                     }
                     is List<*> -> {
                         // Multiple estates: "dept": {"in": [112, 134, 145, 129]}
