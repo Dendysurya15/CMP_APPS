@@ -2275,7 +2275,6 @@ class HomePageActivity : AppCompatActivity() {
                                         dataFollowUpInspeksiObserver
                                     )
 
-                                    AppLogger.d("asjldkjlk jd")
                                     datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
                                         estateIdString,
                                         validAfdelingId.toString()

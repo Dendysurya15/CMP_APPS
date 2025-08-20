@@ -3054,7 +3054,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                 if (isGM) {
                                     // Split the estate names into a list for GM
-                                    val estateList = namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
+                                    val estateList =
+                                        namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
                                     AppLogger.d("GM detected - Estate list: $estateList")
                                     setupSpinnerView(layoutView, estateList)
                                 } else {
@@ -4435,7 +4436,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val selectedEstateId = try {
                     // Assuming you have an estate list with IDs corresponding to positions
                     // You might need to adjust this based on your estate data structure
-                    val estateIds = prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
+                    val estateIds =
+                        prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() }
+                            ?: emptyList()
                     if (position < estateIds.size) {
                         estateIds[position]
                     } else {
@@ -4615,15 +4618,33 @@ open class FormInspectionActivity : AppCompatActivity(),
                 isTriggeredBtnScanned = false
 
 
+                val isGM = jabatanUser?.contains(
+                    AppUtils.ListFeatureByRoleUser.GM,
+                    ignoreCase = true
+                ) == true
+
+
+                AppLogger.d("isGM $isGM")
+                AppLogger.d("selectedAfdeling $selectedAfdeling")
+
+                AppLogger.d("divisiList $divisiList")
                 val selectedDivisiId = try {
-                    divisiList.find {
-                        it.divisi_abbr == selectedAfdeling && it.dept_nama == selectedEstate
-                    }?.divisi
+                    if (isGM) {
+                        divisiList.find {
+                            it.divisi_abbr == selectedAfdeling && it.dept_nama == selectedEstate
+                        }?.divisi
+                    } else {
+
+                        divisiList.find {
+                            it.divisi_abbr == selectedAfdeling
+                        }?.divisi
+                    }
                 } catch (e: Exception) {
                     AppLogger.e("Error finding divisi: ${e.message}")
                     null
                 }
 
+                AppLogger.d("selectedDivisiId $selectedDivisiId")
                 val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
                 selectedDivisiValue = selectedDivisiId?.toInt()
 
@@ -4643,7 +4664,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     withContext(Dispatchers.Main) {
                         setupScanTPHTrigger()
                         animateLoadingDots(linearLayout)
-                          delay(300) // 1 second delay
+                        delay(300) // 1 second delay
                     }
 
 
@@ -4689,15 +4710,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     val batchSize = 500
                                     val allResults = mutableListOf<TPHNewModel>()
 
-                                        selectedTPHIds.chunked(batchSize)
-                                            .forEachIndexed { index, batch ->
-                                                AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
-                                                val batchResults =
-                                                    datasetViewModel.getLatLonDivisiByTPHIds(
-                                                        estateIdToUse,
-                                                        selectedDivisiId,
-                                                        batch
-                                                    )
+                                    selectedTPHIds.chunked(batchSize)
+                                        .forEachIndexed { index, batch ->
+                                            AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
+                                            val batchResults =
+                                                datasetViewModel.getLatLonDivisiByTPHIds(
+                                                    estateIdToUse,
+                                                    selectedDivisiId,
+                                                    batch
+                                                )
                                             allResults.addAll(batchResults)
                                         }
                                     allResults
@@ -4879,6 +4900,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             titlePemanenInspeksi.visibility = View.VISIBLE
             descPemanenInspeksi.visibility = View.VISIBLE
 
+            val lyPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+            val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+            lyPemanenOtomatis.visibility = View.GONE
+            lyPemanenManual.visibility = View.GONE
+
             // Clear RecyclerView and maps FIRST
             selectedPemanenAdapter.clearAllWorkers()
             selectedPemanenManualAdapter.clearAllWorkers()
@@ -4893,6 +4919,9 @@ open class FormInspectionActivity : AppCompatActivity(),
             rvSelectedPemanenOtomatis.visibility = View.GONE
             rvSelectedPemanenManual.visibility = View.GONE
 
+            allAvailableKaryawanList = emptyList()
+            allManualKaryawanList = emptyList()
+
             // Re-setup the callbacks for both adapters
             setupAdapterCallbacks()
             setupManualAdapterCallbacks()
@@ -4902,6 +4931,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
             selectedKaryawanList = emptyList()
+
+
 
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
@@ -5262,26 +5293,16 @@ open class FormInspectionActivity : AppCompatActivity(),
         val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
         lyPemanen.visibility = View.VISIBLE
 
-        // Create list of worker names for spinner
-        val workerNames = if (availableWorkers.isNotEmpty()) {
-            availableWorkers.map { it.name }
-        } else {
-            // Show hint when empty
-            listOf("Pilih Pemanen")
-        }
+        val workerNames = availableWorkers.map { it.name }
 
         // Setup spinner with available workers
         setupSpinnerView(lyPemanen, workerNames)
 
         // If empty, set the spinner to show hint and disable selection
-        if (availableWorkers.isEmpty()) {
-            val spinner = lyPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-            spinner.setHint("Pilih Pemanen")
-            spinner.isEnabled = false
-        } else {
-            val spinner = lyPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-            spinner.isEnabled = true
-        }
+        val spinner = lyPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+        spinner.setHint("Pilih Pemanen")
+//        spinner.setSelectedIndex(-1) // Clear any selected item
 
         AppLogger.d("Automatic spinner updated with ${workerNames.size} available workers")
     }
@@ -5315,25 +5336,17 @@ open class FormInspectionActivity : AppCompatActivity(),
         lyPemanenManual.visibility = View.VISIBLE  // Always visible!
 
         // Create list of worker names for spinner
-        val workerNames = if (availableWorkers.isNotEmpty()) {
-            availableWorkers.map { it.name }
-        } else {
-            // Show hint when empty
-            listOf("Pilih Pemanen")
-        }
+        val workerNames = availableWorkers.map { it.name }
+
 
         // Setup spinner with available workers (could be empty list)
         setupSpinnerView(lyPemanenManual, workerNames)
 
-        // If empty, set the spinner to show hint and disable selection
-        if (availableWorkers.isEmpty()) {
-            val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-            spinner.setHint("Pilih Pemanen")
-            spinner.isEnabled = false
-        } else {
-            val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-            spinner.isEnabled = true
-        }
+        val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+
+        spinner.setHint("Pilih Pemanen")
+
 
         AppLogger.d("Manual spinner updated with ${workerNames.size} available workers")
     }
