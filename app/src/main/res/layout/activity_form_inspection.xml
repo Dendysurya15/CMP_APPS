@@ -673,6 +673,22 @@
                         android:visibility="gone" />
 
                     <include
+                        android:id="@+id/lyKemandoran"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/lyPemuat"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSelectedPemuatInspection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/top_margin"
+                        android:overScrollMode="never"
+                        android:visibility="gone" />
+
+                    <include
                         android:id="@+id/lyJalurInspect"
                         layout="@layout/pertanyaan_spinner_layout" />
 
