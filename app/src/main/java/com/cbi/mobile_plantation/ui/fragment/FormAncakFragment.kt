@@ -68,7 +68,7 @@ class FormAncakFragment : Fragment() {
             "1" to "Tinggi",
             "2" to "Rendah"
         ),
-        "ExistsOrNot" to mapOf(
+            "ExistsOrNot" to mapOf(
             "1" to "Ada",
             "2" to "Tidak"
         ),
@@ -140,15 +140,14 @@ class FormAncakFragment : Fragment() {
 
         setupPemanenTemuanRecyclerView()
 
-        // Observe worker data from ViewModel
-        viewModel.availableWorkers.observe(viewLifecycleOwner) { workers ->
-            AppLogger.d("Fragment $pageNumber received worker update: ${workers.size} workers")
-            workers.forEach { worker ->
-                AppLogger.d("  - Available worker: $worker")
-            }
+        viewModel.formData.observe(viewLifecycleOwner) { formDataMap ->
+            val pageData = formDataMap[pageNumber]
+            if (pageData != null) {
+                AppLogger.d("Fragment $pageNumber received pageData update: ${pageData.pemanen.size} workers in pemanen")
 
-            // Auto-populate RecyclerView with available workers
-            populateRecyclerViewWithWorkers(workers)
+                // Populate RecyclerView based on pemanen field
+                populateRecyclerViewFromPemanen(pageData.pemanen)
+            }
         }
 
         setupAllInputs()
@@ -159,6 +158,34 @@ class FormAncakFragment : Fragment() {
                 isFragmentInitializing = false
             }, 300)
         }
+    }
+
+    private fun populateRecyclerViewFromPemanen(pemanenMap: Map<String, String>) {
+        if (pemanenMap.isEmpty()) {
+            AppLogger.d("No pemanen data for page $pageNumber")
+            selectedPemanenTemuanAdapter.clearAllWorkers()
+            updateRecyclerViewVisibility()
+            return
+        }
+
+        // Clear existing workers first
+        selectedPemanenTemuanAdapter.clearAllWorkers()
+
+        // Convert pemanen map to Worker objects and add to RecyclerView
+        pemanenMap.forEach { (nik, name) ->
+            val workerDisplayName = "$nik - $name"
+            val worker = Worker(nik, workerDisplayName)
+
+            // Add worker to RecyclerView
+            selectedPemanenTemuanAdapter.addWorker(worker)
+
+            AppLogger.d("Added worker to page $pageNumber RecyclerView: $workerDisplayName")
+        }
+
+        // Show RecyclerView since it now has items
+        updateRecyclerViewVisibility()
+
+        AppLogger.d("Populated RecyclerView for page $pageNumber with ${pemanenMap.size} workers from pemanen field")
     }
 
     private fun setupTitleObservers(view: View) {
@@ -426,10 +453,11 @@ class FormAncakFragment : Fragment() {
 
         titleTextView.text = titleText
 
-        spinner.setHint("Pilih Pemanen")
-        spinner.isEnabled = false // Disable interaction since we're using RecyclerView
+        // Update hint to show current count
+        val workerCount = selectedPemanen.size
+        spinner.setHint("Pemanen Terpilih ($workerCount)")
 
-        AppLogger.d("Pemanen spinner setup for page $pageNumber - hint only, no dropdown")
+        AppLogger.d("Pemanen spinner setup for page $pageNumber - showing $workerCount workers")
     }
 
 
@@ -611,6 +639,8 @@ class FormAncakFragment : Fragment() {
         if (currentPageData != null) {
             updateHarvestTreeNumberVisibility(currentPageData.harvestTree)
             updateDependentLayoutVisibility(currentPageData.emptyTree)
+
+            populateRecyclerViewFromPemanen(currentPageData.pemanen)
         }
 
         view?.post {

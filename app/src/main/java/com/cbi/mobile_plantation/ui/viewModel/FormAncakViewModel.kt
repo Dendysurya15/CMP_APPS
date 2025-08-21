@@ -124,11 +124,43 @@ class FormAncakViewModel : ViewModel() {
         _blokName.value = blok
     }
 
+    // Add this function to FormAncakViewModel
     fun updateAvailableWorkers(workers: List<String>) {
         _availableWorkers.value = workers
         AppLogger.d("ViewModel updated with ${workers.size} workers: $workers")
+
+        // Set default pemanen for all pages
+        setDefaultPemanenForAllPages(workers)
     }
 
+    private fun setDefaultPemanenForAllPages(workers: List<String>) {
+        val currentData = _formData.value ?: mutableMapOf()
+        val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+        // Convert worker names to Map<String, String> format
+        val defaultPemanenMap = workers.associate { workerName ->
+            val parts = workerName.split(" - ")
+            if (parts.size >= 2) {
+                val nik = parts[0].trim()
+                val name = parts.subList(1, parts.size).joinToString(" - ").trim()
+                nik to name
+            } else {
+                workerName to workerName // fallback if format is different
+            }
+        }
+
+        // Update pemanen for all pages (1 to totalPages)
+        for (pageNumber in 1..totalPages) {
+            val existingPageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
+            val updatedPageData = existingPageData.copy(pemanen = defaultPemanenMap)
+            currentData[pageNumber] = updatedPageData
+            AppLogger.d("Set default pemanen for page $pageNumber: ${defaultPemanenMap.size} workers")
+        }
+
+        _formData.value = currentData
+    }
+
+    // Update the existing updatePageData function
     fun updatePageData(pageNumber: Int, data: PageData) {
         val currentData = _formData.value ?: mutableMapOf()
         currentData[pageNumber] = data
