@@ -1057,7 +1057,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupViewPager() {
         val totalPages = formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
-        // Pass the featureName to the adapter!
         formAncakPagerAdapter = FormAncakPagerAdapter(this, totalPages, featureName)
 
         vpFormAncak.apply {
@@ -2102,7 +2101,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(etPhotoComment.windowToken, 0)
                 etPhotoComment.clearFocus()
-//                bottomNavInspect.visibility = View.GONE
                 true
             } else {
                 false
@@ -2696,12 +2694,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         lifecycleScope.launch(Dispatchers.Default) {
             withContext(Dispatchers.Main) {
+                setupPemanenSpinner()
+                setupPemuatSpinner()
                 setupViewPager()
                 observeViewModel()
                 setupPressedFAB()
 
-                setupPemanenSpinner()
-                setupPemuatSpinner()
             }
         }
 
@@ -2762,25 +2760,26 @@ open class FormInspectionActivity : AppCompatActivity(),
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
-            if (activeBottomNavId == R.id.navMenuBlokInspect &&
-                (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)) {
-                AppLogger.d("Validating Blok section before navigation...")
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnItemSelectedListener false
-                }
-            }
+//            if (activeBottomNavId == R.id.navMenuBlokInspect &&
+//                (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)
+//            ) {
+//                AppLogger.d("Validating Blok section before navigation...")
+//                if (!validateAndShowErrors()) {
+//                    vibrate(500)
+//                    return@setOnItemSelectedListener false
+//                }
+//            }
+//
+//            if (activeBottomNavId == R.id.navMenuAncakInspect &&
+//                (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
+//            ) {
+//                AppLogger.d("Validating Form Ancak before navigation...")
+//                if (!validateAndShowErrors()) {
+//                    vibrate(500)
+//                    return@setOnItemSelectedListener false
+//                }
+//            }
 
-            if (activeBottomNavId == R.id.navMenuAncakInspect &&
-                (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)) {
-                AppLogger.d("Validating Form Ancak before navigation...")
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnItemSelectedListener false
-                }
-            }
-
-            AppLogger.d("pemuatList $pemuatList")
             if (activeBottomNavId == R.id.navMenuAncakInspect) {
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()
@@ -2793,9 +2792,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
                 val currentPage = formAncakViewModel.currentPage.value ?: 1
-
-                AppLogger.d("hasSelfiePhoto $hasSelfiePhoto")
-                AppLogger.d("currentPage $currentPage")
 
                 val validationResult = formAncakViewModel.validateCurrentPage(1)
 
@@ -2937,7 +2933,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             if (!trackingLocation.containsKey("start")) {
                                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
-
+                            updateWorkerDataInViewModel()
                             if (!hasInspectionStarted) {
                                 if (!trackingLocation.containsKey("start")) {
                                     trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
@@ -4947,7 +4943,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
                         withContext(Dispatchers.Main) {
-                            val rvSelectedPemanen = findViewById<RecyclerView>(R.id.rvSelectedPemuatInspection)
+                            val rvSelectedPemanen =
+                                findViewById<RecyclerView>(R.id.rvSelectedPemuatInspection)
                             rvSelectedPemanen.visibility = View.VISIBLE
                             setupSpinnerView(lyPemuat, pemuatNames)
                         }
@@ -4974,16 +4971,18 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 // Extract NIK from the selection (format: "Name - NIK")
                 val lastDashIndex = selectedPemuat.lastIndexOf(" - ")
-                val selectedNik = if (lastDashIndex != -1 && lastDashIndex < selectedPemuat.length - 3) {
-                    val potentialNik = selectedPemuat.substring(lastDashIndex + 3).trim()
-                    if (potentialNik.all { it.isDigit() }) potentialNik else ""
-                } else ""
+                val selectedNik =
+                    if (lastDashIndex != -1 && lastDashIndex < selectedPemuat.length - 3) {
+                        val potentialNik = selectedPemuat.substring(lastDashIndex + 3).trim()
+                        if (potentialNik.all { it.isDigit() }) potentialNik else ""
+                    } else ""
 
                 AppLogger.d("Extracted NIK: $selectedNik")
 
                 // Find the selected employee in pemuatList
                 var selectedEmployee = pemuatList.firstOrNull {
-                    it.nik == selectedNik || it.nama?.trim()?.equals(selectedPemuat.trim(), ignoreCase = true) == true
+                    it.nik == selectedNik || it.nama?.trim()
+                        ?.equals(selectedPemuat.trim(), ignoreCase = true) == true
                 }
 
                 // If not found by exact match, try partial match on name
@@ -5527,6 +5526,33 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
         AppLogger.d("Manual spinner updated with ${workerNames.size} available workers")
+    }
+
+    private fun updateWorkerDataInViewModel() {
+        // Get current selected workers
+        val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
+        val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+
+        // Combine both lists for pemanen selection
+        val allWorkerNames = mutableListOf<String>()
+
+        // Add automatic workers
+        automaticWorkers.forEach { worker ->
+            allWorkerNames.add(worker.name)
+        }
+
+        // Add manual workers
+        manualWorkers.forEach { worker ->
+            allWorkerNames.add(worker.name)
+        }
+
+        AppLogger.d("Updating ViewModel with workers: Total=${allWorkerNames.size}")
+        allWorkerNames.forEach { worker ->
+            AppLogger.d("  - Updating worker: $worker")
+        }
+
+        // Update ViewModel - this will notify all fragments
+        formAncakViewModel.updateAvailableWorkers(allWorkerNames)
     }
 
 
@@ -6787,10 +6813,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val errorMessages = mutableListOf<String>()
 
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-
-
             if (photoTPHFollowUp == null) {
-
                 isValid = false
                 isInTPH = true
                 isForSelfie = false
@@ -6807,196 +6830,140 @@ open class FormInspectionActivity : AppCompatActivity(),
                 missingFields.add("Foto TPH")
             }
 
+            // PEMANEN VALIDATION (consolidated)
             val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
             val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
             val totalSelectedWorkers = automaticWorkers.size + manualWorkers.size
 
+            if (totalSelectedWorkers == 0 || selectedKaryawanList.isEmpty()) {
+                AppLogger.d("No workers selected! Total: $totalSelectedWorkers, List: ${selectedKaryawanList.size}")
+                errorMessages.add("Minimal 1 pemanen yang dipilih!")
+                missingFields.add("Pilih Pemanen")
+
+                // Show error on automatic spinner (use global variable if available)
+                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+                showValidationError(
+                    layoutPemanenOtomatis,
+                    "Minimal 1 pemanen yang dipilih!"
+                )
+                isValid = false
+            } else {
+                AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
+
+                // Hide error from pemanen spinner
+                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+                hideValidationError(layoutPemanenOtomatis)
+            }
+
+            // PEMUAT VALIDATION
             val pemuats = selectedPemuatAdapter.getSelectedWorkers()
             val totalPemuat = pemuats.size
 
-            if (totalSelectedWorkers == 0) {
-                AppLogger.d("No workers selected in any adapter!")
-                errorMessages.add("Minimal 1 pemanen yang dipilih!")
-                missingFields.add("Pilih Pemanen")
-
-                // Show error ONLY on automatic spinner (manual is optional)
-                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-                val tvErrorOtomatis =
-                    layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvOtomatis =
-                    layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                tvErrorOtomatis.text = "Minimal 1 pemanen yang dipilih!"
-                tvErrorOtomatis.visibility = View.VISIBLE
-                mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-
-                isValid = false
-            } else {
-                AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
-
-                // Hide error ONLY from automatic spinner (manual doesn't show errors)
-                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-                val tvErrorOtomatis =
-                    layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvOtomatis =
-                    layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                tvErrorOtomatis.visibility = View.GONE
-                mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
-            }
+            AppLogger.d("totalPemuat $totalPemuat")
 
             if (totalPemuat == 0) {
-                AppLogger.d("No workers selected in any adapter!")
+                AppLogger.d("No pemuat selected!")
                 errorMessages.add("Minimal 1 pemuat yang dipilih!")
                 missingFields.add("Pilih Pemuat")
 
-                // Show error ONLY on automatic spinner (manual is optional)
-                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemuat)
-                val tvErrorOtomatis =
-                    layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvOtomatis =
-                    layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                tvErrorOtomatis.text = "Minimal 1 pemuat yang dipilih!"
-                tvErrorOtomatis.visibility = View.VISIBLE
-                mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-
+                showValidationError(lyPemuat, "Minimal 1 pemuat yang dipilih!")
                 isValid = false
             } else {
-                AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
-
-                // Hide error ONLY from automatic spinner (manual doesn't show errors)
-                val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemuat)
-                val tvErrorOtomatis =
-                    layoutPemanenOtomatis.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvOtomatis =
-                    layoutPemanenOtomatis.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                tvErrorOtomatis.visibility = View.GONE
-                mcvOtomatis.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                AppLogger.d("Pemuat workers selected! Total: $totalPemuat")
+                hideValidationError(lyPemuat)
             }
 
-            if (selectedKaryawanList.isEmpty()) {
-                AppLogger.d("selectedKaryawanList $selectedKaryawanList")
-                errorMessages.add("Minimal 1 pemanen yang dipilih!")
-                missingFields.add("Pilih Pemanen")
-
-                val layoutBaris2 = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-                val tvErrorBaris2 = layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                tvErrorBaris2.text = "Minimal 1 pemanen yang dipilih!"
-                tvErrorBaris2.visibility = View.VISIBLE
-            }
-
+            // LOCATION VALIDATION
             if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
                 isValid = false
                 errorMessages.add(stringXML(R.string.al_location_description_failed))
                 missingFields.add("Location")
             }
 
-
+            // INPUT MAPPINGS VALIDATION (with consistent stroke width)
             inputMappings.forEach { (layout, key, inputType) ->
-                if (layout.id != R.id.layoutKemandoranLain && layout.id != R.id.layoutPemanenLain) {
+                val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+                val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
 
-                    val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                    val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
-                    val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                    val editText = layout.findViewById<EditText>(R.id.etHomeMarkerTPH)
-
-                    val isEmpty = when (inputType) {
-                        InputType.SPINNER -> {
-                            when (layout.id) {
-                                R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
-                                R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
-                                else -> spinner.selectedIndex == -1
-                            }
+                val isEmpty = when (inputType) {
+                    InputType.SPINNER -> {
+                        when (layout.id) {
+                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
+                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
+                            else -> spinner.selectedIndex == -1
                         }
-
-                        InputType.EDITTEXT -> {
-                            when (layout.id) {
-                                R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-                                R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
-                                    .isEmpty() else false
-
-                                else -> editText.text.toString().trim().isEmpty()
-                            }
-                        }
-
-                        InputType.RADIO -> {
-                            when (layout.id) {
-                                R.id.lyConditionType -> selectedKondisiValue.isEmpty()
-                                else -> false
-                            }
-                        }
-
                     }
-
-                    if (isEmpty) {
-                        tvError.visibility = View.VISIBLE
-                        mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                        missingFields.add(key)
-                        isValid = false
-                    } else {
-                        tvError.visibility = View.GONE
-                        mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                    InputType.EDITTEXT -> {
+                        when (layout.id) {
+                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
+                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim().isEmpty() else false
+                            else -> editText.text.toString().trim().isEmpty()
+                        }
                     }
+                    InputType.RADIO -> {
+                        when (layout.id) {
+                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
+                            else -> false
+                        }
+                    }
+                }
+
+                if (isEmpty) {
+                    // FIXED: Set both color AND width for consistent appearance
+                    tvError.visibility = View.VISIBLE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                    mcvSpinner.strokeWidth = 4 // Ensure stroke is visible
+                    missingFields.add(key)
+                    isValid = false
+                } else {
+                    tvError.visibility = View.GONE
+                    mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
+                    mcvSpinner.strokeWidth = 2 // Reset to normal width
                 }
             }
 
+            // TPH SCAN VALIDATION
             if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
                 if (isTriggeredBtnScanned) {
                     if (isEmptyScannedTPH) {
-                        tvErrorScannedNotSelected.text =
-                            stringXML(R.string.al_no_tph_detected_trigger_submit)
+                        tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
                         isValid = false
                     } else {
-                        // Search was done and TPH found, but user hasn't selected one
-                        tvErrorScannedNotSelected.text =
-                            "Silakan untuk memilih TPH yang ingin diperiksa!"
+                        tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
                         isValid = false
                     }
                 } else {
-                    // Button not triggered yet - ask user to search first
                     tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
                     tvErrorScannedNotSelected.visibility = View.VISIBLE
                     errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
                     isValid = false
                 }
             } else {
-                // TPH is selected or no afdeling selected - hide error
                 tvErrorScannedNotSelected.visibility = View.GONE
             }
 
-            // NEW: Simple validation - br1 and br2 cannot be the same when kondisi == 0
-            if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim()
-                    .isNotEmpty()
-            ) {
+            // BARIS VALIDATION (br1 and br2 cannot be the same)
+            if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
                 val br1Int = br1Value.trim().toIntOrNull() ?: 0
                 val br2Int = br2Value.trim().toIntOrNull() ?: 0
 
-                AppLogger.d(br1Int.toString())
-                AppLogger.d(br2Int.toString())
+                AppLogger.d("br1: $br1Int, br2: $br2Int")
                 if (br1Int == br2Int) {
                     val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
-                    val tvErrorBaris2 =
-                        layoutBaris2.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
-                    val mcvBaris2 = layoutBaris2.findViewById<MaterialCardView>(R.id.MCVSpinner)
-
-                    tvErrorBaris2.text = "Baris pertama dan Baris kedua tidak boleh sama"
-                    tvErrorBaris2.visibility = View.VISIBLE
-                    mcvBaris2.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+                    showValidationError(layoutBaris2, "Baris pertama dan Baris kedua tidak boleh sama")
                     errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
                     isValid = false
                 }
             }
-
         }
 
+        // SHOW ERROR DIALOG IF VALIDATION FAILED
         if (!isValid) {
             vibrate(500)
             val combinedErrorMessage = buildString {
@@ -7004,7 +6971,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 if (missingFields.isNotEmpty()) {
                     allMessages.add(stringXML(R.string.al_pls_complete_data))
                 }
-
                 allMessages.addAll(errorMessages)
                 allMessages.forEachIndexed { index, message ->
                     append("${index + 1}. $message")
@@ -7022,9 +6988,35 @@ open class FormInspectionActivity : AppCompatActivity(),
             ) {}
         }
 
-
-
         return isValid
+    }
+
+    // HELPER FUNCTIONS for consistent validation UI
+    private fun showValidationError(layout: LinearLayout, errorMessage: String) {
+        val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+        val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+        tvError?.apply {
+            text = errorMessage
+            visibility = View.VISIBLE
+        }
+
+        mcvSpinner?.apply {
+            strokeColor = ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark)
+            strokeWidth = 4 // Ensure stroke is visible
+        }
+    }
+
+    private fun hideValidationError(layout: LinearLayout) {
+        val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+        val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
+
+        tvError?.visibility = View.GONE
+
+        mcvSpinner?.apply {
+            strokeColor = ContextCompat.getColor(this@FormInspectionActivity, R.color.graytextdark)
+            strokeWidth = 2 // Reset to normal width
+        }
     }
 
     private fun checkDateTimeSettings() {

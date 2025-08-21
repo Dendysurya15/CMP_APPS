@@ -19,6 +19,10 @@ import java.util.Date
 import java.util.Locale
 
 class FormAncakViewModel : ViewModel() {
+
+    private val _availableWorkers = MutableLiveData<List<String>>(emptyList())
+    val availableWorkers: LiveData<List<String>> = _availableWorkers
+
     data class PageData(
         val pokokNumber: Int = 0,
         val emptyTree: Int = 0,
@@ -41,6 +45,7 @@ class FormAncakViewModel : ViewModel() {
         val foto_pemulihan: String? = null,
         val komentar_pemulihan: String? = null,
         val status_pemulihan: Int? = 0,
+        val pemanen: Map<String, String> = emptyMap()
     )
 
     data class ValidationResult(
@@ -119,6 +124,17 @@ class FormAncakViewModel : ViewModel() {
         _blokName.value = blok
     }
 
+    fun updateAvailableWorkers(workers: List<String>) {
+        _availableWorkers.value = workers
+        AppLogger.d("ViewModel updated with ${workers.size} workers: $workers")
+    }
+
+    fun updatePageData(pageNumber: Int, data: PageData) {
+        val currentData = _formData.value ?: mutableMapOf()
+        currentData[pageNumber] = data
+        _formData.value = currentData
+        AppLogger.d("Updated PageData for page $pageNumber")
+    }
 
     fun shouldSetLatLonIssue(pageData: PageData): Boolean {
         // If emptyTree is not 1, no issue should be tracked

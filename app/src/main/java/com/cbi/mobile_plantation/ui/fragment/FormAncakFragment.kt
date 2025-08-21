@@ -17,6 +17,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,14 +26,20 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
+import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.flexbox.FlexboxLayout
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.card.MaterialCardView
+import com.jaredrummler.materialspinner.MaterialSpinner
 
 class FormAncakFragment : Fragment() {
     data class InputMapping(
@@ -42,7 +49,7 @@ class FormAncakFragment : Fragment() {
         val dataField: (PageData, Int) -> PageData,
         val currentValue: (PageData) -> Int
     )
-
+    private lateinit var selectedPemanenTemuanAdapter: SelectedWorkerAdapter
     private lateinit var viewModel: FormAncakViewModel
     private val errorViewsMap = mutableMapOf<Int, TextView>()
     private var isFragmentInitializing = false // Add this flag
@@ -109,6 +116,7 @@ class FormAncakFragment : Fragment() {
         viewModel = ViewModelProvider(requireActivity())[FormAncakViewModel::class.java]
     }
 
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -129,6 +137,19 @@ class FormAncakFragment : Fragment() {
 
         // Setup title observers
         setupTitleObservers(view)
+
+        setupPemanenTemuanRecyclerView()
+
+        // Observe worker data from ViewModel
+        viewModel.availableWorkers.observe(viewLifecycleOwner) { workers ->
+            AppLogger.d("Fragment $pageNumber received worker update: ${workers.size} workers")
+            workers.forEach { worker ->
+                AppLogger.d("  - Available worker: $worker")
+            }
+
+            // Auto-populate RecyclerView with available workers
+            populateRecyclerViewWithWorkers(workers)
+        }
 
         setupAllInputs()
 
@@ -237,6 +258,16 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(brdKtpPiringanPikulKetiak = value) },
                 { it.brdKtpPiringanPikulKetiak }
             ),
+            InputMapping(
+                R.id.lyPemanenTemuan,
+                "Pemanen",
+                InputType.SPINNER,
+                { currentData, value ->
+                    // Note: This will be handled differently since it's a Map, not a single value
+                    currentData // Return unchanged, actual handling in spinner selection
+                },
+                { it.pemanen.isEmpty().let { if (it) -1 else 0 } } // Return -1 if empty, 0 if has data
+            ),
         )
 
         val currentPageData =
@@ -261,6 +292,17 @@ class FormAncakFragment : Fragment() {
                     currentValue = valueForThisPage
                 )
 
+                InputType.SPINNER -> {
+                    when (layoutId) {
+                        R.id.lyPemanenTemuan -> {
+                            setupPemanenSpinner(layoutId, label, currentPageData.pemanen)
+                        }
+                        else -> {
+                            // Handle other spinners if any
+                        }
+                    }
+                }
+
                 else -> {}
             }
         }
@@ -268,6 +310,129 @@ class FormAncakFragment : Fragment() {
         val harvestTreeValue = currentPageData.harvestTree
         updateHarvestTreeNumberVisibility(harvestTreeValue)
     }
+
+    private fun setupPemanenTemuanRecyclerView() {
+        val rvSelectedPemanenTemuan = view?.findViewById<RecyclerView>(R.id.rvSelectedPemanenTemuan) ?: return
+
+        selectedPemanenTemuanAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanenTemuan.adapter = selectedPemanenTemuanAdapter
+        rvSelectedPemanenTemuan.layoutManager = FlexboxLayoutManager(requireContext()).apply {
+            justifyContent = JustifyContent.FLEX_START
+        }
+
+        // Set up the remove listener
+        selectedPemanenTemuanAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
+            AppLogger.d("Pemanen Temuan removal callback triggered for: ${removedWorker.name}")
+
+            // Remove from page data
+            removePemanenFromPageData(removedWorker)
+
+            // Show RecyclerView if it has items, hide if empty
+            updateRecyclerViewVisibility()
+        }
+
+        AppLogger.d("RecyclerView setup completed for page $pageNumber")
+    }
+
+    private fun populateRecyclerViewWithWorkers(availableWorkers: List<String>) {
+        if (availableWorkers.isEmpty()) {
+            AppLogger.d("No workers available for page $pageNumber")
+            return
+        }
+
+        val currentPageData = viewModel.getPageData(pageNumber) ?: return
+
+        // Convert available workers to Worker objects and add to RecyclerView
+        availableWorkers.forEach { workerName ->
+            // Extract NIK and name (format: "NIK - Name")
+            val parts = workerName.split(" - ")
+            if (parts.size >= 2) {
+                val nik = parts[0].trim()
+                val name = parts.subList(1, parts.size).joinToString(" - ").trim()
+
+                // Check if this worker is already selected for this page
+                if (!currentPageData.pemanen.containsKey(nik)) {
+                    val worker = Worker(nik, workerName)
+
+                    // Add worker to RecyclerView
+                    selectedPemanenTemuanAdapter.addWorker(worker)
+
+                    // Add to page data
+                    addPemanenToPageData(nik, name)
+
+                    AppLogger.d("Added worker to page $pageNumber: $workerName")
+                }
+            }
+        }
+
+        // Show RecyclerView since it now has items
+        updateRecyclerViewVisibility()
+    }
+
+
+
+    private fun addPemanenToPageData(nik: String, name: String) {
+        val currentPageData = viewModel.getPageData(pageNumber) ?: return
+
+        // Add the pemanen to the map
+        val updatedPemanen = currentPageData.pemanen.toMutableMap()
+        updatedPemanen[nik] = name
+
+        // Update the page data
+        val updatedPageData = currentPageData.copy(pemanen = updatedPemanen)
+        viewModel.updatePageData(pageNumber, updatedPageData)
+
+        AppLogger.d("Added pemanen to page $pageNumber data: $nik -> $name")
+    }
+
+
+    private fun removePemanenFromPageData(removedWorker: Worker) {
+        val currentPageData = viewModel.getPageData(pageNumber) ?: return
+
+        // Extract NIK from worker
+        val nik = removedWorker.id
+
+        // Remove from page data
+        val updatedPemanen = currentPageData.pemanen.toMutableMap()
+        updatedPemanen.remove(nik)
+
+        val updatedPageData = currentPageData.copy(pemanen = updatedPemanen)
+        viewModel.updatePageData(pageNumber, updatedPageData)
+
+        AppLogger.d("Removed pemanen from page $pageNumber data: ${removedWorker.name}")
+    }
+
+    private fun updateRecyclerViewVisibility() {
+        val rvSelectedPemanenTemuan = view?.findViewById<RecyclerView>(R.id.rvSelectedPemanenTemuan)
+        val selectedWorkers = selectedPemanenTemuanAdapter.getSelectedWorkers()
+
+        rvSelectedPemanenTemuan?.visibility = if (selectedWorkers.isNotEmpty()) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
+        AppLogger.d("RecyclerView visibility updated for page $pageNumber: ${selectedWorkers.size} workers")
+    }
+
+    private fun setupPemanenSpinner(
+        layoutId: Int,
+        titleText: String,
+        selectedPemanen: Map<String, String>
+    ) {
+        val linearLayout = view?.findViewById<LinearLayout>(layoutId) ?: return
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val titleTextView = linearLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+
+        titleTextView.text = titleText
+
+        spinner.setHint("Pilih Pemanen")
+        spinner.isEnabled = false // Disable interaction since we're using RecyclerView
+
+        AppLogger.d("Pemanen spinner setup for page $pageNumber - hint only, no dropdown")
+    }
+
+
 
 
     fun scrollToTop() {
