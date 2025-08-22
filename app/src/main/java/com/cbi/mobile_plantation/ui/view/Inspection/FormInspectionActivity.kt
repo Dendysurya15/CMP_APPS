@@ -81,6 +81,7 @@ import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
 import com.cbi.mobile_plantation.utils.SoftKeyboardStateWatcher
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
@@ -153,6 +154,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.reflect.KMutableProperty0
 
 @Suppress("UNCHECKED_CAST")
@@ -262,7 +264,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private var hasInspectionStarted = false
     private var divisiList: List<TPHNewModel> = emptyList()
-    private var blokList: List<TPHNewModel> = emptyList()
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
     private val karyawanIdMap: MutableMap<String, Int> = mutableMapOf()
@@ -292,6 +293,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var isCameraViewOpen = false
     private var keyboardOpenedWhileBottomSheetVisible = false
     private var kemandoranList: List<KemandoranModel> = emptyList()
+    private var blokList: List<BlokModel> = emptyList()
     private lateinit var datasetViewModel: DatasetViewModel
     private lateinit var panenViewModel: PanenViewModel
     private lateinit var cameraViewModel: CameraViewModel
@@ -539,8 +541,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
                             panenTPH = list ?: emptyList()
                             panenDeferred.complete(list ?: emptyList())
-
-                            AppLogger.d("panenTPH $panenTPH")
                         }
                     }
 
@@ -1950,8 +1950,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             inspectionViewModel.saveDataInspectionDetails(
                                                 inspectionId = result.inspectionId.toString(),
                                                 formData = formData,
-                                                totalPages = totalPages,
-                                                selectedKaryawanList = selectedKaryawanList,
                                                 jumBrdTglPath = jumBrdTglPath,
                                                 jumBuahTglPath = jumBuahTglPath,
                                                 parameterInspeksi = parameterInspeksi,
@@ -2699,7 +2697,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 setupViewPager()
                 observeViewModel()
                 setupPressedFAB()
-
             }
         }
 
@@ -2760,25 +2757,25 @@ open class FormInspectionActivity : AppCompatActivity(),
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
-//            if (activeBottomNavId == R.id.navMenuBlokInspect &&
-//                (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)
-//            ) {
-//                AppLogger.d("Validating Blok section before navigation...")
-//                if (!validateAndShowErrors()) {
-//                    vibrate(500)
-//                    return@setOnItemSelectedListener false
-//                }
-//            }
-//
-//            if (activeBottomNavId == R.id.navMenuAncakInspect &&
-//                (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
-//            ) {
-//                AppLogger.d("Validating Form Ancak before navigation...")
-//                if (!validateAndShowErrors()) {
-//                    vibrate(500)
-//                    return@setOnItemSelectedListener false
-//                }
-//            }
+            if (activeBottomNavId == R.id.navMenuBlokInspect &&
+                (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)
+            ) {
+                AppLogger.d("Validating Blok section before navigation...")
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
+                }
+            }
+
+            if (activeBottomNavId == R.id.navMenuAncakInspect &&
+                (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
+            ) {
+                AppLogger.d("Validating Form Ancak before navigation...")
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
+                }
+            }
 
             if (activeBottomNavId == R.id.navMenuAncakInspect) {
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
@@ -4724,10 +4721,22 @@ open class FormInspectionActivity : AppCompatActivity(),
                         delay(300) // 1 second delay
                     }
 
+                    val blokDeferred = async {
+                        try {
+                            val estateIdToUse =
+                                if (isGM) {
+                                    selectedEstate.toInt()
+                                } else {
+                                    estateId!!.toInt()
+                                }
+                            datasetViewModel.getListOfBlok(estateIdToUse, selectedDivisiId?: 0)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching blokList: ${e.message}")
+                            emptyList()
+                        }
+                    }
+                    blokList = blokDeferred.await()
 
-                    AppLogger.d("estate $estateId")
-
-                    AppLogger.d("selectedDivisiId $selectedDivisiId")
                     try {
                         if (estateId == null || selectedDivisiId == null) {
                             throw IllegalStateException("Estate ID or selectedDivisiId is null!")
@@ -4788,16 +4797,32 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     )
                                 }
 
-                                AppLogger.d("TPH data fetched. Processing ${tphList.size} TPH records...")
 
-                                // 🚀 OPTIMIZED: Process TPH results efficiently
+                                data class BlokKey(val dept: String, val divisi: String, val kode: String)
+
+                                val blokLookupMap = blokList.associateBy { blok ->
+                                    BlokKey(
+                                        blok.dept?.toString() ?: "",
+                                        blok.divisi?.toString() ?: "",
+                                        blok.kode ?: ""
+                                    )
+                                }
+
                                 tphList.forEach { tph ->
                                     val tphId = tph.id
                                     val lat = tph.lat?.toDoubleOrNull()
                                     val lon = tph.lon?.toDoubleOrNull()
                                     val nomor = tph.nomor ?: ""
                                     val baseBlokKode = tph.blok_kode ?: ""
+                                    val divisiKode = tph.divisi ?: ""
+                                    val deptKode = tph.dept ?: ""
                                     val jenisTPHId = tph.jenis_tph_id ?: "1"
+
+                                    val blokKey = BlokKey(deptKode.toString(),
+                                        divisiKode.toString(), baseBlokKode)
+                                    val matchingBlok = blokLookupMap[blokKey]
+
+                                    val jmlPokokHa = matchingBlok?.jml_pokok_ha
 
                                     if (tphId != null && lat != null && lon != null) {
                                         // Get all panen records for this TPH ID
@@ -4805,23 +4830,23 @@ open class FormInspectionActivity : AppCompatActivity(),
                                             panenGroupedByTPH[tphId] ?: emptyList()
 
                                         if (matchingPanenList.isNotEmpty()) {
-                                            // Merge all data from this TPH
                                             val mergedData =
                                                 mergePanenRecordsForTPH(matchingPanenList)
 
-                                            // Create description with merged info
                                             val blokKode = if (mergedData.dateList.size > 1) {
-                                                "$baseBlokKode (${mergedData.dateList.size} transaksi)###REGULAR"
+                                                "$baseBlokKode (${mergedData.dateList.size} transaksi)"
                                             } else {
-                                                "$baseBlokKode###REGULAR"
+                                                baseBlokKode
                                             }
 
-                                            // Use TPH ID as key since we're merging all records for this TPH
                                             resultMap[tphId] = ScannedTPHLocation(
                                                 lat,
                                                 lon,
                                                 nomor,
                                                 blokKode,
+                                                divisiKode.toString(),
+                                                deptKode.toString(),
+                                                jmlPokokHa,
                                                 jenisTPHId
                                             )
                                         }
@@ -5062,8 +5087,12 @@ open class FormInspectionActivity : AppCompatActivity(),
         } else {
             isProcessingTPHSelection = true
 
+            AppLogger.d("selectedTPHInLIst $selectedTPHInLIst")
             tvErrorScannedNotSelected.visibility = View.GONE
 
+            //sph * 0.55 = total pages
+            val calculatedPages = ceil((selectedTPHInLIst.jml_pokok_ha ?: 0) * 0.55).toInt()
+            formAncakViewModel.updateTotalPages(calculatedPages)
             // Make title and description visible
             val titlePemanenInspeksi = findViewById<TextView>(R.id.titlePemanenInspeksi)
             val descPemanenInspeksi = findViewById<TextView>(R.id.descPemanenInspeksi)
@@ -5674,7 +5703,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     id = id,
                     number = location.nomor,
                     blockCode = if (isPasarTengahTPH) "$cleanBlockCode (TPH Inspeksi)" else cleanBlockCode,
+                    divisiCode = location.divisiKode,
+                    deptCode = location.deptKode,
                     distance = distance,
+                    jml_pokok_ha = location.jmlPokokHa!!,
                     isAlreadySelected = false,
                     selectionCount = 0,
                     canBeSelectedAgain = true,

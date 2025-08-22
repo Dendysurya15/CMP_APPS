@@ -22,7 +22,7 @@ class AuthRepository {
                 val request = ApiService.LoginRequest(username, password)
                 AppLogger.d("Login Request Body: ${Gson().toJson(request)}")
 
-                val response = TestingAPIClient.instance.login(request)
+                val response = CMPApiClient.instance.login(request)
 
                 if (!response.isSuccessful) {
                     val errorBody = response.errorBody()?.string()

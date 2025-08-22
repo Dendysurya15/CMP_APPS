@@ -27,6 +27,18 @@ abstract class BlokDao {
     @Query("SELECT * FROM blok")
     abstract suspend fun getAll(): List<BlokModel>
 
+    @Query(
+        """
+    SELECT * FROM blok 
+    WHERE dept = :idEstate 
+    AND divisi = :idDivisi
+    """
+    )
+    abstract fun getListOfBlok(
+        idEstate: Int,
+        idDivisi: Int,
+    ): List<BlokModel>
+
     @Query("DELETE FROM blok")
     abstract fun deleteAll()
 

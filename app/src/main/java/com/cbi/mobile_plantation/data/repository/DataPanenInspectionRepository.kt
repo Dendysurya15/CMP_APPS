@@ -159,13 +159,15 @@ class DataPanenInspectionRepository(
         val today = formatter.format(calendar.time)
 
         // 1 month ago at 00:00:00 (start of day)
-        calendar.add(Calendar.MONTH, -1)
+        calendar.add(Calendar.WEEK_OF_YEAR, -1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val oneMonthAgo = formatter.format(calendar.time)
+        val oneWeekAgo = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $oneMonthAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $oneWeekAgo to $today (inclusive, full datetime)")
+
+
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -230,7 +232,7 @@ class DataPanenInspectionRepository(
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(oneMonthAgo)
+                        put(oneWeekAgo)
                         put(today)
                     })
                 })

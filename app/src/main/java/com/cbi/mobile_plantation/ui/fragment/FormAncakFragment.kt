@@ -184,16 +184,12 @@ class FormAncakFragment : Fragment() {
             val firstDashIndex = workerName.indexOf(" - ")
             if (firstDashIndex != -1) {
                 val nik = workerName.substring(0, firstDashIndex).trim()
-                // Only add to spinner if not currently in this page's pemanen
+                // Only add to spinner if not currently in this pa  ge's pemanen
                 if (!currentPemanen.containsKey(nik)) {
                     availableWorkersForSpinner.add(workerName)
                 }
             }
         }
-
-        AppLogger.d("Updated spinner for page $pageNumber: ${availableWorkersForSpinner.size} available workers")
-
-        // Update the actual spinner
         updatePemanenSpinnerDropdown()
     }
 

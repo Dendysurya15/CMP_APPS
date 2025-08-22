@@ -370,6 +370,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getBlokList(idEstate, idDivisi)
     }
 
+    suspend fun getListOfBlok(
+        idEstate: Int,
+        idDivisi: Int,
+    ): List<BlokModel> {
+        return repository.getListOfBlok(idEstate, idDivisi)
+    }
+
     suspend fun getKemandoranList(
         idEstate: Int,
         idDivisiArray: List<Int>

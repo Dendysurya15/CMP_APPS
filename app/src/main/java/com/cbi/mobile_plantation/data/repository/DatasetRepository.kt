@@ -145,6 +145,10 @@ class DatasetRepository(
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
     }
 
+    suspend fun getListOfBlok(idEstate: Int, idDivisi: Int): List<BlokModel> {
+        return blokDao.getListOfBlok(idEstate, idDivisi)
+    }
+
     suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? = withContext(Dispatchers.IO) {
         tphDao.getTPHDetailsByID(tphId)
     }
