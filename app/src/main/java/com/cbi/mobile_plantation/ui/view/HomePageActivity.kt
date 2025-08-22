@@ -7359,7 +7359,7 @@ class HomePageActivity : AppCompatActivity() {
         retryDownloadDataset.setOnClickListener {
 
 
-//            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+
 
             containerDownloadDataset.visibility = View.GONE
             cancelDownloadDataset.visibility = View.GONE
@@ -7923,7 +7923,8 @@ class HomePageActivity : AppCompatActivity() {
                 lastModifiedSettingJSON
             )
 
-            AppLogger.d("klasdjlkfjasd")
+            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+
             AppLogger.d("allDatasets $allDatasets")
 
             val filteredRequests =

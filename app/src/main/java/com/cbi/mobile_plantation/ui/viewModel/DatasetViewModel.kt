@@ -1204,7 +1204,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         response =
                             restanRepository.getDataRestan(
-                                request.estate as Int,
+                                request.estate.toString().toInt(),
                                 request.afdeling!!
                             )
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
@@ -1245,7 +1245,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.getParameter()
                     }
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
-                        AppLogger.d("test bro masuk sini gak sih")
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
@@ -4248,7 +4247,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         _downloadStatuses.postValue(results.toMap())
                         return@forEach
-                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         val estatesResult = repository.getAllEstates()
                         if (estatesResult.isSuccess) {
                             val estates = estatesResult.getOrNull() ?: emptyList()
@@ -4703,8 +4703,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
 
                                                     if (dataArray.length() == 0) {
-                                                        // No records to process - everything is up to date
-                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
+//                                                        AppLogger.d("Masuk terus geesss kesinii ")
+//                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
+
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Partial success: $successCount processed, $failCount failed, $skippedCount skipped"
+                                                        )
+                                                        prefManager!!.addDataset(request.dataset)
                                                     } else if (failCount == 0) {
                                                         results[request.dataset] = Resource.Success(
                                                             response,
@@ -5217,6 +5223,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             response,
                                                             "Partial success: $successCount processed, $failCount failed"
                                                         )
+                                                        AppLogger.d("Masuk gesssssss")
+                                                        val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+                                                        AppLogger.d("storedList $storedList")
                                                         prefManager!!.addDataset(request.dataset)
                                                     } else {
                                                         // Complete failure
@@ -5342,7 +5351,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
                                         fun <T> parseMillJsonToList(
