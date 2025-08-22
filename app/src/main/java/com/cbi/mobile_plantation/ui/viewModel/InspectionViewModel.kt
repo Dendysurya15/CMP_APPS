@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -376,6 +377,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         komentar: String,
         foto_pemulihan_tph: String,
         komentar_pemulihan_tph: String,
+        pemuatWorkers: List<Worker> = emptyList(), // Add this parameter
     ): SaveDataInspectionDetailsState {
         return try {
             // PROCESS THE DATA FIRST - Reset values where emptyTree != 1, then filter valid data
@@ -561,6 +563,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
 
+            val (nikPemuatString, namaPemuatString) = extractPemuatData(pemuatWorkers)
+
             // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6 only)
             if (jumBuahTglPath != 0) {
                 val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
@@ -574,6 +578,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     updated_by = if (isPemulihanTphComplete) createdBy else null,
                     nik = "",
                     nama = "",
+                    nik_pemuat = nikPemuatString,
+                    nama_pemuat = namaPemuatString,
                     no_pokok = 0,
                     pokok_panen = null,
                     kode_inspeksi = 5,
@@ -606,6 +612,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     updated_by = if (isPemulihanTphComplete) createdBy else null,
                     nik = "",
                     nama = "",
+                    nik_pemuat = nikPemuatString,
+                    nama_pemuat = namaPemuatString,
                     no_pokok = 0,
                     pokok_panen = null,
                     kode_inspeksi = 6,
@@ -639,6 +647,24 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             AppLogger.e("Error saving inspection details: ${e.message}")
             SaveDataInspectionDetailsState.Error(e.toString())
         }
+    }
+
+    // Add this helper function at the beginning of saveDataInspectionDetails
+    fun extractPemuatData(workers: List<Worker>): Pair<String, String> {
+        val niks = mutableListOf<String>()
+        val names = mutableListOf<String>()
+
+        workers.forEach { worker ->
+            val firstDashIndex = worker.name.indexOf(" - ")
+            if (firstDashIndex != -1) {
+                val nik = worker.name.substring(0, firstDashIndex).trim()
+                val name = worker.name.substring(firstDashIndex + 3).trim()
+                niks.add(nik)
+                names.add(name)
+            }
+        }
+
+        return Pair(niks.joinToString(","), names.joinToString(","))
     }
 
 

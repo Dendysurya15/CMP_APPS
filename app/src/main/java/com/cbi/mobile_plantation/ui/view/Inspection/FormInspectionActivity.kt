@@ -307,7 +307,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var allManualKaryawanList: List<KaryawanInfo> = emptyList()
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter // For automatic
     private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
-    private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter // For manual
+    private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private var allPemuatEmployees: List<KaryawanModel> = emptyList()
 
     private lateinit var infoBlokView: ScrollView
@@ -1724,7 +1724,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         fabNextToFormAncak.setOnClickListener {
-
             if (!validateAndShowErrors()) {
                 vibrate(500)
                 return@setOnClickListener
@@ -1942,10 +1941,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     if (!isFollowUp) {
                                         val formData =
                                             formAncakViewModel.formData.value ?: mutableMapOf()
-                                        val totalPages = formAncakViewModel.totalPages.value
-                                            ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+                                        val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
 
-                                        AppLogger.d("selectedKaryawanList $selectedKaryawanList")
                                         val detailResult =
                                             inspectionViewModel.saveDataInspectionDetails(
                                                 inspectionId = result.inspectionId.toString(),
@@ -1961,7 +1958,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 foto = photoInTPH,
                                                 komentar = komentarInTPH ?: "",
                                                 foto_pemulihan_tph = photoTPHFollowUp ?: "",
-                                                komentar_pemulihan_tph = komentarTPHFollowUp ?: ""
+                                                komentar_pemulihan_tph = komentarTPHFollowUp ?: "",
+                                                pemuatWorkers = selectedPemuatWorkers
                                             )
 
                                         when (detailResult) {
@@ -2972,16 +2970,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                             isInTPH = false
                             setupSummaryPage()
 
-                            // Check form data to determine if selfie FAB should be shown
                             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-                            val actualPagesWithData =
-                                formData.size  // This gives you how many pages actually have data
+                            val actualPagesVisited = formData.values.count { pageData ->
+                                pageData.emptyTree != 0
+                            }
 
-                            AppLogger.d("Actual pages with data: $actualPagesWithData")
-
-                            // Show selfie FAB if actual pages with data is under 20
-                            val shouldShowSelfieFab =
-                                actualPagesWithData <= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
+                            // Show selfie FAB if actual pages with data is under 10
+                            val shouldShowSelfieFab = actualPagesVisited < AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
 
                             fabPhotoInfoBlok.visibility = View.GONE
                             labelPhotoInfoBlok.visibility = View.GONE
@@ -4964,7 +4959,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         // IMPORTANT: Store the complete list here!
                         allPemuatEmployees = pemuatList.toList()
 
-                        val pemuatNames = pemuatList.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                        val pemuatNames = pemuatList.map { "${it.nik ?: "N/A"} - ${it.nama}" }
 
 
                         withContext(Dispatchers.Main) {
@@ -4994,34 +4989,38 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val selectedPemuat = selectedItem.toString()
                 AppLogger.d("Selected Pemuat: $selectedPemuat")
 
-                // Extract NIK from the selection (format: "Name - NIK")
-                val lastDashIndex = selectedPemuat.lastIndexOf(" - ")
-                val selectedNik =
-                    if (lastDashIndex != -1 && lastDashIndex < selectedPemuat.length - 3) {
-                        val potentialNik = selectedPemuat.substring(lastDashIndex + 3).trim()
-                        if (potentialNik.all { it.isDigit() }) potentialNik else ""
-                    } else ""
+                // Extract NIK and Name from the selection (format: "NIK - Name")
+                val firstDashIndex = selectedPemuat.indexOf(" - ")
+
+                val selectedNik = if (firstDashIndex != -1) {
+                    selectedPemuat.substring(0, firstDashIndex).trim()
+                } else ""
+
+                val selectedName = if (firstDashIndex != -1 && firstDashIndex < selectedPemuat.length - 3) {
+                    selectedPemuat.substring(firstDashIndex + 3).trim()
+                } else ""
 
                 AppLogger.d("Extracted NIK: $selectedNik")
+                AppLogger.d("Extracted Name: $selectedName")
 
                 // Find the selected employee in pemuatList
                 var selectedEmployee = pemuatList.firstOrNull {
                     it.nik == selectedNik || it.nama?.trim()
-                        ?.equals(selectedPemuat.trim(), ignoreCase = true) == true
+                        ?.equals(selectedName.trim(), ignoreCase = true) == true
                 }
 
                 // If not found by exact match, try partial match on name
-                if (selectedEmployee == null && lastDashIndex != -1) {
-                    val nameWithoutNik = selectedPemuat.substring(0, lastDashIndex).trim()
+                if (selectedEmployee == null && selectedName.isNotEmpty()) {
                     selectedEmployee = pemuatList.firstOrNull {
-                        it.nama?.trim()?.equals(nameWithoutNik, ignoreCase = true) == true
+                        it.nama?.trim()?.equals(selectedName, ignoreCase = true) == true
                     }
                 }
 
-                // Fallback: try to find by name contains
+                // Fallback: try to find by NIK or name contains
                 if (selectedEmployee == null) {
                     selectedEmployee = pemuatList.firstOrNull {
-                        it.nama?.contains(selectedPemuat.split(" - ")[0], ignoreCase = true) == true
+                        it.nik?.contains(selectedNik, ignoreCase = true) == true ||
+                                it.nama?.contains(selectedName, ignoreCase = true) == true
                     }
                 }
 
@@ -5031,7 +5030,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     // IMPORTANT: Set all available workers first (using the stored complete list)
                     val allWorkers = allPemuatEmployees.map {
-                        Worker(it.id.toString(), "${it.nama} - ${it.nik ?: "N/A"}")
+                        Worker(it.id.toString(), "${it.nik ?: "N/A"} - ${it.nama}")
                     }
                     selectedPemuatAdapter.setAvailableWorkers(allWorkers)
 
@@ -5048,7 +5047,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("Selected Pemuat Worker: $selectedPemuat, ID: ${selectedEmployee.id}")
                     AppLogger.d("Remaining workers in spinner: ${pemuatList.size}")
                 } else {
-                    AppLogger.d("Error: Could not find pemuat worker with name $selectedPemuat or NIK $selectedNik")
+                    AppLogger.d("Error: Could not find pemuat worker with name $selectedName or NIK $selectedNik")
                     Toast.makeText(
                         this@FormInspectionActivity,
                         "Error: Worker not found",
@@ -6071,7 +6070,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.d("Current pemuatList count: ${pemuatList.size}")
 
         // Create list of worker names for spinner from current pemuatList
-        val pemuatNames = pemuatList.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+        val pemuatNames = pemuatList.map { "${it.nik ?: "N/A"} - ${it.nama}" }
 
         // Setup spinner with available workers
         setupSpinnerView(lyPemuat, pemuatNames)

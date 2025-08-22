@@ -16,6 +16,8 @@ data class InspectionDetailModel(
     val updated_by: String ? = null,
     val nik: String,
     val nama: String,
+    val nik_pemuat: String?= "",
+    val nama_pemuat: String?= "",
     val no_pokok: Int,
     val pokok_panen: Int? = null,
     val kode_inspeksi: Int,

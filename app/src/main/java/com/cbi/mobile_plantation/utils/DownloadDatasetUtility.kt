@@ -375,7 +375,7 @@ class DownloadDatasetUtility(
         datasets.addAll(
             listOf(
                 DatasetRequest(
-                    regional = regionalUser,
+                    estate = estateId,
                     lastModified = lastModifiedDatasetBlok,
                     dataset = AppUtils.DatasetNames.blok
                 ),
