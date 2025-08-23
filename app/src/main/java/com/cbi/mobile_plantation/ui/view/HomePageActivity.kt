@@ -2453,9 +2453,19 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.MutuBuah -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+//                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
+//                    intent.putExtra("FEATURE_NAME", feature.featureName)
+//                    startActivity(intent)
+                    AlertDialogUtility.withSingleAction(
+                        this@HomePageActivity,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_features_still_in_development),
+                        stringXML(R.string.al_desc_features_still_in_development),
+                        "warning.json",
+                        R.color.yellowbutton
+                    ) {
+
+                    }
                 }
             }
 

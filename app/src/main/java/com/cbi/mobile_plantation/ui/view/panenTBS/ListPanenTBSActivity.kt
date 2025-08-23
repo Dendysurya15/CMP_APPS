@@ -1246,7 +1246,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             ?: throw IllegalArgumentException("Missing tph_id.")
                         val dateCreated = data["date_created"]?.toString()
                             ?: throw IllegalArgumentException("Missing date_created.")
-
+                        val nomorPemanen = data["nomor_pemanen"]?.toString()
+                            ?: throw IllegalArgumentException("Missing nomor_pemanen.")
                         val jjgJsonString = data["jjg_json"]?.toString()
                             ?: throw IllegalArgumentException("Missing jjg_json.")
                         val jjgJson = try {
@@ -1272,9 +1273,9 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val date = dateParts[0]  // 2025-03-28
                         val time = dateParts[1]  // 13:15:18
 
-
                         // Use dateIndexMap.size as the index for new dates
-                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue;")
+                        // Format: tphId,dateIndex,time,toValue,nomorPemanen;
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue,$nomorPemanen;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
@@ -1489,9 +1490,25 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
         val allItems = listAdapter.getCurrentData()
         Log.d("ListPanenTBSActivityESPB", "listTPHDriver: $listTPHDriver")
+
+        // Parse listTPHDriver to get the actual integer value
+        val tphDriverValue = try {
+            if (listTPHDriver.contains("null")) {
+                0 // Default value when tph is null
+            } else {
+                // Extract number from JSON-like string, or parse directly if it's already a number
+                val regex = Regex(""""tph":"?(\d+)"?""")
+                val match = regex.find(listTPHDriver.toString())
+                match?.groupValues?.get(1)?.toInt() ?: listTPHDriver.toString().toInt()
+            }
+        } catch (e: Exception) {
+            Log.e("ListPanenTBSActivityESPB", "Error parsing listTPHDriver: ${e.message}")
+            0 // Default value
+        }
+
         val tph1NO = convertToFormattedString(
             selectedItems2.toString(),
-            listTPHDriver
+            tphDriverValue
         ).replace("{\"KP\": ", "").replace("},", ",")
         Log.d("ListPanenTBSActivityESPB", "formatted selectedItemsNO: $tph1NO")
 
@@ -1511,10 +1528,50 @@ class ListPanenTBSActivity : AppCompatActivity() {
             .replace(", ", ";")
         Log.d("ListPanenTBSActivityESPB", "New tph0: $newTph0")
 
-        // Calculate string6 = string2 + string3
-        val newTph1 =
-            (set2 + set3).toString().replace("[", "").replace("]", "").replace(", ", ";")
-        Log.d("ListPanenTBSActivityESPB", "New tph1: $newTph1")
+        // Extract nomor_pemanen values and create mapping
+        val tphToNomorPemanen = mutableMapOf<String, String>()
+
+        // Parse selectedItems2 to create mapping of TPH entries to nomor_pemanen
+        selectedItems2.forEach { item ->
+            try {
+                val itemMap = item as Map<String, Any>
+                val tphId = itemMap["tph_id"]?.toString()
+                val dateCreated = itemMap["date_created"]?.toString()
+                val nomorPemanen = itemMap["nomor_pemanen"]?.toString()
+
+                if (tphId != null && dateCreated != null && nomorPemanen != null) {
+                    val key = "$tphId,$dateCreated" // Use tph_id + date as unique key
+                    tphToNomorPemanen[key] = nomorPemanen
+                    Log.d("ListPanenTBSActivityESPB", "Mapping: $key -> $nomorPemanen")
+                }
+            } catch (e: Exception) {
+                Log.e("ListPanenTBSActivityESPB", "Error mapping nomor_pemanen: ${e.message}")
+            }
+        }
+
+        // Calculate string6 = string2 + string3 and add nomor_pemanen
+        val combinedEntries = (set2 + set3).map { entry ->
+            val parts = entry.toString().split(",")
+            if (parts.size >= 2) {
+                val tphId = parts[0]
+                val dateCreated = parts[1]
+                val key = "$tphId,$dateCreated"
+
+                if (tphToNomorPemanen.containsKey(key)) {
+                    val result = "$entry,${tphToNomorPemanen[key]}"
+                    Log.d("ListPanenTBSActivityESPB", "Adding nomor_pemanen to: $entry -> $result")
+                    result
+                } else {
+                    Log.d("ListPanenTBSActivityESPB", "No nomor_pemanen found for: $entry")
+                    entry.toString() // Keep original if no nomor_pemanen found
+                }
+            } else {
+                entry.toString()
+            }
+        }
+
+        var newTph1 = combinedEntries.joinToString(";")
+        Log.d("ListPanenTBSActivityESPB", "New tph1 with nomor_pemanen: $newTph1")
 
         // Combine with existing data if it exists
         if (tph0.isNotEmpty() && newTph0.isNotEmpty()) {
@@ -1560,6 +1617,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     ) {
                     }
                 } else {
+
+                    AppLogger.d("tph1 $tph1")
                     AlertDialogUtility.withTwoActions(
                         this,
                         "LANJUT",
@@ -3051,6 +3110,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "lat" to (panenWithRelations.panen.lat as Any),
                                     "lon" to (panenWithRelations.panen.lon as Any),
                                     "jenis_panen" to (panenWithRelations.panen.jenis_panen as Any),
+                                    "nomor_pemanen" to (panenWithRelations.panen.nomor_pemanen as Any),
                                     "ancak" to (panenWithRelations.panen.ancak as Any),
                                     "archive" to (panenWithRelations.panen.archive as Any),
                                     "nama_estate" to (panenWithRelations.tph.dept_abbr as Any),
@@ -5422,16 +5482,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
 
-    // Add a helper function to remove duplicate entries
     private fun removeDuplicateEntries(entries: String): String {
         if (entries.isEmpty()) return ""
 
         val uniqueEntries = entries.split(";")
             .filter { it.isNotEmpty() }
+            .filter { entry ->
+                val parts = entry.split(",")
+                // Only keep entries where the type field (index 3) is not "0"
+                parts.size < 4 || parts[3] != "0"
+            }
             .distinct()
             .joinToString(";")
 
         return uniqueEntries
     }
-
 }

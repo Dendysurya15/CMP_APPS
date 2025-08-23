@@ -611,6 +611,8 @@ class ListTPHApproval : AppCompatActivity() {
                     "NULL"
                 }
 
+                AppLogger.d("klfas jdlfkjalskfjlkas")
+
                 // Parse the date mapping object
                 val tglObject = try {
                     jsonObject.getJSONObject("tgl")
@@ -658,6 +660,7 @@ class ListTPHApproval : AppCompatActivity() {
                         var dateIndex = "NULL"
                         var time = "NULL"
                         var jjg = 0
+                        var nomor_pemanen = 0
 
                         var displayData = TphRvData(
                             "NULL",
@@ -677,23 +680,28 @@ class ListTPHApproval : AppCompatActivity() {
                             "NULL",
                             "NULL",
                             "NULL",
-                            "NULL"
+                            "NULL",
+                            0
                         )
 
                         if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                             val parts = entry.split(",")
-                            if (parts.size != 4) {
-                                Log.e(
-                                    TAG,
-                                    "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
-                                )
-                                return@mapNotNull null
-                            }
+//                            if (parts.size != 4) {
+//                                Log.e(
+//                                    TAG,
+//                                    "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
+//                                )
+//                                return@mapNotNull null
+//                            }
 
                             idtph = parts[0].toInt()
                             dateIndex = parts[1]
                             time = parts[2]
                             jjg = parts[3].toInt()
+                            nomor_pemanen = parts[4].toInt()
+
+
+                            AppLogger.d("nomorPemanen $nomor_pemanen")
                             // Get the full date from the date map
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"
                             val fullDateTime = "$fullDate $time"
@@ -735,7 +743,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 username = usernameString,
                                 kemandoran_id = "",
                                 tipePanen = "NULL",
-                                ancak = "NULL"
+                                ancak = "NULL",
+                                nomor_pemanen = nomor_pemanen
                             )
                         }
                         else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
