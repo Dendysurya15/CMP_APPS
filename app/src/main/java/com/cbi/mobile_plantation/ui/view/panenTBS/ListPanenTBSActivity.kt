@@ -2496,8 +2496,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val tvGenQR60 = findViewById<TextView>(R.id.tvGenQR60)
         val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
-        btnGenerateQRTPH.visibility = View.GONE
-        btnGenerateQRTPHUnl.visibility = View.GONE
         blokSection.visibility = View.GONE
         totalSection.visibility = View.GONE
 
@@ -2636,6 +2634,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         mutuBuahViewModel.activeMutuBuahList.observe(this) { mutuBuahList ->
+            btnGenerateQRTPH.visibility = View.GONE
+            btnGenerateQRTPHUnl.visibility = View.GONE
             if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
@@ -4962,9 +4962,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 // Fetch all available TPH data
                 panenViewModel.getAllPanenDataDetailESPB(0, 0, true, 1, null)
 
+
+                delay(200)
                 // Observe the data (this needs to be back on main thread context)
                 panenViewModel.detailNonESPBTPH.observeOnce(this@ListPanenTBSActivity) { panenWithRelationsList ->
 
+                    AppLogger.d("panenWithRelationsList ${panenWithRelationsList.size}")
 
                     if (panenWithRelationsList != null) {
                         AppLogger.d("Fetched ${panenWithRelationsList.size} available TPH items")
@@ -4997,10 +5000,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     jjgJson = kpNumber,
                                     tphNomor = panenWithRelations.tph!!.nomor.toString(),
                                     isChecked = false,
-                                    blokKode = panenWithRelations.tph!!.blok_kode.toString()
+                                    blokKode = panenWithRelations.tph!!.blok_kode.toString(),
+                                    nomorPemanen = panenWithRelations.panen!!.nomor_pemanen.toString(),
                                 )
                             }
 
+
+                        AppLogger.d("availableTphList $availableTphList")
                         // Create a set of TPH IDs from ESPB for quick lookup
                         val espbTphIds = espbTphList.map { it.tphId }.toSet()
                         AppLogger.d("ESPB TPH IDs to be checked: $espbTphIds")
@@ -5045,53 +5051,56 @@ class ListPanenTBSActivity : AppCompatActivity() {
         espbTphList: List<TPHItem>,
         espbTphIds: Set<String>
     ): List<TPHItem> {
+        val mergedList = mutableListOf<TPHItem>()
 
-        val checkedItems = mutableListOf<TPHItem>()
-        val uncheckedItems = mutableListOf<TPHItem>()
+//        AppLogger.d("=== MERGE DEBUG ===")
+//        AppLogger.d("Available TPH records: ${availableTphList.size}")
+//        availableTphList.forEach {
+//            AppLogger.d("Available Record: TPH=${it.tphId}, KP=${it.jjgJson}, Date=${it.dateCreated}, Nomor=${it.tphNomor}")
+//        }
+//
+//        AppLogger.d("ESPB TPH records: ${espbTphList.size}")
+//        espbTphList.forEach {
+//            AppLogger.d("ESPB Record: TPH=${it.tphId}, KP=${it.jjgJson}, Date=${it.dateCreated}")
+//        }
 
-        // Process available items
-        availableTphList.forEach { availableItem ->
-            val isInEspb = availableItem.tphId in espbTphIds
-            val finalItem = availableItem.copy(
-                isChecked = isInEspb,
-                isFromESPB = isInEspb // Mark if this item came from ESPB
-            )
+        // Add ALL ESPB items (they are separate harvest records, not duplicates)
+        for (espbTph in espbTphList) {
+            // Get TPH metadata from database if needed
+            val tphMetadata = if (espbTph.tphNomor.isEmpty()) {
+                // Try to find metadata from available items with same tph_id
+                availableTphList.find { it.tphId == espbTph.tphId }
+            } else null
 
-            if (finalItem.isChecked) {
-                checkedItems.add(finalItem)
-            } else {
-                uncheckedItems.add(finalItem)
-            }
-        }
-
-        // Add ESPB-only items
-        val availableTphIds = availableTphList.map { it.tphId }.toSet()
-        espbTphList.forEach { espbItem ->
-            if (espbItem.tphId !in availableTphIds) {
-                val espbOnlyItem = espbItem.copy(
-                    isChecked = true,
-                    isFromESPB = true // This is definitely from ESPB
+            mergedList.add(
+                espbTph.copy(
+                    isChecked = true, // ESPB records are checked by default
+                    isFromESPB = true,
+                    tphNomor = tphMetadata?.tphNomor ?: espbTph.tphNomor,
+                    blokKode = tphMetadata?.blokKode ?: espbTph.blokKode
                 )
-                checkedItems.add(espbOnlyItem)
-            }
+            )
+//            AppLogger.d("Added ESPB Record: TPH=${espbTph.tphId}, KP=${espbTph.jjgJson}, Checked=true")
         }
 
-        // Sort and combine
-        val sortedCheckedItems = checkedItems.sortedBy {
-            it.tphNomor.toIntOrNull() ?: it.tphId.toIntOrNull() ?: 0
+
+        for (availableTph in availableTphList) {
+            mergedList.add(
+                availableTph.copy(
+                    isChecked = false, // Available records are unchecked by default
+                    isFromESPB = false
+                )
+            )
+//            AppLogger.d("Added Available Record: TPH=${availableTph.tphId}, KP=${availableTph.jjgJson}, Checked=false")
         }
-        val sortedUncheckedItems = uncheckedItems.sortedBy {
-            it.tphNomor.toIntOrNull() ?: it.tphId.toIntOrNull() ?: 0
-        }
 
-        val finalList = mutableListOf<TPHItem>()
-        finalList.addAll(sortedCheckedItems)
-        finalList.addAll(sortedUncheckedItems)
+//        AppLogger.d("=== MERGE RESULT ===")
+//        AppLogger.d("Total merged records: ${mergedList.size}")
+//        mergedList.forEachIndexed { index, item ->
+//            AppLogger.d("Result $index: TPH=${item.tphId}, KP=${item.jjgJson}, Date=${item.dateCreated}, Nomor=${item.tphNomor}, Checked=${item.isChecked}, Source=${if (item.isFromESPB) "ESPB" else "Available"}")
+//        }
 
-        AppLogger.d("ESPB items: ${finalList.count { it.isFromESPB }}")
-        AppLogger.d("Available items: ${finalList.count { !it.isFromESPB }}")
-
-        return finalList
+        return mergedList
     }
 
 
@@ -5110,11 +5119,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     // Split each record by comma
                     val parts = tphRecord.split(",")
 
-                    if (parts.size >= 4) {
+                    if (parts.size >= 5) {
                         val tphId = parts[0].trim()
                         val dateCreated = parts[1].trim()
                         val kpValue = parts[2].trim()
                         val status = parts[3].trim()
+                        val nomorPemanen = parts[4].trim()
 
                         val kpNumber = try {
                             if (kpValue.startsWith("{") && kpValue.contains("KP")) {
@@ -5145,6 +5155,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     ?: "", // Use data from database if available
                                 isChecked = false, // Will be set to true during merge
                                 blokKode = tphBlokInfo!!.blokKode,
+                                nomorPemanen = nomorPemanen
                             )
                         )
 
@@ -5178,8 +5189,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun convertTPHItemsToTph1String(tphItems: List<TPHItem>): String {
-        return tphItems.joinToString(";") { item ->
-            "${item.tphId},${item.dateCreated},${item.jjgJson},1" // Status always 1 for selected items
+        return tphItems.filter { it.isChecked }.joinToString(";") { item ->
+            AppLogger.d("Converting: TPH=${item.tphId}, Date=${item.dateCreated}, KP=${item.jjgJson}, NomorPemanen=${item.nomorPemanen}")
+            // Format: tphId,dateCreated,kpValue,status,nomor_pemanen
+            "${item.tphId},${item.dateCreated},${item.jjgJson},1,${item.nomorPemanen}"
         }
     }
 
@@ -5209,6 +5222,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         btnSave?.setOnClickListener {
             val checkedItems = adapter.getCheckedItems()
+
+            AppLogger.d("checkedItems $checkedItems")
             val newTph1String = convertTPHItemsToTph1String(checkedItems)
 
             AppLogger.d("Original TPH1: $tph1")
@@ -5224,53 +5239,109 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     val checkedItems = adapter.getCheckedItems()
 
                     if (checkedItems.isNotEmpty()) {
-                        // Convert checked items back to tph1 string format
                         val newTph1String = convertTPHItemsToTph1String(checkedItems)
 
                         AppLogger.d("Original TPH1: $tph1")
                         AppLogger.d("New TPH1: $newTph1String")
 
-                        // Update the ESPB in database
                         lifecycleScope.launch {
                             try {
-                                // Update status_espb for removed TPH records
                                 val originalRecords = tph1.split(";").filter { it.isNotEmpty() }
                                 val newRecords = newTph1String.split(";").filter { it.isNotEmpty() }
 
+                                AppLogger.d("=== CORRECT TPH PROCESSING ===")
+                                AppLogger.d("Original records count: ${originalRecords.size}")
+                                AppLogger.d("New records count: ${newRecords.size}")
+
+                                // STEP 1: RESET only REMOVED records (records in original but NOT in new)
+                                AppLogger.d("--- RESETTING REMOVED Records (Original but NOT in New) ---")
+                                var resetCount = 0
+
                                 for (originalRecord in originalRecords) {
                                     if (!newRecords.contains(originalRecord)) {
+                                        // This record was REMOVED - reset it
+                                        resetCount++
+                                        AppLogger.d("Resetting REMOVED record #$resetCount: $originalRecord")
+
                                         val parts = originalRecord.split(",")
-                                        if (parts.size >= 2) {
+                                        if (parts.size >= 5) {
                                             val tphId = parts[0].trim()
                                             val dateCreated = parts[1].trim()
-                                            panenViewModel.updateStatusEspbAndNoESPB(
+                                            val kpValue = parts[2].trim()
+                                            val nomorPemanen = parts[4].trim()
+
+                                            val jsonKp = """{"KP": $kpValue}"""
+
+                                            AppLogger.d("RESETTING REMOVED - TPH: $tphId, Date: $dateCreated")
+
+                                            val resetResult = panenViewModel.resetEspbStatus(
                                                 tphId,
-                                                dateCreated
+                                                dateCreated,
+                                                jsonKp,
+                                                nomorPemanen
                                             )
+                                            AppLogger.d("Reset result: $resetResult rows affected")
+                                        } else {
+                                            AppLogger.e("Invalid removed record format: $originalRecord")
                                         }
+                                    } else {
+                                        AppLogger.d("Keeping existing record (also in new): $originalRecord")
                                     }
                                 }
+                                AppLogger.d("Total REMOVED records reset: $resetCount")
+
+                                // STEP 2: SET ALL NEW records (set ESPB status for all records in new TPH1)
+                                AppLogger.d("--- SETTING ALL NEW Records ---")
+                                var setCount = 0
+
+                                for (newRecord in newRecords) {
+                                    setCount++
+                                    AppLogger.d("Setting record #$setCount: $newRecord")
+
+                                    val parts = newRecord.split(",")
+                                    if (parts.size >= 5) {
+                                        val tphId = parts[0].trim()
+                                        val dateCreated = parts[1].trim()
+                                        val kpValue = parts[2].trim()
+                                        val nomorPemanen = parts[4].trim()
+
+                                        val jsonKp = """{"KP": $kpValue}"""
+
+                                        if (originalRecords.contains(newRecord)) {
+                                            AppLogger.d("SETTING EXISTING - TPH: $tphId, Date: $dateCreated, NoESPB: $no_espb")
+                                        } else {
+                                            AppLogger.d("SETTING NEW - TPH: $tphId, Date: $dateCreated, NoESPB: $no_espb")
+                                        }
+
+                                        val setResult = panenViewModel.setEspbStatus(
+                                            tphId,
+                                            dateCreated,
+                                            jsonKp,
+                                            nomorPemanen,
+                                            no_espb
+                                        )
+                                        AppLogger.d("Set result: $setResult rows affected")
+                                    } else {
+                                        AppLogger.e("Invalid new record format: $newRecord")
+                                    }
+                                }
+                                AppLogger.d("Total records set: $setCount")
 
                                 val newBlokJjg = calculateBlokJjgFromTph1(newTph1String)
                                 val updateResult = withContext(Dispatchers.IO) {
-                                    espbViewModel.updateTPH1AndBlokJjg(
-                                        noespb,
-                                        newTph1String,
-                                        newBlokJjg
-                                    )
+                                    espbViewModel.updateTPH1AndBlokJjg(noespb, newTph1String, newBlokJjg)
                                 }
+
                                 if (updateResult > 0) {
-                                    AppLogger.d("TPH1 updated successfully")
+                                    AppLogger.d("✅ All updates successful")
                                     Toast.makeText(
                                         this@ListPanenTBSActivity,
                                         "TPH berhasil diperbarui",
                                         Toast.LENGTH_SHORT
                                     ).show()
 
-                                    // Update the global tph1 variable
                                     tph1 = newTph1String
                                     blok_jjg = newBlokJjg
-
                                     panenViewModel.getAllPanenWhereESPB(noespb)
                                     delay(100)
 
@@ -5293,8 +5364,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
 
                         dialog.dismiss()
-
-                    } else {
+                    }else {
                         Toast.makeText(
                             this@ListPanenTBSActivity,
                             "Pilih minimal satu TPH",

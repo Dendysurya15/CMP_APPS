@@ -156,11 +156,29 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun updateStatusEspbAndNoESPB(tphId: String, dateCreated: String): Int {
+    suspend fun resetEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String
+    ): Int {
         return withContext(Dispatchers.IO) {
-            repository.updateStatusEspbAndNoESPB(tphId, dateCreated)
+            repository.resetEspbStatus(tphId, dateCreated, kpJson, nomorPemanen)
         }
     }
+
+    suspend fun setEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String,
+        noEspb: String
+    ): Int {
+        return withContext(Dispatchers.IO) {
+            repository.setEspbStatus(tphId, dateCreated, kpJson, nomorPemanen, noEspb)
+        }
+    }
+
 
     fun loadTPHESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {

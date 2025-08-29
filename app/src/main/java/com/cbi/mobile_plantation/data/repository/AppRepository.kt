@@ -241,10 +241,25 @@ class AppRepository(context: Context) {
         return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
     }
 
-    suspend fun updateStatusEspbAndNoESPB(tphId: String, dateCreated: String): Int =
-        withContext(Dispatchers.IO) {
-            panenDao.updateStatusEspbAndNoESPB(tphId, dateCreated)
-        }
+    suspend fun resetEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String
+    ): Int {
+        return panenDao.resetEspbStatus(tphId, dateCreated, kpJson, nomorPemanen)
+    }
+
+    suspend fun setEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String,
+        noEspb: String
+    ): Int {
+        return panenDao.setEspbStatus(tphId, dateCreated, kpJson, nomorPemanen, noEspb)
+    }
+
 
     suspend fun saveMutuBuah(data: MutuBuahEntity) {
         mutuBuahDao.insert(data)
