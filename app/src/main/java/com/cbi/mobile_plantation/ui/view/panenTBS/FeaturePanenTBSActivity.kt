@@ -352,8 +352,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum =200F
+        boundaryAccuracy =200F
 
         AppLogger.d("radiusMinimum $radiusMinimum")
         AppLogger.d("boundaryAccuracy $boundaryAccuracy")
@@ -492,9 +492,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
 
+                        // SOLUSI 1: Override divisi berdasarkan kemandoran yang dipilih
                         val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
-                        panenViewModel.getAllKaryawan() // This should be added to your ViewModel
+                        panenViewModel.getAllKaryawan()
                         delay(100)
 
                         withContext(Dispatchers.Main) {
@@ -512,27 +513,48 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                                     }
 
-                                    // Filter by divisi - same divisi as user goes to karyawanList, others go to karyawanLainList
-                                    if (userAfdelingId != null) {
-                                        // Karyawan from same divisi as user
+                                    AppLogger.d("=== FIXING DIVISI INCONSISTENCY ===")
+                                    AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
+                                    AppLogger.d("User afdeling ID: $userAfdelingId")
+
+                                    // Get divisi from absensi data (which is correct)
+                                    val correctDivisiFromAbsensi = if (absensiList.isNotEmpty()) {
+                                        // Find the first absensi entry to get the correct divisi
+                                        val firstAbsensi = absensiList.firstOrNull()
+                                        val divisiFromKemandoran = firstAbsensi?.kemandoran?.divisi
+                                        AppLogger.d("Divisi from kemandoran/absensi: $divisiFromKemandoran")
+                                        divisiFromKemandoran
+                                    } else {
+                                        userAfdelingId // fallback to user's afdeling
+                                    }
+
+                                    if (userAfdelingId != null && correctDivisiFromAbsensi != null) {
+                                        // SOLUSI A: Semua karyawan yang hadir dianggap dari divisi user
+                                        // Karena mereka sudah ter-filter dari kemandoran yang sesuai
+                                        karyawanList = presentKaryawan
+                                        karyawanLainList = emptyList()
+
+                                        AppLogger.d("APPLIED FIX: All present karyawan assigned to same divisi as user")
+                                        AppLogger.d("Reason: Data inconsistency between absensi (divisi=$correctDivisiFromAbsensi) and karyawan master data")
+
+                                    } else {
+                                        // SOLUSI B: Gunakan logika lama jika data konsisten
                                         karyawanList = presentKaryawan.filter { karyawan ->
                                             karyawan.divisi == userAfdelingId
                                         }
 
-                                        // Karyawan from other divisi
                                         karyawanLainList = presentKaryawan.filter { karyawan ->
                                             karyawan.divisi != userAfdelingId
                                         }
-                                    } else {
 
-                                        karyawanList = presentKaryawan
-                                        karyawanLainList = emptyList()
+                                        AppLogger.d("USING ORIGINAL LOGIC: Normal divisi filtering")
                                     }
 
                                     AppLogger.d("Total karyawan: ${allKaryawan.size}")
                                     AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
                                     AppLogger.d("Same divisi karyawan (karyawanList): ${karyawanList.size}")
                                     AppLogger.d("Other divisi karyawan (karyawanLainList): ${karyawanLainList.size}")
+                                    AppLogger.d("====================================")
 
                                     // Complete the deferred with all present karyawan
                                     karyawanDeferred.complete(presentKaryawan)

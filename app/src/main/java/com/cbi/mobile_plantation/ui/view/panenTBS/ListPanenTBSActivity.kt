@@ -294,7 +294,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 mutuBuahViewModel.countMBUnuploaded(filterDate)
                 mutuBuahViewModel.countMBUploaded(filterDate)
             } else {
-                mutuBuahViewModel.loadMBUnuploaded(1, filterDate)
+                mutuBuahViewModel.loadMBUnuploaded(3, filterDate)
                 mutuBuahViewModel.countMBUnuploaded(filterDate)
                 mutuBuahViewModel.countMBUploaded(filterDate)
             }
@@ -543,7 +543,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.tv_card_terscan).text = "Sudah Transfer"
                 cardRekapPerPemanen.visibility = View.VISIBLE
                 findViewById<TextView>(R.id.tv_card_pemanen).text = "TPH Menjadi E-SPB"
-                AppLogger.d("akls jdflkjasdklfjasldf")
                 panenViewModel.loadTPHNonESPB(0, 0, true, 1, AppUtils.currentDate)
                 panenViewModel.countTPHNonESPB(0, 0, true, 1, AppUtils.currentDate)
                 panenViewModel.countTPHESPB(0, 1, true, 1, AppUtils.currentDate)
@@ -1056,11 +1055,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 loadingDialog.setMessage("Loading data sudah upload mutu buah", true)
                 val isAllDataFiltered = filterAllData.isChecked
                 if (isAllDataFiltered) {
-                    mutuBuahViewModel.loadMBUnuploaded(0)
+                    mutuBuahViewModel.loadMBUnuploaded(3)
                     mutuBuahViewModel.countMBUnuploaded()
                     mutuBuahViewModel.countMBUploaded()
                 } else {
-                    mutuBuahViewModel.loadMBUnuploaded(1, globalFormattedDate)
+                    mutuBuahViewModel.loadMBUnuploaded(3, globalFormattedDate)
                     mutuBuahViewModel.countMBUnuploaded(globalFormattedDate)
                     mutuBuahViewModel.countMBUploaded(globalFormattedDate)
                 }
@@ -1122,16 +1121,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHNonESPB(0, 0, true, 1, globalFormattedDate)
                     panenViewModel.countTPHESPB(0, 1, true, 1, globalFormattedDate)
                     panenViewModel.countHasBeenESPB(0, 0, false, 1, globalFormattedDate)
-                }
-            } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
-                if (currentState == 0) {
-                    mutuBuahViewModel.loadMBUnuploaded(0)
-                    mutuBuahViewModel.countMBUnuploaded()
-                    mutuBuahViewModel.countMBUploaded()
-                } else {
-                    mutuBuahViewModel.loadMBUnuploaded(1, globalFormattedDate)
-                    mutuBuahViewModel.countMBUnuploaded(globalFormattedDate)
-                    mutuBuahViewModel.countMBUploaded(globalFormattedDate)
                 }
             } else {
                 loadingDialog.setMessage("Loading Rekap Per Pemanen", true)
@@ -1965,13 +1954,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             false, 1,
                                             globalFormattedDate
                                         )
-                                    } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
-                                        mutuBuahViewModel.loadMBUnuploaded(
-                                            1,
-                                            globalFormattedDate
-                                        )
-                                        mutuBuahViewModel.countMBUnuploaded(globalFormattedDate)
-                                        mutuBuahViewModel.countMBUploaded(globalFormattedDate)
                                     } else {
                                         panenViewModel.loadTPHNonESPB(
                                             0,
@@ -2514,6 +2496,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val tvGenQR60 = findViewById<TextView>(R.id.tvGenQR60)
         val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
+        btnGenerateQRTPH.visibility = View.GONE
+        btnGenerateQRTPHUnl.visibility = View.GONE
         blokSection.visibility = View.GONE
         totalSection.visibility = View.GONE
 
@@ -2651,8 +2635,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
             counterTerscan.text = count.toString()
         }
 
-        // In the mutuBuahViewModel.activeMutuBuahList.observe() method, around line 1175:
-
         mutuBuahViewModel.activeMutuBuahList.observe(this) { mutuBuahList ->
             if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -2683,6 +2665,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "archive" to ("" as Any),
                                     "nama_estate" to (mutuBuahEntity.deptAbbr as Any),
                                     "nama_afdeling" to (mutuBuahEntity.divisiAbbr as Any),
+                                    "nomor_pemanen" to (mutuBuahEntity.nomorPemanen as Any),
                                     "blok_banjir" to ("" as Any),
                                     "tahun_tanam" to ("" as Any),
                                     "nama_karyawans" to (mutuBuahEntity.createdName as Any),
@@ -2761,7 +2744,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }, 500)
             }
         }
-
 
         panenViewModel.detailESPb.observe(this) { panenList ->
 
@@ -3842,6 +3824,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
                         // Hide all QR generation buttons for Mutu Buah
+
+                        AppLogger.d("masuk sini gessss ")
                         btnGenerateQRTPH.visibility = View.GONE
                         btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE

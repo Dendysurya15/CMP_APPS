@@ -180,7 +180,7 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
 
     fun countMBUploaded(date: String? = null) = viewModelScope.launch {
         try {
-            val int = repository.countMutuBuah(1, date)
+            val int = repository.countMutuBuah(3, date)
             _countMutuBuahUploaded.value = int
         } catch (e: Exception) {
             AppLogger.e("Error loading MutuBuah count uploaded: ${e.message}")

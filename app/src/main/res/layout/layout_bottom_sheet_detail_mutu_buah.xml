@@ -97,7 +97,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/manrope_bold"
-                android:text="Keterangan Panen"
+                android:text="Keterangan Inspeksi"
                 android:textColor="@color/greenDarker"
                 android:textSize="@dimen/l"
                 android:textStyle="bold" />
@@ -109,12 +109,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
 
-            <include
-                android:id="@+id/DataBlokBanjir"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
 
             <include
                 android:id="@+id/DataEstateAfdeling"
@@ -125,13 +119,6 @@
 
             <include
                 android:id="@+id/DataBlokTahunTanam"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
-
-            <include
-                android:id="@+id/DataAncak"
                 layout="@layout/layout_data_info_detail_table"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -151,19 +138,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
 
-            <include
-                android:id="@+id/DataKemandoran"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
 
-            <include
-                android:id="@+id/DataNamaPemanen"
-                layout="@layout/layout_data_info_detail_table"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
 
             <TextView
                 android:layout_width="match_parent"

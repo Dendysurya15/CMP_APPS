@@ -522,32 +522,17 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val context = itemView.context
                     val bottomSheetDialog = BottomSheetDialog(context)
                     val view = LayoutInflater.from(context)
-                        .inflate(R.layout.layout_bottom_sheet_detail_table, null)
+                        .inflate(R.layout.layout_bottom_sheet_detail_mutu_buah, null)
 
                     view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
-                        "Detail Panen - ${extractedData.blokText} TPH ${extractedData.tphText}"
+                        "Detail Mutu Buah - ${extractedData.blokText} TPH ${extractedData.tphText}"
 
                     view.findViewById<Button>(R.id.btnCloseDetailTable).setOnClickListener {
                         bottomSheetDialog.dismiss()
                     }
 
-                    val btnEditPemanen = view.findViewById<Button>(R.id.btnEditPemanen)
-                    if(featureName == AppUtils.ListFeatureNames.RekapHasilPanen && archiveState == 1){
-                        btnEditPemanen.visibility = View.GONE
-                    }else{
-                        btnEditPemanen.visibility = View.VISIBLE
-                    }
 
-                    // Handle Edit Pemanen button click
-                    btnEditPemanen.setOnClickListener {
-                        showEditPemanenDialog(
-                            context,
-                            data,
-                            bottomSheetDialog,
-                            adapterPosition, // Pass the current position
-                            onDataRefreshCallback // Pass the callback
-                        )
-                    }
+
 
                     val recyclerView = view.findViewById<RecyclerView>(R.id.rvPhotoAttachments)
 
@@ -573,7 +558,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         // Enable overscroll effect for better UX
                         recyclerView.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
 
-                        val photoUrls = getPhotoUrlsFromItem(data, context)
+                        val photoUrls = getPhotoUrlsFromItem(featureName, data, context)
 
                         // Create adapter - shows up to 5 items
                         val photoAdapter = PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
@@ -616,42 +601,38 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         "-"
                     }
 
-                    val jjgJsonStr =
-                        data["jjg_json"] as? String ?: "{}" // Ensure it's a valid JSON string
-                    val jjgJson = JSONObject(jjgJsonStr) // Convert to JSONObject
-                    val blokBanjir = data["blok_banjir"] as? Int ?: 0
-                    val blokBanjirText = when (blokBanjir) {
-                        1 -> "Ya"
-                        0 -> "Tidak"
-                        else -> "Tidak diketahui"
-                    }
+                    val jjgJsonStr = data["jjg_json"] as? String ?: "{}"
+                    val jjgJson = JSONObject(jjgJsonStr)
+
+                    AppLogger.d("data $data")
                     val infoItems = listOf(
                         DetailInfoType.TANGGAL_BUAT to formattedDate,
-                        DetailInfoType.BLOK_BANJIR to blokBanjirText,
                         DetailInfoType.ESTATE_AFDELING to "${data["nama_estate"]} / ${data["nama_afdeling"]}",
                         DetailInfoType.BLOK_TAHUN to "${extractedData.blokText} / ${data["tahun_tanam"]}",
-                        DetailInfoType.ANCAK to "${data["ancak"]}",
                         DetailInfoType.NO_TPH to extractedData.tphText,
-                        DetailInfoType.KEMANDORAN to "${data["nama_kemandorans"]}",
-                        DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
-                        DetailInfoType.TOTAL_JANJANG to data["jjgPanen"],
-                        DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to data["jjgKirim"],
-                        DetailInfoType.TOTAL_JANJANG_DI_BAYAR to data["jjgBayar"],
-                        DetailInfoType.TOTAL_DATA_BUAH_MENTAH to data["jjgMentah"],
-                        DetailInfoType.TOTAL_DATA_LEWAT_MASAK to data["jjgMasak"],
-                        DetailInfoType.TOTAL_DATA_JJG_KOSONG to data["jjgKosong"],
-                        DetailInfoType.TOTAL_DATA_ABNORMAL to data["jjgAbnormal"],
-                        DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to data["jjgSeranganTikus"],
-                        DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to data["jjgPanjang"],
-                        DetailInfoType.TOTAL_DATA_TIDAK_VCUT to data["jjgTidakVcut"],
+                        DetailInfoType.NO_PEMANEN to "${data["nomor_pemanen"]}",
+                        // Change these lines to get values from jjgJson instead of data
+                        DetailInfoType.TOTAL_JANJANG to jjgJson.optInt("PANEN", 0).toString(),
+                        DetailInfoType.TOTAL_DIKIRIM_KE_PABRIK to jjgJson.optInt("KIRIM", 0).toString(),
+                        DetailInfoType.TOTAL_JANJANG_DI_BAYAR to jjgJson.optInt("BAYAR", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_BUAH_MENTAH to jjgJson.optInt("MENTAH", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_LEWAT_MASAK to jjgJson.optInt("LEWAT_MASAK", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_JJG_KOSONG to jjgJson.optInt("KOSONG", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_ABNORMAL to jjgJson.optInt("ABNORMAL", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_SERANGAN_TIKUS to jjgJson.optInt("SERANGAN_TIKUS", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_TANGKAI_PANJANG to jjgJson.optInt("PANJANG", 0).toString(),
+                        DetailInfoType.TOTAL_DATA_TIDAK_VCUT to jjgJson.optInt("TIDAK_VCUT", 0).toString(),
                     )
 
                     // Set values for all items
                     infoItems.forEach { (type, value) ->
                         val itemView = view.findViewById<View>(type.id)
-                        // Only call setInfoItemValues if the itemView exists
                         if (itemView != null) {
-                            setInfoItemValues(itemView, type.label, value.toString())
+                            setInfoItemValues(
+                                itemView,
+                                if (type == DetailInfoType.BLOK_TAHUN && featureName == AppUtils.ListFeatureNames.RekapMutuBuah) "Blok" else type.label,
+                                if (type == DetailInfoType.BLOK_TAHUN && featureName == AppUtils.ListFeatureNames.RekapMutuBuah) extractedData.blokText else value
+                            )
                         }
                     }
 
@@ -846,7 +827,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                             // Enable overscroll effect for better UX
                             recyclerView.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
 
-                            val photoUrls = getPhotoUrlsFromItem(data, context)
+                            val photoUrls = getPhotoUrlsFromItem("",data, context)
 
                             // Create adapter - shows up to 5 items
                             val photoAdapter = PhotoAttachmentAdapterDetailTable(photoUrls) { position ->
@@ -905,6 +886,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                             DetailInfoType.BLOK_TAHUN to "${extractedData.blokText} / ${data["tahun_tanam"]}",
                             DetailInfoType.ANCAK to "${data["ancak"]}",
                             DetailInfoType.NO_TPH to extractedData.tphText,
+                            DetailInfoType.NO_PEMANEN to "${data["nomor_pemanen"]}",
                             DetailInfoType.KEMANDORAN to "${data["nama_kemandorans"]}",
                             DetailInfoType.NAMA_PEMANEN to "${data["nama_karyawans"]}",
                             DetailInfoType.TOTAL_JANJANG to (jjgJson["TO"]?.toString() ?: "0"),
@@ -1402,21 +1384,6 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
         }
 
-// Remove the updateMaterialSpinnerOptions function as it's no longer needed
-
-        private fun updatePemanenNama(id: String, niks: String, names: String) {
-            // TODO: Implement database update
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    // Update in database
-                    // panenViewModel.updateWorkers(id, niks, names)
-                    AppLogger.d("Updated pemanen $id with niks: $niks, names: $names")
-                } catch (e: Exception) {
-                    AppLogger.e("Error updating pemanen: ${e.message}")
-                }
-            }
-        }
-
 
 
         private fun showFullscreenImage(context: Context, imageFile: File) {
@@ -1475,30 +1442,66 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             return colors[colorIndex]
         }
 
-        private fun getPhotoUrlsFromItem(item: Map<String, Any?>, context: Context): List<String> {
-            // Get the root directory for storing photos
-            val rootApp = File(
-                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMPanenTPH}" // Store under "CMP-featureName"
-            ).toString()
+        private fun getPhotoUrlsFromItem(featureName: String? = null, item: Map<String, Any?>, context: Context): List<String> {
+            return if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+                // For RekapMutuBuah, check both foto and foto_selfie
+                val rootAppMain = File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    "CMP-INSPEKSI_MUTU_BUAH"
+                ).toString()
 
-            // Get photos string from item
-            val photoString = item["foto"] as? String
+                val rootAppSelfie = File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    "CMP-INSPEKSI MUTU BUAH"
+                ).toString()
 
-            if (photoString.isNullOrEmpty()) {
-                Log.d("PhotoAdapter", "No photos found in item")
-                return emptyList()
-            }
+                val allPhotos = mutableListOf<String>()
 
-            // Split the string by semicolons to get individual photo filenames
-            val photoFileNames = photoString.split(";")
-
-            // Create full file paths (up to maximum 3)
-            return photoFileNames
-                .take(5) // Limit to maximum 3 photos
-                .map { fileName ->
-                    "$rootApp/$fileName" // Full path to the photo file
+                // Get regular photos from "foto" field
+                val photoString = item["foto"] as? String
+                if (!photoString.isNullOrEmpty()) {
+                    val photoFileNames = photoString.split(";")
+                    val mainPhotos = photoFileNames.mapNotNull { fileName ->
+                        val mainPath = "$rootAppMain/$fileName"
+                        if (File(mainPath).exists()) mainPath else null
+                    }
+                    allPhotos.addAll(mainPhotos)
                 }
+
+                // Get selfie photos from "foto_selfie" field
+                val selfieString = item["foto_selfie"] as? String
+                if (!selfieString.isNullOrEmpty()) {
+                    val selfieFileNames = selfieString.split(";")
+                    val selfiePhotos = selfieFileNames.mapNotNull { fileName ->
+                        val selfiePath = "$rootAppSelfie/$fileName"
+                        if (File(selfiePath).exists()) selfiePath else null
+                    }
+                    allPhotos.addAll(selfiePhotos)
+                }
+
+                // Return combined list, limit to 5
+                allPhotos.take(5)
+            } else {
+                // For other features, use the default path
+                val photoString = item["foto"] as? String
+
+                if (photoString.isNullOrEmpty()) {
+                    Log.d("PhotoAdapter", "No photos found in item")
+                    return emptyList()
+                }
+
+                val photoFileNames = photoString.split(";")
+                val rootApp = File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    "CMP-${AppUtils.WaterMarkFotoDanFolder.WMPanenTPH}"
+                ).toString()
+
+                photoFileNames
+                    .take(5)
+                    .map { fileName ->
+                        "$rootApp/$fileName"
+                    }
+            }
         }
     }
 
@@ -1673,6 +1676,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
         BLOK_TAHUN(R.id.DataBlokTahunTanam, "Blok/Thn Tanam"),
         ANCAK(R.id.DataAncak, "Ancak"),
         NO_TPH(R.id.DataNoTPH, "No TPH"),
+        NO_PEMANEN(R.id.DataNoPemanen, "Nomor Pemanen"),
         KEMANDORAN(R.id.DataKemandoran, "Kemandoran"),
         KEMANDORAN_PEMANEN(R.id.DataKemandoranPemanen, "Nama Kemandoran"),
         NAMA_PEMANEN(R.id.DataNamaPemanen, "Nama Pemanen"),
