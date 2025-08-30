@@ -4187,7 +4187,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             true,
                             parameterDao
                         )
-                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
                         AppLogger.d("masuk sini gess")
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
@@ -4249,7 +4250,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         return@forEach
                     }
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+
+
                         val estatesResult = repository.getAllEstates()
+
+                        AppLogger.d("estate Resutl $estatesResult")
                         if (estatesResult.isSuccess) {
                             val estates = estatesResult.getOrNull() ?: emptyList()
                             val allTphData = mutableListOf<TPHNewModel>()
@@ -4319,8 +4324,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             return@forEach
                         }
                     } else {
-
-                        AppLogger.d("masuk dong geeeesss")
                         response = repository.downloadDataset(modifiedRequest)
                     }
 

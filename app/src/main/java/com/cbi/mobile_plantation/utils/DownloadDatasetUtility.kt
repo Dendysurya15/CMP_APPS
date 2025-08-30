@@ -260,7 +260,7 @@ class DownloadDatasetUtility(
         when (userRole) {
             UserRole.KERANI_TIMBANG -> {
                 addKeraniTimbangDatasets(
-                    datasets, regionalUser, estateId, regionalId,lastModifiedDatasetKemandoran,
+                    datasets, regionalUser, estateId, regionalId,lastModifiedDatasetEstate,lastModifiedDatasetKemandoran,
                     lastModifiedDatasetBlok, lastModifiedDatasetTPH, lastModifiedDatasetPemanen
                 )
             }
@@ -331,6 +331,7 @@ class DownloadDatasetUtility(
         regionalUser: Int,
         estateId: Any,
         regionalId: Int,
+        lastModifiedDatasetEstate: String?,
         lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetTPH: String?,
@@ -338,6 +339,11 @@ class DownloadDatasetUtility(
     ) {
         datasets.addAll(
             listOf(
+                DatasetRequest(
+                    regional = regionalUser,
+                    lastModified = lastModifiedDatasetEstate,
+                    dataset = AppUtils.DatasetNames.estate
+                ),
                 DatasetRequest(
                     regional = regionalUser,
                     lastModified = lastModifiedDatasetBlok,
