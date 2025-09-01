@@ -479,8 +479,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 200F
-        boundaryAccuracy = 200F
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.radiusMinimum
         initViewModel()
         initUI()
         dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
@@ -5870,22 +5870,174 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun checkScannedTPHInsideRadius() {
-        if (lat != null && lon != null) {
+        try {
+            // Validate GPS coordinates first
+            if (lat == null || lon == null) {
+                AppLogger.e("GPS coordinates are null - lat: $lat, lon: $lon")
+                Toasty.error(this, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_LONG, true).show()
+                isEmptyScannedTPH = true
+
+                return
+            }
+
+            // Validate latLonMap
+            if (latLonMap.isEmpty()) {
+                AppLogger.e("latLonMap is empty")
+                showEmptyTPHResult()
+                return
+            }
+
+            AppLogger.d("Starting TPH radius check - GPS: ($lat, $lon), Map size: ${latLonMap.size}")
+
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
 
             if (tphList.isNotEmpty()) {
-                isEmptyScannedTPH = false
-                tphScannedResultRecyclerView.visibility = View.VISIBLE
-                titleScannedTPHInsideRadius.visibility = View.VISIBLE
-                descScannedTPHInsideRadius.visibility = View.VISIBLE
-                emptyScannedTPHInsideRadius.visibility = View.GONE
-                tphScannedResultRecyclerView.adapter =
-                    ListTPHInsideRadiusAdapter(tphList, this, jenisTPHListGlobal, false)
+                AppLogger.d("Found ${tphList.size} TPHs inside radius")
+                showTPHResults(tphList)
+            } else {
+                AppLogger.d("No TPHs found inside radius")
+                showEmptyTPHResult()
+            }
 
+        } catch (e: Exception) {
+            AppLogger.e("Error in checkScannedTPHInsideRadius: ${e.message}", e.toString())
+            Toasty.error(this, "Error checking TPH radius: ${e.message}", Toast.LENGTH_LONG, true).show()
+            isEmptyScannedTPH = true
+            showEmptyTPHResult()
+        }
 
+        // Keep your original progress bar handling
+        if (progressBarScanTPHManual.visibility == View.VISIBLE) {
+            progressBarScanTPHManual.visibility = View.GONE
+        }
+        if (progressBarScanTPHAuto.visibility == View.VISIBLE) {
+            progressBarScanTPHAuto.visibility = View.GONE
+        }
+    }
+
+    private fun getTPHsInsideRadius(
+        userLat: Double,
+        userLon: Double,
+        coordinates: Map<Int, ScannedTPHLocation>
+    ): List<ScannedTPHSelectionItem> {
+        val resultsList = mutableListOf<ScannedTPHSelectionItem>()
+
+        try {
+            // Validate input parameters
+            if (userLat !in -90.0..90.0 || userLon !in -180.0..180.0) {
+                AppLogger.e("Invalid GPS coordinates - lat: $userLat, lon: $userLon")
+                return emptyList()
+            }
+
+            if (coordinates.isEmpty()) {
+                AppLogger.e("Coordinates map is empty")
+                return emptyList()
+            }
+
+            AppLogger.d("Processing ${coordinates.size} TPH coordinates")
+
+            for ((id, location) in coordinates) {
+                try {
+                    // Safely parse jenisTPHId
+                    val jenisTPHId = try {
+                        location.jenisTPHId.toIntOrNull() ?: 1
+                    } catch (e: Exception) {
+                        AppLogger.e("Error parsing jenisTPHId for TPH $id: ${e.message}")
+                        1 // Default value
+                    }
+
+                    // Calculate distance safely
+                    val distance = try {
+                        val results = FloatArray(1)
+                        android.location.Location.distanceBetween(
+                            userLat,
+                            userLon,
+                            location.lat,
+                            location.lon,
+                            results
+                        )
+                        results[0]
+                    } catch (e: Exception) {
+                        AppLogger.e("Error calculating distance for TPH $id: ${e.message}")
+                        Float.MAX_VALUE // Set to max value so it won't be included
+                    }
+
+                    // Validate distance calculation
+                    if (!distance.isFinite() || distance < 0) {
+                        AppLogger.e("Invalid distance calculated for TPH $id: $distance")
+                        continue
+                    }
+
+                    // Clean block code
+                    val cleanBlockCode = location.blokKode ?: ""
+
+                    AppLogger.d("TPH $id: distance=${distance}m, blockCode=$cleanBlockCode")
+
+                    // Check if TPH should be included (only within radius)
+                    if (distance <= radiusMinimum) {
+                        val tphItem = ScannedTPHSelectionItem(
+                            id = id,
+                            number = location.nomor ?: "",
+                            blockCode = cleanBlockCode,
+                            divisiCode = location.divisiKode ?: "",
+                            deptCode = location.deptKode ?: "",
+                            distance = distance,
+                            jml_pokok_ha = location.jmlPokokHa ?: 0,
+                            isAlreadySelected = false,
+                            selectionCount = 0,
+                            canBeSelectedAgain = true,
+                            isWithinRange = true,
+                            jenisTPHId = jenisTPHId.toString(),
+                            customLimit = "0"
+                        )
+
+                        resultsList.add(tphItem)
+                        AppLogger.d("Added TPH: $id")
+                    }
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error processing TPH $id: ${e.message}", e.toString())
+                    // Continue with next TPH instead of crashing
+                    continue
+                }
+            }
+
+            // Sort TPHs by distance safely
+            try {
+                resultsList.sortBy { it.distance }
+            } catch (e: Exception) {
+                AppLogger.e("Error sorting TPHs: ${e.message}")
+            }
+
+            AppLogger.d("Final result: ${resultsList.size} TPHs within radius")
+
+        } catch (e: Exception) {
+            AppLogger.e("Error in getTPHsInsideRadius: ${e.message}", e.toString())
+            return emptyList()
+        }
+
+        return resultsList
+    }
+
+    private fun showTPHResults(tphList: List<ScannedTPHSelectionItem>) {
+        try {
+            isEmptyScannedTPH = false
+            tphScannedResultRecyclerView.visibility = View.VISIBLE
+            titleScannedTPHInsideRadius.visibility = View.VISIBLE
+            descScannedTPHInsideRadius.visibility = View.VISIBLE
+            emptyScannedTPHInsideRadius.visibility = View.GONE
+
+            tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(
+                tphList,
+                this,
+                jenisTPHListGlobal,
+                false
+            )
+
+            // Setup RecyclerView height safely
+            try {
                 val itemHeight = 50
                 val maxHeight = 250
-
                 val density = tphScannedResultRecyclerView.resources.displayMetrics.density
                 val maxHeightPx = (maxHeight * density).toInt()
                 val recyclerViewHeightPx = (tphList.size * itemHeight * density).toInt()
@@ -5906,6 +6058,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 tphScannedResultRecyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
                 tphScannedResultRecyclerView.isVerticalScrollBarEnabled = true
 
+                // Scroll to selected TPH if exists
                 if (selectedTPHIdByScan != null) {
                     for (i in tphList.indices) {
                         if (tphList[i].id == selectedTPHIdByScan) {
@@ -5914,25 +6067,25 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
                 }
-            } else {
-                tphScannedResultRecyclerView.visibility = View.GONE
-                titleScannedTPHInsideRadius.visibility = View.VISIBLE
-                descScannedTPHInsideRadius.visibility = View.VISIBLE
-                emptyScannedTPHInsideRadius.visibility = View.VISIBLE
-                isEmptyScannedTPH = true
+            } catch (e: Exception) {
+                AppLogger.e("Error setting up RecyclerView: ${e.message}")
             }
-        } else {
-            Toasty.error(this, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_LONG, true)
-                .show()
+
+        } catch (e: Exception) {
+            AppLogger.e("Error showing TPH results: ${e.message}")
+            showEmptyTPHResult()
+        }
+    }
+
+    private fun showEmptyTPHResult() {
+        try {
+            tphScannedResultRecyclerView.visibility = View.GONE
+            titleScannedTPHInsideRadius.visibility = View.VISIBLE
+            descScannedTPHInsideRadius.visibility = View.VISIBLE
+            emptyScannedTPHInsideRadius.visibility = View.VISIBLE
             isEmptyScannedTPH = true
-        }
-
-        if (progressBarScanTPHManual.visibility == View.VISIBLE) {
-            progressBarScanTPHManual.visibility = View.GONE
-        }
-
-        if (progressBarScanTPHAuto.visibility == View.VISIBLE) {
-            progressBarScanTPHAuto.visibility = View.GONE
+        } catch (e: Exception) {
+            AppLogger.e("Error showing empty TPH result: ${e.message}")
         }
     }
 
@@ -5948,76 +6101,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun getTPHsInsideRadius(
-        userLat: Double,
-        userLon: Double,
-        coordinates: Map<Int, ScannedTPHLocation>
-    ): List<ScannedTPHSelectionItem> {
-        val resultsList = mutableListOf<ScannedTPHSelectionItem>()
 
-        // Separate pasar tengah TPHs and regular TPHs
-        val pasarTengahTPHs = mutableListOf<ScannedTPHSelectionItem>()
-        val regularTPHs = mutableListOf<ScannedTPHSelectionItem>()
-
-        for ((id, location) in coordinates) {
-            val jenisTPHId = location.jenisTPHId.toInt()
-            val results = FloatArray(1)
-            android.location.Location.distanceBetween(
-                userLat,
-                userLon,
-                location.lat,
-                location.lon,
-                results
-            )
-            val distance = results[0]
-
-            // Check if this is a pasar tengah TPH by looking at blockCode marker
-            val isPasarTengahTPH = location.blokKode.contains("###PASAR_TENGAH")
-            val cleanBlockCode =
-                location.blokKode.replace("###PASAR_TENGAH", "").replace("###REGULAR", "")
-
-            AppLogger.d("TPH $id: distance=${distance}m, isPasarTengah=$isPasarTengahTPH, blockCode=$cleanBlockCode")
-
-            if (distance <= radiusMinimum || isPasarTengahTPH) { // Always include pasar tengah TPH regardless of distance
-                val tphItem = ScannedTPHSelectionItem(
-                    id = id,
-                    number = location.nomor,
-                    blockCode = if (isPasarTengahTPH) "$cleanBlockCode (TPH Inspeksi)" else cleanBlockCode,
-                    divisiCode = location.divisiKode,
-                    deptCode = location.deptKode,
-                    distance = distance,
-                    jml_pokok_ha = location.jmlPokokHa!!,
-                    isAlreadySelected = false,
-                    selectionCount = 0,
-                    canBeSelectedAgain = true,
-                    isWithinRange = distance <= radiusMinimum || isPasarTengahTPH,
-                    jenisTPHId = jenisTPHId.toString(),
-                    customLimit = "0",
-                    tph_from_pasar_tengah = if (isPasarTengahTPH) "1" else "0"
-                )
-
-                if (isPasarTengahTPH) {
-                    pasarTengahTPHs.add(tphItem)
-                    AppLogger.d("Added pasar tengah TPH: $id")
-                } else {
-                    regularTPHs.add(tphItem)
-                    AppLogger.d("Added regular TPH: $id")
-                }
-            }
-        }
-
-        // Sort regular TPHs by distance
-        regularTPHs.sortBy { it.distance }
-
-        // Add regular TPHs (only if scan button was triggered)
-        if (isTriggeredBtnScanned) {
-            resultsList.addAll(regularTPHs)
-        }
-
-        AppLogger.d("Final result: ${pasarTengahTPHs.size} pasar tengah, ${regularTPHs.size} regular, ${resultsList.size} total")
-
-        return resultsList
-    }
 
     private fun animateLoadingDots(linearLayout: LinearLayout) {
         val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
