@@ -42,6 +42,7 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -478,8 +479,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 200F
+        boundaryAccuracy = 200F
         initViewModel()
         initUI()
         dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
@@ -4239,10 +4240,291 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        spinner.setOnItemSelectedListener { _, position, _, item ->
-            tvError.visibility = View.GONE
-            handleItemSelection(linearLayout, position, item.toString())
+        // Add search popup functionality specifically for lypemuat
+        if (linearLayout.id == R.id.lyPemuat) {
+            // Hide keyboard helper
+            fun ensureKeyboardHidden() {
+                try {
+                    val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
+                    editText.clearFocus()
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error hiding keyboard: ${e.message}", e)
+                }
+            }
+
+            spinner.setOnTouchListener { _, event ->
+                try {
+                    ensureKeyboardHidden()
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        showPopupSearchDropdown(
+                            spinner,
+                            data,
+                            editText,
+                            linearLayout,
+                            false // Single-select for lypemuat
+                        ) { selectedItem, position ->
+                            try {
+                                spinner.text = selectedItem // Update spinner UI
+                                tvError.visibility = View.GONE
+                                handleItemSelection(linearLayout, position, selectedItem)
+                            } catch (e: Exception) {
+                                Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                }
+                true // Consume event, preventing default behavior
+            }
+        } else {
+            // Keep original behavior for other layouts
+            spinner.setOnItemSelectedListener { _, position, _, item ->
+                tvError.visibility = View.GONE
+                handleItemSelection(linearLayout, position, item.toString())
+            }
         }
+    }
+
+    private fun showPopupSearchDropdown(
+        spinner: MaterialSpinner,
+        data: List<String>,
+        editText: EditText,
+        linearLayout: LinearLayout,
+        isMultiSelect: Boolean = false,
+        onItemSelected: (String, Int) -> Unit
+    ) {
+        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
+        val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
+
+        val scrollView = findScrollView(linearLayout)
+        val rootView = linearLayout.rootView
+
+        // Simple selection tracking for multi-select (if needed)
+        val selectedItems = mutableMapOf<String, Boolean>()
+
+        // Create PopupWindow
+        val popupWindow = PopupWindow(
+            popupView,
+            spinner.width,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            isFocusable = true
+            isOutsideTouchable = true
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+
+        // Keyboard adjustment
+        var keyboardHeight = 0
+        val rootViewLayout = rootView.viewTreeObserver
+        val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+            val rect = Rect()
+            rootView.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = rootView.height
+            val newKeyboardHeight = screenHeight - rect.bottom
+
+            if (newKeyboardHeight != keyboardHeight) {
+                keyboardHeight = newKeyboardHeight
+                if (keyboardHeight > 0) {
+                    val spinnerLocation = IntArray(2)
+                    spinner.getLocationOnScreen(spinnerLocation)
+                    if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
+                        val scrollAmount = spinnerLocation[1] - 400
+                        scrollView?.smoothScrollBy(0, scrollAmount)
+                    }
+                }
+            }
+        }
+
+        rootViewLayout.addOnGlobalLayoutListener(layoutListener)
+        popupWindow.setOnDismissListener {
+            rootViewLayout.removeOnGlobalLayoutListener(layoutListener)
+        }
+
+        var filteredData = data
+
+        // Choose adapter based on selection mode
+        val adapter = if (isMultiSelect) {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                R.layout.list_item_dropdown_multiple,
+                R.id.text1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+                    val textView = view.findViewById<TextView>(R.id.text1)
+                    val itemValue = filteredData[position]
+
+                    textView.text = itemValue
+                    textView.setTextColor(Color.BLACK)
+                    checkbox.isChecked = selectedItems[itemValue] == true
+
+                    checkbox.setOnClickListener {
+                        selectedItems[itemValue] = checkbox.isChecked
+                    }
+
+                    view.setOnClickListener {
+                        checkbox.isChecked = !checkbox.isChecked
+                        selectedItems[itemValue] = checkbox.isChecked
+                    }
+
+                    return view
+                }
+
+                override fun isEnabled(position: Int): Boolean {
+                    return filteredData.isNotEmpty()
+                }
+            }
+        } else {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                android.R.layout.simple_list_item_1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val textView = view.findViewById<TextView>(android.R.id.text1)
+                    textView.setTextColor(Color.BLACK)
+                    return view
+                }
+            }
+        }
+
+        listView.adapter = adapter
+
+        // Search functionality
+        editTextSearch.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val titleSearch = popupView.findViewById<TextView>(R.id.titleSearchDropdown)
+
+                filteredData = if (!s.isNullOrEmpty()) {
+                    titleSearch.visibility = View.VISIBLE
+                    data.filter { it.contains(s, ignoreCase = true) }
+                } else {
+                    titleSearch.visibility = View.GONE
+                    data
+                }
+
+                // Update adapter with filtered data
+                val filteredAdapter = if (isMultiSelect) {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        R.layout.list_item_dropdown_multiple,
+                        R.id.text1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(R.id.text1)
+                            val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                checkbox.visibility = View.GONE
+                                view.isEnabled = false
+                            } else {
+                                val itemValue = filteredData[position]
+                                textView.text = itemValue
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                checkbox.visibility = View.VISIBLE
+                                checkbox.isChecked = selectedItems[itemValue] == true
+
+                                checkbox.setOnClickListener {
+                                    selectedItems[itemValue] = checkbox.isChecked
+                                }
+
+                                view.setOnClickListener {
+                                    checkbox.isChecked = !checkbox.isChecked
+                                    selectedItems[itemValue] = checkbox.isChecked
+                                }
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                } else {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        android.R.layout.simple_list_item_1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                }
+
+                listView.adapter = filteredAdapter
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        // Handle item selection (single-select mode)
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (filteredData.isNotEmpty()) {
+                val selectedItem = filteredData[position]
+                val originalPosition = data.indexOf(selectedItem)
+                spinner.text = selectedItem
+                editText.setText(selectedItem)
+                onItemSelected(selectedItem, originalPosition)
+                popupWindow.dismiss()
+            }
+        }
+
+        // Show popup and focus on search
+        popupWindow.showAsDropDown(spinner)
+        editTextSearch.requestFocus()
+        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun findScrollView(view: View): ScrollView? {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is ScrollView) {
+                return parent
+            }
+            parent = parent.parent
+        }
+        return null
     }
 
     private fun setupEditTextView(layoutView: LinearLayout) {
@@ -4876,9 +5158,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         val kemandoranDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranList(
+                                datasetViewModel.getKemandoranEstate(
                                     estateId!!.toInt(),
-                                    allIdAfdeling as List<Int>
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoran list: ${e.message}")
@@ -6386,9 +6667,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         drawable?.setTint(ContextCompat.getColor(this, colorRes))
         marker.icon = drawable
 
-        // NO CLICK LISTENER - Remove touch events for start and end
-        // marker.setOnMarkerClickListener { _, _ -> ... }
-
         map.overlays.add(marker)
         AppLogger.d("Added tracking marker: $title at $latitude, $longitude")
     }
@@ -6617,57 +6895,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         map.overlays.add(marker)
         AppLogger.d("Added detail marker: $title at $latitude, $longitude")
-    }
-
-    private fun preselectSpinnerValues(inspection: InspectionWithDetailRelations) {
-        inspection.tph?.let { tph ->
-            AppLogger.d("tph ${tph.divisi_abbr}")
-            tph.divisi_abbr?.let { divisiAbbr ->
-                // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
-                val afdLayout = findViewById<LinearLayout>(R.id.lyAfdInspect)
-                val afdSpinner = afdLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-                afdSpinner?.let { spinner ->
-                    val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
-                    val position = divisiNames.indexOf(divisiAbbr)
-                    if (position >= 0) {
-                        spinner.selectedIndex = position
-                        afdLayout?.let { layout ->
-                            handleItemSelection(layout, position, divisiAbbr)
-                        }
-                    } else {
-                        AppLogger.d("Divisi not found in list: $divisiAbbr")
-                    }
-                }
-            }
-        }
-
-        inspection.inspeksi.jalur_masuk?.let { jalurMasuk ->
-            AppLogger.d("jalur_masuk ${jalurMasuk}")
-
-            // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
-            val jalurLayout = findViewById<LinearLayout>(R.id.lyJalurInspect)
-            val jalurSpinner = jalurLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-            jalurSpinner?.let { spinner ->
-                val jalurItems = (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
-                val position = jalurItems.indexOf(jalurMasuk)
-                if (position >= 0) {
-                    // Set the selected index
-                    spinner.selectedIndex = position
-                    AppLogger.d("Selected jalur at position: $position, value: $jalurMasuk")
-
-                    // Manually trigger the selection handler to execute the logic
-                    jalurLayout?.let { layout ->
-                        handleItemSelection(layout, position, jalurMasuk)
-                    }
-                } else {
-                    AppLogger.d("Jalur Masuk not found in list: $jalurMasuk")
-                    AppLogger.d("Available jalur items: $jalurItems")
-                }
-            }
-        }
-
     }
 
     private fun processInspectionDetails(

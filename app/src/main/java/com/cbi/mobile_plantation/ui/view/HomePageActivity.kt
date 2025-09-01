@@ -5698,6 +5698,7 @@ class HomePageActivity : AppCompatActivity() {
         val absensiPanenIds = globalAbsensiPanenIdsByPart[partNumber] ?: emptyList()
         val inspeksiPanenIds = globalInspeksiPanenIdsByPart[partNumber] ?: emptyList()
         val inspeksiDetailPanenIds = globalInspeksiDetailPanenIdsByPart[partNumber] ?: emptyList()
+        val mutuBuahIds = globalMutuBuahIdsByPart[partNumber] ?: emptyList()
 
 
         if (panenIds.isNotEmpty()) {
@@ -5717,6 +5718,9 @@ class HomePageActivity : AppCompatActivity() {
         }
         if (inspeksiDetailPanenIds.isNotEmpty()) {
             tableMap[AppUtils.DatabaseTables.INSPEKSI_DETAIL] = inspeksiDetailPanenIds
+        }
+        if (mutuBuahIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.MUTU_BUAH] = mutuBuahIds
         }
 
         return Gson().toJson(tableMap) // Convert to JSON string
@@ -6045,6 +6049,8 @@ class HomePageActivity : AppCompatActivity() {
                     val mutuBuahData = mutuBuahInfo["data"] as? String
                     val mutuBuahFilename = mutuBuahInfo["filename"] as? String
                     val mutuBuahIds = mutuBuahInfo["ids"] as? List<Int> ?: emptyList()
+
+                    AppLogger.d("mutubuahuiids $mutuBuahIds")
 
                     if (mutuBuahData != null && mutuBuahData.isNotEmpty()) {
                         val dataSize = mutuBuahData.length.toLong()
@@ -7279,15 +7285,15 @@ class HomePageActivity : AppCompatActivity() {
                     val mutuBuahIds =
                         globalMutuBuahIdsByPart[trackingId] ?: emptyList()
                     if (mutuBuahIds.isNotEmpty()) {
-                        AppLogger.d("Found ${mutuBuahIds.size} absensi IDs for file $trackingId: $mutuBuahIds")
+                        AppLogger.d("Found ${mutuBuahIds.size} mutu buah IDs for file $trackingId: $mutuBuahIds")
 
                         mutuBuahViewModel.updateStatusUploadMutuBuah(
                             mutuBuahIds,
                             responseInfo.status
                         )
-                        AppLogger.d("Updated status_upload to ${responseInfo.status} for inspeksi detail IDs: $mutuBuahIds")
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for mutu buah IDs: $mutuBuahIds")
                     } else {
-                        AppLogger.d("No inspeksi detail IDs found for file $trackingId")
+                        AppLogger.d("No mutu buah IDs found for file $trackingId")
                     }
 
                     val jsonResultTableIds = createJsonTableNameMapping(trackingId)

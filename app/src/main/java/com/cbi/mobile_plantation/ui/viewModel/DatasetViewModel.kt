@@ -84,6 +84,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val panenDao = database.panenDao()
     private val absensiDao = database.absensiDao()
     private val inspeksiDao = database.inspectionDao()
+    private val mutuBuahDao = database.mutuBuahDao()
     private val karyawanDao = database.karyawanDao()
     private val blokDao = database.blokDao()
     private val hektarPanenDao = database.hektarPanenDao()
@@ -928,6 +929,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         statusCode
                                                     )
                                                     AppLogger.d("Updated inspeksi_detail_table successfully")
+                                                }
+
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                    // Add inspeksi detail update logic
+                                                    mutuBuahDao.updateStatusUploadMutuBuah(
+                                                        idList,
+                                                        statusCode
+                                                    )
+                                                    AppLogger.d("Updated mutu buah table successfully")
                                                 }
 
                                                 else -> {
