@@ -101,6 +101,11 @@ class DownloadDatasetUtility(
             ) -> UserRole.MANDOR_PANEN
 
             jabatan.contains(
+                AppUtils.ListFeatureByRoleUser.Asisten,
+                ignoreCase = true
+            ) -> UserRole.ASISTEN
+
+            jabatan.contains(
                 AppUtils.ListFeatureByRoleUser.ASKEP,
                 ignoreCase = true
             ) -> UserRole.ASKEP
@@ -256,7 +261,7 @@ class DownloadDatasetUtility(
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?
     ) {
-
+        AppLogger.d("alskjdlkajsd flkjsflk j")
         when (userRole) {
             UserRole.KERANI_TIMBANG -> {
                 addKeraniTimbangDatasets(
