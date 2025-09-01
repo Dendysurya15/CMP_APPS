@@ -12,6 +12,7 @@ import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
@@ -94,7 +95,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     val countPanenTransferInspeksi: LiveData<Pair<Int, Int>> = _countPanenTransferInspeksi
 
 
-
     // ViewModel.kt
     private val _jenisTPHList = MutableLiveData<List<JenisTPHModel>>()
     val jenisTPHList: LiveData<List<JenisTPHModel>> = _jenisTPHList
@@ -156,11 +156,29 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int {
+    suspend fun resetEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String
+    ): Int {
         return withContext(Dispatchers.IO) {
-            repository.updateStatusEspbToZero(tphId, dateCreated)
+            repository.resetEspbStatus(tphId, dateCreated, kpJson, nomorPemanen)
         }
     }
+
+    suspend fun setEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String,
+        noEspb: String
+    ): Int {
+        return withContext(Dispatchers.IO) {
+            repository.setEspbStatus(tphId, dateCreated, kpJson, nomorPemanen, noEspb)
+        }
+    }
+
 
     fun loadTPHESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
@@ -521,6 +539,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         lat: Double,
         lon: Double,
         jenis_panen: Int,
+        nomorPemanenInput:Int,
         ancakInput: Int,
         info:String,
         blokBanjir : Int,
@@ -543,6 +562,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 lon = lon,
                 jenis_panen = jenis_panen,
                 ancak = ancakInput,
+                nomor_pemanen = nomorPemanenInput,
                 info = info,
                 status_banjir = blokBanjir,
                 archive = archive

@@ -8,7 +8,8 @@ data class TphRvData(
     val username: String,
     val kemandoran_id: String,
     val tipePanen: String = "NULL",  // New field for tipe panen
-    val ancak: String = "NULL"       // New field for ancak
+    val ancak: String = "NULL",       // New field for ancak
+    val nomor_pemanen: Int = 0
 )
 data class TPHBlokInfo(
     val tphNomor: String,

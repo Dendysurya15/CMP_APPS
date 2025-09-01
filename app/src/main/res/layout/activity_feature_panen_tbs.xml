@@ -418,6 +418,11 @@
                         android:visibility="gone" />
 
                     <include
+                        android:id="@+id/layoutNomorPemanen"
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
+
+                    <include
                         android:id="@+id/layoutTipePanen"
                         layout="@layout/pertanyaan_spinner_layout"
                         android:visibility="gone" />

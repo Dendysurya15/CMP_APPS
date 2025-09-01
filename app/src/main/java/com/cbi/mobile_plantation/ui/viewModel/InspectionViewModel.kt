@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -364,8 +365,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun saveDataInspectionDetails(
         inspectionId: String,
         formData: Map<Int, FormAncakViewModel.PageData>,
-        totalPages: Int,
-        selectedKaryawanList: List<FormInspectionActivity.KaryawanInfo>,
         jumBrdTglPath: Int,
         jumBuahTglPath: Int,
         parameterInspeksi: List<InspectionParameterItem>,
@@ -376,8 +375,9 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         lonTPH: Double,
         foto: String? = null,
         komentar: String,
-        foto_pemulihan_tph:String,
-        komentar_pemulihan_tph:String,
+        foto_pemulihan_tph: String,
+        komentar_pemulihan_tph: String,
+        pemuatWorkers: List<Worker> = emptyList(), // Add this parameter
     ): SaveDataInspectionDetailsState {
         return try {
             // PROCESS THE DATA FIRST - Reset values where emptyTree != 1, then filter valid data
@@ -395,14 +395,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             val inspectionDetailList = mutableListOf<InspectionDetailModel>()
-
-            val karyawanCount = selectedKaryawanList.size
-            AppLogger.d("Karyawan count for division: $karyawanCount")
-
-            if (karyawanCount == 0) {
-                AppLogger.w("No karyawan found, cannot save inspection details")
-                return SaveDataInspectionDetailsState.Error("No karyawan data found")
-            }
 
             if (parameterInspeksi.isEmpty()) {
                 AppLogger.w("No parameter inspeksi found, cannot save inspection details")
@@ -491,9 +483,19 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             val allMappings = regularPokokMappings + pruningMappings
 
             validFormData.forEach { (pageNumber, pageData) ->
-                AppLogger.d("Processing page $pageNumber with ${selectedKaryawanList.size} karyawan")
+                // Skip pages with empty pemanen
+                if (pageData.pemanen.isEmpty()) {
+                    AppLogger.d("Skipping page $pageNumber - no pemanen data")
+                    return@forEach
+                }
 
-                selectedKaryawanList.forEach { karyawan ->
+                val karyawanCount = pageData.pemanen.size
+                AppLogger.d("Processing page $pageNumber with $karyawanCount pemanen")
+
+                // Loop through each pemanen in this page
+                pageData.pemanen.forEach { (nik, nama) ->
+                    AppLogger.d("Processing pemanen: $nik - $nama")
+
                     allMappings.forEach { mapping ->
                         val rawValue = mapping.getValue(pageData, jumBrdTglPath, jumBuahTglPath)
 
@@ -513,11 +515,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
                         // Skip if temuan_inspeksi value is 0 (this handles kondisiPruning = 1 (Normal) case)
                         if (dividedValue == 0.0) {
-                            AppLogger.d("Skipping save for page $pageNumber, karyawan ${karyawan.nama}, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
+                            AppLogger.d("Skipping save for page $pageNumber, pemanen $nama, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
                             return@forEach
                         }
 
-                        AppLogger.d("Page $pageNumber, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
+                        AppLogger.d("Page $pageNumber, Pemanen $nama ($nik), Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
 
                         // Check if status_pemulihan is 1 and foto_pemulihan is not null
                         val isPemulihanComplete = pageData.status_pemulihan == 1 && pageData.foto_pemulihan != null
@@ -531,8 +533,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                             updated_date = if (isPemulihanComplete) pageData.createdDate ?: "" else null,
                             updated_name = if (isPemulihanComplete) pageData.createdName ?: "" else null,
                             updated_by = if (isPemulihanComplete) pageData.createdBy.toString() else null,
-                            nik = karyawan.nik,
-                            nama = karyawan.nama,
+                            nik = nik, // Use NIK from pemanen map
+                            nama = nama, // Use nama from pemanen map
                             no_pokok = pageNumber,
                             pokok_panen = pageData.harvestTree,
                             kode_inspeksi = mapping.kodeInspeksi,
@@ -552,14 +554,16 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         )
 
                         inspectionDetailList.add(inspectionDetail)
-                        AppLogger.d("Added inspection detail: Page $pageNumber, Karyawan ${karyawan.nama}, Code ${mapping.kodeInspeksi}, Value $dividedValue")
+                        AppLogger.d("Added inspection detail: Page $pageNumber, Pemanen $nama ($nik), Code ${mapping.kodeInspeksi}, Value $dividedValue")
 
                         if (isPemulihanComplete) {
-                            AppLogger.d("Pemulihan data saved for page $pageNumber, karyawan ${karyawan.nama}: lat=${pageData.latIssue}, lon=${pageData.lonIssue}")
+                            AppLogger.d("Pemulihan data saved for page $pageNumber, pemanen $nama: lat=${pageData.latIssue}, lon=${pageData.lonIssue}")
                         }
                     }
                 }
             }
+
+            val (nikPemuatString, namaPemuatString) = extractPemuatData(pemuatWorkers)
 
             // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6 only)
             if (jumBuahTglPath != 0) {
@@ -574,6 +578,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     updated_by = if (isPemulihanTphComplete) createdBy else null,
                     nik = "",
                     nama = "",
+                    nik_pemuat = nikPemuatString,
+                    nama_pemuat = namaPemuatString,
                     no_pokok = 0,
                     pokok_panen = null,
                     kode_inspeksi = 5,
@@ -606,6 +612,8 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     updated_by = if (isPemulihanTphComplete) createdBy else null,
                     nik = "",
                     nama = "",
+                    nik_pemuat = nikPemuatString,
+                    nama_pemuat = namaPemuatString,
                     no_pokok = 0,
                     pokok_panen = null,
                     kode_inspeksi = 6,
@@ -639,6 +647,24 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
             AppLogger.e("Error saving inspection details: ${e.message}")
             SaveDataInspectionDetailsState.Error(e.toString())
         }
+    }
+
+    // Add this helper function at the beginning of saveDataInspectionDetails
+    fun extractPemuatData(workers: List<Worker>): Pair<String, String> {
+        val niks = mutableListOf<String>()
+        val names = mutableListOf<String>()
+
+        workers.forEach { worker ->
+            val firstDashIndex = worker.name.indexOf(" - ")
+            if (firstDashIndex != -1) {
+                val nik = worker.name.substring(0, firstDashIndex).trim()
+                val name = worker.name.substring(firstDashIndex + 3).trim()
+                niks.add(nik)
+                names.add(name)
+            }
+        }
+
+        return Pair(niks.joinToString(","), names.joinToString(","))
     }
 
 

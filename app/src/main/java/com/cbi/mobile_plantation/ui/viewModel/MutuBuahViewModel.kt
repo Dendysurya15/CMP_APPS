@@ -26,6 +26,15 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
     private val _countMutuBuahUploaded = MutableLiveData<Int>()
     val countMutuBuahUploaded: LiveData<Int> = _countMutuBuahUploaded
 
+    private val _mutuBuahList = MutableLiveData<List<MutuBuahEntity>>()
+    val mutuBuahList: LiveData<List<MutuBuahEntity>> = _mutuBuahList
+
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+
+    private val _updateStatus = MutableLiveData<Boolean>()
+    val updateStatus: LiveData<Boolean> get() = _updateStatus
+
     suspend fun loadMutuBuahToday(): Int {
         val count = try {
             repository.getMBCountCreatedToday()
@@ -46,6 +55,7 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
         lat: Double,
         lon: Double,
         info: String,
+        nomorPemanenInput: Int,
         jjgPanen: Int,
         jjgMasak: Int,
         jjgMentah: Int,
@@ -83,6 +93,7 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
                 blokNama = tphData.blok_nama!!,
                 tph = tph_id,
                 tphNomor = tphData.nomor!!,
+                nomorPemanen = nomorPemanenInput,
                 jjgPanen = jjgPanen,
                 jjgMasak = jjgMasak,
                 jjgMentah = jjgMentah,
@@ -111,6 +122,42 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun loadMutuBuahAll() {
+        viewModelScope.launch {
+            repository.getMutuBuahAll()
+                .onSuccess { mutuBuahList ->
+                    _mutuBuahList.value = mutuBuahList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load MutuBuah data")
+                }
+        }
+    }
+
+    fun updateDataIsZippedMutuBuah(ids: List<Int>, status:Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateDataIsZippedMutuBuah(ids,status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+            }
+        }
+    }
+
+    fun updateStatusUploadMutuBuah(ids: List<Int>, status: Int) {
+        viewModelScope.launch {
+            try {
+                repository.updateStatusUploadMutuBuah(ids, status)
+                _updateStatus.postValue(true)
+            } catch (e: Exception) {
+                _updateStatus.postValue(false)
+                AppLogger.e("Error updating status_upload: ${e.message}")
+            }
+        }
+    }
+
+
     fun loadMBUnuploaded(statusUpload: Int, date: String? = null) = viewModelScope.launch {
         try {
             val list = repository.loadMutuBuah(statusUpload, date)
@@ -133,7 +180,7 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
 
     fun countMBUploaded(date: String? = null) = viewModelScope.launch {
         try {
-            val int = repository.countMutuBuah(1, date)
+            val int = repository.countMutuBuah(3, date)
             _countMutuBuahUploaded.value = int
         } catch (e: Exception) {
             AppLogger.e("Error loading MutuBuah count uploaded: ${e.message}")

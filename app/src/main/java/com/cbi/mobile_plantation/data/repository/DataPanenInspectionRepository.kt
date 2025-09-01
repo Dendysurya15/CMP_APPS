@@ -21,7 +21,7 @@ class DataPanenInspectionRepository(
     private val TestingApiService: ApiService = TestingAPIClient.instance,
 ){
 
-    suspend fun getDataPanen(estate: Int, afdeling: String): Response<ResponseBody> {
+    suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
         // Calculate date range - from yesterday to 7 days ago (excluding today)
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
@@ -43,6 +43,7 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
 
+        AppLogger.d("estate $estate")
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
             put("table", "panen")
@@ -52,6 +53,7 @@ class DataPanenInspectionRepository(
                 put("tph_nomor")
                 put("ancak")
                 put("tipe")
+                put("dept_abbr")
                 put("jjg_kirim")
                 put("created_date")
                 put("created_by")
@@ -61,9 +63,31 @@ class DataPanenInspectionRepository(
 
             // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition
-                put("dept", estate)
-
+                // Estate condition - handle both Int and List<Int>
+                when (estate) {
+                    is Int -> {
+                        put("dept", estate)
+                    }
+                    is String -> {
+                        // Convert string to int, or handle as string depending on your API
+                        put("dept", estate.toIntOrNull() ?: estate)
+                        // OR if your API expects string IDs:
+                        // put("dept", estate)
+                    }
+                    is List<*> -> {
+                        put("dept", JSONObject().apply {
+                            put("in", JSONArray().apply {
+                                (estate as List<Int>).forEach { estateId ->
+                                    put(estateId)
+                                }
+                            })
+                        })
+                    }
+                    else -> {
+                        // Fallback to Int
+                        put("dept", estate as Int)
+                    }
+                }
 
                 // Date range condition using BETWEEN with full datetime
                 put("created_date", JSONObject().apply {
@@ -77,16 +101,18 @@ class DataPanenInspectionRepository(
 
         // Convert JSONObject to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("jsonObject $jsonObject")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
         return apiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
-        estate: Int,
+        estate: Any, // Changed from Int to Any
         afdeling: String,
         joinTable: Boolean = true,
-        parameterDao: ParameterDao // Add parameterDao parameter
+        parameterDao: ParameterDao
     ): Response<ResponseBody> {
 
         // Get parameter JSON and extract status_ppro = 1 IDs
@@ -133,13 +159,15 @@ class DataPanenInspectionRepository(
         val today = formatter.format(calendar.time)
 
         // 1 month ago at 00:00:00 (start of day)
-        calendar.add(Calendar.MONTH, -1)
+        calendar.add(Calendar.WEEK_OF_YEAR, -1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val oneMonthAgo = formatter.format(calendar.time)
+        val oneWeekAgo = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $oneMonthAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $oneWeekAgo to $today (inclusive, full datetime)")
+
+
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -177,13 +205,34 @@ class DataPanenInspectionRepository(
 
             // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition
-                put("dept", estate)
+                // Estate condition - handle both Int and List<Int>
+                when (estate) {
+                    is Int -> {
+                        put("dept", estate)
+                    }
+                    is String ->{
+                        put("dept", estate.toIntOrNull() ?: estate)
+                    }
+                    is List<*> -> {
+                        // Multiple estates: "dept": {"in": [112, 134, 145, 129]}
+                        put("dept", JSONObject().apply {
+                            put("in", JSONArray().apply {
+                                (estate as List<Int>).forEach { estateId ->
+                                    put(estateId)
+                                }
+                            })
+                        })
+                    }
+                    else -> {
+                        // Fallback to Int
+                        put("dept", estate as Int)
+                    }
+                }
 
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(oneMonthAgo)
+                        put(oneWeekAgo)
                         put(today)
                     })
                 })

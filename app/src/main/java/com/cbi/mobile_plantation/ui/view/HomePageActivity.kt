@@ -1,3 +1,5 @@
+@file:Suppress("IMPLICIT_CAST_TO_ANY")
+
 package com.cbi.mobile_plantation.ui.view
 
 import android.Manifest
@@ -138,6 +140,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@Suppress("IMPLICIT_CAST_TO_ANY")
 class HomePageActivity : AppCompatActivity() {
 
     private lateinit var notificationScheduler: NotificationScheduler
@@ -195,11 +198,14 @@ class HomePageActivity : AppCompatActivity() {
     private val globalAbsensiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiDetailPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private val globalMutuBuahIdsByPart = mutableMapOf<String, List<Int>>()
+
     private var globalInspeksiIds: List<Int> = emptyList()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private var globalHektaranIds: List<Int> = emptyList()
     private var globalAbsensiIds: List<Int> = emptyList()
+    private var globalMutuBuahIds: List<Int> = emptyList()
 
     private var zipFilePath: String? = null
     private var zipFileName: String? = null
@@ -476,7 +482,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferred = async { mutuBuahViewModel.loadMutuBuahToday() }
                     countMutuBuah = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.RekapMutuBuah, countMutuBuah.toString())
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.RekapMutuBuah,
+                            countMutuBuah.toString()
+                        )
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapMutuBuah)
                     }
                 } catch (e: Exception) {
@@ -490,7 +499,10 @@ class HomePageActivity : AppCompatActivity() {
                     val countDeferred = async { panenViewModel.loadPanenCountForTransferInspeksi() }
                     countPanenTPHForTransferInspeksi = countDeferred.await()
                     withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(AppUtils.ListFeatureNames.TransferInspeksiPanen, countPanenTPHForTransferInspeksi.toString())
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.TransferInspeksiPanen,
+                            countPanenTPHForTransferInspeksi.toString()
+                        )
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
                     }
                 } catch (e: Exception) {
@@ -843,7 +855,7 @@ class HomePageActivity : AppCompatActivity() {
                 cardBackgroundColor = R.color.greenDefault,
                 featureName = AppUtils.ListFeatureNames.ScanTransferInspeksiPanen,
                 featureNameBackgroundColor = R.color.orange,
-                iconResource =  R.drawable.scan_inspect_icon,
+                iconResource = R.drawable.scan_inspect_icon,
                 count = countPanenTPHForTransferInspeksi.toString(),
                 functionDescription = "Scan data panen untuk proses Inspeksi H+0",
                 displayType = DisplayType.ICON
@@ -918,8 +930,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
@@ -932,8 +944,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
@@ -946,8 +958,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
@@ -955,24 +967,24 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
 
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.GM -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
@@ -981,8 +993,8 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah},
-                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah},
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
@@ -1106,6 +1118,8 @@ class HomePageActivity : AppCompatActivity() {
         setupCheckingAfterLogoutUser()
         setupObserver()
         prefManager!!.registeredDeviceUsername = prefManager!!.username
+
+        AppLogger.d("estate ${prefManager!!.estateIdUserLogin}")
     }
 
     private fun setupObserver() {
@@ -1173,68 +1187,23 @@ class HomePageActivity : AppCompatActivity() {
                         try {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager!!.jabatanUserLogin
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
+                            AppLogger.d("jabatan user $jabatanUser")
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+                            // Check if jabatan contains "askep" or "gm" (case insensitive)
+                            val shouldSkipAfdelingCheck =
+                                jabatanUser?.lowercase()?.contains("askep") == true ||
+                                        jabatanUser?.lowercase()?.contains("manager") == true ||
+                                        jabatanUser?.lowercase()?.contains("gm") == true
 
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
-
-                            val afdeling = afdelingDeferred.await()
-
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
-
-                            // Check sinkronisasi_otomatis value
-                            if (afdeling.sinkronisasi_otomatis != 0) {
-                                // Check if sinkronisasi is required
-                                val lastSyncDateTime = prefManager!!.lastSyncDate
-                                val lastSyncDate =
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                        SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).parse(lastSyncDateTime)!!
-                                    )
-                                val currentDate = SimpleDateFormat(
-                                    "yyyy-MM-dd",
-                                    Locale.getDefault()
-                                ).format(Date())
-
-                                if (lastSyncDate != currentDate) {
+                            if (!shouldSkipAfdelingCheck) {
+                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
                                     AlertDialogUtility.withSingleAction(
                                         this@HomePageActivity,
                                         "Kembali",
-                                        "Sinkronisasi Database Diperlukan",
-                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "Afdeling tidak valid",
+                                        "Data afdeling saat ini adalah $afdelingId",
                                         "warning.json",
                                         R.color.colorRedDark
                                     ) {
@@ -1242,7 +1211,65 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                     return@launch
                                 }
+
+                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+
+                                withContext(Dispatchers.IO) {
+                                    val afdelingData =
+                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
+                                    afdelingDeferred.complete(afdelingData)
+                                }
+
+                                val afdeling = afdelingDeferred.await()
+
+                                if (afdeling == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Data Afdeling Tidak Ditemukan",
+                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+
+                                // Check sinkronisasi_otomatis value
+                                if (afdeling.sinkronisasi_otomatis != 0) {
+                                    // Check if sinkronisasi is required
+                                    val lastSyncDateTime = prefManager!!.lastSyncDate
+                                    val lastSyncDate =
+                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                            SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            ).parse(lastSyncDateTime)!!
+                                        )
+                                    val currentDate = SimpleDateFormat(
+                                        "yyyy-MM-dd",
+                                        Locale.getDefault()
+                                    ).format(Date())
+
+                                    if (lastSyncDate != currentDate) {
+                                        AlertDialogUtility.withSingleAction(
+                                            this@HomePageActivity,
+                                            "Kembali",
+                                            "Sinkronisasi Database Diperlukan",
+                                            "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                            "warning.json",
+                                            R.color.colorRedDark
+                                        ) {
+                                            // Do nothing on click
+                                        }
+                                        return@launch
+                                    }
+                                }
                             }
+
+                            // Check afdeling data and sinkronisasi_otomatis
+
 
                             // All validations passed, proceed with attendance check
                             val absensiDeferred =
@@ -1412,44 +1439,58 @@ class HomePageActivity : AppCompatActivity() {
                         try {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager!!.jabatanUserLogin
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                            AppLogger.d("jabatan user $jabatanUser")
+
+                            // Check if jabatan contains "askep" or "gm" (case insensitive)
+                            val shouldSkipAfdelingCheck =
+                                jabatanUser?.lowercase()?.contains("askep") == true ||
+                                        jabatanUser?.lowercase()?.contains("manager") == true ||
+                                        jabatanUser?.lowercase()?.contains("gm") == true
+
+
+                            AppLogger.d("shouledSKip $shouldSkipAfdelingCheck")
+                            if (!shouldSkipAfdelingCheck) {
+                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Afdeling tidak valid",
+                                        "Data afdeling saat ini adalah $afdelingId",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
                                 }
-                                return@launch
-                            }
+                                // Check afdeling data and sinkronisasi_otomatis
+                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
-
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
-
-                            val afdeling = afdelingDeferred.await()
-
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                                withContext(Dispatchers.IO) {
+                                    val afdelingData =
+                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
+                                    afdelingDeferred.complete(afdelingData)
                                 }
-                                return@launch
+
+                                val afdeling = afdelingDeferred.await()
+
+                                if (afdeling == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Data Afdeling Tidak Ditemukan",
+                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+
+
                             }
 
 
@@ -1550,46 +1591,53 @@ class HomePageActivity : AppCompatActivity() {
                         try {
                             // Get afdeling ID from preferences
                             val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager!!.jabatanUserLogin
+                            AppLogger.d("jabatan user $jabatanUser")
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                            // Check if jabatan contains "askep" or "gm" (case insensitive)
+                            val shouldSkipAfdelingCheck =
+                                jabatanUser?.lowercase()?.contains("askep") == true ||
+                                        jabatanUser?.lowercase()?.contains("manager") == true ||
+                                        jabatanUser?.lowercase()?.contains("gm") == true
+
+                            if (!shouldSkipAfdelingCheck) {
+                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Afdeling tidak valid",
+                                        "Data afdeling saat ini adalah $afdelingId",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
                                 }
-                                return@launch
-                            }
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
-
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
-
-                            val afdeling = afdelingDeferred.await()
-
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
+                                // Check afdeling data and sinkronisasi_otomatis
+                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+                                withContext(Dispatchers.IO) {
+                                    val afdelingData =
+                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
+                                    afdelingDeferred.complete(afdelingData)
                                 }
-                                return@launch
-                            }
 
+                                val afdeling = afdelingDeferred.await()
+                                if (afdeling == null) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Data Afdeling Tidak Ditemukan",
+                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+                            }
 
                             val lastSyncDateTime = prefManager!!.lastSyncFollowUpInspeksi
 
@@ -1635,7 +1683,10 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                     return@launch
                                 } else {
-                                    val intent = Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
+                                    val intent = Intent(
+                                        this@HomePageActivity,
+                                        ListFollowUpInspeksi::class.java
+                                    )
                                     intent.putExtra(
                                         "FEATURE_NAME",
                                         AppUtils.ListFeatureNames.ListFollowUpInspeksi
@@ -2059,7 +2110,9 @@ class HomePageActivity : AppCompatActivity() {
                                 var previewDataPanenInspeksi = ""
                                 var previewRestanData = ""
                                 var previewDataFollowUpInspeksi = ""
-                                val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
+                                val estateIdString = prefManager!!.estateIdUserLogin!!
+
+
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
                                 // Add debug logging
@@ -2068,14 +2121,32 @@ class HomePageActivity : AppCompatActivity() {
                                     ignoreCase = true
                                 )
 
+                                val isGM = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.GM,
+                                    ignoreCase = true
+                                )
+
+                                val isMandorPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.MandorPanen,
+                                    ignoreCase = true
+                                )
+
+                                val estateIds = if (isGM && estateIdString!!.contains(",")) {
+                                    estateIdString.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .map { it.toInt() }
+                                } else {
+                                    estateIdString!!.toInt()
+                                }
+
+
                                 // Validate afdelingId and get valid integer value
                                 var validAfdelingId: Int? = null
 
-                                if (!isKeraniPanen) {
-
+                                if (!isKeraniPanen && !isGM) {
                                     // Check if afdelingId is null or empty
                                     if (afdelingIdString.isNullOrEmpty()) {
-                                        AppLogger.d("afdelingId is null or empty - blocking user")
                                         withContext(Dispatchers.Main) {
                                             previewRestanData =
                                                 "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
@@ -2104,58 +2175,51 @@ class HomePageActivity : AppCompatActivity() {
                                     AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
                                 }
 
-                                // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                if (!isKeraniPanen && validAfdelingId != null) {
-                                    // Create a deferred result that will be completed when data is received
-                                    val restanDataDeferred = CompletableDeferred<String>()
-
-                                    // Set up the observer for restanPreviewData
-                                    val restanObserver = Observer<String> { data ->
-                                        if (!restanDataDeferred.isCompleted) {
-                                            restanDataDeferred.complete(data)
+                                if (!isKeraniPanen) {
+                                    if (!isGM && !isMandorPanen) {
+                                        val restanDataDeferred = CompletableDeferred<String>()
+                                        val restanObserver = Observer<String> { data ->
+                                            if (!restanDataDeferred.isCompleted) {
+                                                restanDataDeferred.complete(data)
+                                            }
                                         }
+                                        datasetViewModel.restanPreviewData.observe(
+                                            this@HomePageActivity,
+                                            restanObserver
+                                        )
+
+                                        datasetViewModel.getPreviewDataRestanWeek(
+                                            estateIdString.toInt(),
+                                            validAfdelingId.toString()
+                                        )
+                                        try {
+                                            previewRestanData = withTimeout(15000) {
+                                                restanDataDeferred.await()
+                                            }
+
+                                            AppLogger.d("previewRestanData $previewRestanData")
+
+                                            // Remove the observer to prevent memory leaks
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.restanPreviewData.removeObserver(
+                                                    restanObserver
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            // Clean up observer in case of timeout or error
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.restanPreviewData.removeObserver(
+                                                    restanObserver
+                                                )
+                                            }
+
+                                        }
+                                    } else {
+                                        AppLogger.d("Skipping restan data fetch - GM or Mandor Panen role doesn't have afdeling")
                                     }
 
-                                    // Register the observer
-                                    datasetViewModel.restanPreviewData.observe(
-                                        this@HomePageActivity,
-                                        restanObserver
-                                    )
-
-                                    // Start the API request with validated afdelingId
-                                    datasetViewModel.getPreviewDataRestanWeek(
-                                        estateIdString,
-                                        validAfdelingId.toString()
-                                    )
-
-                                    try {
-                                        // Wait for the API response with a timeout
-                                        previewRestanData = withTimeout(15000) {
-                                            restanDataDeferred.await()
-                                        }
-
-                                        AppLogger.d("previewRestanData $previewRestanData")
-
-                                        // Remove the observer to prevent memory leaks
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.restanPreviewData.removeObserver(
-                                                restanObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        // Clean up observer in case of timeout or error
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.restanPreviewData.removeObserver(
-                                                restanObserver
-                                            )
-                                        }
-                                        AppLogger.e("Error getting restan data: ${e.message}")
-                                        // Don't throw here, we'll continue with empty previewRestanData
-                                    }
-
-
-                                    val dataPanenInspeksiDeffered =
-                                        CompletableDeferred<String>()
+                                    // === DATA PANEN INSPEKSI API (doesn't require afdeling - can call for all roles) ===
+                                    val dataPanenInspeksiDeffered = CompletableDeferred<String>()
 
                                     // Set up the observer for restanPreviewData
                                     val dataPanenObserver = Observer<String> { data ->
@@ -2170,44 +2234,41 @@ class HomePageActivity : AppCompatActivity() {
                                         dataPanenObserver
                                     )
 
-                                    // Start the API request with validated afdelingId
                                     datasetViewModel.getPreviewDataPanenInspeksiWeek(
-                                        estateIdString,
-                                        validAfdelingId.toString(),
+                                        estateIds,
                                     )
 
                                     try {
-                                        // Wait for the API response with a timeout
                                         previewDataPanenInspeksi = withTimeout(15000) {
                                             dataPanenInspeksiDeffered.await()
                                         }
 
-                                        AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
-
-                                        // Remove the observer to prevent memory leaks
                                         withContext(Dispatchers.Main) {
                                             datasetViewModel.dataPanenInspeksiPreview.removeObserver(
                                                 dataPanenObserver
                                             )
                                         }
                                     } catch (e: Exception) {
-                                        // Clean up observer in case of timeout or error
                                         withContext(Dispatchers.Main) {
                                             datasetViewModel.dataPanenInspeksiPreview.removeObserver(
                                                 dataPanenObserver
                                             )
                                         }
-                                        AppLogger.e("Error getting panen data: ${e.message}")
-                                        // Don't throw here, we'll continue with empty previewDataPanenInspeksi
                                     }
 
-                                    val dataFollowUpInspeksiDeferred = CompletableDeferred<String>()
+                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
 
-                                    val dataFollowUpInspeksiObserver = Observer<String> { data ->
-                                        if (!dataFollowUpInspeksiDeferred.isCompleted) {  // ✅ Correct variable
-                                            dataFollowUpInspeksiDeferred.complete(data)   // ✅ Correct variable
+                                    // === FOLLOW UP INSPEKSI API (requires afdeling - skip for GM) ===
+//                                    if (!isGM) {
+                                    val dataFollowUpInspeksiDeferred =
+                                        CompletableDeferred<String>()
+
+                                    val dataFollowUpInspeksiObserver =
+                                        Observer<String> { data ->
+                                            if (!dataFollowUpInspeksiDeferred.isCompleted) {
+                                                dataFollowUpInspeksiDeferred.complete(data)
+                                            }
                                         }
-                                    }
 
                                     datasetViewModel.followUpInspeksiPreview.observe(
                                         this@HomePageActivity,
@@ -2242,8 +2303,11 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                         AppLogger.e("Error getting follow up data: ${e.message}")
                                     }
+//                                    } else {
+//                                        AppLogger.d("Skipping follow up inspeksi data fetch - GM role doesn't have afdeling")
+//                                    }
                                 } else {
-                                    AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
+                                    AppLogger.d("Skipping all API calls - either user is not Mandor1/Asisten or afdelingId is invalid")
                                 }
 
                                 // Wait for estates list with timeout
@@ -2392,8 +2456,19 @@ class HomePageActivity : AppCompatActivity() {
                     val intent = Intent(this, FeaturePanenTBSActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
+//                    AlertDialogUtility.withSingleAction(
+//                        this@HomePageActivity,
+//                        stringXML(R.string.al_back),
+//                        stringXML(R.string.al_features_still_in_development),
+//                        stringXML(R.string.al_desc_features_still_in_development),
+//                        "warning.json",
+//                        R.color.yellowbutton
+//                    ) {
+//
+//                    }
                 }
             }
+
             AppUtils.ListFeatureNames.RekapMutuBuah -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
@@ -2439,7 +2514,8 @@ class HomePageActivity : AppCompatActivity() {
             val featuresToFetch = listOf(
                 AppUtils.DatabaseTables.ESPB,
                 AppUtils.DatabaseTables.PANEN,
-                AppUtils.DatabaseTables.INSPEKSI
+                AppUtils.DatabaseTables.INSPEKSI,
+                AppUtils.DatabaseTables.MUTU_BUAH
             )
             val combinedUploadData = mutableMapOf<String, Any>()
             lifecycleScope.launch {
@@ -2466,13 +2542,14 @@ class HomePageActivity : AppCompatActivity() {
                     ) // Ensure it's never null
                 }
 
-                mutuBuahViewModel.loadMutuBuahToday()
+                mutuBuahViewModel.loadMutuBuahAll()
                 delay(100)
-//                mutuBuahViewModel.loadMutuBuahToday.observeOnce(this@HomePageActivity) { list ->
-//                    panenDeferred.complete(
-//                        list ?: emptyList()
-//                    ) // Ensure it's never null
-//                }
+                mutuBuahViewModel.mutuBuahList.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "MutuBuah Data Size: ${list.size}")
+                    mutuBuahDeffered.complete(
+                        list
+                    )
+                }
 
                 // Load ESPB Data
                 weightBridgeViewModel.fetchActiveESPBAll()
@@ -2524,7 +2601,8 @@ class HomePageActivity : AppCompatActivity() {
                 var mappedESPBData: List<Map<String, Any>> = emptyList()
                 var mappedInspeksiData = mutableListOf<Map<String, Any>>()
                 var allPhotosInspeksi = mutableListOf<Map<String, String>>()
-
+                var allPhotosMutuBuah = mutableListOf<Map<String, String>>()
+                var allSelfiesMutuBuah = mutableListOf<Map<String, String>>()
                 var allPhotosPanen = mutableListOf<Map<String, String>>()
                 var allPhotosAbsensi = mutableListOf<Map<String, String>>()
                 var hektaranJson = ""
@@ -2834,6 +2912,8 @@ class HomePageActivity : AppCompatActivity() {
                                 "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
                                 "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
                                 "tph_nomor" to (panenWithRelations.tph?.nomor
+                                    ?: ""),
+                                "nomor_pemanen" to (panenWithRelations.panen?.nomor_pemanen
                                     ?: ""),
                                 "ancak" to panenWithRelations.panen.ancak,
                                 "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
@@ -4917,6 +4997,364 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
+                    if (mutuBuahList.isNotEmpty()) {
+                        val uniquePhotosMutuBuah = mutableMapOf<String, Map<String, String>>()
+                        val uniqueSelfiesMutuBuah = mutableMapOf<String, Map<String, String>>()
+
+                        // Prepare to search for photo files in CMP directories
+                        val picturesDirs = listOf(
+                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                            File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
+                        ).filterNotNull()
+
+                        // Find all CMP directories upfront
+                        val cmpDirectories = mutableListOf<File>()
+                        for (picturesDir in picturesDirs) {
+                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                continue
+                            }
+
+                            // Look specifically for CMP-MUTU BUAH directory
+                            val cmpMutuBuahDir = File(picturesDir, "CMP-MUTU BUAH")
+                            if (cmpMutuBuahDir.exists() && cmpMutuBuahDir.isDirectory) {
+                                cmpDirectories.add(cmpMutuBuahDir)
+                            }
+
+                            // Also check for any other CMP directories
+                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-MUTU BUAH"
+                            } ?: emptyArray()
+
+                            cmpDirectories.addAll(otherCmpDirs)
+                        }
+
+                        AppLogger.d("Found ${cmpDirectories.size} CMP directories for MutuBuah")
+
+                        // Helper function to process photos
+                        // Helper function to process photos
+                        fun processMutuBuahPhotos(
+                            photoString: String?,
+                            mutuBuah: MutuBuahEntity,
+                            photoType: String, // "foto" or "foto_selfie"
+                            targetMap: MutableMap<String, Map<String, String>>
+                        ) {
+                            val photoNames = photoString?.split(";") ?: listOf()
+
+                            for (photoName in photoNames) {
+                                val trimmedName = photoName.trim()
+                                if (trimmedName.isEmpty()) continue
+
+                                if (trimmedName in targetMap) continue
+
+                                // Get the appropriate status based on photo type
+                                val uploadStatusImage = when (photoType) {
+                                    "foto" -> mutuBuah.status_uploaded_image
+                                    "foto_selfie" -> mutuBuah.status_uploaded_image_selfie
+                                    else -> mutuBuah.status_uploaded_image // fallback
+                                }
+
+                                val folderServer = when (photoType) {
+                                    "foto" -> AppUtils.DatabaseTables.MUTU_BUAH
+                                    "foto_selfie" -> "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie"
+                                    else -> AppUtils.DatabaseTables.MUTU_BUAH
+                                }
+
+                                // Skip only if status is 200 (fully uploaded)
+                                if (uploadStatusImage == "200") {
+                                    AppLogger.d("Skipping $photoType photo $trimmedName - record ${mutuBuah.id} fully uploaded (status 200)")
+                                    continue
+                                }
+
+                                var photoFound = false
+
+                                for (cmpDir in cmpDirectories) {
+                                    val photoFile = File(cmpDir, trimmedName)
+
+                                    if (photoFile.exists() && photoFile.isFile) {
+                                        var shouldAdd = false
+
+                                        if (uploadStatusImage == "0") {
+                                            shouldAdd = true
+                                            AppLogger.d("$photoType photo $trimmedName hasn't been uploaded (status 0)")
+                                        } else if (uploadStatusImage.startsWith("{")) {
+                                            try {
+                                                val errorJson = Gson().fromJson(
+                                                    uploadStatusImage,
+                                                    JsonObject::class.java
+                                                )
+                                                val errorArray =
+                                                    errorJson?.get("error")?.asJsonArray
+
+                                                errorArray?.forEach { errorItem ->
+                                                    if (errorItem.asString == trimmedName) {
+                                                        shouldAdd = true
+                                                        AppLogger.d("$photoType photo $trimmedName is marked as error in record ${mutuBuah.id}")
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                            }
+                                        }
+
+                                        val createdDate = mutuBuah.createdDate
+                                        val formattedDate = try {
+                                            val dateFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val date = dateFormat.parse(createdDate)
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(date ?: Date())
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error formatting date: ${e.message}")
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(Date())
+                                        }
+
+                                        val basePathImage =
+                                            formattedDate + prefManager!!.estateUserLogin
+
+                                        if (shouldAdd) {
+                                            targetMap[trimmedName] = mapOf(
+                                                "name" to trimmedName,
+                                                "path" to photoFile.absolutePath,
+                                                "size" to photoFile.length().toString(),
+                                                "table_ids" to mutuBuah.id.toString(),
+                                                "table" to folderServer,
+                                                "base_path" to basePathImage,
+                                                "database" to AppUtils.DatabaseTables.MUTU_BUAH,
+                                            )
+                                            AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                        } else {
+                                            AppLogger.d("Skipping $photoType photo $trimmedName - no upload needed")
+                                        }
+
+                                        photoFound = true
+                                        break
+                                    }
+                                }
+
+                                if (!photoFound) {
+                                    AppLogger.w("$photoType photo not found: $trimmedName")
+                                }
+                            }
+                        }
+
+                        // Process both foto and foto_selfie for each MutuBuah record
+                        for (mutuBuah in mutuBuahList) {
+                            processMutuBuahPhotos(
+                                mutuBuah.foto,
+                                mutuBuah,
+                                "foto",
+                                uniquePhotosMutuBuah
+                            )
+                            processMutuBuahPhotos(
+                                mutuBuah.foto_selfie,
+                                mutuBuah,
+                                "foto_selfie",
+                                uniqueSelfiesMutuBuah
+                            )
+                        }
+
+                        // Map MutuBuah data for upload
+                        val mappedMutuBuahData = mutuBuahList.map { mutuBuah ->
+                            val createdDate = mutuBuah.createdDate
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
+
+                            // Process foto with path
+                            val originalFotoString = mutuBuah.foto
+                            val modifiedFotoString = if (originalFotoString.contains(";")) {
+                                originalFotoString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalFotoString.isNotEmpty()) {
+                                "$basePath$originalFotoString"
+                            } else {
+                                ""
+                            }
+
+                            // Process foto_selfie with path
+                            val originalSelfieString = mutuBuah.foto_selfie
+                            val modifiedSelfieString = if (originalSelfieString.contains(";")) {
+                                originalSelfieString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalSelfieString.isNotEmpty()) {
+                                "$basePath$originalSelfieString"
+                            } else {
+                                ""
+                            }
+
+                            mapOf(
+                                "id" to mutuBuah.id,
+                                "tanggal" to mutuBuah.tanggal,
+                                "regional" to mutuBuah.regional,
+                                "wilayah" to mutuBuah.wilayah,
+                                "company" to mutuBuah.company,
+                                "company_abbr" to mutuBuah.companyAbbr,
+                                "company_nama" to mutuBuah.companyNama,
+                                "dept" to mutuBuah.dept,
+                                "dept_ppro" to mutuBuah.deptPpro,
+                                "dept_abbr" to mutuBuah.deptAbbr,
+                                "dept_nama" to mutuBuah.deptNama,
+                                "divisi" to mutuBuah.divisi,
+                                "divisi_ppro" to mutuBuah.divisiPpro,
+                                "divisi_abbr" to mutuBuah.divisiAbbr,
+                                "divisi_nama" to mutuBuah.divisiNama,
+                                "blok" to mutuBuah.blok,
+                                "blok_ppro" to mutuBuah.blokPpro,
+                                "blok_kode" to mutuBuah.blokKode,
+                                "blok_nama" to mutuBuah.blokNama,
+                                "tph" to mutuBuah.tph,
+                                "tph_nomor" to mutuBuah.tphNomor,
+                                "kemandoran" to mutuBuah.kemandoran,
+                                "jumlah_pemanen" to mutuBuah.jumlahPemanen,
+                                "nomor_pemanen" to mutuBuah.nomorPemanen,
+                                "jjg_panen" to mutuBuah.jjgPanen,
+                                "jjg_masak" to mutuBuah.jjgMasak,
+                                "jjg_mentah" to mutuBuah.jjgMentah,
+                                "jjg_lewat_masak" to mutuBuah.jjgLewatMasak,
+                                "jjg_kosong" to mutuBuah.jjgKosong,
+                                "jjg_abnormal" to mutuBuah.jjgAbnormal,
+                                "jjg_serangan_tikus" to mutuBuah.jjgSeranganTikus,
+                                "jjg_panjang" to mutuBuah.jjgPanjang,
+                                "jjg_tidak_vcut" to mutuBuah.jjgTidakVcut,
+                                "jjg_bayar" to mutuBuah.jjgBayar,
+                                "jjg_kirim" to mutuBuah.jjgKirim,
+                                "created_by" to mutuBuah.createdBy,
+                                "created_name" to mutuBuah.createdName,
+                                "created_date" to mutuBuah.createdDate,
+                                "updated_by" to mutuBuah.updatedBy,
+                                "updated_name" to mutuBuah.updatedName,
+                                "updated_date" to mutuBuah.updatedDate,
+                                "history" to mutuBuah.history,
+                                "foto" to modifiedFotoString,
+                                "foto_selfie" to modifiedSelfieString,
+                                "komentar" to mutuBuah.komentar,
+                                "app_version" to mutuBuah.appVersion,
+                                "status_data_panen" to mutuBuah.statusDataPanen,
+                                "lat" to mutuBuah.lat,
+                                "lon" to mutuBuah.lon
+                            )
+                        }
+
+                        // Filter data to upload (status_upload == 0)
+                        val mutuBuahDataToUpload = mappedMutuBuahData.filter { mutuBuahMap ->
+                            val id = mutuBuahMap["id"] as? Int ?: 0
+                            val original = mutuBuahList.find { it.id == id }
+                            original?.status_upload == 0
+                        }
+
+                        // Create upload data if there's data to upload
+                        if (mutuBuahDataToUpload.isNotEmpty()) {
+                            val wrappedData = mapOf(
+                                AppUtils.DatabaseTables.MUTU_BUAH to mutuBuahDataToUpload
+                            )
+                            val mutuBuahJson = Gson().toJson(wrappedData)
+                            val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
+
+                            combinedUploadData[AppUtils.DatabaseTables.MUTU_BUAH] = mapOf(
+                                "data" to mutuBuahJson,
+                                "filename" to "Data Mutu Buah ${prefManager!!.estateUserLogin}",
+                                "ids" to mutuBuahIds
+                            )
+                        }
+
+                        // Create upload data if there's data to upload
+                        if (mutuBuahDataToUpload.isNotEmpty()) {
+                            val wrappedData = mapOf(
+                                AppUtils.DatabaseTables.MUTU_BUAH to mutuBuahDataToUpload
+                            )
+                            val mutuBuahJson = Gson().toJson(wrappedData)
+
+                            // Save JSON to temp directory for inspection
+                            try {
+                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                    if (!exists()) mkdirs()
+                                }
+
+                                val filename = "mutu_buah_data_${System.currentTimeMillis()}.json"
+                                val tempFile = File(tempDir, filename)
+
+                                FileOutputStream(tempFile).use { fos ->
+                                    fos.write(mutuBuahJson.toByteArray())
+                                }
+
+                                AppLogger.d("Saved raw mutu buah data to temp file: ${tempFile.absolutePath}")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to save mutu buah data to temp file: ${e.message}")
+                                e.printStackTrace()
+                            }
+
+                            val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
+
+                            combinedUploadData[AppUtils.DatabaseTables.MUTU_BUAH] = mapOf(
+                                "data" to mutuBuahJson,
+                                "filename" to "Data Mutu Buah ${prefManager!!.estateUserLogin}",
+                                "ids" to mutuBuahIds
+                            )
+                        }
+
+
+                        // Add photos to upload data
+                        val allPhotosMutuBuah = uniquePhotosMutuBuah.values.toMutableList()
+                        val allSelfiesMutuBuah = uniqueSelfiesMutuBuah.values.toMutableList()
+
+                        if (allPhotosMutuBuah.isNotEmpty()) {
+                            AppLogger.d("Adding ${allPhotosMutuBuah.size} unique MutuBuah photos to upload data")
+                            combinedUploadData["foto_mutu_buah"] = allPhotosMutuBuah
+                        } else {
+                            AppLogger.w("No MutuBuah photos found to upload")
+                        }
+
+                        if (allSelfiesMutuBuah.isNotEmpty()) {
+                            AppLogger.d("Adding ${allSelfiesMutuBuah.size} unique MutuBuah selfies to upload data")
+                            combinedUploadData["foto_selfie_mutu_buah"] = allSelfiesMutuBuah
+                        } else {
+                            AppLogger.w("No MutuBuah selfies found to upload")
+                        }
+
+                        unzippedMutuBuah = mappedMutuBuahData.filter { item ->
+                            val id = item["id"] as? Int ?: 0
+                            val original = mutuBuahList.find { it.id == id }
+                            val isZipped = original?.dataIsZipped ?: 0
+                            isZipped == 0
+                        } as List<Map<String, Any>>
+
+                        globalMutuBuahIds = unzippedMutuBuah.mapNotNull { item ->
+                            item["id"] as? Int
+                        }
+
+                        AppLogger.d("globalMutuBuahIds $globalMutuBuahIds")
+                    }
+
                 } catch (e: Exception) {
                     Log.e("UploadCheck", "❌ Error: ${e.message}")
                 } finally {
@@ -4934,6 +5372,10 @@ class HomePageActivity : AppCompatActivity() {
                     }
                     if (unzippedInspeksiData.isNotEmpty()) {
                         uploadDataList.add(AppUtils.DatabaseTables.INSPEKSI to unzippedInspeksiData)
+                    }
+
+                    if (unzippedMutuBuah.isNotEmpty()) {
+                        uploadDataList.add(AppUtils.DatabaseTables.MUTU_BUAH to unzippedMutuBuah)
                     }
 
                     if (uploadDataList.isNotEmpty()) {
@@ -4955,6 +5397,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 AppUtils.DatabaseTables.ESPB -> globalESPBIds
                                                 AppUtils.DatabaseTables.PANEN -> globalPanenIds
                                                 AppUtils.DatabaseTables.INSPEKSI -> globalInspeksiIds
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> globalMutuBuahIds
                                                 else -> emptyList()
                                             }
 
@@ -4997,6 +5440,22 @@ class HomePageActivity : AppCompatActivity() {
 
                                                     AppUtils.DatabaseTables.INSPEKSI -> {
                                                         inspectionViewModel.updateStatus.observeOnce(
+                                                            this@HomePageActivity
+                                                        ) { success ->
+                                                            if (success) {
+                                                                AppLogger.d("✅ $feature Archive Updated Successfully")
+                                                                updateDeferred.complete(true)
+                                                            } else {
+                                                                AppLogger.e("❌ $feature Archive Update Failed")
+                                                                updateDeferred.complete(false)
+                                                            }
+                                                        }
+                                                        // Trigger the update
+                                                        archiveUpdateActions[feature]?.invoke(ids)
+                                                    }
+
+                                                    AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                        mutuBuahViewModel.updateStatus.observeOnce(
                                                             this@HomePageActivity
                                                         ) { success ->
                                                             if (success) {
@@ -5121,8 +5580,7 @@ class HomePageActivity : AppCompatActivity() {
                 val updatedHektarPanenList = hektarPanenDeferred.await()
                 val updatedAbsensiList = absensiDeferred.await()
                 val updatedInspeksiList = inspeksiDeferred.await()
-
-                AppLogger.d("updatedESPBList $updatedESPBList")
+                val updatedMutuBuahList = mutuBuahDeffered.await()
 
                 val panenToUpload = updatedPanenList.filter {
                     it.panen.status_upload == 0
@@ -5137,17 +5595,42 @@ class HomePageActivity : AppCompatActivity() {
                     it.absensi.status_upload == 0
                 }
                 val inspeksiPanenToUpload = updatedInspeksiList.filter {
-                    it.inspeksi.status_upload == "0"
+                    it.inspeksi.status_upload == "0" && it.inspeksi.isPushedToServer == 0
                 }
 
+                val mutuBuahToUpload = updatedMutuBuahList.filter {
+                    it.status_upload == 0
+                }
+
+
+                AppLogger.d("mutubuahtoupload $mutuBuahToUpload")
+
+
+                val hasPhotosMutuBuahToUpload = allPhotosMutuBuah.isNotEmpty()
+                val hasSelfiesMutuBuahToUpload = allSelfiesMutuBuah.isNotEmpty()
                 val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
                 val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
                 val hasPhotosInspeksiToUpload = allPhotosInspeksi.isNotEmpty()
-                val hasItemsToUpload =
-                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty() || hasPhotosInspeksiToUpload
+
+                AppLogger.d("hasPhotosMutuBuahToUpload $hasPhotosMutuBuahToUpload")
+                AppLogger.d("hasSelfiesMutuBuahToUpload $hasSelfiesMutuBuahToUpload")
+                val hasItemsToUpload = panenToUpload.isNotEmpty() ||
+                        espbToUpload.isNotEmpty() ||
+                        hasPhotosPanenToUpload ||
+                        hektarPanenToUpload.isNotEmpty() ||
+                        absensiPanenToUpload.isNotEmpty() ||
+                        hasPhotosAbsensiToUpload ||
+                        inspeksiPanenToUpload.isNotEmpty() ||
+                        hasPhotosInspeksiToUpload ||
+                        mutuBuahToUpload.isNotEmpty() ||
+                        hasPhotosMutuBuahToUpload ||
+                        hasSelfiesMutuBuahToUpload
 
 
-                AppLogger.d("combinedUploadData $combinedUploadData")
+                AppLogger.d("inspeksiPanenToUpload $inspeksiPanenToUpload")
+                AppLogger.d("hasPhotosInspeksiToUpload $hasPhotosInspeksiToUpload")
+                AppLogger.d("hasitemupload $hasItemsToUpload")
+
                 if (hasItemsToUpload) {
                     val uploadDataJson = Gson().toJson(combinedUploadData)
                     setupDialogUpload(uploadDataJson)
@@ -5166,40 +5649,6 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractEmployeesFromJson(jsonString: String?, kemandoranId: String): List<String> {
-        if (jsonString.isNullOrEmpty()) return emptyList()
-
-        return try {
-            val gson = Gson()
-            val jsonObject = gson.fromJson(jsonString, JsonObject::class.java)
-
-            val employees = mutableListOf<String>()
-
-            // Iterate through all categories (h, m, etc.)
-            for ((category, categoryData) in jsonObject.entrySet()) {
-                if (categoryData.isJsonObject) {
-                    val categoryObject = categoryData.asJsonObject
-
-                    // Check if this category contains data for our kemandoran
-                    if (categoryObject.has(kemandoranId)) {
-                        val employeeData = categoryObject.get(kemandoranId).asString
-                        if (employeeData.isNotEmpty()) {
-                            employees.addAll(
-                                employeeData.split(",")
-                                    .filter { it.isNotEmpty() }
-                                    .map { it.trim() }
-                            )
-                        }
-                    }
-                }
-            }
-
-            employees
-        } catch (e: Exception) {
-            AppLogger.e("Error parsing JSON for kemandoran $kemandoranId: ${e.message}")
-            emptyList()
-        }
-    }
 
     // Alternative approach if you want to extract employees by category
     private fun extractEmployeesByCategory(
@@ -5288,6 +5737,7 @@ class HomePageActivity : AppCompatActivity() {
                 1
             )
         },
+
         AppUtils.DatabaseTables.HEKTAR_PANEN to { ids: List<Int> ->
             hektarPanenViewModel.updateDataIsZippedHP(
                 ids,
@@ -5306,7 +5756,13 @@ class HomePageActivity : AppCompatActivity() {
                 ids,
                 1
             )
-        }
+        },
+        AppUtils.DatabaseTables.MUTU_BUAH to { ids: List<Int> ->
+            mutuBuahViewModel.updateDataIsZippedMutuBuah(
+                ids,
+                1
+            )
+        },
     )
 
     data class Pemanen(val nik: String, val nama: String)
@@ -5378,7 +5834,6 @@ class HomePageActivity : AppCompatActivity() {
                 val dataMap = gson.fromJson(uploadData, Map::class.java)
                 AppLogger.d("Data map keys: ${dataMap.keys}")
                 AppLogger.d(dataMap.toString())
-                AppLogger.d("slkdjflkajsfd")
 
                 // Extract the data for panen, espb, and photo files
                 val panenFilePath = dataMap[AppUtils.DatabaseTables.PANEN] as? String
@@ -5579,6 +6034,127 @@ class HomePageActivity : AppCompatActivity() {
                         } else {
                             AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
                         }
+                    }
+                }
+
+                // Process MutuBuah data
+                val mutuBuahInfo = dataMap[AppUtils.DatabaseTables.MUTU_BUAH] as? Map<*, *>
+                if (mutuBuahInfo != null) {
+                    AppLogger.d("Found mutu_buah data: $mutuBuahInfo")
+
+                    val mutuBuahData = mutuBuahInfo["data"] as? String
+                    val mutuBuahFilename = mutuBuahInfo["filename"] as? String
+                    val mutuBuahIds = mutuBuahInfo["ids"] as? List<Int> ?: emptyList()
+
+                    if (mutuBuahData != null && mutuBuahData.isNotEmpty()) {
+                        val dataSize = mutuBuahData.length.toLong()
+                        AppLogger.d("MutuBuah data size: $dataSize")
+
+                        val tableIdsJson = JSONObject().apply {
+                            put(AppUtils.DatabaseTables.MUTU_BUAH, JSONArray(mutuBuahIds))
+                        }.toString()
+
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = "Data Mutu Buah",
+                            fullPath = "",
+                            baseFilename = mutuBuahFilename!!,
+                            data = mutuBuahData,
+                            type = "json",
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        adapter.setFileSize(uploadItem.id, dataSize)
+                        adapter.notifyDataSetChanged()
+                        AppLogger.d("Added MutuBuah to upload items (size: $dataSize bytes)")
+                    } else {
+                        AppLogger.d("MutuBuah data is missing required fields: data=$mutuBuahData, filename=$mutuBuahFilename")
+                    }
+                }
+
+                // Process foto_mutu_buah (regular photos)
+                val fotoMutuBuah = dataMap["foto_mutu_buah"] as? List<*>
+                if (fotoMutuBuah != null && fotoMutuBuah.isNotEmpty()) {
+                    AppLogger.d("Processing MutuBuah photo data: ${fotoMutuBuah.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoMutuBuah.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("MutuBuah Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing MutuBuah photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount MutuBuah photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Mutu Buah ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_mutu_buah",
+                            baseFilename = "",
+                            data = gson.toJson(fotoMutuBuah),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding MutuBuah photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No MutuBuah photo files found for upload")
+                    }
+                }
+
+// Process foto_selfie_mutu_buah (selfie photos)
+                val fotoSelfieMutuBuah = dataMap["foto_selfie_mutu_buah"] as? List<*>
+                if (fotoSelfieMutuBuah != null && fotoSelfieMutuBuah.isNotEmpty()) {
+                    AppLogger.d("Processing MutuBuah selfie photo data: ${fotoSelfieMutuBuah.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoSelfieMutuBuah.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("MutuBuah Selfie Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing MutuBuah selfie photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount MutuBuah selfie photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Selfie Mutu Buah ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_selfie_mutu_buah",
+                            baseFilename = "",
+                            data = gson.toJson(fotoSelfieMutuBuah),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding MutuBuah selfie photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No MutuBuah selfie photo files found for upload")
                     }
                 }
 
@@ -6397,6 +6973,7 @@ class HomePageActivity : AppCompatActivity() {
                 globalHektarPanenIdsByPart.clear()
                 globalAbsensiPanenIdsByPart.clear()
                 globalResponseJsonUploadList.clear()
+                globalMutuBuahIdsByPart.clear()
 
                 AppLogger.d("responseMap $responseMap")
 
@@ -6416,12 +6993,25 @@ class HomePageActivity : AppCompatActivity() {
 
                             val keyJsonName = response.trackingId.toString()
 
-                            if (response.success) {
+                            AppLogger.d("response nya masuuk apa gessss ${response.success}")
+
+                            // Check if this is a mutu_buah feature
+                            val isMutuBuahFeature = try {
+                                response.table_ids?.let {
+                                    val tableIdsJson = JSONObject(it)
+                                    tableIdsJson.has(AppUtils.DatabaseTables.MUTU_BUAH)
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
+
+                            // Process table_ids if success OR if it's mutu_buah feature (even with success=false)
+                            if (response.success || isMutuBuahFeature) {
                                 try {
                                     // Extract table_ids from the response
                                     val tableIds = response.table_ids
                                     if (tableIds != null) {
-                                        // Parse the table_ids to determine table types
+                                        // Parse the table_ids JSON string to determine table types
                                         val tableIdsJson = JSONObject(tableIds)
                                         AppLogger.d("tableIdsJson $tableIdsJson")
 
@@ -6497,6 +7087,18 @@ class HomePageActivity : AppCompatActivity() {
                                                         inspeksiDetailPanenIds
                                                     AppLogger.d("Extracted Inspeksi Detail IDs from response: $inspeksiDetailPanenIds")
                                                 }
+
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                    val MutuBuahIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.MUTU_BUAH)
+                                                    val MutuBuahIds =
+                                                        (0 until MutuBuahIdsArray.length()).map {
+                                                            MutuBuahIdsArray.getInt(it)
+                                                        }
+                                                    globalMutuBuahIdsByPart[keyJsonName] =
+                                                        MutuBuahIds
+                                                    AppLogger.d("Extracted Mutu Buah IDs from response: $MutuBuahIds")
+                                                }
                                             }
                                         }
                                     } else {
@@ -6508,6 +7110,7 @@ class HomePageActivity : AppCompatActivity() {
                                         globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                         globalInspeksiDetailPanenIdsByPart[keyJsonName] =
                                             emptyList()
+                                        globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                                     }
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
@@ -6517,6 +7120,7 @@ class HomePageActivity : AppCompatActivity() {
                                     globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                     globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                     globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                    globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                                 }
                             } else {
                                 globalPanenIdsByPart[keyJsonName] = emptyList()
@@ -6525,6 +7129,7 @@ class HomePageActivity : AppCompatActivity() {
                                 globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                 globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                 globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                             }
                         } else if (response.type == "image") {
                             globalResponseJsonUploadList.add(
@@ -6671,6 +7276,20 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("No inspeksi detail IDs found for file $trackingId")
                     }
 
+                    val mutuBuahIds =
+                        globalMutuBuahIdsByPart[trackingId] ?: emptyList()
+                    if (mutuBuahIds.isNotEmpty()) {
+                        AppLogger.d("Found ${mutuBuahIds.size} absensi IDs for file $trackingId: $mutuBuahIds")
+
+                        mutuBuahViewModel.updateStatusUploadMutuBuah(
+                            mutuBuahIds,
+                            responseInfo.status
+                        )
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for inspeksi detail IDs: $mutuBuahIds")
+                    } else {
+                        AppLogger.d("No inspeksi detail IDs found for file $trackingId")
+                    }
+
                     val jsonResultTableIds = createJsonTableNameMapping(trackingId)
                     AppLogger.d("Processing successful upload: $trackingId with tracking ID $trackingId, status code: ${responseInfo.status}")
 
@@ -6750,7 +7369,7 @@ class HomePageActivity : AppCompatActivity() {
         retryDownloadDataset.setOnClickListener {
 
 
-//            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+
 
             containerDownloadDataset.visibility = View.GONE
             cancelDownloadDataset.visibility = View.GONE
@@ -6925,7 +7544,7 @@ class HomePageActivity : AppCompatActivity() {
             val itemData =
                 if ((request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) && !previewDataRestan.isNullOrEmpty()) {
                     previewDataRestan
-                } else if ((request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) && !previewDataRestan.isNullOrEmpty()) {
+                } else if ((request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) && !previewDataFollowUpInspeksi.isNullOrEmpty()) {
                     previewDataFollowUpInspeksi
                 } else if ((request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) && !previewDataPanen.isNullOrEmpty()) {
                     previewDataPanen
@@ -6933,17 +7552,13 @@ class HomePageActivity : AppCompatActivity() {
                     ""
                 }
 
-
-            AppLogger.d("itemDat $itemData")
-
-            AppLogger.d("request.dataset${request.dataset}")
             downloadItems.add(
                 UploadCMPItem(
                     id = itemId++,
                     title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
-                    data = itemData?: "",
+                    data = itemData ?: "",
                     type = "",
                     databaseTable = ""
                 )
@@ -7253,20 +7868,37 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
-        if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
-            showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
-            loadingDialog.dismiss()
-            return
-        }
+        val jabatanUser = prefManager!!.jabatanUserLogin
+        val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
 
-        try {
-            val estateId = estateIdString.toInt()
-            if (estateId <= 0) {
-                showErrorDialog("Estate ID must be a positive number")
+        if (!isGMUser) {
+            if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
+                showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
                 loadingDialog.dismiss()
                 return
             }
 
+            if (estateIdString.contains(",")) {
+                showErrorDialog("Non-GM users should have only one Estate ID")
+                loadingDialog.dismiss()
+                return
+            }
+
+            try {
+                val estateId = estateIdString.toInt()
+                if (estateId <= 0) {
+                    showErrorDialog("Estate ID must be a positive number")
+                    loadingDialog.dismiss()
+                    return
+                }
+            } catch (e: NumberFormatException) {
+                showErrorDialog("Invalid Estate ID format: '$estateIdString'")
+                loadingDialog.dismiss()
+                return
+            }
+        }
+
+        try {
             // Set the trigger flags in the utility
             downloadDatasetUtility.apply {
                 isTriggerFeatureInspection = this@HomePageActivity.isTriggerFeatureInspection
@@ -7275,10 +7907,20 @@ class HomePageActivity : AppCompatActivity() {
                     this@HomePageActivity.isTriggerButtonSinkronisasiData
             }
 
-            // Use the utility to get datasets
+            val estateIds = if (isGMUser && estateIdString!!.contains(",")) {
+                estateIdString.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .map { it.toInt() }
+            } else {
+                estateIdString!!
+            }
+
+            AppLogger.d("estateIds $estateIds")
+
             val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
                 regionalIdString!!.toInt(),
-                estateId,
+                estateIds,
                 afdelingIdString!!,
                 lastModifiedDatasetEstate,
                 lastModifiedDatasetTPH,
@@ -7291,6 +7933,7 @@ class HomePageActivity : AppCompatActivity() {
                 lastModifiedSettingJSON
             )
 
+            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
 
             AppLogger.d("allDatasets $allDatasets")
 
@@ -7326,7 +7969,7 @@ class HomePageActivity : AppCompatActivity() {
             }
         } catch (e: NumberFormatException) {
             loadingDialog.dismiss()
-            AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
+            AppLogger.d("Downloads: Failed to parse Estate ID: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
         }
     }

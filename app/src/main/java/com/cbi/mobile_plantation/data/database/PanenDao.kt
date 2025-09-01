@@ -26,6 +26,9 @@ abstract class PanenDao {
         }
     }
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertBatch(entities: List<PanenEntity>): List<Long>
+
 
     @Query("""
         SELECT * FROM ${AppUtils.DatabaseTables.PANEN} 
@@ -84,8 +87,42 @@ abstract class PanenDao {
     abstract suspend fun getCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String?): Int
 
 
-    @Query("UPDATE panen_table SET status_espb = 0 WHERE tph_id = :tphId AND date_created = :dateCreated")
-    abstract suspend fun updateStatusEspbToZero(tphId: String, dateCreated: String): Int
+    @Query("""
+    UPDATE panen_table 
+    SET status_espb = 0,
+        no_espb = '',
+        status_pengangkutan = 0
+    WHERE tph_id = :tphId 
+      AND date_created = :dateCreated 
+      AND jjg_json = :kpJson 
+      AND nomor_pemanen = :nomorPemanen
+""")
+    abstract suspend fun resetEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String
+    ): Int
+
+    @Query("""
+    UPDATE panen_table 
+    SET status_espb = 1,
+        no_espb = :noEspb,
+        status_pengangkutan = 2
+    WHERE tph_id = :tphId 
+      AND date_created = :dateCreated 
+      AND jjg_json = :kpJson 
+      AND nomor_pemanen = :nomorPemanen
+""")
+    abstract suspend fun setEspbStatus(
+        tphId: String,
+        dateCreated: String,
+        kpJson: String,
+        nomorPemanen: String,
+        noEspb: String
+    ): Int
+
+
 
 
     @Query("""
@@ -202,7 +239,15 @@ abstract class PanenDao {
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
 
     @Transaction
-    @Query("SELECT * FROM panen_table WHERE status_espb = 0 and status_scan_mpanen = 0 and status_transfer_restan = 0 AND isPushedToServer = 0")
+    @Query("""
+    SELECT * FROM panen_table 
+    WHERE status_espb = 0 
+    AND status_scan_mpanen = 0 
+    AND status_transfer_restan = 0 
+    AND isPushedToServer = 0
+    AND status_upload = 0
+    AND date(date_created) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+7 days')
+""")
     abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
     @Transaction

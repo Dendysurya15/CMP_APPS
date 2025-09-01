@@ -8,8 +8,8 @@ import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
-import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.data.network.CMPApiClient
+import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.gson.Gson
@@ -24,6 +24,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 
@@ -41,6 +43,7 @@ class UploadCMPRepository(context: Context) {
     private val absensiDao = database.absensiDao()
     private val espbDao = database.espbDao()
     private val inspeksiDao = database.inspectionDao()
+    private val mutuBuahDao = database.mutuBuahDao()
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
@@ -111,14 +114,13 @@ class UploadCMPRepository(context: Context) {
     }
 
 
-
     data class ImageFileInfo(
         val file: File,
         val imageName: String,
         val tableId: String,
         val basePath: String,
         val databaseTable: String,
-        val anotherDatabaseTable :String
+        val anotherDatabaseTable: String
     )
 
     suspend fun uploadJsonToServerV3(
@@ -159,7 +161,8 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("Total images to upload: ${imageList.size}")
 
                         // Calculate progress steps - each image gets equal weight
-                        val progressPerImage = 90.0 / imageList.size // Reserve 10% for initial setup
+                        val progressPerImage =
+                            90.0 / imageList.size // Reserve 10% for initial setup
                         var currentProgress = 10.0  // Start at 10%
 
                         // Validate all files exist first
@@ -185,7 +188,7 @@ class UploadCMPRepository(context: Context) {
                                 validImageFiles.add(
                                     ImageFileInfo(
                                         file, imageName, tableId.toString(),
-                                        basePathImage!!, databaseTable!!, table?: ""
+                                        basePathImage!!, databaseTable!!, table ?: ""
                                     )
                                 )
                                 AppLogger.d("✓ File exists: $imageName")
@@ -196,7 +199,11 @@ class UploadCMPRepository(context: Context) {
                                 // Update progress for missing file
                                 currentProgress += progressPerImage
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(currentProgress.toInt(), false, "✗ File not found: $imageName")
+                                    onProgressUpdate(
+                                        currentProgress.toInt(),
+                                        false,
+                                        "✗ File not found: $imageName"
+                                    )
                                 }
 
                                 // Update status to error for file not found
@@ -208,7 +215,8 @@ class UploadCMPRepository(context: Context) {
                                     }.toString()
 
                                     // Check if table field exists, otherwise use databaseTable
-                                    val targetTable = if (!table.isNullOrEmpty()) table else databaseTable
+                                    val targetTable =
+                                        if (!table.isNullOrEmpty()) table else databaseTable
 
                                     when (targetTable) {
                                         AppUtils.DatabaseTables.PANEN -> {
@@ -217,12 +225,28 @@ class UploadCMPRepository(context: Context) {
                                                 errorJson
                                             )
                                         }
+
                                         AppUtils.DatabaseTables.ABSENSI -> {
                                             absensiDao.updateStatusUploadedImage(
                                                 listOf(tableId),
                                                 errorJson
                                             )
                                         }
+
+                                        AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                            mutuBuahDao.updateStatusUploadedImage(
+                                                listOf(tableId),
+                                                errorJson
+                                            )
+                                        }
+
+                                        "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                            mutuBuahDao.updateStatusUploadedImageSelfie(
+                                                listOf(tableId),
+                                                errorJson
+                                            )
+                                        }
+
                                         AppUtils.DatabaseTables.INSPEKSI, AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
                                             // Handle inspeksi watermark cases
                                             when (databaseTable) {
@@ -232,30 +256,35 @@ class UploadCMPRepository(context: Context) {
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
                                                     inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(
                                                         listOf(tableId),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
                                                     inspeksiDao.updateStatusUploadedImageInspeksi(
                                                         listOf(tableId),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
                                                     inspeksiDao.updateStatusUploadedImageInspeksi(
                                                         listOf(tableId),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
                                                     inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                         listOf(tableId),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
                                                     inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                         listOf(tableId),
@@ -348,7 +377,6 @@ class UploadCMPRepository(context: Context) {
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
                                 )
-                                AppLogger.d("lkasjdlfkjasd lflaskd jf")
 
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")
@@ -374,7 +402,8 @@ class UploadCMPRepository(context: Context) {
 
                                         AppLogger.d("tableIdInt $tableIdInt")
                                         if (tableIdInt != -1) {
-                                            val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
+                                            val targetTable =
+                                                if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
                                             AppLogger.d("Target table resolved to: $targetTable")
                                             AppLogger.d("Database table: ${fileInfo.databaseTable}")
                                             AppLogger.d("Another database table: ${fileInfo.anotherDatabaseTable}")
@@ -387,6 +416,7 @@ class UploadCMPRepository(context: Context) {
                                                         "200"
                                                     )
                                                 }
+
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     AppLogger.d("Updating ABSENSI status_uploaded_image to 200 for ID $tableIdInt")
                                                     absensiDao.updateStatusUploadedImage(
@@ -394,6 +424,21 @@ class UploadCMPRepository(context: Context) {
                                                         "200"
                                                     )
                                                 }
+
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                    mutuBuahDao.updateStatusUploadedImage(
+                                                        listOf(tableIdInt),
+                                                        "200"
+                                                    )
+                                                }
+
+                                                "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                                    mutuBuahDao.updateStatusUploadedImageSelfie(
+                                                        listOf(tableIdInt),
+                                                        "200"
+                                                    )
+                                                }
+
                                                 AppUtils.DatabaseTables.INSPEKSI, AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
                                                     AppLogger.d("INSPEKSI or INSPEKSI_DETAIL table, determining watermark type: ${databaseTable}")
                                                     when (fileInfo.databaseTable) {
@@ -404,6 +449,7 @@ class UploadCMPRepository(context: Context) {
                                                                 "200"
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
                                                             AppLogger.d("Updating FotoUserPemulihan for WMBuktiFUInspeksiUser ID $tableIdInt")
                                                             inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(
@@ -411,6 +457,7 @@ class UploadCMPRepository(context: Context) {
                                                                 "200"
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
                                                             AppLogger.d("Updating Inspeksi for WMInspeksiTPH ID $tableIdInt")
                                                             inspeksiDao.updateStatusUploadedImageInspeksi(
@@ -418,6 +465,7 @@ class UploadCMPRepository(context: Context) {
                                                                 "200"
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
                                                             AppLogger.d("Updating Inspeksi for WMInspeksiPokok ID $tableIdInt")
                                                             inspeksiDao.updateStatusUploadedImageInspeksi(
@@ -425,6 +473,7 @@ class UploadCMPRepository(context: Context) {
                                                                 "200"
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
                                                             AppLogger.d("Updating PemulihanInspeksi for WMFUInspeksiTPH ID $tableIdInt")
                                                             inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
@@ -432,6 +481,7 @@ class UploadCMPRepository(context: Context) {
                                                                 "200"
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
                                                             AppLogger.d("Updating PemulihanInspeksi for WMFUInspeksiPokok ID $tableIdInt")
                                                             inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
@@ -439,11 +489,13 @@ class UploadCMPRepository(context: Context) {
                                                                 "200"
                                                             )
                                                         }
+
                                                         else -> {
                                                             AppLogger.e("Unknown databaseTable inside INSPEKSI: $databaseTable")
                                                         }
                                                     }
                                                 }
+
                                                 else -> {
                                                     AppLogger.e("Unknown targetTable: $targetTable")
                                                 }
@@ -454,7 +506,11 @@ class UploadCMPRepository(context: Context) {
                                         // Update progress for successful upload
                                         currentProgress += progressPerImage
                                         withContext(Dispatchers.Main) {
-                                            onProgressUpdate(currentProgress.toInt(), false, "✓ ${fileInfo.imageName} uploaded successfully")
+                                            onProgressUpdate(
+                                                currentProgress.toInt(),
+                                                false,
+                                                "✓ ${fileInfo.imageName} uploaded successfully"
+                                            )
                                         }
                                     } else {
                                         AppLogger.e("Null response body for: ${fileInfo.imageName}")
@@ -467,7 +523,8 @@ class UploadCMPRepository(context: Context) {
                                                     add(fileInfo.imageName)
                                                 })
                                             }.toString()
-                                            val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
+                                            val targetTable =
+                                                if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
 
                                             when (targetTable) {
                                                 AppUtils.DatabaseTables.PANEN -> {
@@ -476,12 +533,27 @@ class UploadCMPRepository(context: Context) {
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.DatabaseTables.ABSENSI -> {
                                                     absensiDao.updateStatusUploadedImage(
                                                         listOf(tableIdInt),
                                                         errorJson
                                                     )
                                                 }
+
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                    mutuBuahDao.updateStatusUploadedImage(
+                                                        listOf(tableIdInt),
+                                                        errorJson
+                                                    )
+                                                }
+                                                "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                                    mutuBuahDao.updateStatusUploadedImageSelfie(
+                                                        listOf(tableIdInt),
+                                                        errorJson
+                                                    )
+                                                }
+
                                                 AppUtils.DatabaseTables.INSPEKSI, AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
 
                                                     when (databaseTable) {
@@ -491,30 +563,35 @@ class UploadCMPRepository(context: Context) {
                                                                 errorJson
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
                                                             inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(
                                                                 listOf(tableIdInt),
                                                                 errorJson
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
                                                             inspeksiDao.updateStatusUploadedImageInspeksi(
                                                                 listOf(tableIdInt),
                                                                 errorJson
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
                                                             inspeksiDao.updateStatusUploadedImageInspeksi(
                                                                 listOf(tableIdInt),
                                                                 errorJson
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
                                                             inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                                 listOf(tableIdInt),
                                                                 errorJson
                                                             )
                                                         }
+
                                                         AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
                                                             inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                                 listOf(tableIdInt),
@@ -532,7 +609,11 @@ class UploadCMPRepository(context: Context) {
                                         // Update progress for failed upload
                                         currentProgress += progressPerImage
                                         withContext(Dispatchers.Main) {
-                                            onProgressUpdate(currentProgress.toInt(), false, "✗ ${fileInfo.imageName} failed - null response")
+                                            onProgressUpdate(
+                                                currentProgress.toInt(),
+                                                false,
+                                                "✗ ${fileInfo.imageName} failed - null response"
+                                            )
                                         }
                                     }
                                 } else {
@@ -547,7 +628,8 @@ class UploadCMPRepository(context: Context) {
                                                 add(fileInfo.imageName)
                                             })
                                         }.toString()
-                                        val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
+                                        val targetTable =
+                                            if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
 
                                         when (targetTable) {
                                             AppUtils.DatabaseTables.PANEN -> {
@@ -556,12 +638,27 @@ class UploadCMPRepository(context: Context) {
                                                     errorJson
                                                 )
                                             }
+
                                             AppUtils.DatabaseTables.ABSENSI -> {
                                                 absensiDao.updateStatusUploadedImage(
                                                     listOf(tableIdInt),
                                                     errorJson
                                                 )
                                             }
+
+                                            AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                mutuBuahDao.updateStatusUploadedImage(
+                                                    listOf(tableIdInt),
+                                                    errorJson
+                                                )
+                                            }
+                                            "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                                mutuBuahDao.updateStatusUploadedImageSelfie(
+                                                    listOf(tableIdInt),
+                                                    errorJson
+                                                )
+                                            }
+
                                             AppUtils.DatabaseTables.INSPEKSI, AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
 
                                                 when (databaseTable) {
@@ -571,30 +668,35 @@ class UploadCMPRepository(context: Context) {
                                                             errorJson
                                                         )
                                                     }
+
                                                     AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
                                                         inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(
                                                             listOf(tableIdInt),
                                                             errorJson
                                                         )
                                                     }
+
                                                     AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
                                                         inspeksiDao.updateStatusUploadedImageInspeksi(
                                                             listOf(tableIdInt),
                                                             errorJson
                                                         )
                                                     }
+
                                                     AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
                                                         inspeksiDao.updateStatusUploadedImageInspeksi(
                                                             listOf(tableIdInt),
                                                             errorJson
                                                         )
                                                     }
+
                                                     AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
                                                         inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                             listOf(tableIdInt),
                                                             errorJson
                                                         )
                                                     }
+
                                                     AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
                                                         inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                             listOf(tableIdInt),
@@ -633,7 +735,8 @@ class UploadCMPRepository(context: Context) {
                                             add(fileInfo.imageName)
                                         })
                                     }.toString()
-                                    val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
+                                    val targetTable =
+                                        if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) fileInfo.anotherDatabaseTable else fileInfo.databaseTable
 
                                     when (targetTable) {
                                         AppUtils.DatabaseTables.PANEN -> {
@@ -642,8 +745,22 @@ class UploadCMPRepository(context: Context) {
                                                 errorJson
                                             )
                                         }
+
                                         AppUtils.DatabaseTables.ABSENSI -> {
                                             absensiDao.updateStatusUploadedImage(
+                                                listOf(tableIdInt),
+                                                errorJson
+                                            )
+                                        }
+
+                                        AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                            mutuBuahDao.updateStatusUploadedImage(
+                                                listOf(tableIdInt),
+                                                errorJson
+                                            )
+                                        }
+                                        "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                            mutuBuahDao.updateStatusUploadedImageSelfie(
                                                 listOf(tableIdInt),
                                                 errorJson
                                             )
@@ -657,30 +774,35 @@ class UploadCMPRepository(context: Context) {
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
                                                     inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(
                                                         listOf(tableIdInt),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
                                                     inspeksiDao.updateStatusUploadedImageInspeksi(
                                                         listOf(tableIdInt),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
                                                     inspeksiDao.updateStatusUploadedImageInspeksi(
                                                         listOf(tableIdInt),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
                                                     inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                         listOf(tableIdInt),
                                                         errorJson
                                                     )
                                                 }
+
                                                 AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
                                                     inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(
                                                         listOf(tableIdInt),
@@ -1352,6 +1474,8 @@ class UploadCMPRepository(context: Context) {
                 }
                 else {
                     AppLogger.d("Starting JSON data upload for: $filename")
+
+                    AppLogger.d("databaseTable $databaseTable")
                     try {
                         // Validate that we have data
                         if (data.isBlank()) {
@@ -1436,32 +1560,91 @@ class UploadCMPRepository(context: Context) {
                                 val statusInt = responseBody.status.toInt()
                                 val isSuccess = statusInt in 1..3
 
-                                // Update progress based on status
-                                withContext(Dispatchers.Main) {
-                                    if (isSuccess) {
-                                        // Status is valid, mark as success
-                                        onProgressUpdate(100, true, null)
-                                        AppLogger.d("Upload marked as SUCCESS with status: $statusInt")
-                                    } else {
-                                        // Status is outside valid range, mark as failure
-                                        val errorMessage = responseBody.message
-                                            ?: "Upload failed with status: $statusInt"
-                                        onProgressUpdate(100, false, errorMessage)
-                                        AppLogger.d("Upload marked as FAILURE: $errorMessage")
+                                // Check for special mutu_buah case with skipped records
+                                val isMutuBuahWithSkipped = databaseTable == "mutu_buah" &&
+                                        responseBody.results?.skipped != null &&
+                                        responseBody.results.skipped > 0
+
+                                // Filter table_ids for mutu_buah if there are skipped records
+                                val filteredTableIds = if (isMutuBuahWithSkipped && tableIds != null) {
+                                    try {
+                                        // Parse the tableIds JSON string
+                                        val originalTableIdsJson = JSONObject(tableIds)
+
+                                        // Get the skipped record IDs from skipErrorDetails
+                                        val skippedIds = mutableSetOf<Int>()
+                                        responseBody.results?.skipErrorDetails?.forEach { skipDetail ->
+                                            skipDetail.data?.let { data ->
+                                                // Extract the ID from the data object
+                                                val dataJson = JSONObject(data.toString())
+                                                if (dataJson.has("id")) {
+                                                    skippedIds.add(dataJson.getInt("id"))
+                                                }
+                                            }
+                                        }
+
+                                        // Filter mutu_buah IDs by removing skipped ones
+                                        if (originalTableIdsJson.has("mutu_buah")) {
+                                            val originalMutuBuahIdsArray = originalTableIdsJson.getJSONArray("mutu_buah")
+                                            val originalMutuBuahIds = (0 until originalMutuBuahIdsArray.length()).map {
+                                                originalMutuBuahIdsArray.getInt(it)
+                                            }
+
+                                            val filteredMutuBuahIds = originalMutuBuahIds.filter { id -> !skippedIds.contains(id) }
+
+                                            AppLogger.d("Original mutu_buah IDs: $originalMutuBuahIds")
+                                            AppLogger.d("Skipped IDs: $skippedIds")
+                                            AppLogger.d("Filtered mutu_buah IDs: $filteredMutuBuahIds")
+
+                                            // Create new JSON with filtered IDs
+                                            val filteredTableIdsJson = JSONObject(tableIds) // Copy original
+                                            val filteredIdsArray = JSONArray()
+                                            filteredMutuBuahIds.forEach { filteredIdsArray.put(it) }
+                                            filteredTableIdsJson.put("mutu_buah", filteredIdsArray)
+
+                                            filteredTableIdsJson.toString()
+                                        } else {
+                                            tableIds
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error filtering table_ids: ${e.message}")
+                                        tableIds
                                     }
+                                } else {
+                                    tableIds
+                                }
+                                // Determine final message, status, and success
+                                val finalMessage = if (isMutuBuahWithSkipped) {
+                                    "Data tidak dapat di-upload, Mohon hubungi Kerani Panen untuk upload data panen"
+                                } else {
+                                    responseBody.message
                                 }
 
+                                val finalStatus = responseBody.status
+                                val finalSuccess = if (isMutuBuahWithSkipped) false else responseBody.success
+
                                 val jsonResponse = UploadV3Response(
-                                    success = responseBody.success,
+                                    success = finalSuccess,
                                     trackingId = responseBody.trackingId,
-                                    message = responseBody.message,
-                                    status = responseBody.status,
+                                    message = finalMessage,
+                                    status = finalStatus,
                                     tanggal_upload = responseBody.tanggal_upload,
                                     nama_file = responseBody.nama_file,
                                     results = responseBody.results,
                                     type = "json",
-                                    table_ids = tableIds
+                                    table_ids = filteredTableIds // Use filtered table_ids
                                 )
+
+                                AppLogger.d("====== JSON RESPONSE DETAILS ======")
+                                AppLogger.d("Response Success: ${jsonResponse.success}")
+                                AppLogger.d("Response Tracking ID: ${jsonResponse.trackingId}")
+                                AppLogger.d("Response Message: ${jsonResponse.message}")
+                                AppLogger.d("Response Status: ${jsonResponse.status}")
+                                AppLogger.d("Response Upload Date: ${jsonResponse.tanggal_upload}")
+                                AppLogger.d("Response File Name: ${jsonResponse.nama_file}")
+                                AppLogger.d("Response Type: ${jsonResponse.type}")
+                                AppLogger.d("Response Table IDs: ${jsonResponse.table_ids}")
+                                AppLogger.d("Response Results: ${jsonResponse.results}")
 
                                 Result.success(jsonResponse)
                             } else {

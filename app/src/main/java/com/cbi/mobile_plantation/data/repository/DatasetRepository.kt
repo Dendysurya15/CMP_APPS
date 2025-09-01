@@ -145,6 +145,10 @@ class DatasetRepository(
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
     }
 
+    suspend fun getListOfBlok(idEstate: Int, idDivisi: Int): List<BlokModel> {
+        return blokDao.getListOfBlok(idEstate, idDivisi)
+    }
+
     suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? = withContext(Dispatchers.IO) {
         tphDao.getTPHDetailsByID(tphId)
     }
@@ -267,8 +271,10 @@ class DatasetRepository(
         return tphDao.getTPHsByIds(tphIds)
     }
 
-    suspend fun getTPHEstate(estateAbbr: String): Response<ResponseBody> {
+    suspend fun getTPHEstate(estateValue: String, useAbbr: Boolean = true): Response<ResponseBody> {
         // Build the JSON object for the request
+
+        AppLogger.d("gasdkjalksjf lkasjdlf")
         val jsonObject = JSONObject().apply {
             put("table", "tph")
             put("select", JSONArray().apply {
@@ -291,17 +297,35 @@ class DatasetRepository(
                 put("ancak")
                 put("nomor")
                 put("tahun")
+                put("lat")
+                put("lon")
+                put("update_date")
+                put("status")
+                put("jenis_tph_id")
+                put("limit_tph")
             })
 
             put("where", JSONObject().apply {
-                put("dept_abbr", estateAbbr)
+                if (useAbbr) {
+                    // For non-GM users: use dept_abbr with estate abbreviation
+                    put("dept_abbr", estateValue)
+                } else {
+                    // For GM users: use dept with estate ID
+                    put("dept", estateValue.toIntOrNull() ?: estateValue)
+                }
                 put("status", 1)
             })
         }
 
 
+
+
+        AppLogger.d(" json $jsonObject")
+
         // Convert to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("requestBody $requestBody")
 
         // Perform API call
         return apiService.getDataRaw(requestBody)

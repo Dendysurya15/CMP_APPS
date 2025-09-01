@@ -22,6 +22,7 @@ data class PanenEntity(
     val lon: Double,
     val jenis_panen: Int, //normal = 0, Cut& carry =1, MAIC = 2
     val ancak: Int,
+    val nomor_pemanen:Int,
     val info: String,
     val archive: Int=0,
     val status_banjir: Int=0,
