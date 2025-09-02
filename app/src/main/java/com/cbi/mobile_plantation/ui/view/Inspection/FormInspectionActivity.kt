@@ -42,7 +42,6 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -1563,6 +1562,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
 
                         // Navigate to next page
+                        AppLogger.d(" askdjflkasjd flk safldkj sldkj")
                         formAncakViewModel.nextPage()
 
                         // Small delay for smooth transition
@@ -1942,7 +1942,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     if (!isFollowUp) {
                                         val formData =
                                             formAncakViewModel.formData.value ?: mutableMapOf()
-                                        val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
+                                        val selectedPemuatWorkers =
+                                            selectedPemuatAdapter.getSelectedWorkers()
 
                                         val detailResult =
                                             inspectionViewModel.saveDataInspectionDetails(
@@ -2725,30 +2726,129 @@ open class FormInspectionActivity : AppCompatActivity(),
         tphScannedResultRecyclerView.removeItemDecoration(decoration) // Remove if applied
 
         btnScanTPHRadius.setOnClickListener {
-            if (currentAccuracy <= boundaryAccuracy) {
-                // GPS is within boundary - proceed directly
-                isTriggeredBtnScanned = true
-                selectedEstateByScan = null
-                selectedIdPanenByScan = null
-                selectedAfdelingByScan = null
-                selectedBlokByScan = null
-                selectedTPHNomorByScan = null
-                selectedAncakByScan = null
-                selectedTanggalPanenByScan = null
-                selectedTPHValue = null
-                progressBarScanTPHManual.visibility = View.VISIBLE
-                Handler(Looper.getMainLooper()).postDelayed({
-                    checkScannedTPHInsideRadius()
-                }, 400)
-            } else {
+            AppLogger.d("btnScanTPHRadius clicked")
+
+            try {
+                AppLogger.d("Current accuracy: $currentAccuracy, Boundary accuracy: $boundaryAccuracy")
+
+                // Validate accuracy values
+                if (!currentAccuracy.isFinite() || !boundaryAccuracy.isFinite()) {
+                    AppLogger.e("Invalid accuracy values - current: $currentAccuracy, boundary: $boundaryAccuracy")
+                    Toasty.error(
+                        this,
+                        "Error: Nilai akurasi GPS tidak valid!",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                if (currentAccuracy <= boundaryAccuracy) {
+                    AppLogger.d("GPS is within boundary - proceeding with scan")
+
+                    try {
+                        // GPS is within boundary - proceed directly
+                        isTriggeredBtnScanned = true
+                        selectedEstateByScan = null
+                        selectedIdPanenByScan = null
+                        selectedAfdelingByScan = null
+                        selectedBlokByScan = null
+                        selectedTPHNomorByScan = null
+                        selectedAncakByScan = null
+                        selectedTanggalPanenByScan = null
+                        selectedTPHValue = null
+
+                        AppLogger.d("Reset selection values and set trigger flag")
+
+                        // Validate progress bar exists
+                        if (::progressBarScanTPHManual.isInitialized) {
+                            progressBarScanTPHManual.visibility = View.VISIBLE
+                            AppLogger.d("Progress bar shown")
+                        } else {
+                            AppLogger.w("progressBarScanTPHManual not initialized")
+                        }
+
+                        // Use Handler with additional error checking
+                        try {
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                AppLogger.d("Handler delay completed, calling checkScannedTPHInsideRadius")
+                                try {
+                                    checkScannedTPHInsideRadius()
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error in delayed checkScannedTPHInsideRadius: ${e.message}")
+                                    AppLogger.e("Exception stack trace: ${e.stackTraceToString()}")
+
+                                    // Hide progress bar on error
+                                    if (::progressBarScanTPHManual.isInitialized) {
+                                        progressBarScanTPHManual.visibility = View.GONE
+                                    }
+
+                                    Toasty.error(
+                                        this,
+                                        "Error saat mencari TPH: ${e.message}",
+                                        Toast.LENGTH_LONG,
+                                        true
+                                    ).show()
+                                }
+                            }, 400)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error setting up Handler: ${e.message}")
+                            Toasty.error(
+                                this,
+                                "Error sistem: ${e.message}",
+                                Toast.LENGTH_LONG,
+                                true
+                            ).show()
+                        }
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error in GPS boundary processing: ${e.message}")
+                        Toasty.error(
+                            this,
+                            "Error memproses permintaan: ${e.message}",
+                            Toast.LENGTH_LONG,
+                            true
+                        ).show()
+                    }
+
+                } else {
+                    AppLogger.d("GPS accuracy outside boundary - showing error message")
+
+                    val boundaryInt = try {
+                        boundaryAccuracy.toInt()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error converting boundaryAccuracy to int: ${e.message}")
+                        100 // Default fallback
+                    }
+
+                    Toasty.error(
+                        this,
+                        "Akurasi GPS harus dalam radius ${boundaryInt} meter untuk melanjutkan!",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
+                }
+
+            } catch (e: Exception) {
+                AppLogger.e("Critical error in btnScanTPHRadius click listener: ${e.message}")
+                AppLogger.e("Exception stack trace: ${e.stackTraceToString()}")
+
+                // Hide progress bar if visible
+                try {
+                    if (::progressBarScanTPHManual.isInitialized &&
+                        progressBarScanTPHManual.visibility == View.VISIBLE) {
+                        progressBarScanTPHManual.visibility = View.GONE
+                    }
+                } catch (progressBarError: Exception) {
+                    AppLogger.e("Error hiding progress bar: ${progressBarError.message}")
+                }
 
                 Toasty.error(
                     this,
-                    "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!",
+                    "Error sistem: ${e.message}",
                     Toast.LENGTH_LONG,
                     true
-                )
-                    .show()
+                ).show()
             }
         }
 
@@ -2977,7 +3077,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             }
 
                             // Show selfie FAB if actual pages with data is under 10
-                            val shouldShowSelfieFab = actualPagesVisited < AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
+                            val shouldShowSelfieFab =
+                                actualPagesVisited < AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION
 
                             fabPhotoInfoBlok.visibility = View.GONE
                             labelPhotoInfoBlok.visibility = View.GONE
@@ -4240,291 +4341,10 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        // Add search popup functionality specifically for lypemuat
-        if (linearLayout.id == R.id.lyPemuat) {
-            // Hide keyboard helper
-            fun ensureKeyboardHidden() {
-                try {
-                    val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
-                    editText.clearFocus()
-                } catch (e: Exception) {
-                    Log.e("SetupSpinnerView", "Error hiding keyboard: ${e.message}", e)
-                }
-            }
-
-            spinner.setOnTouchListener { _, event ->
-                try {
-                    ensureKeyboardHidden()
-                    if (event.action == MotionEvent.ACTION_UP) {
-                        showPopupSearchDropdown(
-                            spinner,
-                            data,
-                            editText,
-                            linearLayout,
-                            false // Single-select for lypemuat
-                        ) { selectedItem, position ->
-                            try {
-                                spinner.text = selectedItem // Update spinner UI
-                                tvError.visibility = View.GONE
-                                handleItemSelection(linearLayout, position, selectedItem)
-                            } catch (e: Exception) {
-                                Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
-                }
-                true // Consume event, preventing default behavior
-            }
-        } else {
-            // Keep original behavior for other layouts
-            spinner.setOnItemSelectedListener { _, position, _, item ->
-                tvError.visibility = View.GONE
-                handleItemSelection(linearLayout, position, item.toString())
-            }
+        spinner.setOnItemSelectedListener { _, position, _, item ->
+            tvError.visibility = View.GONE
+            handleItemSelection(linearLayout, position, item.toString())
         }
-    }
-
-    private fun showPopupSearchDropdown(
-        spinner: MaterialSpinner,
-        data: List<String>,
-        editText: EditText,
-        linearLayout: LinearLayout,
-        isMultiSelect: Boolean = false,
-        onItemSelected: (String, Int) -> Unit
-    ) {
-        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
-        val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
-        val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
-
-        val scrollView = findScrollView(linearLayout)
-        val rootView = linearLayout.rootView
-
-        // Simple selection tracking for multi-select (if needed)
-        val selectedItems = mutableMapOf<String, Boolean>()
-
-        // Create PopupWindow
-        val popupWindow = PopupWindow(
-            popupView,
-            spinner.width,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            isFocusable = true
-            isOutsideTouchable = true
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        }
-
-        // Keyboard adjustment
-        var keyboardHeight = 0
-        val rootViewLayout = rootView.viewTreeObserver
-        val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-            val rect = Rect()
-            rootView.getWindowVisibleDisplayFrame(rect)
-            val screenHeight = rootView.height
-            val newKeyboardHeight = screenHeight - rect.bottom
-
-            if (newKeyboardHeight != keyboardHeight) {
-                keyboardHeight = newKeyboardHeight
-                if (keyboardHeight > 0) {
-                    val spinnerLocation = IntArray(2)
-                    spinner.getLocationOnScreen(spinnerLocation)
-                    if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
-                        val scrollAmount = spinnerLocation[1] - 400
-                        scrollView?.smoothScrollBy(0, scrollAmount)
-                    }
-                }
-            }
-        }
-
-        rootViewLayout.addOnGlobalLayoutListener(layoutListener)
-        popupWindow.setOnDismissListener {
-            rootViewLayout.removeOnGlobalLayoutListener(layoutListener)
-        }
-
-        var filteredData = data
-
-        // Choose adapter based on selection mode
-        val adapter = if (isMultiSelect) {
-            object : ArrayAdapter<String>(
-                spinner.context,
-                R.layout.list_item_dropdown_multiple,
-                R.id.text1,
-                filteredData
-            ) {
-                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    val view = super.getView(position, convertView, parent)
-                    val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
-                    val textView = view.findViewById<TextView>(R.id.text1)
-                    val itemValue = filteredData[position]
-
-                    textView.text = itemValue
-                    textView.setTextColor(Color.BLACK)
-                    checkbox.isChecked = selectedItems[itemValue] == true
-
-                    checkbox.setOnClickListener {
-                        selectedItems[itemValue] = checkbox.isChecked
-                    }
-
-                    view.setOnClickListener {
-                        checkbox.isChecked = !checkbox.isChecked
-                        selectedItems[itemValue] = checkbox.isChecked
-                    }
-
-                    return view
-                }
-
-                override fun isEnabled(position: Int): Boolean {
-                    return filteredData.isNotEmpty()
-                }
-            }
-        } else {
-            object : ArrayAdapter<String>(
-                spinner.context,
-                android.R.layout.simple_list_item_1,
-                filteredData
-            ) {
-                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    val view = super.getView(position, convertView, parent)
-                    val textView = view.findViewById<TextView>(android.R.id.text1)
-                    textView.setTextColor(Color.BLACK)
-                    return view
-                }
-            }
-        }
-
-        listView.adapter = adapter
-
-        // Search functionality
-        editTextSearch.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                val titleSearch = popupView.findViewById<TextView>(R.id.titleSearchDropdown)
-
-                filteredData = if (!s.isNullOrEmpty()) {
-                    titleSearch.visibility = View.VISIBLE
-                    data.filter { it.contains(s, ignoreCase = true) }
-                } else {
-                    titleSearch.visibility = View.GONE
-                    data
-                }
-
-                // Update adapter with filtered data
-                val filteredAdapter = if (isMultiSelect) {
-                    object : ArrayAdapter<String>(
-                        spinner.context,
-                        R.layout.list_item_dropdown_multiple,
-                        R.id.text1,
-                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            listOf("Data tidak tersedia!")
-                        } else {
-                            filteredData
-                        }
-                    ) {
-                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                            val view = super.getView(position, convertView, parent)
-                            val textView = view.findViewById<TextView>(R.id.text1)
-                            val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
-
-                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
-                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
-                                checkbox.visibility = View.GONE
-                                view.isEnabled = false
-                            } else {
-                                val itemValue = filteredData[position]
-                                textView.text = itemValue
-                                textView.setTextColor(Color.BLACK)
-                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
-                                checkbox.visibility = View.VISIBLE
-                                checkbox.isChecked = selectedItems[itemValue] == true
-
-                                checkbox.setOnClickListener {
-                                    selectedItems[itemValue] = checkbox.isChecked
-                                }
-
-                                view.setOnClickListener {
-                                    checkbox.isChecked = !checkbox.isChecked
-                                    selectedItems[itemValue] = checkbox.isChecked
-                                }
-                                view.isEnabled = true
-                            }
-                            return view
-                        }
-
-                        override fun isEnabled(position: Int): Boolean {
-                            return filteredData.isNotEmpty()
-                        }
-                    }
-                } else {
-                    object : ArrayAdapter<String>(
-                        spinner.context,
-                        android.R.layout.simple_list_item_1,
-                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                            listOf("Data tidak tersedia!")
-                        } else {
-                            filteredData
-                        }
-                    ) {
-                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                            val view = super.getView(position, convertView, parent)
-                            val textView = view.findViewById<TextView>(android.R.id.text1)
-
-                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
-                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
-                                view.isEnabled = false
-                            } else {
-                                textView.setTextColor(Color.BLACK)
-                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
-                                view.isEnabled = true
-                            }
-                            return view
-                        }
-
-                        override fun isEnabled(position: Int): Boolean {
-                            return filteredData.isNotEmpty()
-                        }
-                    }
-                }
-
-                listView.adapter = filteredAdapter
-            }
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-
-        // Handle item selection (single-select mode)
-        listView.setOnItemClickListener { _, _, position, _ ->
-            if (filteredData.isNotEmpty()) {
-                val selectedItem = filteredData[position]
-                val originalPosition = data.indexOf(selectedItem)
-                spinner.text = selectedItem
-                editText.setText(selectedItem)
-                onItemSelected(selectedItem, originalPosition)
-                popupWindow.dismiss()
-            }
-        }
-
-        // Show popup and focus on search
-        popupWindow.showAsDropDown(spinner)
-        editTextSearch.requestFocus()
-        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
-    }
-
-    private fun findScrollView(view: View): ScrollView? {
-        var parent = view.parent
-        while (parent != null) {
-            if (parent is ScrollView) {
-                return parent
-            }
-            parent = parent.parent
-        }
-        return null
     }
 
     private fun setupEditTextView(layoutView: LinearLayout) {
@@ -5006,7 +4826,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 } else {
                                     estateId!!.toInt()
                                 }
-                            datasetViewModel.getListOfBlok(estateIdToUse, selectedDivisiId?: 0)
+                            datasetViewModel.getListOfBlok(estateIdToUse, selectedDivisiId ?: 0)
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching blokList: ${e.message}")
                             emptyList()
@@ -5075,7 +4895,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 }
 
 
-                                data class BlokKey(val dept: String, val divisi: String, val kode: String)
+                                data class BlokKey(
+                                    val dept: String,
+                                    val divisi: String,
+                                    val kode: String
+                                )
 
                                 val blokLookupMap = blokList.associateBy { blok ->
                                     BlokKey(
@@ -5095,8 +4919,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     val deptKode = tph.dept ?: ""
                                     val jenisTPHId = tph.jenis_tph_id ?: "1"
 
-                                    val blokKey = BlokKey(deptKode.toString(),
-                                        divisiKode.toString(), baseBlokKode)
+                                    val blokKey = BlokKey(
+                                        deptKode.toString(),
+                                        divisiKode.toString(), baseBlokKode
+                                    )
                                     val matchingBlok = blokLookupMap[blokKey]
 
                                     val jmlPokokHa = matchingBlok?.jml_pokok_ha
@@ -5158,8 +4984,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         val kemandoranDeferred = async {
                             try {
-                                datasetViewModel.getKemandoranEstate(
+                                datasetViewModel.getKemandoranList(
                                     estateId!!.toInt(),
+                                    allIdAfdeling as List<Int>
                                 )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching kemandoran list: ${e.message}")
@@ -5277,9 +5104,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     selectedPemuat.substring(0, firstDashIndex).trim()
                 } else ""
 
-                val selectedName = if (firstDashIndex != -1 && firstDashIndex < selectedPemuat.length - 3) {
-                    selectedPemuat.substring(firstDashIndex + 3).trim()
-                } else ""
+                val selectedName =
+                    if (firstDashIndex != -1 && firstDashIndex < selectedPemuat.length - 3) {
+                        selectedPemuat.substring(firstDashIndex + 3).trim()
+                    } else ""
 
                 AppLogger.d("Extracted NIK: $selectedNik")
                 AppLogger.d("Extracted Name: $selectedName")
@@ -5870,153 +5698,70 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun checkScannedTPHInsideRadius() {
+        AppLogger.d("Starting checkScannedTPHInsideRadius")
         try {
-            // Validate GPS coordinates first
+            // Hide progress bars first
+            if (progressBarScanTPHManual.visibility == View.VISIBLE) {
+                progressBarScanTPHManual.visibility = View.GONE
+            }
+            if (progressBarScanTPHAuto.visibility == View.VISIBLE) {
+                progressBarScanTPHAuto.visibility = View.GONE
+            }
+
+            // Validate coordinates
             if (lat == null || lon == null) {
-                AppLogger.e("GPS coordinates are null - lat: $lat, lon: $lon")
+                AppLogger.e("Coordinates are null - lat: $lat, lon: $lon")
                 Toasty.error(this, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_LONG, true).show()
                 isEmptyScannedTPH = true
-
                 return
             }
+
+            // Validate finite coordinates
+            if (!lat!!.isFinite() || !lon!!.isFinite()) {
+                AppLogger.e("Invalid coordinates - lat: $lat, lon: $lon")
+                Toasty.error(this, "Koordinat GPS tidak valid!", Toast.LENGTH_LONG, true).show()
+                isEmptyScannedTPH = true
+                return
+            }
+
+            AppLogger.d("Using coordinates - lat: $lat, lon: $lon")
+            AppLogger.d("latLonMap size: ${latLonMap.size}")
 
             // Validate latLonMap
             if (latLonMap.isEmpty()) {
-                AppLogger.e("latLonMap is empty")
-                showEmptyTPHResult()
+                AppLogger.w("latLonMap is empty")
+                showEmptyTPHState()
                 return
             }
 
-            AppLogger.d("Starting TPH radius check - GPS: ($lat, $lon), Map size: ${latLonMap.size}")
+            val tphList = try {
+                getTPHsInsideRadius(lat!!, lon!!, latLonMap)
+            } catch (e: Exception) {
+                AppLogger.e("Error calling getTPHsInsideRadius: ${e.message}")
+                AppLogger.e("Exception stack trace: ${e.stackTraceToString()}")
+                showErrorState("Error mencari TPH dalam radius: ${e.message}")
+                return
+            }
 
-            val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
+            AppLogger.d("getTPHsInsideRadius returned ${tphList.size} items")
 
             if (tphList.isNotEmpty()) {
-                AppLogger.d("Found ${tphList.size} TPHs inside radius")
-                showTPHResults(tphList)
-            } else {
-                AppLogger.d("No TPHs found inside radius")
-                showEmptyTPHResult()
-            }
-
-        } catch (e: Exception) {
-            AppLogger.e("Error in checkScannedTPHInsideRadius: ${e.message}", e.toString())
-            Toasty.error(this, "Error checking TPH radius: ${e.message}", Toast.LENGTH_LONG, true).show()
-            isEmptyScannedTPH = true
-            showEmptyTPHResult()
-        }
-
-        // Keep your original progress bar handling
-        if (progressBarScanTPHManual.visibility == View.VISIBLE) {
-            progressBarScanTPHManual.visibility = View.GONE
-        }
-        if (progressBarScanTPHAuto.visibility == View.VISIBLE) {
-            progressBarScanTPHAuto.visibility = View.GONE
-        }
-    }
-
-    private fun getTPHsInsideRadius(
-        userLat: Double,
-        userLon: Double,
-        coordinates: Map<Int, ScannedTPHLocation>
-    ): List<ScannedTPHSelectionItem> {
-        val resultsList = mutableListOf<ScannedTPHSelectionItem>()
-
-        try {
-            // Validate input parameters
-            if (userLat !in -90.0..90.0 || userLon !in -180.0..180.0) {
-                AppLogger.e("Invalid GPS coordinates - lat: $userLat, lon: $userLon")
-                return emptyList()
-            }
-
-            if (coordinates.isEmpty()) {
-                AppLogger.e("Coordinates map is empty")
-                return emptyList()
-            }
-
-            AppLogger.d("Processing ${coordinates.size} TPH coordinates")
-
-            for ((id, location) in coordinates) {
                 try {
-                    // Safely parse jenisTPHId
-                    val jenisTPHId = try {
-                        location.jenisTPHId.toIntOrNull() ?: 1
-                    } catch (e: Exception) {
-                        AppLogger.e("Error parsing jenisTPHId for TPH $id: ${e.message}")
-                        1 // Default value
-                    }
-
-                    // Calculate distance safely
-                    val distance = try {
-                        val results = FloatArray(1)
-                        android.location.Location.distanceBetween(
-                            userLat,
-                            userLon,
-                            location.lat,
-                            location.lon,
-                            results
-                        )
-                        results[0]
-                    } catch (e: Exception) {
-                        AppLogger.e("Error calculating distance for TPH $id: ${e.message}")
-                        Float.MAX_VALUE // Set to max value so it won't be included
-                    }
-
-                    // Validate distance calculation
-                    if (!distance.isFinite() || distance < 0) {
-                        AppLogger.e("Invalid distance calculated for TPH $id: $distance")
-                        continue
-                    }
-
-                    // Clean block code
-                    val cleanBlockCode = location.blokKode ?: ""
-
-                    AppLogger.d("TPH $id: distance=${distance}m, blockCode=$cleanBlockCode")
-
-                    // Check if TPH should be included (only within radius)
-                    if (distance <= radiusMinimum) {
-                        val tphItem = ScannedTPHSelectionItem(
-                            id = id,
-                            number = location.nomor ?: "",
-                            blockCode = cleanBlockCode,
-                            divisiCode = location.divisiKode ?: "",
-                            deptCode = location.deptKode ?: "",
-                            distance = distance,
-                            jml_pokok_ha = location.jmlPokokHa ?: 0,
-                            isAlreadySelected = false,
-                            selectionCount = 0,
-                            canBeSelectedAgain = true,
-                            isWithinRange = true,
-                            jenisTPHId = jenisTPHId.toString(),
-                            customLimit = "0"
-                        )
-
-                        resultsList.add(tphItem)
-                        AppLogger.d("Added TPH: $id")
-                    }
-
+                    showTPHResults(tphList)
                 } catch (e: Exception) {
-                    AppLogger.e("Error processing TPH $id: ${e.message}", e.toString())
-                    // Continue with next TPH instead of crashing
-                    continue
+                    AppLogger.e("Error showing TPH results: ${e.message}")
+                    showErrorState("Error menampilkan hasil TPH: ${e.message}")
                 }
+            } else {
+                AppLogger.d("No TPHs found within radius")
+                showEmptyTPHState()
             }
-
-            // Sort TPHs by distance safely
-            try {
-                resultsList.sortBy { it.distance }
-            } catch (e: Exception) {
-                AppLogger.e("Error sorting TPHs: ${e.message}")
-            }
-
-            AppLogger.d("Final result: ${resultsList.size} TPHs within radius")
 
         } catch (e: Exception) {
-            AppLogger.e("Error in getTPHsInsideRadius: ${e.message}", e.toString())
-            return emptyList()
+            AppLogger.e("Critical error in checkScannedTPHInsideRadius: ${e.message}")
+            AppLogger.e("Exception stack trace: ${e.stackTraceToString()}")
+            showErrorState("Error sistem: ${e.message}")
         }
-
-        return resultsList
     }
 
     private fun showTPHResults(tphList: List<ScannedTPHSelectionItem>) {
@@ -6027,14 +5772,21 @@ open class FormInspectionActivity : AppCompatActivity(),
             descScannedTPHInsideRadius.visibility = View.VISIBLE
             emptyScannedTPHInsideRadius.visibility = View.GONE
 
-            tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(
-                tphList,
-                this,
-                jenisTPHListGlobal,
-                false
-            )
+            // Create adapter with error handling
+            try {
+                tphScannedResultRecyclerView.adapter = ListTPHInsideRadiusAdapter(
+                    tphList,
+                    this,
+                    jenisTPHListGlobal,
+                    false
+                )
+                AppLogger.d("Adapter set successfully")
+            } catch (e: Exception) {
+                AppLogger.e("Error setting adapter: ${e.message}")
+                throw e
+            }
 
-            // Setup RecyclerView height safely
+            // Calculate and set height
             try {
                 val itemHeight = 50
                 val maxHeight = 250
@@ -6047,6 +5799,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 tphScannedResultRecyclerView.requestLayout()
 
+                // Set scroll behavior
                 if (recyclerViewHeightPx > maxHeightPx) {
                     tphScannedResultRecyclerView.isNestedScrollingEnabled = true
                     tphScannedResultRecyclerView.overScrollMode = View.OVER_SCROLL_ALWAYS
@@ -6058,34 +5811,59 @@ open class FormInspectionActivity : AppCompatActivity(),
                 tphScannedResultRecyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
                 tphScannedResultRecyclerView.isVerticalScrollBarEnabled = true
 
-                // Scroll to selected TPH if exists
+                AppLogger.d("RecyclerView configured successfully")
+            } catch (e: Exception) {
+                AppLogger.e("Error configuring RecyclerView: ${e.message}")
+                // Don't throw here, the adapter is already set
+            }
+
+            // Handle selected TPH scrolling
+            try {
                 if (selectedTPHIdByScan != null) {
                     for (i in tphList.indices) {
                         if (tphList[i].id == selectedTPHIdByScan) {
                             tphScannedResultRecyclerView.scrollToPosition(i)
+                            AppLogger.d("Scrolled to selected TPH at position $i")
                             break
                         }
                     }
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error setting up RecyclerView: ${e.message}")
+                AppLogger.e("Error scrolling to selected TPH: ${e.message}")
+                // Don't throw here, results are already shown
             }
 
         } catch (e: Exception) {
-            AppLogger.e("Error showing TPH results: ${e.message}")
-            showEmptyTPHResult()
+            AppLogger.e("Error in showTPHResults: ${e.message}")
+            throw e
         }
     }
 
-    private fun showEmptyTPHResult() {
+    private fun showEmptyTPHState() {
         try {
             tphScannedResultRecyclerView.visibility = View.GONE
             titleScannedTPHInsideRadius.visibility = View.VISIBLE
             descScannedTPHInsideRadius.visibility = View.VISIBLE
             emptyScannedTPHInsideRadius.visibility = View.VISIBLE
             isEmptyScannedTPH = true
+            AppLogger.d("Empty TPH state displayed")
         } catch (e: Exception) {
-            AppLogger.e("Error showing empty TPH result: ${e.message}")
+            AppLogger.e("Error showing empty TPH state: ${e.message}")
+        }
+    }
+
+    private fun showErrorState(message: String) {
+        try {
+            tphScannedResultRecyclerView.visibility = View.GONE
+            titleScannedTPHInsideRadius.visibility = View.VISIBLE
+            descScannedTPHInsideRadius.visibility = View.VISIBLE
+            emptyScannedTPHInsideRadius.visibility = View.VISIBLE
+            isEmptyScannedTPH = true
+
+            Toasty.error(this, message, Toast.LENGTH_LONG, true).show()
+            AppLogger.d("Error state displayed with message: $message")
+        } catch (e: Exception) {
+            AppLogger.e("Error showing error state: ${e.message}")
         }
     }
 
@@ -6101,7 +5879,162 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
+    private fun getTPHsInsideRadius(
+        userLat: Double,
+        userLon: Double,
+        coordinates: Map<Int, ScannedTPHLocation>
+    ): List<ScannedTPHSelectionItem> {
+        AppLogger.d("Starting getTPHsInsideRadius - userLat: $userLat, userLon: $userLon")
+        AppLogger.d("Coordinates map size: ${coordinates.size}")
 
+        val resultsList = mutableListOf<ScannedTPHSelectionItem>()
+        val regularTPHs = mutableListOf<ScannedTPHSelectionItem>()
+
+        try {
+            // Validate input parameters
+            if (!userLat.isFinite() || !userLon.isFinite()) {
+                AppLogger.e("Invalid user coordinates - userLat: $userLat, userLon: $userLon")
+                return emptyList()
+            }
+
+            if (coordinates.isEmpty()) {
+                AppLogger.w("Coordinates map is empty")
+                return emptyList()
+            }
+
+            AppLogger.d("Processing ${coordinates.size} TPH coordinates")
+
+            for ((id, location) in coordinates) {
+                try {
+                    AppLogger.d("Processing TPH ID: $id")
+
+                    // Validate location object
+                    if (location.lat == null || location.lon == null) {
+                        AppLogger.w("TPH ID $id has null coordinates - lat: ${location.lat}, lon: ${location.lon}")
+                        continue
+                    }
+
+                    // Validate coordinates are finite numbers
+                    if (!location.lat.isFinite() || !location.lon.isFinite()) {
+                        AppLogger.w("TPH ID $id has invalid coordinates - lat: ${location.lat}, lon: ${location.lon}")
+                        continue
+                    }
+
+                    // Validate jenisTPHId
+                    val jenisTPHId = try {
+                        location.jenisTPHId.toInt()
+                    } catch (e: NumberFormatException) {
+                        AppLogger.e("Invalid jenisTPHId for TPH $id: ${location.jenisTPHId} - ${e.message}")
+                        1 // Default value
+                    }
+
+                    AppLogger.d("TPH $id - jenisTPHId: $jenisTPHId, lat: ${location.lat}, lon: ${location.lon}")
+
+                    // Calculate distance
+                    val results = FloatArray(1)
+                    try {
+                        android.location.Location.distanceBetween(
+                            userLat,
+                            userLon,
+                            location.lat,
+                            location.lon,
+                            results
+                        )
+                    } catch (e: Exception) {
+                        AppLogger.e("Error calculating distance for TPH $id: ${e.message}")
+                        continue
+                    }
+
+                    val distance = results[0]
+                    AppLogger.d("TPH $id - calculated distance: $distance, radiusMinimum: $radiusMinimum")
+
+                    // Validate distance result
+                    if (!distance.isFinite() || distance < 0) {
+                        AppLogger.w("Invalid distance calculated for TPH $id: $distance")
+                        continue
+                    }
+
+                    // Get clean block code
+                    val cleanBlockCode = try {
+                        location.blokKode ?: ""
+                    } catch (e: Exception) {
+                        AppLogger.e("Error getting block code for TPH $id: ${e.message}")
+                        ""
+                    }
+
+                    // Check if TPH is within radius
+                    if (distance <= radiusMinimum) {
+                        try {
+                            // Validate jmlPokokHa
+                            val jmlPokokHa = try {
+                                location.jmlPokokHa ?: 0
+                            } catch (e: Exception) {
+                                AppLogger.e("Error getting jmlPokokHa for TPH $id: ${e.message}")
+                                0
+                            }
+
+                            val tphItem = ScannedTPHSelectionItem(
+                                id = id,
+                                number = location.nomor ?: "",
+                                blockCode = cleanBlockCode,
+                                divisiCode = location.divisiKode ?: "",
+                                deptCode = location.deptKode ?: "",
+                                distance = distance,
+                                jml_pokok_ha = jmlPokokHa,
+                                isAlreadySelected = false,
+                                selectionCount = 0,
+                                canBeSelectedAgain = true,
+                                isWithinRange = distance <= radiusMinimum,
+                                jenisTPHId = jenisTPHId.toString(),
+                                customLimit = "0"
+                            )
+
+                            regularTPHs.add(tphItem)
+                            AppLogger.d("Successfully added regular TPH: $id with distance: $distance")
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error creating ScannedTPHSelectionItem for TPH $id: ${e.message}")
+                            AppLogger.e("Location data - nomor: ${location.nomor}, divisiKode: ${location.divisiKode}, deptKode: ${location.deptKode}")
+                            continue
+                        }
+                    } else {
+                        AppLogger.d("TPH $id outside radius - distance: $distance > $radiusMinimum")
+                    }
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error processing TPH $id: ${e.message}")
+                    AppLogger.e("Exception stack trace: ${e.stackTraceToString()}")
+                    continue
+                }
+            }
+
+            AppLogger.d("Processed all TPHs. Regular TPHs found: ${regularTPHs.size}")
+
+            // Sort regular TPHs by distance
+            try {
+                regularTPHs.sortBy { it.distance }
+                AppLogger.d("Successfully sorted TPHs by distance")
+            } catch (e: Exception) {
+                AppLogger.e("Error sorting TPHs: ${e.message}")
+            }
+
+            // Add regular TPHs (only if scan button was triggered)
+            if (isTriggeredBtnScanned) {
+                resultsList.addAll(regularTPHs)
+                AppLogger.d("Added ${regularTPHs.size} TPHs to results (scan button triggered)")
+            } else {
+                AppLogger.d("Scan button not triggered, not adding TPHs to results")
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Critical error in getTPHsInsideRadius: ${e.message}")
+            AppLogger.e("Exception stack trace: ${e.stackTraceToString()}")
+            return emptyList()
+        }
+
+        AppLogger.d("getTPHsInsideRadius completed. Returning ${resultsList.size} items")
+        return resultsList
+    }
 
     private fun animateLoadingDots(linearLayout: LinearLayout) {
         val loadingContainer = linearLayout.findViewById<LinearLayout>(R.id.loadingDotsContainer)
@@ -6751,6 +6684,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         drawable?.setTint(ContextCompat.getColor(this, colorRes))
         marker.icon = drawable
 
+        // NO CLICK LISTENER - Remove touch events for start and end
+        // marker.setOnMarkerClickListener { _, _ -> ... }
+
         map.overlays.add(marker)
         AppLogger.d("Added tracking marker: $title at $latitude, $longitude")
     }
@@ -6979,6 +6915,57 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         map.overlays.add(marker)
         AppLogger.d("Added detail marker: $title at $latitude, $longitude")
+    }
+
+    private fun preselectSpinnerValues(inspection: InspectionWithDetailRelations) {
+        inspection.tph?.let { tph ->
+            AppLogger.d("tph ${tph.divisi_abbr}")
+            tph.divisi_abbr?.let { divisiAbbr ->
+                // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
+                val afdLayout = findViewById<LinearLayout>(R.id.lyAfdInspect)
+                val afdSpinner = afdLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+                afdSpinner?.let { spinner ->
+                    val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
+                    val position = divisiNames.indexOf(divisiAbbr)
+                    if (position >= 0) {
+                        spinner.selectedIndex = position
+                        afdLayout?.let { layout ->
+                            handleItemSelection(layout, position, divisiAbbr)
+                        }
+                    } else {
+                        AppLogger.d("Divisi not found in list: $divisiAbbr")
+                    }
+                }
+            }
+        }
+
+        inspection.inspeksi.jalur_masuk?.let { jalurMasuk ->
+            AppLogger.d("jalur_masuk ${jalurMasuk}")
+
+            // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
+            val jalurLayout = findViewById<LinearLayout>(R.id.lyJalurInspect)
+            val jalurSpinner = jalurLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+
+            jalurSpinner?.let { spinner ->
+                val jalurItems = (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
+                val position = jalurItems.indexOf(jalurMasuk)
+                if (position >= 0) {
+                    // Set the selected index
+                    spinner.selectedIndex = position
+                    AppLogger.d("Selected jalur at position: $position, value: $jalurMasuk")
+
+                    // Manually trigger the selection handler to execute the logic
+                    jalurLayout?.let { layout ->
+                        handleItemSelection(layout, position, jalurMasuk)
+                    }
+                } else {
+                    AppLogger.d("Jalur Masuk not found in list: $jalurMasuk")
+                    AppLogger.d("Available jalur items: $jalurItems")
+                }
+            }
+        }
+
     }
 
     private fun processInspectionDetails(
@@ -7237,13 +7224,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                             else -> spinner.selectedIndex == -1
                         }
                     }
+
                     InputType.EDITTEXT -> {
                         when (layout.id) {
                             R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim().isEmpty() else false
+                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
+                                .isEmpty() else false
+
                             else -> editText.text.toString().trim().isEmpty()
                         }
                     }
+
                     InputType.RADIO -> {
                         when (layout.id) {
                             R.id.lyConditionType -> selectedKondisiValue.isEmpty()
@@ -7270,12 +7261,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
                 if (isTriggeredBtnScanned) {
                     if (isEmptyScannedTPH) {
-                        tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
+                        tvErrorScannedNotSelected.text =
+                            stringXML(R.string.al_no_tph_detected_trigger_submit)
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
                         isValid = false
                     } else {
-                        tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
+                        tvErrorScannedNotSelected.text =
+                            "Silakan untuk memilih TPH yang ingin diperiksa!"
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
                         isValid = false
@@ -7291,14 +7284,19 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             // BARIS VALIDATION (br1 and br2 cannot be the same)
-            if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
+            if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim()
+                    .isNotEmpty()
+            ) {
                 val br1Int = br1Value.trim().toIntOrNull() ?: 0
                 val br2Int = br2Value.trim().toIntOrNull() ?: 0
 
                 AppLogger.d("br1: $br1Int, br2: $br2Int")
                 if (br1Int == br2Int) {
                     val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
-                    showValidationError(layoutBaris2, "Baris pertama dan Baris kedua tidak boleh sama")
+                    showValidationError(
+                        layoutBaris2,
+                        "Baris pertama dan Baris kedua tidak boleh sama"
+                    )
                     errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
                     isValid = false
                 }
