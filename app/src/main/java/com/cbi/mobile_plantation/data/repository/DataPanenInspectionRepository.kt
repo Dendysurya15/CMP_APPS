@@ -158,7 +158,6 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        // 1 month ago at 00:00:00 (start of day)
         calendar.add(Calendar.WEEK_OF_YEAR, -1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)

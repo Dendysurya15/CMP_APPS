@@ -639,6 +639,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 )
                             }
                             btnEditEspb.setOnClickListener {
+                                AppLogger.d("tph1 $tph1")
+                                AppLogger.d("tph0 $tph0")
+                                AppLogger.d("espbId $espbId")
+                                AppLogger.d("idsToUpdate $idsToUpdate")
                                 AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
                                     "EDIT",
@@ -661,6 +665,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "ListPanenTBSActivity",
                                             "tph_1_id_panen: $idsToUpdate"
                                         )
+
+                                        AppLogger.d("tph1 $tph1")
+                                        AppLogger.d("tph0 $tph0")
+                                        AppLogger.d("tph1 $espbId")
+                                        AppLogger.d("idsToUpdate $idsToUpdate")
                                         playSound(R.raw.berhasil_edit_data)
                                         intent.putExtra("FEATURE_NAME", featureName)
                                         Log.d("ListPanenTBSActivity", "FEATURE_NAME: $featureName")

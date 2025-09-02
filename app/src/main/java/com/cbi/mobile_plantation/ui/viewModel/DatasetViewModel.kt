@@ -3460,99 +3460,78 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     fun processPreviewDataInspeksi(jsonResponse: String): String {
         try {
-            // Parse the JSON response
             val jsonObject = JSONObject(jsonResponse)
 
-            // Check if response is successful and contains data
             if (jsonObject.optBoolean("success", false)) {
                 val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
 
-                // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
                 // Today
-                val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
+                val today = inputFormatter.format(todayDate)
                 val todayDisplay = displayFormatter.format(todayDate)
 
-                // 1 month ago
-                calendar.add(Calendar.MONTH, -1)
-                val oneMonthAgo = inputFormatter.format(calendar.time)
-                val oneMonthAgoDate = calendar.time
-                val oneMonthAgoDisplay = displayFormatter.format(oneMonthAgoDate)
+                // 1 week ago
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                val oneWeekAgoDate = calendar.time
+                val oneWeekAgo = inputFormatter.format(oneWeekAgoDate)
+                val oneWeekAgoDisplay = displayFormatter.format(oneWeekAgoDate)
 
-                // Create a list of all dates in the range
+                // Create all dates in range
                 val allDates = mutableListOf<String>()
                 val tempCalendar = Calendar.getInstance()
-                tempCalendar.time = oneMonthAgoDate
+                tempCalendar.time = oneWeekAgoDate
 
                 while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
 
-                // Initialize maps for all dates in range with zeros
                 val inspeksiCountByDate = mutableMapOf<String, Int>()
-
                 for (date in allDates) {
                     inspeksiCountByDate[date] = 0
                 }
 
-                // Process each item in the array
+                // Process inspections
                 for (i in 0 until dataArray.length()) {
                     val item = dataArray.getJSONObject(i)
 
-                    // Extract tgl_inspeksi and format to get just the date part
                     val inspeksiDateFull = item.optString("tgl_inspeksi", "")
                     val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
-                        inspeksiDateFull.split(" ")[0] // Take only the date part (YYYY-MM-DD)
+                        inspeksiDateFull.split(" ")[0]
                     } else {
-                        continue // Skip if no date
-                    }
-
-                    // Skip data outside our date range
-                    if (!allDates.contains(inspeksiDate)) {
                         continue
                     }
 
-                    // Check if this is a valid inspection record
+                    if (!allDates.contains(inspeksiDate)) continue
+
                     val idPanen = item.optString("id_panen", "")
                     val tphNomor = item.optString("tph_nomor", "")
                     val ancak = item.optString("ancak", "")
 
-                    // Count if we have essential inspection data
                     if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
                         inspeksiCountByDate[inspeksiDate] =
                             inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
-
-
                     }
                 }
 
-                // Build the final string
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Inspeksi ($oneMonthAgoDisplay - $todayDisplay)\n")
+                resultBuilder.append("Data Inspeksi ($oneWeekAgoDisplay - $todayDisplay)\n")
 
-                // Add each date's inspections (only show dates with inspections > 0)
                 var hasValidData = false
                 for (date in allDates.sortedDescending()) {
                     val inspeksiCount = inspeksiCountByDate[date] ?: 0
-
-                    // Only show dates with inspections > 0
                     if (inspeksiCount > 0) {
                         hasValidData = true
-
-                        // Format date for display (e.g., "11 Juli")
                         val dateObj = inputFormatter.parse(date)
                         val dateDisplay = displayFormatter.format(dateObj!!)
-
                         resultBuilder.append("$dateDisplay - $inspeksiCount Inspeksi\n")
                     }
                 }
 
-                // If no inspections found in the date range
                 if (!hasValidData) {
                     resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
                 }
@@ -3566,6 +3545,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             return "Error processing data: ${e.message}"
         }
     }
+
 
     fun processPreviewDataPanenInspeksi(jsonResponse: String, estate: Any): String {
         try {

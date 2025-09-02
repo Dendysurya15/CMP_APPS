@@ -78,6 +78,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
+import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
 import com.cbi.mobile_plantation.utils.setResponsiveTextSizeWithConstraints
 import com.github.chrisbanes.photoview.PhotoView
@@ -200,6 +201,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         }
 
         setupFilterData()
+
 
         currentState = 0
         lifecycleScope.launch {
@@ -1121,7 +1123,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     panenViewModel.loadCountTransferInspeksi(null, 1)
                 } else {
                     // Load inspection data
-                    inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
+                    inspectionViewModel.loadInspectionPaths(null, 1)
                 }
             } else {
                 loadingDialog.show()
@@ -1893,6 +1895,12 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             val textView = tableHeader.findViewById<TextView>(headerIds[i])
             textView.visibility = View.GONE
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        AppUtils.resetSelectedDate()
+
     }
 
 
