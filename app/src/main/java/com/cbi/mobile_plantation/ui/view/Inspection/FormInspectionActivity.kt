@@ -42,6 +42,7 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -478,8 +479,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 5000F
+        boundaryAccuracy = 5000F
         initViewModel()
         initUI()
         dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
@@ -534,11 +535,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    panenViewModel.getAllTPHinWeek()
+                    panenViewModel.getAllTPHinWeek(estateIdInt)
                     delay(100)
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+
+                            AppLogger.d("panenTPH $panenTPH")
                             panenTPH = list ?: emptyList()
                             panenDeferred.complete(list ?: emptyList())
                         }
@@ -4341,10 +4344,289 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-        spinner.setOnItemSelectedListener { _, position, _, item ->
-            tvError.visibility = View.GONE
-            handleItemSelection(linearLayout, position, item.toString())
+        if (linearLayout.id == R.id.lyPemuat || linearLayout.id == R.id.lyKemandoran) {
+            fun ensureKeyboardHidden() {
+                try {
+                    val imm = application.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(linearLayout.windowToken, 0)
+                    editText.clearFocus()
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error hiding keyboard: ${e.message}", e)
+                }
+            }
+
+            spinner.setOnTouchListener { _, event ->
+                try {
+                    ensureKeyboardHidden()
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        showPopupSearchDropdown(
+                            spinner,
+                            data,
+                            editText,
+                            linearLayout,
+                            false // Single-select for lypemuat
+                        ) { selectedItem, position ->
+                            try {
+                                spinner.text = selectedItem // Update spinner UI
+                                tvError.visibility = View.GONE
+                                handleItemSelection(linearLayout, position, selectedItem)
+                            } catch (e: Exception) {
+                                Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                }
+                true // Consume event, preventing default behavior
+            }
+        } else {
+            // Keep original behavior for other layouts
+            spinner.setOnItemSelectedListener { _, position, _, item ->
+                tvError.visibility = View.GONE
+                handleItemSelection(linearLayout, position, item.toString())
+            }
         }
+    }
+
+    private fun showPopupSearchDropdown(
+        spinner: MaterialSpinner,
+        data: List<String>,
+        editText: EditText,
+        linearLayout: LinearLayout,
+        isMultiSelect: Boolean = false,
+        onItemSelected: (String, Int) -> Unit
+    ) {
+        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
+        val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
+
+        val scrollView = findScrollView(linearLayout)
+        val rootView = linearLayout.rootView
+
+        // Simple selection tracking for multi-select (if needed)
+        val selectedItems = mutableMapOf<String, Boolean>()
+
+        // Create PopupWindow
+        val popupWindow = PopupWindow(
+            popupView,
+            spinner.width,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            isFocusable = true
+            isOutsideTouchable = true
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+
+        // Keyboard adjustment
+        var keyboardHeight = 0
+        val rootViewLayout = rootView.viewTreeObserver
+        val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+            val rect = Rect()
+            rootView.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = rootView.height
+            val newKeyboardHeight = screenHeight - rect.bottom
+
+            if (newKeyboardHeight != keyboardHeight) {
+                keyboardHeight = newKeyboardHeight
+                if (keyboardHeight > 0) {
+                    val spinnerLocation = IntArray(2)
+                    spinner.getLocationOnScreen(spinnerLocation)
+                    if (spinnerLocation[1] + spinner.height + popupWindow.height > rect.bottom) {
+                        val scrollAmount = spinnerLocation[1] - 400
+                        scrollView?.smoothScrollBy(0, scrollAmount)
+                    }
+                }
+            }
+        }
+
+        rootViewLayout.addOnGlobalLayoutListener(layoutListener)
+        popupWindow.setOnDismissListener {
+            rootViewLayout.removeOnGlobalLayoutListener(layoutListener)
+        }
+
+        var filteredData = data
+
+        // Choose adapter based on selection mode
+        val adapter = if (isMultiSelect) {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                R.layout.list_item_dropdown_multiple,
+                R.id.text1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+                    val textView = view.findViewById<TextView>(R.id.text1)
+                    val itemValue = filteredData[position]
+
+                    textView.text = itemValue
+                    textView.setTextColor(Color.BLACK)
+                    checkbox.isChecked = selectedItems[itemValue] == true
+
+                    checkbox.setOnClickListener {
+                        selectedItems[itemValue] = checkbox.isChecked
+                    }
+
+                    view.setOnClickListener {
+                        checkbox.isChecked = !checkbox.isChecked
+                        selectedItems[itemValue] = checkbox.isChecked
+                    }
+
+                    return view
+                }
+
+                override fun isEnabled(position: Int): Boolean {
+                    return filteredData.isNotEmpty()
+                }
+            }
+        } else {
+            object : ArrayAdapter<String>(
+                spinner.context,
+                android.R.layout.simple_list_item_1,
+                filteredData
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val view = super.getView(position, convertView, parent)
+                    val textView = view.findViewById<TextView>(android.R.id.text1)
+                    textView.setTextColor(Color.BLACK)
+                    return view
+                }
+            }
+        }
+
+        listView.adapter = adapter
+
+        // Search functionality
+        editTextSearch.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val titleSearch = popupView.findViewById<TextView>(R.id.titleSearchDropdown)
+
+                filteredData = if (!s.isNullOrEmpty()) {
+                    titleSearch.visibility = View.VISIBLE
+                    data.filter { it.contains(s, ignoreCase = true) }
+                } else {
+                    titleSearch.visibility = View.GONE
+                    data
+                }
+
+                // Update adapter with filtered data
+                val filteredAdapter = if (isMultiSelect) {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        R.layout.list_item_dropdown_multiple,
+                        R.id.text1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(R.id.text1)
+                            val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                checkbox.visibility = View.GONE
+                                view.isEnabled = false
+                            } else {
+                                val itemValue = filteredData[position]
+                                textView.text = itemValue
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                checkbox.visibility = View.VISIBLE
+                                checkbox.isChecked = selectedItems[itemValue] == true
+
+                                checkbox.setOnClickListener {
+                                    selectedItems[itemValue] = checkbox.isChecked
+                                }
+
+                                view.setOnClickListener {
+                                    checkbox.isChecked = !checkbox.isChecked
+                                    selectedItems[itemValue] = checkbox.isChecked
+                                }
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                } else {
+                    object : ArrayAdapter<String>(
+                        spinner.context,
+                        android.R.layout.simple_list_item_1,
+                        if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                            listOf("Data tidak tersedia!")
+                        } else {
+                            filteredData
+                        }
+                    ) {
+                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                            val view = super.getView(position, convertView, parent)
+                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                            if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
+                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTypeface(textView.typeface, Typeface.ITALIC)
+                                view.isEnabled = false
+                            } else {
+                                textView.setTextColor(Color.BLACK)
+                                textView.setTypeface(textView.typeface, Typeface.NORMAL)
+                                view.isEnabled = true
+                            }
+                            return view
+                        }
+
+                        override fun isEnabled(position: Int): Boolean {
+                            return filteredData.isNotEmpty()
+                        }
+                    }
+                }
+
+                listView.adapter = filteredAdapter
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        // Handle item selection (single-select mode)
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (filteredData.isNotEmpty()) {
+                val selectedItem = filteredData[position]
+                val originalPosition = data.indexOf(selectedItem)
+                spinner.text = selectedItem
+                editText.setText(selectedItem)
+                onItemSelected(selectedItem, originalPosition)
+                popupWindow.dismiss()
+            }
+        }
+
+        // Show popup and focus on search
+        popupWindow.showAsDropDown(spinner)
+        editTextSearch.requestFocus()
+        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun findScrollView(view: View): ScrollView? {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is ScrollView) {
+                return parent
+            }
+            parent = parent.parent
+        }
+        return null
     }
 
     private fun setupEditTextView(layoutView: LinearLayout) {
@@ -4760,12 +5042,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 isTriggeredBtnScanned = false
 
-
                 val isGM = jabatanUser?.contains(
                     AppUtils.ListFeatureByRoleUser.GM,
                     ignoreCase = true
                 ) == true
-
 
                 AppLogger.d("isGM $isGM")
                 AppLogger.d("selectedAfdeling $selectedAfdeling")
@@ -4777,7 +5057,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                             it.divisi_abbr == selectedAfdeling && it.dept_nama == selectedEstate
                         }?.divisi
                     } else {
-
                         divisiList.find {
                             it.divisi_abbr == selectedAfdeling
                         }?.divisi
@@ -4805,235 +5084,242 @@ open class FormInspectionActivity : AppCompatActivity(),
                     emptyList()
                 }
 
-                val nonSelectedIdAfdeling = try {
-                    nonSelectedAfdelingKemandoran.map { it.divisi }
-                } catch (e: Exception) {
-                    emptyList()
-                }
+                lifecycleScope.launch {
 
-                lifecycleScope.launch(Dispatchers.IO) {
-                    withContext(Dispatchers.Main) {
-                        setupScanTPHTrigger()
-                        animateLoadingDots(linearLayout)
-                        delay(300) // 1 second delay
+                    if (isGM) {
+                        try {
+                            val estateIdStr = estateId?.trim()
+                            if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
+                                val estateIdInt = estateIdStr.toInt()
+
+                                val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+
+                                panenViewModel.getAllTPHinWeek(estateIdInt)
+                                delay(100)
+
+                                withContext(Dispatchers.Main) {
+                                    panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                                        AppLogger.d("panenTPH updated for GM after afdeling selection: ${list?.size}")
+                                        panenTPH = list ?: emptyList()
+                                        panenDeferred.complete(list ?: emptyList())
+                                    }
+                                }
+
+                                // Wait for the data to be loaded
+                                panenDeferred.await()
+                                AppLogger.d("GM - panenTPH reloaded with ${panenTPH.size} records")
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error reloading panenTPH for GM: ${e.message}")
+                        }
+                    } else {
+                        AppLogger.d("Non-GM user - skipping panenTPH reload")
                     }
 
-                    val blokDeferred = async {
-                        try {
-                            val estateIdToUse =
-                                if (isGM) {
-                                    selectedEstate.toInt()
+                    // Continue with existing logic
+                    withContext(Dispatchers.IO) {
+                        withContext(Dispatchers.Main) {
+                            setupScanTPHTrigger()
+                            animateLoadingDots(linearLayout)
+                            delay(300) // 1 second delay
+                        }
+
+                        val blokDeferred = async {
+                            try {
+                                val estateIdToUse = if (isGM) {
+                                    estateId!!.toInt()
                                 } else {
                                     estateId!!.toInt()
                                 }
-                            datasetViewModel.getListOfBlok(estateIdToUse, selectedDivisiId ?: 0)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching blokList: ${e.message}")
-                            emptyList()
+                                datasetViewModel.getListOfBlok(estateIdToUse, selectedDivisiId ?: 0)
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching blokList: ${e.message}")
+                                emptyList()
+                            }
                         }
-                    }
-                    blokList = blokDeferred.await()
+                        blokList = blokDeferred.await()
 
-                    try {
-                        if (estateId == null || selectedDivisiId == null) {
-                            throw IllegalStateException("Estate ID or selectedDivisiId is null!")
-                        }
+                        try {
+                            if (estateId == null || selectedDivisiId == null) {
+                                throw IllegalStateException("Estate ID or selectedDivisiId is null!")
+                            }
 
-                        latLonMap = emptyMap()
+                            latLonMap = emptyMap()
 
-                        val latLonResult = async {
-                            try {
-                                val estateIdToUse = estateId!!.toInt()
-                                val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
+                            val latLonResult = async {
+                                try {
+                                    val estateIdToUse = estateId!!.toInt()
+                                    val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
 
-                                AppLogger.d("Loading TPHs from database - normal flow")
-                                AppLogger.d("panenTPH size: ${panenTPH.size}")
+                                    AppLogger.d("Loading TPHs from database - normal flow")
+                                    AppLogger.d("panenTPH size: ${panenTPH.size}")
 
-                                // 🚀 OPTIMIZED: Process in background thread with progress logging
-                                AppLogger.d("Starting groupBy operation for ${panenTPH.size} records...")
+                                    // 🚀 OPTIMIZED: Process in background thread with progress logging
+                                    AppLogger.d("Starting groupBy operation for ${panenTPH.size} records...")
 
-                                val panenGroupedByTPH = panenTPH
-                                    .asSequence() // Use sequence for lazy evaluation
-                                    .mapNotNull { panenWithRelationship ->
-                                        val tphId =
-                                            panenWithRelationship.panen.tph_id?.toIntOrNull()
-                                        if (tphId != null) tphId to panenWithRelationship else null
-                                    }
-                                    .groupBy({ it.first }, { it.second }) // Group by TPH ID
+                                    val panenGroupedByTPH = panenTPH
+                                        .asSequence() // Use sequence for lazy evaluation
+                                        .mapNotNull { panenWithRelationship ->
+                                            val tphId = panenWithRelationship.panen.tph_id?.toIntOrNull()
+                                            if (tphId != null) tphId to panenWithRelationship else null
+                                        }
+                                        .groupBy({ it.first }, { it.second }) // Group by TPH ID
 
-                                AppLogger.d("GroupBy completed. Found ${panenGroupedByTPH.size} unique TPH groups")
+                                    AppLogger.d("GroupBy completed. Found ${panenGroupedByTPH.size} unique TPH groups")
 
-                                val selectedTPHIds = panenGroupedByTPH.keys.toList()
-                                AppLogger.d("Selected TPH IDs from panenTPH: ${selectedTPHIds.size} unique TPHs")
+                                    val selectedTPHIds = panenGroupedByTPH.keys.toList()
+                                    AppLogger.d("Selected TPH IDs from panenTPH: ${selectedTPHIds.size} unique TPHs")
 
-                                // 🚀 OPTIMIZED: Batch the database query if needed
-                                AppLogger.d("Fetching TPH data from database...")
-                                val tphList = if (selectedTPHIds.size > 1000) {
-                                    // If too many TPH IDs, process in batches
-                                    val batchSize = 500
-                                    val allResults = mutableListOf<TPHNewModel>()
+                                    // 🚀 OPTIMIZED: Batch the database query if needed
+                                    AppLogger.d("Fetching TPH data from database...")
+                                    val tphList = if (selectedTPHIds.size > 1000) {
+                                        // If too many TPH IDs, process in batches
+                                        val batchSize = 500
+                                        val allResults = mutableListOf<TPHNewModel>()
 
-                                    selectedTPHIds.chunked(batchSize)
-                                        .forEachIndexed { index, batch ->
-                                            AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
-                                            val batchResults =
-                                                datasetViewModel.getLatLonDivisiByTPHIds(
+                                        selectedTPHIds.chunked(batchSize)
+                                            .forEachIndexed { index, batch ->
+                                                AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
+                                                val batchResults = datasetViewModel.getLatLonDivisiByTPHIds(
                                                     estateIdToUse,
                                                     selectedDivisiId,
                                                     batch
                                                 )
-                                            allResults.addAll(batchResults)
-                                        }
-                                    allResults
-                                } else {
-                                    // Normal single query
-                                    datasetViewModel.getLatLonDivisiByTPHIds(
-                                        estateIdToUse,
-                                        selectedDivisiId,
-                                        selectedTPHIds
-                                    )
-                                }
-
-
-                                data class BlokKey(
-                                    val dept: String,
-                                    val divisi: String,
-                                    val kode: String
-                                )
-
-                                val blokLookupMap = blokList.associateBy { blok ->
-                                    BlokKey(
-                                        blok.dept?.toString() ?: "",
-                                        blok.divisi?.toString() ?: "",
-                                        blok.kode ?: ""
-                                    )
-                                }
-
-                                tphList.forEach { tph ->
-                                    val tphId = tph.id
-                                    val lat = tph.lat?.toDoubleOrNull()
-                                    val lon = tph.lon?.toDoubleOrNull()
-                                    val nomor = tph.nomor ?: ""
-                                    val baseBlokKode = tph.blok_kode ?: ""
-                                    val divisiKode = tph.divisi ?: ""
-                                    val deptKode = tph.dept ?: ""
-                                    val jenisTPHId = tph.jenis_tph_id ?: "1"
-
-                                    val blokKey = BlokKey(
-                                        deptKode.toString(),
-                                        divisiKode.toString(), baseBlokKode
-                                    )
-                                    val matchingBlok = blokLookupMap[blokKey]
-
-                                    val jmlPokokHa = matchingBlok?.jml_pokok_ha
-
-                                    if (tphId != null && lat != null && lon != null) {
-                                        // Get all panen records for this TPH ID
-                                        val matchingPanenList =
-                                            panenGroupedByTPH[tphId] ?: emptyList()
-
-                                        if (matchingPanenList.isNotEmpty()) {
-                                            val mergedData =
-                                                mergePanenRecordsForTPH(matchingPanenList)
-
-                                            val blokKode = if (mergedData.dateList.size > 1) {
-                                                "$baseBlokKode (${mergedData.dateList.size} transaksi)"
-                                            } else {
-                                                baseBlokKode
+                                                allResults.addAll(batchResults)
                                             }
+                                        allResults
+                                    } else {
+                                        // Normal single query
+                                        datasetViewModel.getLatLonDivisiByTPHIds(
+                                            estateIdToUse,
+                                            selectedDivisiId,
+                                            selectedTPHIds
+                                        )
+                                    }
 
-                                            resultMap[tphId] = ScannedTPHLocation(
-                                                lat,
-                                                lon,
-                                                nomor,
-                                                blokKode,
-                                                divisiKode.toString(),
-                                                deptKode.toString(),
-                                                jmlPokokHa,
-                                                jenisTPHId
-                                            )
+                                    data class BlokKey(
+                                        val dept: String,
+                                        val divisi: String,
+                                        val kode: String
+                                    )
+
+                                    val blokLookupMap = blokList.associateBy { blok ->
+                                        BlokKey(
+                                            blok.dept?.toString() ?: "",
+                                            blok.divisi?.toString() ?: "",
+                                            blok.kode ?: ""
+                                        )
+                                    }
+
+                                    tphList.forEach { tph ->
+                                        val tphId = tph.id
+                                        val lat = tph.lat?.toDoubleOrNull()
+                                        val lon = tph.lon?.toDoubleOrNull()
+                                        val nomor = tph.nomor ?: ""
+                                        val baseBlokKode = tph.blok_kode ?: ""
+                                        val divisiKode = tph.divisi ?: ""
+                                        val deptKode = tph.dept ?: ""
+                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
+
+                                        val blokKey = BlokKey(
+                                            deptKode.toString(),
+                                            divisiKode.toString(), baseBlokKode
+                                        )
+                                        val matchingBlok = blokLookupMap[blokKey]
+
+                                        val jmlPokokHa = matchingBlok?.jml_pokok_ha
+
+                                        if (tphId != null && lat != null && lon != null) {
+                                            // Get all panen records for this TPH ID
+                                            val matchingPanenList = panenGroupedByTPH[tphId] ?: emptyList()
+
+                                            if (matchingPanenList.isNotEmpty()) {
+                                                val mergedData = mergePanenRecordsForTPH(matchingPanenList)
+
+                                                val blokKode = if (mergedData.dateList.size > 1) {
+                                                    "$baseBlokKode (${mergedData.dateList.size} transaksi)"
+                                                } else {
+                                                    baseBlokKode
+                                                }
+
+                                                resultMap[tphId] = ScannedTPHLocation(
+                                                    lat,
+                                                    lon,
+                                                    nomor,
+                                                    blokKode,
+                                                    divisiKode.toString(),
+                                                    deptKode.toString(),
+                                                    jmlPokokHa,
+                                                    jenisTPHId
+                                                )
+                                            }
                                         }
                                     }
+
+                                    AppLogger.d("Final resultMap size: ${resultMap.size}")
+                                    resultMap
+
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error in latLonResult: ${e.message}", e.toString())
+                                    throw e
                                 }
-
-                                AppLogger.d("Final resultMap size: ${resultMap.size}")
-                                resultMap
-
-                            } catch (e: Exception) {
-                                AppLogger.e("Error in latLonResult: ${e.message}", e.toString())
-                                throw e
                             }
-                        }
 
-                        try {
-                            latLonMap = latLonResult.await()
-                        } catch (e: Exception) {
-                            AppLogger.e("Error awaiting latLonResult: ${e.message}", e.toString())
+                            try {
+                                latLonMap = latLonResult.await()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error awaiting latLonResult: ${e.message}", e.toString())
+                                withContext(Dispatchers.Main) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FormInspectionActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_failed_fetch_data),
+                                        "Error fetching listLatLonAfd: ${e.message}",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) { }
+                                }
+                                latLonMap = emptyMap()
+                            }
+
+                            val kemandoranDeferred = async {
+                                try {
+                                    datasetViewModel.getKemandoranEstate(
+                                        estateId!!.toInt()
+                                    )
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error fetching kemandoran list: ${e.message}")
+                                    emptyList()
+                                }
+                            }
+
+                            kemandoranList = kemandoranDeferred.await()
+
                             withContext(Dispatchers.Main) {
-                                AlertDialogUtility.withSingleAction(
+                                try {
+                                    val kemandoranNames = kemandoranList.map { it.nama }
+                                    setupSpinnerView(
+                                        lyKemandoran,
+                                        kemandoranNames as List<String>
+                                    )
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error updating UI: ${e.message}")
+                                }
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error loading afdeling data: ${e.message}", e.toString())
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
                                     this@FormInspectionActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_failed_fetch_data),
-                                    "Error fetching listLatLonAfd: ${e.message}",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) { }
+                                    "Error loading afdeling data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
-                            latLonMap = emptyMap()
-                        }
-
-                        val kemandoranDeferred = async {
-                            try {
-                                datasetViewModel.getKemandoranList(
-                                    estateId!!.toInt(),
-                                    allIdAfdeling as List<Int>
-                                )
-                            } catch (e: Exception) {
-                                AppLogger.e("Error fetching kemandoran list: ${e.message}")
-                                emptyList()
+                        } finally {
+                            withContext(Dispatchers.Main) {
+                                hideLoadingDots(linearLayout)
                             }
-                        }
-
-//                        val kemandoranLainDeferred = async {
-//                            try {
-//                                datasetViewModel.getKemandoranList(
-//                                    estateId!!.toInt(),
-//                                    nonSelectedIdAfdeling as List<Int>
-//                                )
-//                            } catch (e: Exception) {
-//                                AppLogger.e("Error fetching kemandoran lain list: ${e.message}")
-//                                emptyList()
-//                            }
-//                        }
-
-//                        blokList = blokDeferred.await()
-                        kemandoranList = kemandoranDeferred.await()
-//                        kemandoranLainList = kemandoranLainDeferred.await()
-
-                        withContext(Dispatchers.Main) {
-                            try {
-                                val kemandoranNames = kemandoranList.map { it.nama }
-                                setupSpinnerView(
-                                    lyKemandoran,
-                                    kemandoranNames as List<String>
-                                )
-                            } catch (e: Exception) {
-                                AppLogger.e("Error updating UI: ${e.message}")
-                            }
-                        }
-
-                    } catch (e: Exception) {
-                        AppLogger.e("Error loading afdeling data: ${e.message}", e.toString())
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                this@FormInspectionActivity,
-                                "Error loading afdeling data: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } finally {
-                        withContext(Dispatchers.Main) {
-                            hideLoadingDots(linearLayout)
                         }
                     }
                 }

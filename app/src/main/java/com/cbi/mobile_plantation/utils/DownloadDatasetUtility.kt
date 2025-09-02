@@ -292,7 +292,7 @@ class DownloadDatasetUtility(
 
             UserRole.GM -> {
                 addGMDatasets(
-                    datasets,  regionalUser,estateId,lastModifiedDatasetKemandoran,
+                    datasets,  regionalUser,estateId,lastModifiedDatasetKemandoran,lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen, lastModifiedDatasetEstate
                 )
             }
@@ -303,12 +303,20 @@ class DownloadDatasetUtility(
         datasets: MutableList<DatasetRequest>,
         regionalId: Int,
         estateId: Any,
+        lastModifiedDatasetBlok: String?,
         lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?
     ) {
+        AppLogger.d("ksjdlkfjs lkfjsldfj")
         datasets.addAll(
             listOf(
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = lastModifiedDatasetBlok,
+                    dataset = AppUtils.DatasetNames.blok,
+                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
@@ -424,7 +432,6 @@ class DownloadDatasetUtility(
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetEstate: String?
     ) {
-        AppLogger.d("kjasdklfjlskdfj")
         datasets.addAll(
             listOf(
                 DatasetRequest(

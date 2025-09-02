@@ -1451,10 +1451,10 @@ class AppRepository(context: Context) {
         }
 
 
-    suspend fun getAllTPHinWeek(): Result<List<PanenEntityWithRelations>> =
+    suspend fun getAllTPHinWeek(estateId: Int): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
-                val data = panenDao.getAllTPHinWeek()
+                val data = panenDao.getAllTPHinWeek(estateId)
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)

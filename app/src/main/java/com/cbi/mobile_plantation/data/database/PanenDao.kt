@@ -255,16 +255,18 @@ abstract class PanenDao {
     abstract fun getAllTPHHasBeenSelected(): List<PanenEntityWithRelations>
 
     @Query("""
-        SELECT * FROM panen_table 
-        WHERE datetime(date_created) >= datetime('now', '-7 days')
-        AND karyawan_nik IS NOT NULL 
-        AND karyawan_nik != ''
-        AND karyawan_nik != 'NULL'
-        AND karyawan_nama IS NOT NULL 
-        AND karyawan_nama != ''
-        AND karyawan_nama != 'NULL'
-    """)
-    abstract fun getAllTPHinWeek(): List<PanenEntityWithRelations>
+    SELECT p.* FROM panen_table p
+    INNER JOIN tph t ON p.tph_id = t.id
+    WHERE datetime(p.date_created) >= datetime('now', '-7 days')
+    AND p.karyawan_nik IS NOT NULL 
+    AND p.karyawan_nik != ''
+    AND p.karyawan_nik != 'NULL'
+    AND p.karyawan_nama IS NOT NULL 
+    AND p.karyawan_nama != ''
+    AND p.karyawan_nama != 'NULL'
+    AND t.dept = :estateId
+""")
+    abstract fun getAllTPHinWeek(estateId: Int): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE scan_status = 0 and status_restan = 0")
