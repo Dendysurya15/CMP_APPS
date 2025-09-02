@@ -285,7 +285,7 @@ class DownloadDatasetUtility(
 
             UserRole.KERANI_PANEN, UserRole.MANAGER, UserRole.ASKEP, UserRole.OTHER -> {
                 addDefaultUserDatasets(
-                    datasets, estateId, regionalUser,lastModifiedDatasetKemandoran,
+                    datasets, estateId, regionalUser,lastModifiedDatasetKemandoran,lastModifiedDatasetBlok,
                     lastModifiedDatasetTPH, lastModifiedDatasetPemanen, lastModifiedDatasetEstate
                 )
             }
@@ -419,12 +419,19 @@ class DownloadDatasetUtility(
         estateId: Any,
         regionalUser: Int,
         lastModifiedDatasetKemandoran:String?,
+        lastModifiedDatasetBlok: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetEstate: String?
     ) {
+        AppLogger.d("kjasdklfjlskdfj")
         datasets.addAll(
             listOf(
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetBlok,
+                    dataset = AppUtils.DatasetNames.blok
+                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
