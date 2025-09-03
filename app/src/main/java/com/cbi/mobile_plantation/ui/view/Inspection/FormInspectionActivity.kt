@@ -190,6 +190,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var regionalId: String? = null
     private var estateId: String? = null
     private var estateName: String? = null
+    private var estateAbbr: String? = null
     private var userName: String? = null
     private var userId: Int? = null
     private var jabatanUser: String? = null
@@ -479,8 +480,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 5000F
-        boundaryAccuracy = 5000F
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.radiusMinimum
         initViewModel()
         initUI()
         dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
@@ -530,6 +531,22 @@ open class FormInspectionActivity : AppCompatActivity(),
             try {
                 val estateIdStr = estateId?.trim()
 
+                val parameterInspeksiDeferred = async {
+                    try {
+                        inspectionViewModel.getParameterInspeksiJson()
+                    } catch (e: Exception) {
+                        AppLogger.e("Parameter loading failed: ${e.message}")
+                        emptyList<InspectionParameterItem>()
+                    }
+                }
+                delay(100)
+                parameterInspeksi = parameterInspeksiDeferred.await()
+
+
+                if (parameterInspeksi.isEmpty()) {
+                    throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
+                }
+
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
@@ -571,23 +588,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("afdelingNameDeferred $afdelingNameDeferred")
                     afdelingNameUser = afdelingNameDeferred.await()
 
-                    val parameterInspeksiDeferred = async {
-                        try {
-                            inspectionViewModel.getParameterInspeksiJson()
-                        } catch (e: Exception) {
-                            AppLogger.e("Parameter loading failed: ${e.message}")
-                            emptyList<InspectionParameterItem>()
-                        }
-                    }
-                    delay(100)
-                    parameterInspeksi = parameterInspeksiDeferred.await()
-
-
-                    if (parameterInspeksi.isEmpty()) {
-                        throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
-                    }
-
-
                     val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
 
                     panenViewModel.getAllJenisTPH()
@@ -612,7 +612,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     divisiList = divisiDeferred.await()
 
                     if (divisiList.isEmpty()) {
-                        throw Exception("Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
+                        throw Exception("Divisi tidak ditemukan, Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
                     }
                 }
 
@@ -1761,8 +1761,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
 
                     val afdResult = selectedAfdeling.replaceFirst("AFD-", "")
+
+                    val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+
+                    val estateAbbrLocal = if (isGM) estateAbbr else estateName
+
                     formAncakViewModel.updateInfoFormAncak(
-                        estateName ?: "",
+                        estateAbbrLocal ?: "",
                         afdResult,
                         selectedBlokByScan ?: ""
                     )
@@ -4874,6 +4879,20 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.e("Error getting estate ID: ${e.message}")
                     return
                 }
+
+                val estateAbbrList = prefManager!!.estateUserLogin
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?: emptyList()
+
+                val selectedEstateAbbr = if (position < estateAbbrList.size) {
+                    estateAbbrList[position]
+                } else {
+                    AppLogger.e("Invalid estate position: $position")
+                    return
+                }
+
+                estateAbbr = selectedEstateAbbr
 
                 // Update current estate
                 estateId = selectedEstateId.toString()

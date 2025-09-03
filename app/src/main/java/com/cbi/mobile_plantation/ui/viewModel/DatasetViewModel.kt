@@ -1092,9 +1092,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         _totalCount.value = requests.size
         _completedCount.value = 0
 
-
-        AppLogger.d("gak mungkin dong masuk sini")
-
         // Create mutable maps for tracking progress and status
         val progressMap = mutableMapOf<Int, Int>()
         val statusMap = mutableMapOf<Int, String>()
@@ -1172,6 +1169,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppUtils.DatasetNames.transporter,
                         AppUtils.DatasetNames.kendaraan,
                         AppUtils.DatasetNames.jenisTPH,
+                        AppUtils.DatasetNames.blok
                     )
 
                     var modifiedRequest = request
@@ -1191,13 +1189,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             if (count == 0) {
                                 modifiedRequest = request.copy(lastModified = null)
                                 if (deptId != null) {
-                                    Log.d("testingterus","Dataset ${request.dataset} has no records for department ID $deptId, setting lastModified to null")
+                                    AppLogger.d("Dataset ${request.dataset} has no records for department ID $deptId, setting lastModified to null")
                                 } else {
-                                    Log.d("testingterus","Dataset ${request.dataset} has no records, setting lastModified to null")
+                                    AppLogger.d("Dataset ${request.dataset} has no records, setting lastModified to null")
                                 }
                             }
                         } else {
-                            Log.e("testingterus", "Invalid estate ID for tph dataset: ${request.estate}")
+                            AppLogger.d( "Invalid estate ID for tph dataset: ${request.estate}")
                         }
                     }
 
@@ -1584,6 +1582,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         AppLogger.d("Parsed ${tphList.size} TPH records, ${filteredTphList.size} valid after filtering")
 
+
+                                        AppLogger.d("filteredTphList $filteredTphList")
                                         if (filteredTphList.isEmpty()) {
                                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                                             errorMap[itemId] =
@@ -1602,16 +1602,31 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     val deptId = request.estate
                                                     AppLogger.d("TPH Update - Department ID from request: $deptId, Estate Abbr: ${request.estateAbbr}")
 
+                                                    val uniqueDepts = filteredTphList.map { it.dept }.distinct()
+                                                    AppLogger.d("TPH Update - Unique department IDs in data: $uniqueDepts")
+
                                                     val dataToUse = if (deptId != null) {
-                                                        val tphForDept =
-                                                            filteredTphList.filter { it.dept == deptId }
+                                                        val tphForDept = filteredTphList.filter { it.dept.toString() == deptId.toString() }
                                                         AppLogger.d("TPH Update - Filtered ${tphForDept.size} records for department $deptId")
+
+                                                        // If no records match, log a few sample records for debugging
+                                                        if (tphForDept.isEmpty() && filteredTphList.isNotEmpty()) {
+                                                            AppLogger.d("TPH Update - No matches found. Sample records:")
+                                                        }
+
                                                         tphForDept
                                                     } else {
                                                         AppLogger.d("TPH Update - No department ID specified, updating all ${filteredTphList.size} records")
                                                         filteredTphList
                                                     }
-                                                    repository.updateOrInsertTPH(dataToUse)
+
+                                                    // Only call repository if we have data
+                                                    if (dataToUse.isNotEmpty()) {
+                                                        AppLogger.d("TPH Update - Calling repository.updateOrInsertTPH with ${dataToUse.size} records")
+                                                        repository.updateOrInsertTPH(dataToUse)
+                                                    } else {
+                                                        AppLogger.w("TPH Update - No data to update/insert for department $deptId")
+                                                    }
                                                 }
                                             } catch (e: Exception) {
                                                 AppLogger.e("Database update error: ${e.message}")

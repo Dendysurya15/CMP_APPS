@@ -102,6 +102,7 @@ class DatasetRepository(
             AppUtils.DatasetNames.transporter -> transporterDao.getCount()
             AppUtils.DatasetNames.kendaraan -> kendaraanDao.getCount()
             AppUtils.DatasetNames.jenisTPH -> jenisTPHDao.getCount()
+            AppUtils.DatasetNames.blok -> blokDao.getCount()
             else -> 0
         }
     }

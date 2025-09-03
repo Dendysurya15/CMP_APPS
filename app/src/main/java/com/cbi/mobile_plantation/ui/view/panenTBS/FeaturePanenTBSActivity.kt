@@ -352,8 +352,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 200F
-        boundaryAccuracy = 200F
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.radiusMinimum
 
         AppLogger.d("radiusMinimum $radiusMinimum")
         AppLogger.d("boundaryAccuracy $boundaryAccuracy")
@@ -392,8 +392,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             try {
                 val estateIdStr = estateId?.trim()
 
+                AppLogger.d("estateIdStr $estateIdStr")
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
+
+                    val divisiDeferred = async {
+                        try {
+                            datasetViewModel.getDivisiList(estateIdInt)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching divisiList: ${e.message}")
+                            emptyList() // Return an empty list to prevent crash
+                        }
+                    }
+
+                    divisiList = divisiDeferred.await()
+
+                    if (divisiList.isNullOrEmpty()) {
+                        throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
+                    }
 
                     if (featureName != AppUtils.ListFeatureNames.MutuBuah){
                         val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
@@ -460,20 +476,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
 
-                        val divisiDeferred = async {
-                            try {
-                                datasetViewModel.getDivisiList(estateIdInt)
-                            } catch (e: Exception) {
-                                AppLogger.e("Error fetching divisiList: ${e.message}")
-                                emptyList() // Return an empty list to prevent crash
-                            }
-                        }
 
-                        divisiList = divisiDeferred.await()
-
-                        if (divisiList.isNullOrEmpty()) {
-                            throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
-                        }
 
                         val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
@@ -2086,7 +2089,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
 
-        AppLogger.d("radiasdklfjalskdjfladsf")
         AppLogger.d("radiusMinimum $radiusMinimum")
         val radiusText = "${radiusMinimum.toInt()} m"
         val fullText =
