@@ -194,7 +194,15 @@ class AlertDialogUtility {
 
 
         @SuppressLint("InflateParams")
-        fun withSingleAction(context: Context, actionText: String, titleText: String, alertText: String, animAsset: String, color: Int = R.color.greendarkerbutton, function: () -> Unit) {
+        fun withSingleAction(
+            context: Context,
+            actionText: String,
+            titleText: String,
+            alertText: CharSequence, // Changed from String to CharSequence
+            animAsset: String,
+            color: Int = R.color.greendarkerbutton,
+            function: () -> Unit
+        ) {
             if (context is Activity && !context.isFinishing) {
                 val rootView = context.findViewById<View>(android.R.id.content)
                 val parentLayout = rootView.findViewById<ConstraintLayout>(R.id.clParentAlertDialog)
@@ -217,7 +225,7 @@ class AlertDialogUtility {
                 val scrollView = layoutBuilder.findViewById<NestedScrollView>(R.id.scrollView)
                 tvDescDialog.visibility = View.VISIBLE
                 tvTitleDialog.text = titleText
-                tvDescDialog.text = alertText
+                tvDescDialog.text = alertText // This now preserves SpannableStringBuilder formatting
 
                 // Handle dynamic height
                 tvDescDialog.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -236,12 +244,10 @@ class AlertDialogUtility {
                     }
                 })
 
-
                 val mbSuccessDialog = layoutBuilder.findViewById<MaterialButton>(R.id.mbSuccessDialog)
                 val colorStateList = ColorStateList.valueOf(ContextCompat.getColor(context, color))
                 mbSuccessDialog.backgroundTintList = colorStateList
                 mbSuccessDialog.text = actionText
-
 
                 val lottieAnim = layoutBuilder.findViewById<LottieAnimationView>(R.id.lottie_anim)
                 lottieAnim.setAnimation(animAsset)

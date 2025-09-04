@@ -91,7 +91,7 @@
     <string name="last_update_TPH">Terakhir diperbarui:</string>
 
     <string name="al_back">Kembali</string>
-    <string name="al_no_internet_connection">Tidak Ada Internet!</string>
+    <string name="al_no_internet_connection">Aplikasi Perlu Pembaruan!</string>
     <string name="al_features_still_in_development">Segera Hadir</string>
     <string name="al_desc_features_still_in_development">Fitur masih dalam tahap pengembangan!</string>
     <string name="al_data_cmp">Tidak Ada Internet!</string>

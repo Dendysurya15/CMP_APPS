@@ -50,13 +50,12 @@ class DownloadDatasetUtility(
         )
 
 
-        // Handle special triggers first (these override normal role-based logic)
+//        // Handle special triggers first (these override normal role-based logic)
         if (handleSpecialTriggers(datasets, userRole, estateId, afdelingId)) {
             return datasets
         }
 
 
-        // Add common datasets for all roles (except when special triggers are active)
         addCommonDatasets(
             datasets,userRole, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
             lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
@@ -514,6 +513,12 @@ class DownloadDatasetUtility(
                 DatasetRequest(
                     lastModified = lastModifiedSettingJSON,
                     dataset = AppUtils.DatasetNames.settingJSON,
+                    jabatan = jabatanValue
+                ),
+                DatasetRequest(
+                    lastModified = null,
+                    idUser = prefManager.idUserLogin,
+                    dataset = AppUtils.DatasetNames.checkAppVersion,
                     jabatan = jabatanValue
                 )
             )

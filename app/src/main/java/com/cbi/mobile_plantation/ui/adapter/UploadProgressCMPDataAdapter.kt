@@ -164,6 +164,10 @@ class UploadProgressCMPDataAdapter(
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = "${item.title} - ${status}"
             }
+            AppUtils.UploadStatusUtils.DONE_CHECK -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = "${item.title} - ${status}"
+            }
             AppUtils.UploadStatusUtils.UPTODATE -> {
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = "${item.title} - ${status}"

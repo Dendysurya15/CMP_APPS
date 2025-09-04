@@ -73,8 +73,9 @@ object AppUtils {
         const val SUCCESS = "Berhasil Upload!"
         const val DOWNLOADING = "Sedang Mengunduh"
         const val DOWNLOADED = "Berhasil Mengunduh!"
-        const val UPTODATE = "tidak ada pembaruan yang diperlukan!"
-        const val UPDATED = "berhasil diperbarui"
+        const val UPTODATE = "Tidak ada pembaruan yang diperlukan!"
+        const val UPDATED = "Berhasil diperbarui"
+        const val DONE_CHECK = "Sudah diperiksa"
         const val FAILED = "Gagal Upload!"
         const val ERROR = "ERROR!"
     }
@@ -238,6 +239,29 @@ object AppUtils {
         const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
     }
 
+    object ExemptFeatures {
+        val ALWAYS_ENABLED = listOf(
+            ListFeatureNames.UploadDataCMP,
+            ListFeatureNames.RekapHasilPanen,
+            ListFeatureNames.RekapPanenDanRestan,
+            ListFeatureNames.DaftarHektarPanen,
+            ListFeatureNames.RekapESPB,
+            ListFeatureNames.RekapInspeksiPanen,
+            ListFeatureNames.RekapESPBTimbanganMill,
+            ListFeatureNames.RekapAbsensiPanen,
+            ListFeatureNames.ListFollowUpInspeksi,
+            ListFeatureNames.SinkronisasiData
+        )
+    }
+
+    // Global variable to track if features should be disabled
+    var isAppUpdateRequired: Boolean = false
+
+    // Check if a feature should be disabled
+    fun isFeatureDisabled(featureName: String): Boolean {
+        return isAppUpdateRequired && !ExemptFeatures.ALWAYS_ENABLED.contains(featureName)
+    }
+
     object WaterMarkFotoDanFolder {
         const val WMPanenTPH = "PANEN TPH"
         const val WMBuktiInspeksiUser = "INSPEKSI_BY_USER"
@@ -278,6 +302,7 @@ object AppUtils {
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
         const val sinkronisasiFollowUpInspeksi = "Data Inspeksi (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
+        const val checkAppVersion = "Cek Versi Aplikasi"
     }
 
     object kodeInspeksi {
@@ -1042,6 +1067,62 @@ object AppUtils {
         )
     }
 
+    fun compareVersions(currentVersion: String, requiredVersion: String): Int {
+        // Remove .debug suffix and split by dots
+        val current = currentVersion.replace(".debug", "").split(".").map { it.toIntOrNull() ?: 0 }
+        val required = requiredVersion.split(".").map { it.toIntOrNull() ?: 0 }
+
+        // Pad shorter version with zeros
+        val maxLength = maxOf(current.size, required.size)
+        val currentPadded = current + List(maxLength - current.size) { 0 }
+        val requiredPadded = required + List(maxLength - required.size) { 0 }
+
+        // Compare each part
+        for (i in 0 until maxLength) {
+            when {
+                currentPadded[i] < requiredPadded[i] -> return -1 // Current is older
+                currentPadded[i] > requiredPadded[i] -> return 1  // Current is newer
+            }
+        }
+        return 0 // Versions are equal
+    }
+
+    /**
+     * Checks if app version update is required
+     * @param context Context to get device info
+     * @param prefManager PrefManager to get latest system version
+     * @return true if update is required, false otherwise
+     */
+    fun checkAppVersionUpdate(context: Context, prefManager: PrefManager): Boolean {
+        val deviceInfo = getDeviceInfo(context)
+        val currentAppVersion = deviceInfo.optString("app_version", "")
+        val requiredVersion = prefManager.latestAppVersionSystem ?: ""
+
+        AppLogger.d("Current app version: $currentAppVersion")
+        AppLogger.d("Required app version: $requiredVersion")
+
+        if (requiredVersion.isNotEmpty() && currentAppVersion.isNotEmpty()) {
+            val comparison = compareVersions(currentAppVersion, requiredVersion)
+
+            when {
+                comparison < 0 -> {
+                    AppLogger.w("App version is outdated. Current: $currentAppVersion, Required: $requiredVersion")
+                    return true // Update required
+                }
+                comparison == 0 -> {
+                    AppLogger.d("App version is up to date")
+                    return false
+                }
+                comparison > 0 -> {
+                    AppLogger.d("App version is newer than required")
+                    return false
+                }
+            }
+        } else {
+            AppLogger.w("Cannot compare versions - missing data")
+        }
+        return false
+    }
 
     fun getDeviceInfo(context: Context): JSONObject {
         val json = JSONObject()

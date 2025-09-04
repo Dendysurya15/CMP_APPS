@@ -21,7 +21,11 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
+import android.text.style.StyleSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -101,12 +105,15 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.formatToCamelCase
+import com.cbi.mobile_plantation.utils.AppUtils.getDeviceInfo
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.DownloadDatasetUtility
+import com.cbi.mobile_plantation.utils.FeatureStateManager
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.NotificationScheduler
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ValidationSyncHelper
 import com.cbi.mobile_plantation.worker.DataCleanupWorker
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -140,7 +147,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-@Suppress("IMPLICIT_CAST_TO_ANY")
+@Suppress("IMPLICIT_CAST_TO_ANY", "UNREACHABLE_CODE")
 class HomePageActivity : AppCompatActivity() {
 
     private lateinit var notificationScheduler: NotificationScheduler
@@ -642,7 +649,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Pencatatan panen TBS di TPH oleh kerani panen",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.PanenTBS)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -651,7 +659,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Rekapitulasi panen TBS dan transfer data ke supervisi",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapHasilPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -660,7 +669,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Asistensi pencatatan panen TBS ke estate lain",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.AsistensiEstateLain)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -669,7 +679,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_hasil_panen_icon,
                 count = null,
                 functionDescription = "Transfer data dari kerani panen ke supervisi untuk pembuatan eSPB",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanHasilPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -678,7 +689,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPHApproval.toString(),
                 functionDescription = "Rekapitulsasi panen TBS dan restan dari kerani panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapPanenDanRestan)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -687,7 +699,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.espb_icon,
                 functionDescription = "Transfer data dari driver ke supervisi untuk pembuatan eSPB",
                 displayType = DisplayType.ICON,
-                subTitle = "Scan QR Code eSPB"
+                subTitle = "Scan QR Code eSPB",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.BuatESPB)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -696,7 +709,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = "0",
                 functionDescription = "Rekapitulasi eSPB dan transfer data ke driver",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapESPB)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -705,7 +719,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.inspeksi_icon,
                 functionDescription = "Buat inspeksi panen",
                 displayType = DisplayType.ICON,
-                subTitle = "Scan QR Code eSPB"
+                subTitle = "Scan QR Code eSPB",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.InspeksiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -714,7 +729,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countInspection,
                 functionDescription = "Rekapitulasi inspeksi panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapInspeksiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -723,7 +739,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.baseline_travel_explore_24,
                 functionDescription = "Follow Up Inspeksi",
                 displayType = DisplayType.ICON,
-                subTitle = "Follow Up laporan inspeksi panen"
+                subTitle = "Follow Up laporan inspeksi panen",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.FollowUpInspeksi)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -732,7 +749,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.timbang_icon,
                 functionDescription = "Scan data eSPB dari driver oleh kerani timbang",
                 displayType = DisplayType.ICON,
-                subTitle = "Transfer data eSPB dari driver"
+                subTitle = "Transfer data eSPB dari driver",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanESPBTimbanganMill)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -741,7 +759,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.cbi,
                 functionDescription = "Rekapitulasi eSPB yang telah discan",
                 displayType = DisplayType.COUNT,
-                subTitle = "Transfer data eSPB dari driver"
+                subTitle = "Transfer data eSPB dari driver",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapESPBTimbanganMill)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -750,7 +769,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.absensi_panen_icon,
                 count = null,
                 functionDescription = "Absensi kehadiran karyawan panen oleh supervisi",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.AbsensiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -759,7 +779,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countAbsensi.toString(),
                 functionDescription = "Rekapitulasi absensi karyawan dan transfer data ke kerani panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapAbsensiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -768,7 +789,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_qr_icon,
                 count = null,
                 functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanAbsensiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -777,7 +799,9 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.sync_icon,
                 functionDescription = "Update semua data master",
                 displayType = DisplayType.ICON,
-                subTitle = "Sinkronisasi data manual"
+
+                subTitle = "Sinkronisasi data manual",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.SinkronisasiData)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greendarkerbutton,
@@ -786,7 +810,9 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.baseline_download_24,
                 functionDescription = "Unduh Master TPH untuk asistensi estate lain",
                 displayType = DisplayType.ICON,
-                subTitle = "Unduh TPH Asistensi"
+
+                subTitle = "Unduh TPH Asistensi",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.UnduhTPHAsistensi)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -795,7 +821,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.upload_icon_2,
                 functionDescription = "Upload semua data di aplikasi",
                 displayType = DisplayType.ICON,
-                subTitle = "Upload Semua Data CMP"
+                subTitle = "Upload Semua Data CMP",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.UploadDataCMP)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -804,7 +831,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_hasil_panen_icon,
                 count = null,
                 functionDescription = "Transfer data dari kerani panen ke mandor panen untuk input hektar panen",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanPanenMPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -813,7 +841,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Input dan upload hektar panen oleh mandor panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.DaftarHektarPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -822,7 +851,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Transfer data dari kerani panen ke mandor panen untuk input hektar panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.TransferHektarPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.colorRedDark,
@@ -831,7 +861,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Inspeksi Mutu Buah",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.MutuBuah)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.colorRedDark,
@@ -840,7 +871,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countMutuBuah.toString(),
                 functionDescription = "Rekap Inspeksi Mutu Buah",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapMutuBuah)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -849,7 +881,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPHForTransferInspeksi.toString(),
                 functionDescription = "Transfer data dari kerani panen untuk hasil inspeksi H+0",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.TransferInspeksiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -858,7 +891,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_inspect_icon,
                 count = countPanenTPHForTransferInspeksi.toString(),
                 functionDescription = "Scan data panen untuk proses Inspeksi H+0",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanTransferInspeksiPanen)
             )
 
         )
@@ -1030,6 +1064,8 @@ class HomePageActivity : AppCompatActivity() {
                 onFeatureCardClicked(featureCard)
             }
 
+            featureAdapter?.setLifecycleOwner(this@HomePageActivity)
+
             adapter = featureAdapter
             featureAdapter.setFeatures(filteredFeatures)
 
@@ -1066,12 +1102,12 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun startPeriodicDateTimeChecking() {
         dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
-
     }
 
     override fun onResume() {
         super.onResume()
         checkDateTimeSettings()
+        FeatureStateManager.checkAndUpdateAppVersion(this, prefManager!!)
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
             startPeriodicDateTimeChecking()
         }
@@ -1097,10 +1133,11 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    // Update setupUI method
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
+
+        AppLogger.d("prefmanager ${prefManager!!.latestAppVersionSystem}")
         initViewModel()
         downloadDatasetUtility = DownloadDatasetUtility(prefManager!!, datasetViewModel)
 
@@ -1113,7 +1150,7 @@ class HomePageActivity : AppCompatActivity() {
         setupLogout()
         datasetViewModel.getAllEstates()
         checkPermissions()
-        checkPermissions() // This will now handle all permissions at once
+        FeatureStateManager.checkAndUpdateAppVersion(this, prefManager!!)
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
         setupObserver()
@@ -1179,191 +1216,70 @@ class HomePageActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     private fun onFeatureCardClicked(feature: FeatureCard) {
 
+        if (AppUtils.isFeatureDisabled(feature.featureName)) {
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                "OK",
+                "Update Required",
+                "Please update your app to use this feature. Only essential functions like data upload and synchronization are available.",
+                "warning.json",
+                R.color.colorRedDark
+            ) {
+                // Do nothing - just close dialog
+            }
+            return
+        }
+
+
         vibrate()
         when (feature.featureName) {
             AppUtils.ListFeatureNames.PanenTBS -> {
                 if (feature.displayType == DisplayType.ICON) {
                     lifecycleScope.launch {
                         try {
-                            // Get afdeling ID from preferences
-                            val afdelingId = prefManager!!.afdelingIdUserLogin
-                            val jabatanUser = prefManager!!.jabatanUserLogin
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
                             AppLogger.d("jabatan user $jabatanUser")
 
-                            // Check if jabatan contains "askep" or "gm" (case insensitive)
-                            val shouldSkipAfdelingCheck =
-                                jabatanUser?.lowercase()?.contains("askep") == true ||
-                                        jabatanUser?.lowercase()?.contains("manager") == true ||
-                                        jabatanUser?.lowercase()?.contains("gm") == true
+                            // Validate afdeling and get afdeling data
+                            val afdeling = ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            )
 
-                            if (!shouldSkipAfdelingCheck) {
-                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Afdeling tidak valid",
-                                        "Data afdeling saat ini adalah $afdelingId",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
+                            // If afdeling validation failed and we're not skipping, return
+                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
 
-                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+                            // Check sync requirement based on afdeling settings
+                            val isSyncValid = ValidationSyncHelper.validateSyncRequirement(
+                                this@HomePageActivity,
+                                afdeling,
+                                prefManager
+                            )
 
-                                withContext(Dispatchers.IO) {
-                                    val afdelingData =
-                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
-                                    afdelingDeferred.complete(afdelingData)
-                                }
+                            if (!isSyncValid) return@launch
 
-                                val afdeling = afdelingDeferred.await()
+                            // Validate present karyawan
+                            val presentKaryawan = ValidationSyncHelper.validatePresentKaryawan(
+                                this@HomePageActivity,
+                                this@HomePageActivity,
+                                absensiViewModel,
+                                panenViewModel
+                            ) ?: return@launch
 
-                                if (afdeling == null) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Data Afdeling Tidak Ditemukan",
-                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
-
-                                // Check sinkronisasi_otomatis value
-                                if (afdeling.sinkronisasi_otomatis != 0) {
-                                    // Check if sinkronisasi is required
-                                    val lastSyncDateTime = prefManager!!.lastSyncDate
-                                    val lastSyncDate =
-                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                            SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            ).parse(lastSyncDateTime)!!
-                                        )
-                                    val currentDate = SimpleDateFormat(
-                                        "yyyy-MM-dd",
-                                        Locale.getDefault()
-                                    ).format(Date())
-
-                                    if (lastSyncDate != currentDate) {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@HomePageActivity,
-                                            "Kembali",
-                                            "Sinkronisasi Database Diperlukan",
-                                            "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {
-                                            // Do nothing on click
-                                        }
-                                        return@launch
-                                    }
-                                }
-                            }
-
-                            // Check afdeling data and sinkronisasi_otomatis
-
-
-                            // All validations passed, proceed with attendance check
-                            val absensiDeferred =
-                                CompletableDeferred<List<AbsensiKemandoranRelations>>()
-
-                            absensiViewModel.loadActiveAbsensi()
-                            delay(100)
-
-                            withContext(Dispatchers.Main) {
-                                absensiViewModel.activeAbsensiList.observe(this@HomePageActivity) { absensiWithRelations ->
-                                    val absensiData = absensiWithRelations ?: emptyList()
-                                    absensiDeferred.complete(absensiData)
-                                }
-                            }
-
-                            // Wait for absensi data
-                            val absensiData = absensiDeferred.await()
-
-                            // Extract all NIKs of present karyawan from all absensi entries
-                            val presentNikSet = mutableSetOf<String>()
-                            absensiData.forEach { absensiRelation ->
-                                val absensi = absensiRelation.absensi
-                                // Split the comma-separated NIK string and add each NIK to the set
-                                val niks = absensi.karyawan_msk_nik.split(",")
-                                presentNikSet.addAll(niks.filter {
-                                    it.isNotEmpty() && it.trim().isNotEmpty()
-                                })
-                            }
-
-                            val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
-
-                            panenViewModel.getAllKaryawan()
-                            delay(100)
-
-                            withContext(Dispatchers.Main) {
-                                panenViewModel.allKaryawanList.observe(this@HomePageActivity) { list ->
-                                    val allKaryawan = list ?: emptyList()
-
-                                    // Only filter if presentNikSet has values
-                                    val presentKaryawan = if (presentNikSet.isNotEmpty()) {
-                                        // Filter to get only present karyawan
-                                        allKaryawan.filter { karyawan ->
-                                            karyawan.nik != null && presentNikSet.contains(karyawan.nik)
-                                        }
-                                    } else {
-                                        emptyList()
-                                    }
-
-                                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
-                                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
-
-                                    // Complete the deferred with the filtered karyawan
-                                    karyawanDeferred.complete(presentKaryawan)
-                                }
-                            }
-
-                            // Wait for karyawan data
-                            val presentKaryawan = karyawanDeferred.await()
-
-                            // Check if presentKaryawan is empty
-                            if (presentKaryawan.isEmpty()) {
-                                // Show alert if no present karyawan found
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Karyawan Tidak Hadir",
-                                    "Tidak ditemukan data kehadiran karyawan untuk hari ini.\nSilakan melakukan scan QR Absensi dari Mandor Panen.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                            } else {
-                                // Present karyawan found, proceed to activity
-                                val intent = Intent(
-                                    this@HomePageActivity,
-                                    FeaturePanenTBSActivity::class.java
-                                )
-                                intent.putExtra("FEATURE_NAME", feature.featureName)
-                                startActivity(intent)
-                            }
+                            // All validations passed, proceed to activity
+                            val intent =
+                                Intent(this@HomePageActivity, FeaturePanenTBSActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
 
                         } catch (e: Exception) {
                             AppLogger.e("Error in validation checks: ${e.message}")
-                            AlertDialogUtility.withSingleAction(
-                                this@HomePageActivity,
-                                "Kembali",
-                                "Terjadi Kesalahan",
-                                "Gagal melakukan validasi data. Silakan coba lagi.",
-                                "error.json",
-                                R.color.colorRedDark
-                            ) {
-                                // Do nothing on click
-                            }
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
                         }
                     }
                 }
@@ -1379,42 +1295,137 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.AsistensiEstateLain -> {
                 if (feature.displayType == DisplayType.ICON) {
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
-                    AlertDialogUtility.withTwoActions(
-                        this,
-                        "Ya",
-                        getString(R.string.confirmation_asistensi_estate),
-                        getString(R.string.al_confirm_asistensi),
-                        "warning.json",
-                        ContextCompat.getColor(this, R.color.bluedarklight),
-                        function = {
-                            vibrate()
-                            val intent = Intent(this, FeaturePanenTBSActivity::class.java)
-                            intent.putExtra("FEATURE_NAME", feature.featureName)
-                            startActivity(intent)
-                        },
-                        cancelFunction = { }
-                    )
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
 
+                            // Validate sync date (you may need to specify which sync date to check)
+                            val lastSyncDateTime =
+                                prefManager?.lastSyncDate // or whatever sync property you want to check
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (!isSyncValid) return@launch
+
+                            // All validations passed, show confirmation dialog
+                            AlertDialogUtility.withTwoActions(
+                                this@HomePageActivity,
+                                "Ya",
+                                getString(R.string.confirmation_asistensi_estate),
+                                getString(R.string.al_confirm_asistensi),
+                                "warning.json",
+                                ContextCompat.getColor(
+                                    this@HomePageActivity,
+                                    R.color.bluedarklight
+                                ),
+                                function = {
+                                    vibrate()
+                                    val intent = Intent(
+                                        this@HomePageActivity,
+                                        FeaturePanenTBSActivity::class.java
+                                    )
+                                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                                    startActivity(intent)
+                                },
+                                cancelFunction = { }
+                            )
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.ScanHasilPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date - adjust the sync property as needed
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.BuatESPB -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
-
 
             AppUtils.ListFeatureNames.RekapESPB -> {
                 if (feature.displayType == DisplayType.COUNT) {
@@ -1434,144 +1445,43 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.InspeksiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-
                     lifecycleScope.launch {
                         try {
-                            // Get afdeling ID from preferences
-                            val afdelingId = prefManager!!.afdelingIdUserLogin
-                            val jabatanUser = prefManager!!.jabatanUserLogin
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
                             AppLogger.d("jabatan user $jabatanUser")
-
-                            // Check if jabatan contains "askep" or "gm" (case insensitive)
-                            val shouldSkipAfdelingCheck =
-                                jabatanUser?.lowercase()?.contains("askep") == true ||
-                                        jabatanUser?.lowercase()?.contains("manager") == true ||
-                                        jabatanUser?.lowercase()?.contains("gm") == true
-
-
                             AppLogger.d("shouledSKip $shouldSkipAfdelingCheck")
-                            if (!shouldSkipAfdelingCheck) {
-                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Afdeling tidak valid",
-                                        "Data afdeling saat ini adalah $afdelingId",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
-                                // Check afdeling data and sinkronisasi_otomatis
-                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
 
-                                withContext(Dispatchers.IO) {
-                                    val afdelingData =
-                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
-                                    afdelingDeferred.complete(afdelingData)
-                                }
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
 
-                                val afdeling = afdelingDeferred.await()
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDataPanenInspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
 
-                                if (afdeling == null) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Data Afdeling Tidak Ditemukan",
-                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
-
-
-                            }
-
-
-                            val lastSyncDateTime = prefManager!!.lastSyncDataPanenInspeksi
-
-                            AppLogger.d("lastSyncDateTimeInspeksi $lastSyncDateTime")
-
-                            if (lastSyncDateTime.isNullOrEmpty()) {
-                                AlertDialogUtility.withSingleAction(
+                            if (isSyncValid) {
+                                val intent = Intent(
                                     this@HomePageActivity,
-                                    "Kembali",
-                                    "Sinkronisasi Database Diperlukan",
-                                    "Database belum pernah disinkronisasi. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
-
-                            try {
-                                val lastSyncDate =
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                        SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).parse(lastSyncDateTime)!!
-                                    )
-                                val currentDate = SimpleDateFormat(
-                                    "yyyy-MM-dd",
-                                    Locale.getDefault()
-                                ).format(Date())
-
-                                if (lastSyncDate != currentDate) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Sinkronisasi Database Diperlukan",
-                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                } else {
-                                    val intent = Intent(
-                                        this@HomePageActivity,
-                                        FormInspectionActivity::class.java
-                                    )
-                                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                                    startActivity(intent)
-                                }
-                            } catch (e: ParseException) {
-                                AppLogger.e("Error parsing sync date: ${e.message}")
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Sinkronisasi Database Diperlukan",
-                                    "Data sinkronisasi tidak valid. Silakan lakukan sinkronisasi ulang terlebih dahulu sebelum menggunakan fitur ini.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
+                                    FormInspectionActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
                             }
 
                         } catch (e: Exception) {
                             AppLogger.e("Error in validation checks: ${e.message}")
-                            AlertDialogUtility.withSingleAction(
-                                this@HomePageActivity,
-                                "Kembali",
-                                "Terjadi Kesalahan",
-                                "Gagal melakukan validasi data. Silakan coba lagi.",
-                                "error.json",
-                                R.color.colorRedDark
-                            ) {
-                                // Do nothing on click
-                            }
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
                         }
                     }
                 }
@@ -1589,148 +1499,84 @@ class HomePageActivity : AppCompatActivity() {
                 if (feature.displayType == DisplayType.ICON) {
                     lifecycleScope.launch {
                         try {
-                            // Get afdeling ID from preferences
-                            val afdelingId = prefManager!!.afdelingIdUserLogin
-                            val jabatanUser = prefManager!!.jabatanUserLogin
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
                             AppLogger.d("jabatan user $jabatanUser")
 
-                            // Check if jabatan contains "askep" or "gm" (case insensitive)
-                            val shouldSkipAfdelingCheck =
-                                jabatanUser?.lowercase()?.contains("askep") == true ||
-                                        jabatanUser?.lowercase()?.contains("manager") == true ||
-                                        jabatanUser?.lowercase()?.contains("gm") == true
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
 
-                            if (!shouldSkipAfdelingCheck) {
-                                if (afdelingId?.lowercase() == "x" || afdelingId.isNullOrEmpty()) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Afdeling tidak valid",
-                                        "Data afdeling saat ini adalah $afdelingId",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncFollowUpInspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
 
-                                // Check afdeling data and sinkronisasi_otomatis
-                                val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
-                                withContext(Dispatchers.IO) {
-                                    val afdelingData =
-                                        datasetViewModel.getAfdelingById(afdelingId.toInt())
-                                    afdelingDeferred.complete(afdelingData)
-                                }
-
-                                val afdeling = afdelingDeferred.await()
-                                if (afdeling == null) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Data Afdeling Tidak Ditemukan",
-                                        "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
-                            }
-
-                            val lastSyncDateTime = prefManager!!.lastSyncFollowUpInspeksi
-
-                            AppLogger.d("lastSyncDateTimeInspeksi $lastSyncDateTime")
-
-                            if (lastSyncDateTime.isNullOrEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Sinkronisasi Database Diperlukan",
-                                    "Database belum pernah disinkronisasi. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
-
-                            try {
-                                val lastSyncDate =
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                        SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).parse(lastSyncDateTime)!!
-                                    )
-                                val currentDate = SimpleDateFormat(
-                                    "yyyy-MM-dd",
-                                    Locale.getDefault()
-                                ).format(Date())
-
-                                if (lastSyncDate != currentDate) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Sinkronisasi Database Diperlukan",
-                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                } else {
-                                    val intent = Intent(
-                                        this@HomePageActivity,
-                                        ListFollowUpInspeksi::class.java
-                                    )
-                                    intent.putExtra(
-                                        "FEATURE_NAME",
-                                        AppUtils.ListFeatureNames.ListFollowUpInspeksi
-                                    )
-                                    startActivity(intent)
-                                }
-                            } catch (e: ParseException) {
-                                AppLogger.e("Error parsing sync date: ${e.message}")
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Sinkronisasi Database Diperlukan",
-                                    "Data sinkronisasi tidak valid. Silakan lakukan sinkronisasi ulang terlebih dahulu sebelum menggunakan fitur ini.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
+                            if (isSyncValid) {
+                                val intent =
+                                    Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
+                                intent.putExtra(
+                                    "FEATURE_NAME",
+                                    AppUtils.ListFeatureNames.ListFollowUpInspeksi
+                                )
+                                startActivity(intent)
                             }
 
                         } catch (e: Exception) {
                             AppLogger.e("Error in validation checks: ${e.message}")
-                            AlertDialogUtility.withSingleAction(
-                                this@HomePageActivity,
-                                "Kembali",
-                                "Terjadi Kesalahan",
-                                "Gagal melakukan validasi data. Silakan coba lagi.",
-                                "error.json",
-                                R.color.colorRedDark
-                            ) {
-                                // Do nothing on click
-                            }
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
                         }
                     }
-
                 }
             }
 
             AppUtils.ListFeatureNames.AbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeatureAbsensiActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    FeatureAbsensiActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
@@ -1842,51 +1688,202 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            AppUtils.ListFeatureNames.ScanESPBTimbanganMill -> {
-                if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanWeighBridgeActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
-                }
-            }
-
             AppUtils.ListFeatureNames.ScanPanenMPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.DaftarHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, ListHistoryESPBActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    ListHistoryESPBActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.TransferHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, TransferHektarPanenActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    TransferHektarPanenActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.TransferInspeksiPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, ListFollowUpInspeksi::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime =
+                                prefManager?.lastSyncFollowUpInspeksi // Use specific sync for inspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent =
+                                    Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime =
+                                prefManager?.lastSyncDate // Use specific sync for inspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
@@ -2349,7 +2346,6 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-
             AppUtils.ListFeatureNames.UploadDataCMP -> {
                 if (feature.displayType == DisplayType.ICON) {
                     if (AppUtils.isNetworkAvailable(this)) {
@@ -2453,19 +2449,51 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.MutuBuah -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeaturePanenTBSActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
-//                    AlertDialogUtility.withSingleAction(
-//                        this@HomePageActivity,
-//                        stringXML(R.string.al_back),
-//                        stringXML(R.string.al_features_still_in_development),
-//                        stringXML(R.string.al_desc_features_still_in_development),
-//                        "warning.json",
-//                        R.color.yellowbutton
-//                    ) {
-//
-//                    }
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling and get afdeling data
+                            val afdeling = ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            )
+
+                            // If afdeling validation failed and we're not skipping, return
+                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
+
+                            // Check sync requirement based on afdeling settings
+                            val isSyncValid = ValidationSyncHelper.validateSyncRequirement(
+                                this@HomePageActivity,
+                                afdeling,
+                                prefManager
+                            )
+
+                            if (!isSyncValid) return@launch
+
+                            // Validate present karyawan (since it goes to FeaturePanenTBSActivity)
+                            val presentKaryawan = ValidationSyncHelper.validatePresentKaryawan(
+                                this@HomePageActivity,
+                                this@HomePageActivity,
+                                absensiViewModel,
+                                panenViewModel
+                            ) ?: return@launch
+
+                            // All validations passed, proceed to activity
+                            val intent =
+                                Intent(this@HomePageActivity, FeaturePanenTBSActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
@@ -3334,11 +3362,14 @@ class HomePageActivity : AppCompatActivity() {
                                         val dateCreatedPanenList =
                                             data.date_created_panen.split(";")
 
+                                        AppLogger.d("data $data")
                                         // Get kemandoran data (keeping your existing code)
                                         val kemandoranDeferred =
                                             CompletableDeferred<List<KemandoranModel>>()
                                         val kemandoranIds = listOf(data.kemandoran_id ?: "")
 
+
+                                        AppLogger.d("kemandoranids $kemandoranIds")
                                         if (kemandoranIds.first().isNotEmpty()) {
                                             lifecycleScope.launch(Dispatchers.IO) {
                                                 try {
@@ -3423,6 +3454,8 @@ class HomePageActivity : AppCompatActivity() {
                                         AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
                                         AppLogger.d("Creating hektaran_detail for Date: $dateOnly, Blok: $blokId, Pemanen: ${data.pemanen_nama}")
 
+                                        AppLogger.d("kemandoranppro $kemandoranPpro ")
+                                        AppLogger.d("kemandoranKode $kemandoranKode ")
                                         // Create single entry with summed values for this data item
                                         detailRecords.add(
                                             mapOf<String, Any>(
@@ -4056,27 +4089,27 @@ class HomePageActivity : AppCompatActivity() {
                             // Convert to JSON
                             absensiJson = Gson().toJson(finalData)
 
-                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
-                            try {
-                                val tempDir =
-                                    File(getExternalFilesDir(null), "TEMP").apply {
-                                        if (!exists()) mkdirs()
-                                    }
-
-                                val filename =
-                                    "absensi_data_${System.currentTimeMillis()}.json"
-                                val tempFile = File(tempDir, filename)
-
-                                FileOutputStream(tempFile).use { fos ->
-                                    fos.write(absensiJson.toByteArray())
-                                }
-
-                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-                            } catch (e: Exception) {
-                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-                                e.printStackTrace()
-                            }
+//                            try {
+//                                val tempDir =
+//                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
+//
+//                                val filename =
+//                                    "absensi_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
+//
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(absensiJson.toByteArray())
+//                                }
+//
+//                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
 
 
                             unzippedAbsensiData = restructuredData.filter { item ->
@@ -4117,9 +4150,9 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
-                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
                     if (inspeksiList.isNotEmpty()) {
 
+                        AppLogger.d("${inspeksiList.size}")
                         val uniquePhotos = mutableMapOf<String, Map<String, String>>()
 
                         val picturesDirs = listOf(
@@ -4812,7 +4845,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-// Add photos to upload data with proper logging
                         if (selfiePhotos.isNotEmpty()) {
                             AppLogger.d("Adding ${selfiePhotos.size} unique selfie photos to upload data")
                             combinedUploadData["foto_selfie"] = selfiePhotos
@@ -4855,7 +4887,6 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.w("No follow-up Pokok photos found to upload")
                         }
 
-// Keep the original combined list if needed elsewhere
                         allPhotosInspeksi =
                             (selfiePhotos + selfiePhotosPemulihan + allPhotosInspeksiTph + allPhotosInspeksiPokok + allPhotosFollowUpTPH + allPhotosFollowUpPokok).toMutableList()
 
@@ -4863,26 +4894,25 @@ class HomePageActivity : AppCompatActivity() {
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
                         val inspeksiJson = Gson().toJson(wrappedInspeksiData)
-                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
-                        try {
-                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-                                if (!exists()) mkdirs()
-                            }
+//                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                        try {
+//                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                if (!exists()) mkdirs()
+//                            }
+//
+//                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
+//                            val tempFile = File(tempDir, filename)
+//
+//                            FileOutputStream(tempFile).use { fos ->
+//                                fos.write(inspeksiJson.toByteArray())
+//                            }
+//
+//                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
+//                        } catch (e: Exception) {
+//                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
+//                            e.printStackTrace()
+//                        }
 
-                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
-                            val tempFile = File(tempDir, filename)
-
-                            FileOutputStream(tempFile).use { fos ->
-                                fos.write(inspeksiJson.toByteArray())
-                            }
-
-                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
-                        } catch (e: Exception) {
-                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
-                            e.printStackTrace()
-                        }
-
-// ENHANCED FILTER: Filter data to upload with improved logic
                         val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
                             val statusUpload = inspeksiMap["status_upload"] as? String
                             val isPushedToServer = inspeksiMap["isPushedToServer"] as? Int ?: 0
@@ -4893,7 +4923,7 @@ class HomePageActivity : AppCompatActivity() {
                             when {
                                 // Skip if status_upload is not "0"
                                 statusUpload != "0" -> {
-                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - status_upload is $statusUpload (not 0)")
+//                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - status_upload is $statusUpload (not 0)")
                                     false
                                 }
 
@@ -4913,14 +4943,14 @@ class HomePageActivity : AppCompatActivity() {
                                         AppLogger.d("Including inspection ${inspeksiMap["id"]} - downloaded data with updates (isPushedToServer = 1, has update data)")
                                         true
                                     } else {
-                                        AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - downloaded data without updates (isPushedToServer = 1, no update data)")
+//                                        AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - downloaded data without updates (isPushedToServer = 1, no update data)")
                                         false
                                     }
                                 }
 
                                 // Default case - skip
                                 else -> {
-                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - unknown isPushedToServer value: $isPushedToServer")
+//                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - unknown isPushedToServer value: $isPushedToServer")
                                     false
                                 }
                             }
@@ -5295,23 +5325,23 @@ class HomePageActivity : AppCompatActivity() {
                             val mutuBuahJson = Gson().toJson(wrappedData)
 
                             // Save JSON to temp directory for inspection
-                            try {
-                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-                                    if (!exists()) mkdirs()
-                                }
-
-                                val filename = "mutu_buah_data_${System.currentTimeMillis()}.json"
-                                val tempFile = File(tempDir, filename)
-
-                                FileOutputStream(tempFile).use { fos ->
-                                    fos.write(mutuBuahJson.toByteArray())
-                                }
-
-                                AppLogger.d("Saved raw mutu buah data to temp file: ${tempFile.absolutePath}")
-                            } catch (e: Exception) {
-                                AppLogger.e("Failed to save mutu buah data to temp file: ${e.message}")
-                                e.printStackTrace()
-                            }
+//                            try {
+//                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                    if (!exists()) mkdirs()
+//                                }
+//
+//                                val filename = "mutu_buah_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
+//
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(mutuBuahJson.toByteArray())
+//                                }
+//
+//                                AppLogger.d("Saved raw mutu buah data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save mutu buah data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
 
                             val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
 
@@ -6769,7 +6799,6 @@ class HomePageActivity : AppCompatActivity() {
             zipFileName = null
             zipFilePath = null
             uploadCMPViewModel.resetState()
-            // (recyclerView.adapter as? UploadProgressCMPDataAdapter)?.onDestroy()
             dialog.dismiss()
         }
 
@@ -7375,8 +7404,6 @@ class HomePageActivity : AppCompatActivity() {
         retryDownloadDataset.setOnClickListener {
 
 
-
-
             containerDownloadDataset.visibility = View.GONE
             cancelDownloadDataset.visibility = View.GONE
             retryDownloadDataset.visibility = View.GONE
@@ -7492,10 +7519,13 @@ class HomePageActivity : AppCompatActivity() {
                     containerDownloadDataset.visibility = View.VISIBLE
                     retryDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
+                    checkAndShowDialogVersion()
                 } else {
                     containerDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
+                    checkAndShowDialogVersion()
                 }
+
             }
         }
     }
@@ -7706,7 +7736,7 @@ class HomePageActivity : AppCompatActivity() {
 
 
         closeDialogBtn.setOnClickListener {
-
+            AppLogger.d("${prefManager!!.latestAppVersionSystem}")
             refreshPanenCount()
             datasetViewModel.processingComplete.removeObservers(this)
             datasetViewModel.itemProgressMap.removeObservers(this)
@@ -7719,6 +7749,8 @@ class HomePageActivity : AppCompatActivity() {
             isTriggerButtonSinkronisasiData = false
             isTriggerFeatureInspection = false
             isTriggerFollowUp = false
+
+
             dialog.dismiss()
         }
 
@@ -7753,7 +7785,7 @@ class HomePageActivity : AppCompatActivity() {
                 val failedIds = mutableListOf<Int>()
 
                 currentStatusMap.forEach { (id, status) ->
-                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED) {
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED || status == AppUtils.UploadStatusUtils.DONE_CHECK) {
                         successfulIds.add(id)
                     } else {
                         failedIds.add(id)
@@ -7822,6 +7854,8 @@ class HomePageActivity : AppCompatActivity() {
                             btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
                         }
 
+                        checkAndShowDialogVersion()
+
                         // Enable close button
                         closeDialogBtn.isEnabled = true
                         closeDialogBtn.alpha = 1f
@@ -7852,6 +7886,52 @@ class HomePageActivity : AppCompatActivity() {
                 titleTV.text = "Terjadi Kesalahan Download"
                 titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
             }
+        }
+    }
+
+    private fun checkAndShowDialogVersion(){
+        prefManager!!.latestAppVersionSystem = "1.4.8"
+        FeatureStateManager.checkAndUpdateAppVersion(this@HomePageActivity, prefManager!!)
+        val needsUpdate = AppUtils.checkAppVersionUpdate(this@HomePageActivity, prefManager!!)
+        val deviceInfo = getDeviceInfo(this@HomePageActivity)
+        val currentAppVersion = deviceInfo.optString("app_version", "")
+        AppUtils.isAppUpdateRequired = needsUpdate
+        val messageVersion = SpannableStringBuilder()
+        messageVersion.append("Aplikasi saat ini ")
+
+        val currentVersionSpan = SpannableString("versi $currentAppVersion")
+        currentVersionSpan.setSpan(
+            StyleSpan(Typeface.BOLD),
+            0,
+            currentVersionSpan.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        messageVersion.append(currentVersionSpan)
+
+        messageVersion.append(", Silakan menghubungi Admin CMP untuk update aplikasi ")
+
+        val latestVersionSpan = SpannableString("versi ${prefManager!!.latestAppVersionSystem}")
+        latestVersionSpan.setSpan(
+            StyleSpan(Typeface.BOLD),
+            0,
+            latestVersionSpan.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        messageVersion.append(latestVersionSpan)
+        messageVersion.append("!")
+
+        if (needsUpdate) {
+            AppLogger.d("update required - features will be disabled")
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_internet_connection),
+                messageVersion,
+                "warning.json",
+                R.color.colorRedDark
+            ) { }
+        } else {
+            AppLogger.d("no update needed - all features enabled")
         }
     }
 
@@ -7924,6 +8004,7 @@ class HomePageActivity : AppCompatActivity() {
 
             AppLogger.d("estateIds $estateIds")
 
+
             val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
                 regionalIdString!!.toInt(),
                 estateIds,
@@ -7941,6 +8022,7 @@ class HomePageActivity : AppCompatActivity() {
 
             val storedList = prefManager!!.datasetMustUpdate // Retrieve list
 
+            AppLogger.d("storedList $storedList")
             AppLogger.d("allDatasets $allDatasets")
 
             val filteredRequests =
@@ -7968,6 +8050,8 @@ class HomePageActivity : AppCompatActivity() {
                     )
                 } else {
                     dialog.show()
+
+                    AppLogger.d("Masuk gesssssssssssssssssssssssss")
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
                 }
             } else {

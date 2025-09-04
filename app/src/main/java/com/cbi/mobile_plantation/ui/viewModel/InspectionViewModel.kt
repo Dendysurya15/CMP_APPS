@@ -115,6 +115,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+
     fun updateStatusUploadInspeksiPanen(ids: List<Int>, status: Int) {
         viewModelScope.launch {
             try {
