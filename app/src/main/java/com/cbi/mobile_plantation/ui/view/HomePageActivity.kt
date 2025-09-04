@@ -3343,7 +3343,7 @@ class HomePageActivity : AppCompatActivity() {
                                             lifecycleScope.launch(Dispatchers.IO) {
                                                 try {
                                                     val kemandoranList =
-                                                        absensiViewModel.getKemandoranById(
+                                                        absensiViewModel.getKemandoranByIdPPRO(
                                                             kemandoranIds
                                                         )
                                                     kemandoranDeferred.complete(kemandoranList)

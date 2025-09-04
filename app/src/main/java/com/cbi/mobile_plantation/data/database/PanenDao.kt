@@ -246,7 +246,7 @@ abstract class PanenDao {
     AND status_transfer_restan = 0 
     AND isPushedToServer = 0
     AND status_upload = 0
-    AND date(date_created) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+7 days')
+    AND date(date_created) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
 """)
     abstract fun getAllActivePanenESPBAll(): List<PanenEntityWithRelations>
 
