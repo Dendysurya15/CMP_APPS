@@ -1693,13 +1693,23 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
-
         fabPhotoFormAncak.setOnClickListener {
             AppLogger.d("fabPhotoFormAncak Triggered")
             isForSelfie = false
             isInTPH = false
             isForFollowUp = false
-            showViewPhotoBottomSheet(null, false, false, false) // Form photo
+
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+
+            // Clear focus from any EditText
+            currentFocus?.clearFocus()
+
+            // Add a small delay to ensure keyboard is fully closed and layout is adjusted
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, false, false, false) // Form photo
+            }, 150)
         }
 
         fabPhotoUser.setOnClickListener {
@@ -1707,7 +1717,18 @@ open class FormInspectionActivity : AppCompatActivity(),
             isForSelfie = true
             isInTPH = false
             isForFollowUp = false
-            showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+
+            // Clear focus from any EditText
+            currentFocus?.clearFocus()
+
+            // Add a small delay to ensure keyboard is fully closed and layout is adjusted
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+            }, 150)
         }
 
         fabFollowUpTPH.setOnClickListener {
@@ -1715,16 +1736,37 @@ open class FormInspectionActivity : AppCompatActivity(),
             isInTPH = true
             isForSelfie = false
             isForFollowUp = true
-            showViewPhotoBottomSheet(null, true, false, true) // TPH Follow-up photo
-        }
 
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+
+            // Clear focus from any EditText
+            currentFocus?.clearFocus()
+
+            // Add a small delay to ensure keyboard is fully closed and layout is adjusted
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, true, false, true) // TPH Follow-up photo
+            }, 150)
+        }
 
         fabPhotoInfoBlok.setOnClickListener {
             AppLogger.d("fabPhotoInfoBlok Triggered")
             isForSelfie = false
             isInTPH = true
             isForFollowUp = false
-            showViewPhotoBottomSheet(null, true, false, false) // TPH photo
+
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+
+            // Clear focus from any EditText
+            currentFocus?.clearFocus()
+
+            // Add a small delay to ensure keyboard is fully closed and layout is adjusted
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, true, false, false) // TPH photo
+            }, 150) // Incre
         }
 
         fabNextToFormAncak.setOnClickListener {
@@ -1788,15 +1830,35 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         fabPhotoUser2?.setOnClickListener {
             isForSelfie = true
-            showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+
+            // Clear focus from any EditText
+            currentFocus?.clearFocus()
+
+            // Add a small delay to ensure keyboard is fully closed and layout is adjusted
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+            }, 150)
         }
 
         fabFollowUpNow.setOnClickListener {
             isForSelfie = false
             isForFollowUp = true
-            showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
-        }
 
+
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+
+            // Clear focus from any EditText
+            currentFocus?.clearFocus()
+
+            // Add a small delay to ensure keyboard is fully closed and layout is adjusted
+            Handler(Looper.getMainLooper()).postDelayed({
+                showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+            }, 150)
+        }
 
         fabSaveFormAncak.setOnClickListener {
             val formData = formAncakViewModel.formData.value ?: mutableMapOf()
