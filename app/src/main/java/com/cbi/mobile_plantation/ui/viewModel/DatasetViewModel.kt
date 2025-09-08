@@ -2333,6 +2333,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val createdDate = item.optString("created_date", "")
                             val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
+                            val nomorPemanen = item.optInt("nomor_pemanen", 0)
                             val createdName = item.optString("created_name", "")
                             // For spb_kode, check specifically for null vs. empty string
                             val spbKode: String? =
@@ -2405,7 +2406,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 ancak = 0,
                                 info = "",
                                 archive = 0,
-                                nomor_pemanen = 0,
+                                nomor_pemanen = nomorPemanen,
                                 status_banjir = 0,
                                 status_espb = statusEspb, // Use actual status from server
                                 status_restan = 1,
@@ -2503,6 +2504,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         panen.username
                                                     } else {
                                                         existingRecord.username
+                                                    },
+
+                                                    nomor_pemanen = if (existingRecord.nomor_pemanen == 0) {
+                                                        panen.nomor_pemanen
+                                                    } else {
+                                                        existingRecord.nomor_pemanen
                                                     },
 
                                                     status_espb = if (existingRecord.status_espb == 0) {
@@ -2624,7 +2631,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jabatan = userData.optString("jabatan", "")
                             // Note: kemandoran fields are extracted but not saved to preferences
 
-                            AppLogger.d("laskjdlfksdf")
                             // Extract kemandoranData for kode (only if exists)
                             val kemandoranDataObject = userData.optJSONObject("kemandoranData")
                             var kemandoranKode = ""
@@ -5250,6 +5256,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     } else {
                                                         null
                                                     }
+                                                val nomorPemanen = item.optInt("nomor_pemanen", 0)
                                                 val createdName = item.optString("created_name", "")
                                                 val username =
                                                     if (createdName.isNullOrEmpty() || createdName.equals(
@@ -5312,7 +5319,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     lat = 0.0,
                                                     lon = 0.0,
                                                     jenis_panen = 0,
-                                                    nomor_pemanen = 0,
+                                                    nomor_pemanen = nomorPemanen,
                                                     ancak = 0,
                                                     info = "",
                                                     archive = 0,
@@ -5337,30 +5344,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 panenList.add(panenEntity)
                                             }
 
-                                            // Enhanced summary with spb_kode relationship check
-//                                            AppLogger.d("=== RESTAN PROCESSING SUMMARY ===")
-//                                            AppLogger.d("Total records processed: ${dataArray.length()}")
-//                                            AppLogger.d("Status_espb = 0: $status0Count")
-//                                            AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (will INSERT/UPDATE)")
-//                                            AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb")
-//                                            AppLogger.d("Status_espb = 1: $status1Count")
-//                                            AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
-//                                            AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (normal)")
-//                                            AppLogger.d("Status_espb = 2: $status2Count")
-//                                            AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
-//                                            AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (normal)")
-//                                            AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
 
-//                                            // Data consistency check
-//                                            if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
-////                                                AppLogger.e("🚨 DATA INCONSISTENCY DETECTED!")
-////                                                AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
-////                                                AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
-////                                                AppLogger.e("This suggests data quality issues in the backend!")
-//                                            } else {
-//                                                AppLogger.d("✅ Data consistency check passed - no inconsistencies found")
-//                                            }
-//                                            AppLogger.d("==================================")
 
                                             results[request.dataset] = Resource.Loading(80)
                                             _downloadStatuses.postValue(results.toMap())
@@ -5421,6 +5405,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                                 existingRecord.username
                                                                             },
 
+                                                                            nomor_pemanen = if (existingRecord.nomor_pemanen == 0) {
+                                                                                panen.nomor_pemanen
+                                                                            } else {
+                                                                                existingRecord.nomor_pemanen
+                                                                            },
+
                                                                             status_espb = if (existingRecord.status_espb == 0) {
                                                                                 panen.status_espb
                                                                             } else {
@@ -5454,12 +5444,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         }
                                                     }
 
-                                                    // Final summary
-//                                                    AppLogger.d("=== RESTAN SYNC COMPLETE ===")
-//                                                    AppLogger.d("Inserted/Updated: $successCount")
-//                                                    AppLogger.d("Failed: $failCount")
-//                                                    AppLogger.d("Total records processed: ${panenList.size}")
-//                                                    AppLogger.d("============================")
+
 
                                                     if (panenList.isEmpty()) {
                                                         // No records to process - everything is up to date

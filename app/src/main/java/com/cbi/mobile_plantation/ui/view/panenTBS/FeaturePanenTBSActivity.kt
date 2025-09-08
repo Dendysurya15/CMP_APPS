@@ -352,8 +352,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 200F
-        boundaryAccuracy = 200F
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.radiusMinimum
 
 
 
@@ -3657,6 +3657,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 layoutBlok.visibility = View.VISIBLE
                 layoutNoTPH.visibility = View.VISIBLE
                 layoutAncak.visibility = View.VISIBLE
+                layoutNomorPemanen.visibility = View.VISIBLE
                 layoutKemandoran.visibility = View.VISIBLE
                 layoutPemanen.visibility = View.VISIBLE
                 if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {

@@ -1308,33 +1308,58 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     fun convertToFormattedString(input: String, int: Int = 1): String {
         try {
+            Log.d("DEBUG", "Input: $input")
+
             // Remove the outer brackets
             val content = input.trim().removeSurrounding("[", "]")
 
-            // Split into individual objects
-            val objects = content.split("}, {")
+            // We need to parse this more carefully since values can contain commas
+            val result = parseComplexObject(content, int)
 
-            return objects.joinToString(";") { objStr ->
-                // Clean up the object string
-                val cleanObj = objStr.trim()
-                    .removePrefix("{")
-                    .removeSuffix("}")
+            Log.d("DEBUG", "Result: $result")
+            return result
 
-                // Split into key-value pairs
-                val map = cleanObj.split(", ").associate { pair ->
-                    val (key, value) = pair.split("=", limit = 2)
-                    key to value
-                }
-
-                // Extract jjg_json value
-                val jjgJson = map["jjg_json"]?.trim() ?: "{}"
-
-                // Construct the formatted string
-                "${map["tph_id"]},${map["date_created"]},${jjgJson},$int"
-            }
         } catch (e: Exception) {
+            Log.e("DEBUG", "Error in convertToFormattedString: ${e.message}")
             e.printStackTrace()
             return ""
+        }
+    }
+
+    fun parseComplexObject(objStr: String, int: Int): String {
+        try {
+            // Extract the key fields we need using regex patterns
+            val tphId = extractValue(objStr, "tph_id")
+            val dateCreated = extractValue(objStr, "date_created")
+            val jjgJson = extractJjgJson(objStr)
+
+            Log.d("DEBUG", "tph_id: $tphId")
+            Log.d("DEBUG", "date_created: $dateCreated")
+            Log.d("DEBUG", "jjg_json: $jjgJson")
+
+            return "$tphId,$dateCreated,$jjgJson,$int"
+
+        } catch (e: Exception) {
+            Log.e("DEBUG", "Error parsing object: ${e.message}")
+            return ""
+        }
+    }
+
+    fun extractValue(input: String, key: String): String {
+        // Look for pattern: key=value, where value stops at the next ", key=" or end
+        val pattern = "$key=([^,]*?)(?=,\\s*\\w+=|$)".toRegex()
+        val match = pattern.find(input)
+        return match?.groupValues?.get(1)?.trim() ?: ""
+    }
+
+    fun extractJjgJson(input: String): String {
+        // Extract JSON from jjg_json field - look for the JSON object between braces
+        val pattern = "jjg_json=\\{([^}]+)\\}".toRegex()
+        val match = pattern.find(input)
+        return if (match != null) {
+            "{${match.groupValues[1]}}"
+        } else {
+            "{}"
         }
     }
 
