@@ -1313,9 +1313,19 @@ class ListPanenTBSActivity : AppCompatActivity() {
             // Remove the outer brackets
             val content = input.trim().removeSurrounding("[", "]")
 
-            // We need to parse this more carefully since values can contain commas
-            val result = parseComplexObject(content, int)
+            if (content.isEmpty()) {
+                return ""
+            }
 
+            // Split the content into individual objects
+            val objects = splitObjects(content)
+
+            // Process each object and join with semicolons
+            val results = objects.map { obj ->
+                parseComplexObject(obj.trim(), int)
+            }.filter { it.isNotEmpty() }
+
+            val result = results.joinToString(";")
             Log.d("DEBUG", "Result: $result")
             return result
 
@@ -1324,6 +1334,40 @@ class ListPanenTBSActivity : AppCompatActivity() {
             e.printStackTrace()
             return ""
         }
+    }
+
+    fun splitObjects(content: String): List<String> {
+        val objects = mutableListOf<String>()
+        var braceCount = 0
+        var bracketCount = 0
+        var start = 0
+
+        for (i in content.indices) {
+            when (content[i]) {
+                '{' -> braceCount++
+                '}' -> braceCount--
+                '[' -> bracketCount++
+                ']' -> bracketCount--
+                ',' -> {
+                    // If we're at the top level (no open braces/brackets), this is a separator
+                    if (braceCount == 0 && bracketCount == 0) {
+                        // Check if this comma is between objects by looking ahead
+                        val remaining = content.substring(i + 1).trim()
+                        if (remaining.startsWith("{id=")) {
+                            objects.add(content.substring(start, i).trim())
+                            start = i + 1
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add the last object
+        if (start < content.length) {
+            objects.add(content.substring(start).trim())
+        }
+
+        return objects.filter { it.isNotEmpty() }
     }
 
     fun parseComplexObject(objStr: String, int: Int): String {
@@ -1336,6 +1380,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
             Log.d("DEBUG", "tph_id: $tphId")
             Log.d("DEBUG", "date_created: $dateCreated")
             Log.d("DEBUG", "jjg_json: $jjgJson")
+
+            if (tphId.isEmpty() || dateCreated.isEmpty()) {
+                return ""
+            }
 
             return "$tphId,$dateCreated,$jjgJson,$int"
 
@@ -1353,14 +1401,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     fun extractJjgJson(input: String): String {
-        // Extract JSON from jjg_json field - look for the JSON object between braces
-        val pattern = "jjg_json=\\{([^}]+)\\}".toRegex()
+        // Extract the KP value from jjg_json field
+        val pattern = "jjg_json=\\{\"KP\":\\s*(\\d+)\\}".toRegex()
         val match = pattern.find(input)
-        return if (match != null) {
-            "{${match.groupValues[1]}}"
-        } else {
-            "{}"
-        }
+        return match?.groupValues?.get(1) ?: ""
     }
 
     fun convertToFormattedString(input: String, tphFilter: String): String {

@@ -2485,13 +2485,6 @@ class HomePageActivity : AppCompatActivity() {
 
                             if (!isSyncValid) return@launch
 
-                            // Validate present karyawan (since it goes to FeaturePanenTBSActivity)
-                            val presentKaryawan = ValidationSyncHelper.validatePresentKaryawan(
-                                this@HomePageActivity,
-                                this@HomePageActivity,
-                                absensiViewModel,
-                                panenViewModel
-                            ) ?: return@launch
 
                             // All validations passed, proceed to activity
                             val intent =
