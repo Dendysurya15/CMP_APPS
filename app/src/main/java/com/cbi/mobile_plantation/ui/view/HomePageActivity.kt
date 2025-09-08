@@ -1215,21 +1215,31 @@ class HomePageActivity : AppCompatActivity() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun onFeatureCardClicked(feature: FeatureCard) {
+        if (FeatureStateManager.isFeatureDisabled(feature.featureName)) {
+            val messageVersion = SpannableStringBuilder("Silakan perbarui aplikasi Anda ke ")
 
-        if (AppUtils.isFeatureDisabled(feature.featureName)) {
+            val latestVersionSpan = SpannableString("versi ${prefManager!!.latestAppVersionSystem}")
+            latestVersionSpan.setSpan(
+                StyleSpan(Typeface.BOLD),
+                0,
+                latestVersionSpan.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+
+            messageVersion.append(latestVersionSpan)
+            messageVersion.append(" untuk menggunakan fitur ini.")
+
             AlertDialogUtility.withSingleAction(
                 this@HomePageActivity,
                 "OK",
-                "Update Required",
-                "Please update your app to use this feature. Only essential functions like data upload and synchronization are available.",
+                "Pembaruan Diperlukan",
+                messageVersion,
                 "warning.json",
                 R.color.colorRedDark
             ) {
-                // Do nothing - just close dialog
             }
             return
         }
-
 
         vibrate()
         when (feature.featureName) {
@@ -7736,7 +7746,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
         closeDialogBtn.setOnClickListener {
-            AppLogger.d("${prefManager!!.latestAppVersionSystem}")
             refreshPanenCount()
             datasetViewModel.processingComplete.removeObservers(this)
             datasetViewModel.itemProgressMap.removeObservers(this)
@@ -7890,7 +7899,6 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun checkAndShowDialogVersion(){
-        prefManager!!.latestAppVersionSystem = "1.4.8"
         FeatureStateManager.checkAndUpdateAppVersion(this@HomePageActivity, prefManager!!)
         val needsUpdate = AppUtils.checkAppVersionUpdate(this@HomePageActivity, prefManager!!)
         val deviceInfo = getDeviceInfo(this@HomePageActivity)

@@ -2694,7 +2694,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     // Only save kemandoran data if kemandoran_ppro exists and is valid
                                     if (kemandoranPpro > 0) {
                                         kemandoranPPROUserLogin = kemandoranPpro.toString()
-                                        kemandoranUserLogin = kemandoran.toString()
+                                        kemandoranUserLogin = kemandoranPpro.toString()
                                         kemandoranNamaUserLogin = kemandoranNama
                                         kemandoranKodeUserLogin = kemandoranKode
                                         AppLogger.d("Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")

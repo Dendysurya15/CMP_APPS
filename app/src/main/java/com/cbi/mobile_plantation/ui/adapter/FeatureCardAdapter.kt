@@ -252,16 +252,11 @@ class FeatureCardAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) :
                 ContextCompat.getColor(context, R.color.graydarker)
             )
 
-            // Disable click functionality
-            holder.cardView.setOnClickListener(null)
-            holder.cardView.isClickable = false
-            holder.cardView.isEnabled = false
+
 
         } else {
             // Apply enabled styling
             holder.itemView.alpha = 1.0f
-            holder.cardView.isEnabled = true
-            holder.cardView.isClickable = true
 
             // Restore original colors
             holder.cardView.setCardBackgroundColor(
@@ -283,12 +278,17 @@ class FeatureCardAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) :
             holder.iconFeature.alpha = 1.0f
             holder.iconFeature.clearColorFilter()
 
-            // Set click listener for enabled features
-            holder.cardView.setOnClickListener {
-                AppLogger.d("FeatureCardAdapter: Feature clicked: ${feature.featureName}")
-                onFeatureClicked(feature)
-            }
+
         }
+
+        holder.cardView.setOnClickListener {
+            AppLogger.d("FeatureCardAdapter: Card clicked for: ${feature.featureName}")
+            onFeatureClicked(feature)
+        }
+
+        // Keep these enabled for visual feedback
+        holder.cardView.isClickable = true
+        holder.cardView.isEnabled = true
     }
 
     override fun getItemCount() = features.size
