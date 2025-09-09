@@ -1,12 +1,20 @@
 package com.cbi.mobile_plantation.ui.view.HektarPanen
 
+import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.AlertDialog
 import android.app.Dialog
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -25,15 +33,19 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.animation.AnimationUtils
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.ViewModelProvider
@@ -53,6 +65,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
+import com.cbi.mobile_plantation.utils.BluetoothScanner
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
@@ -117,7 +130,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     private lateinit var loadingDialog: LoadingDialog
     private var originalMappedData: MutableList<Map<String, Any>> = mutableListOf()
     private var originalData: List<Map<String, Any>> = emptyList() // Store original data order
-
+    private var shouldStartBluetoothScan = false
+    private lateinit var bluetoothScanner: BluetoothScanner
     private var jjg = 0
     private var blok = "NULL"
     private var tph = 0
@@ -153,7 +167,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         setupRecyclerView()
         initializeViews()
         setupObserveData()
-
+        bluetoothScanner = BluetoothScanner(this)
         findViewById<LinearLayout>(R.id.calendarContainer).visibility = View.VISIBLE
         dateButton = findViewById(R.id.calendarPicker)
         dateButton.text = AppUtils.getTodaysDate()
@@ -593,23 +607,193 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
     private fun setupButtonGenerateQR() {
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
+        val btnTransferBT = findViewById<FloatingActionButton>(R.id.btnTransferBT)
         val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
         val tvGenQR60 = findViewById<TextView>(R.id.tvGenQR60)
+        val tvTransferBT = findViewById<TextView>(R.id.tvTransferBT)
         val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
         btnGenerateQRTPH.visibility = View.VISIBLE
+        btnTransferBT.visibility = View.VISIBLE
         btnGenerateQRTPHUnl.visibility = View.GONE
         tvGenQR60.visibility = View.VISIBLE
+        tvTransferBT.visibility = View.VISIBLE
         tvGenQRFull.visibility = View.VISIBLE
 
         btnGenerateQRTPH.setOnClickListener {
             limit = 50
             generateQRTPH(50)
         }
+
         btnGenerateQRTPHUnl.setOnClickListener {
             limit = 0
             generateQRTPH(0)
         }
+
+        // UPDATED - Check Bluetooth first, then show dialog
+        btnTransferBT.setOnClickListener {
+            checkBluetoothAndShowDialog()
+        }
+    }
+
+    // ADD THIS METHOD
+    @SuppressLint("MissingPermission")
+    private fun checkBluetoothAndShowDialog() {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothAdapter = bluetoothManager.adapter
+
+        when {
+            bluetoothAdapter == null -> {
+                // Device doesn't support Bluetooth
+                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT).show()
+            }
+            !bluetoothAdapter.isEnabled -> {
+                // Bluetooth is not enabled, ask user to enable it
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Aktifkan",
+                    "Bluetooth Nonaktif",
+                    "Aktifkan Bluetooth untuk memindai perangkat",
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                        startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
+                    },
+                    cancelFunction = {
+                        // User cancelled enabling Bluetooth
+                    }
+                )
+            }
+            else -> {
+                // Bluetooth is enabled, proceed with scanning
+                showBluetoothDevicesDialog()
+            }
+        }
+    }
+
+    // ADD THIS CONSTANT AT THE TOP OF YOUR CLASS
+    companion object {
+        private const val REQUEST_ENABLE_BT = 1
+    }
+
+    // ADD THIS METHOD TO HANDLE BLUETOOTH ENABLE RESULT
+    @SuppressLint("MissingPermission")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == REQUEST_ENABLE_BT) {
+            if (resultCode == Activity.RESULT_OK) {
+                // Bluetooth was enabled, now show the dialog
+                Toast.makeText(this, "Bluetooth enabled. Starting scan...", Toast.LENGTH_SHORT).show()
+                showBluetoothDevicesDialog()
+            } else {
+                // User cancelled or couldn't enable Bluetooth
+                Toast.makeText(this, "Bluetooth is required for device scanning", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showBluetoothDevicesDialog() {
+        val devices = mutableListOf<BluetoothDevice>()
+        val deviceNames = mutableListOf<String>()
+        var isScanning = false
+
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val dialogView = layoutInflater.inflate(R.layout.layout_bluetooth_scanner, null)
+
+        val listView = dialogView.findViewById<ListView>(R.id.lvBluetoothDevices)
+        val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
+        val tvStatus = dialogView.findViewById<TextView>(R.id.tvStatus)
+        val btnScanStop = dialogView.findViewById<Button>(R.id.btnScanStop)
+        val btnClose = dialogView.findViewById<Button>(R.id.btnClose)
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames)
+        listView.adapter = adapter
+
+        bottomSheetDialog.setContentView(dialogView)
+
+        // FIX THE HEIGHT SETTING
+        bottomSheetDialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        val displayMetrics = resources.displayMetrics
+        val height = (displayMetrics.heightPixels * 0.5).toInt()
+        bottomSheetDialog.behavior.peekHeight = height
+
+        // SET THE LAYOUT PARAMS FOR THE DIALOG VIEW
+        val layoutParams = dialogView.layoutParams
+        layoutParams.height = height
+        dialogView.layoutParams = layoutParams
+
+        // ADD THIS - Handle dialog dismissal cleanup
+        bottomSheetDialog.setOnDismissListener {
+            bluetoothScanner.stopScan()
+            // Clear the callbacks to prevent memory leaks
+            bluetoothScanner.onDeviceFound = null
+            bluetoothScanner.onDiscoveryFinished = null
+        }
+
+        // Rest of your existing code...
+        btnScanStop.setOnClickListener {
+            if (!isScanning) {
+                devices.clear()
+                deviceNames.clear()
+                adapter.notifyDataSetChanged()
+                progressBar.visibility = View.VISIBLE
+                tvStatus.text = "Memindai perangkat..."
+                btnScanStop.text = "Stop"
+                btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.colorRedDark))
+                isScanning = true
+                bluetoothScanner.startScan()
+            } else {
+                bluetoothScanner.stopScan()
+                progressBar.visibility = View.GONE
+                tvStatus.text = "Scan stopped - Found ${devices.size} device(s)"
+                btnScanStop.text = "Scan"
+                btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.bluedarklight))
+                isScanning = false
+            }
+        }
+
+        btnClose.setOnClickListener {
+            bluetoothScanner.stopScan()
+            bottomSheetDialog.dismiss()
+        }
+
+        bluetoothScanner.onDeviceFound = { device ->
+            runOnUiThread {
+                @SuppressLint("MissingPermission")
+                val deviceInfo = "${device.name ?: "Perangkat Tidak Dikenal"} (${device.address})"
+                devices.add(device)
+                deviceNames.add(deviceInfo)
+                adapter.notifyDataSetChanged()
+                tvStatus.text = "Ditemukan ${devices.size} perangkat"
+            }
+        }
+
+        bluetoothScanner.onDiscoveryFinished = { allDevices ->
+            runOnUiThread {
+                progressBar.visibility = View.GONE
+                if (allDevices.isEmpty()) {
+                    tvStatus.text = "Tidak ada perangkat ditemukan"
+                } else {
+                    tvStatus.text = "Pemindaian selesai - ${allDevices.size} perangkat ditemukan"
+                }
+                btnScanStop.text = "Scan"
+                btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.bluedarklight))
+                isScanning = false
+            }
+        }
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val selectedDevice = devices[position]
+
+            Toast.makeText(this, "Dipilih: ${selectedDevice.name ?: "Tidak Dikenal"}", Toast.LENGTH_SHORT).show()
+            bluetoothScanner.stopScan()
+            bottomSheetDialog.dismiss()
+        }
+
+        bottomSheetDialog.show()
+        btnScanStop.performClick()
     }
 
     private fun generateQRTPH(limitFun: Int) {

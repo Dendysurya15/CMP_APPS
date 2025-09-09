@@ -358,12 +358,43 @@
 
     </LinearLayout>
 
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnTransferBT"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="50dp"
+        android:src="@drawable/baseline_bluetooth_searching_24"
+        android:tooltipText="Generate QR TPH"
+        app:backgroundTint="@color/greenDarker"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnGenerateQRTPH"
+        app:maxImageSize="30dp"
+        android:visibility="gone"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white"/>
+
+    <TextView
+        android:id="@+id/tvTransferBT"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Transfer\nBluetooth"
+        android:visibility="gone"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:shadowColor="@color/white"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintEnd_toEndOf="@+id/btnTransferBT"
+        app:layout_constraintStart_toStartOf="@+id/btnTransferBT"
+        app:layout_constraintTop_toBottomOf="@+id/btnTransferBT" />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPH"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginRight="30dp"
-        android:layout_marginBottom="30dp"
+        android:layout_marginBottom="50dp"
         android:src="@drawable/baseline_qr_code_scanner_24"
         android:tooltipText="Generate QR TPH"
         app:backgroundTint="@color/bluedarklight"
@@ -378,12 +409,11 @@
         android:id="@+id/tvGenQR60"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Gen QR 40"
+        android:text="Generate\nQR 50"
         android:visibility="gone"
-        android:outlineSpotShadowColor="@color/white"
-        android:outlineAmbientShadowColor="@color/white"
         android:shadowColor="@color/white"
         android:fontFamily="@font/manrope_bold"
+        android:outlineSpotShadowColor="@color/white"
         app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPH"
         app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPH"
         app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPH" />
