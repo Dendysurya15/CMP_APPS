@@ -18,7 +18,7 @@ interface MutuBuahDao {
     // In MutuBuahDao
     @Query("""
     SELECT * FROM mutu_buah 
-    WHERE date(createdDate) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+7 days')
+    WHERE  date(createdDate) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
     AND status_upload = 0
     ORDER BY tanggal DESC
 """)

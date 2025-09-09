@@ -355,8 +355,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         radiusMinimum = prefManager!!.radiusMinimum
         boundaryAccuracy = prefManager!!.radiusMinimum
 
-        AppLogger.d("radiusMinimum $radiusMinimum")
-        AppLogger.d("boundaryAccuracy $boundaryAccuracy")
+
 
         initViewModel()
         initUI()
@@ -392,8 +391,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             try {
                 val estateIdStr = estateId?.trim()
 
+                AppLogger.d("estateIdStr $estateIdStr")
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
+
+                    val divisiDeferred = async {
+                        try {
+                            datasetViewModel.getDivisiList(estateIdInt)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error fetching divisiList: ${e.message}")
+                            emptyList() // Return an empty list to prevent crash
+                        }
+                    }
+
+                    divisiList = divisiDeferred.await()
+
+                    if (divisiList.isNullOrEmpty()) {
+                        throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
+                    }
 
                     if (featureName != AppUtils.ListFeatureNames.MutuBuah){
                         val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
@@ -460,6 +475,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
 
+
+
                         val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                         absensiViewModel.loadActiveAbsensi()
@@ -472,6 +489,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 // Store the absensi models in the global variable
                                 absensiList = absensiData
 
+
+                                AppLogger.d("absensiList $absensiList")
                                 // Extract all NIKs of present karyawan from all absensi entries
                                 val newPresentNikSet = mutableSetOf<String>()
 
@@ -492,7 +511,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
 
-                        // SOLUSI 1: Override divisi berdasarkan kemandoran yang dipilih
                         val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
 
                         panenViewModel.getAllKaryawan()
@@ -502,7 +520,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
                                 val allKaryawan = list ?: emptyList()
 
-                                // Get user's afdeling ID (which is same as divisi)
+                                // Get user's afdeling ID
                                 val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
                                 AppLogger.d("User's afdeling ID: $userAfdelingId")
 
@@ -513,48 +531,63 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                                     }
 
-                                    AppLogger.d("=== FIXING DIVISI INCONSISTENCY ===")
+                                    AppLogger.d("=== KARYAWAN FILTERING LOGIC ===")
                                     AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
                                     AppLogger.d("User afdeling ID: $userAfdelingId")
+                                    AppLogger.d("Available divisi list: $divisiList")
 
-                                    // Get divisi from absensi data (which is correct)
-                                    val correctDivisiFromAbsensi = if (absensiList.isNotEmpty()) {
-                                        // Find the first absensi entry to get the correct divisi
+                                    // Get divisi from present kemandoran (absensi data)
+                                    val presentKemandoranDivisi = if (absensiList.isNotEmpty()) {
                                         val firstAbsensi = absensiList.firstOrNull()
-                                        val divisiFromKemandoran = firstAbsensi?.kemandoran?.divisi
-                                        AppLogger.d("Divisi from kemandoran/absensi: $divisiFromKemandoran")
-                                        divisiFromKemandoran
+                                        firstAbsensi?.kemandoran?.divisi
                                     } else {
-                                        userAfdelingId // fallback to user's afdeling
+                                        null
                                     }
 
-                                    if (userAfdelingId != null && correctDivisiFromAbsensi != null) {
-                                        // SOLUSI A: Semua karyawan yang hadir dianggap dari divisi user
-                                        // Karena mereka sudah ter-filter dari kemandoran yang sesuai
+                                    AppLogger.d("Present kemandoran divisi: $presentKemandoranDivisi")
+
+                                    // Apply filtering logic
+                                    if (userAfdelingId != null && presentKemandoranDivisi != null) {
+
+                                        // Check if present kemandoran divisi exists in divisiList
+                                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
+                                            divisiList.any { it.divisi == presentKemandoranDivisi }
+                                        } else {
+                                            false
+                                        }
+                                        AppLogger.d("Is present divisi in divisi list: $isPresentDivisiInList")
+
+                                        if (isPresentDivisiInList) {
+                                            // Present divisi exists in divisiList
+                                            if (presentKemandoranDivisi == userAfdelingId) {
+                                                // Same divisi as user -> karyawanList
+                                                karyawanList = presentKaryawan
+                                                karyawanLainList = emptyList()
+                                                AppLogger.d("CASE 1: Present divisi matches user afdeling -> All to karyawanList")
+                                            } else {
+                                                // Different divisi from user -> karyawanLainList
+                                                karyawanList = emptyList()
+                                                karyawanLainList = presentKaryawan
+                                                AppLogger.d("CASE 2: Present divisi differs from user afdeling -> All to karyawanLainList")
+                                            }
+                                        } else {
+                                            // Present divisi NOT in divisiList -> karyawanList (as requested)
+                                            karyawanList = presentKaryawan
+                                            karyawanLainList = emptyList()
+                                            AppLogger.d("CASE 3: Present divisi not in divisi list -> All to karyawanList")
+                                        }
+
+                                    } else {
+                                        // Fallback: if we can't determine divisi, put all in karyawanList
                                         karyawanList = presentKaryawan
                                         karyawanLainList = emptyList()
-
-                                        AppLogger.d("APPLIED FIX: All present karyawan assigned to same divisi as user")
-                                        AppLogger.d("Reason: Data inconsistency between absensi (divisi=$correctDivisiFromAbsensi) and karyawan master data")
-
-                                    } else {
-                                        // SOLUSI B: Gunakan logika lama jika data konsisten
-                                        karyawanList = presentKaryawan.filter { karyawan ->
-                                            karyawan.divisi == userAfdelingId
-                                        }
-
-                                        karyawanLainList = presentKaryawan.filter { karyawan ->
-                                            karyawan.divisi != userAfdelingId
-                                        }
-
-                                        AppLogger.d("USING ORIGINAL LOGIC: Normal divisi filtering")
+                                        AppLogger.d("FALLBACK: Cannot determine divisi -> All to karyawanList")
                                     }
 
-                                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
-                                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
-                                    AppLogger.d("Same divisi karyawan (karyawanList): ${karyawanList.size}")
-                                    AppLogger.d("Other divisi karyawan (karyawanLainList): ${karyawanLainList.size}")
-                                    AppLogger.d("====================================")
+                                    AppLogger.d("Final result:")
+                                    AppLogger.d("- karyawanList: ${karyawanList.size}")
+                                    AppLogger.d("- karyawanLainList: ${karyawanLainList.size}")
+                                    AppLogger.d("===============================")
 
                                     // Complete the deferred with all present karyawan
                                     karyawanDeferred.complete(presentKaryawan)
@@ -605,20 +638,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                     tph_otomatis_estate = tphOtomatisDeferred.await()
 
-                    val divisiDeferred = async {
-                        try {
-                            datasetViewModel.getDivisiList(estateIdInt)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error fetching divisiList: ${e.message}")
-                            emptyList() // Return an empty list to prevent crash
-                        }
-                    }
 
-                    divisiList = divisiDeferred.await()
-
-                    if (divisiList.isNullOrEmpty()) {
-                        throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
-                    }
 
                     datasetViewModel.getAllEstates()
                     delay(100)
@@ -694,47 +714,57 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 kemandoranList = kemandoranDeferred.await()
                             }
 
-                            val kemandoranLainDeferred = async {
+                            // Fetch all kemandoran for the estate
+                            val allKemandoranDeferred = async {
                                 try {
                                     datasetViewModel.getKemandoranEstate(estateId!!.toInt())
                                 } catch (e: Exception) {
-                                    AppLogger.e("Error fetching kemandoranLainList: ${e.message}")
-                                    throw Exception("Error fetching kemandoran lain data: ${e.message}")
+                                    AppLogger.e("Error fetching kemandoran: ${e.message}")
+                                    throw Exception("Error fetching kemandoran data: ${e.message}")
                                 }
                             }
 
+                            val allKemandoran = allKemandoranDeferred.await()
+
+// Filter kemandoran based on user's afdeling/divisi
+                            val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
+
                             if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                kemandoranList = kemandoranLainDeferred.await()
+                                kemandoranList = allKemandoran
                             } else {
-                                kemandoranLainList = kemandoranLainDeferred.await()
+                                // For other features: Only set kemandoranLainList (kemandoranList already set elsewhere)
+
+                                // Lain kemandoran: Different divisi from user
+                                kemandoranLainList = allKemandoran.filter { kemandoran ->
+                                    kemandoran.divisi != userAfdelingId
+                                }
+
+                                AppLogger.d("User afdeling ID: $userAfdelingId")
+                                AppLogger.d("Other divisi kemandoran count: ${kemandoranLainList.size}")
                             }
 
-                            // Setup the kemandoran spinners on main thread
+// Setup the kemandoran spinners on main thread
                             withContext(Dispatchers.Main) {
                                 try {
+                                    // Setup main kemandoran spinner
                                     val kemandoranNames = kemandoranList.map { it.nama }
-
-                                    AppLogger.d("kemandoranNames $kemandoranNames")
+                                    AppLogger.d("kemandoranNames: $kemandoranNames")
                                     setupSpinnerView(
                                         layoutKemandoran,
                                         if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
                                     )
 
+                                    // Setup lain kemandoran spinner (only for non-AsistensiEstateLain features)
                                     if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                        val kemandoranLainListFiltered =
-                                            kemandoranLainList.filter { kemandoran ->
-                                                userAfdelingId != kemandoran.divisi // or whatever property holds the afdeling/divisi ID
-                                            }
-
-                                        val kemandoranLainListNames =
-                                            kemandoranLainListFiltered.map { it.nama }
+                                        val kemandoranLainNames = kemandoranLainList.map { it.nama }
+                                        AppLogger.d("kemandoranLainNames: $kemandoranLainNames")
                                         setupSpinnerView(
                                             layoutKemandoranLain,
-                                            if (kemandoranLainListNames.isNotEmpty()) kemandoranLainListNames as List<String> else emptyList()
+                                            if (kemandoranLainNames.isNotEmpty()) kemandoranLainNames as List<String> else emptyList()
                                         )
                                     }
 
-                                    AppLogger.d("Kemandoran spinners setup completed based on user's afdeling")
+                                    AppLogger.d("Kemandoran spinners setup completed")
                                 } catch (e: Exception) {
                                     AppLogger.e("Error setting up kemandoran spinners: ${e.message}")
                                     throw Exception("Error setting up kemandoran spinners: ${e.message}")
@@ -1558,7 +1588,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 // Call the suspend function from a coroutine
                 lifecycleScope.launch {
                     try {
-                        loadPemanenFullEstate(kemandoranLayout.rootView)
+
+                        loadMainPemanenOnly(kemandoranLayout.rootView)
+                        loadLainPemanenOnly(kemandoranLainLayout.rootView)
+
                     } catch (e: Exception) {
                         Toast.makeText(
                             this@FeaturePanenTBSActivity,
@@ -1582,7 +1615,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             // Call the suspend function from a coroutine
             lifecycleScope.launch {
                 try {
-                    loadPemanenFullEstate(kemandoranLayout.rootView)
+                    loadMainPemanenOnly(kemandoranLayout.rootView)
+                    loadLainPemanenOnly(kemandoranLainLayout.rootView)
                 } catch (e: Exception) {
                     Toast.makeText(
                         this@FeaturePanenTBSActivity,
@@ -1651,7 +1685,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 // Call the suspend function from a coroutine if needed
                 lifecycleScope.launch {
                     try {
-                        loadPemanenFullEstate(kemandoranLainLayout.rootView)
+                        loadMainPemanenOnly(kemandoranLayout.rootView)
+                        loadLainPemanenOnly(kemandoranLainLayout.rootView)
                     } catch (e: Exception) {
                         Toast.makeText(
                             this@FeaturePanenTBSActivity,
@@ -1675,7 +1710,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             // Call the suspend function from a coroutine if needed
             lifecycleScope.launch {
                 try {
-                    loadPemanenFullEstate(kemandoranLainLayout.rootView)
+                    loadMainPemanenOnly(kemandoranLayout.rootView)
+                    loadLainPemanenOnly(kemandoranLainLayout.rootView)
                 } catch (e: Exception) {
                     Toast.makeText(
                         this@FeaturePanenTBSActivity,
@@ -2052,7 +2088,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
 
-        AppLogger.d("radiasdklfjalskdjfladsf")
         AppLogger.d("radiusMinimum $radiusMinimum")
         val radiusText = "${radiusMinimum.toInt()} m"
         val fullText =
@@ -3209,27 +3244,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             if (blokBanjir == 1) {
                 lifecycleScope.launch {
-                    loadPemanenFullEstate(rootView)
+                    loadMainPemanenOnly(rootView)
+                    loadLainPemanenOnly(rootView)
                 }
             }
 
         }
 
-        // Reset selected values
-//        selectedTahunTanamValue = null
-//        selectedBlok = ""
-//        selectedBlokValue = null
-//        selectedTPH = ""
-//        selectedTPHValue = null
-//        selectedKemandoranLain = ""
-
-        // Clear adapters if they exist
-//        selectedPemanenAdapter.clearAllWorkers()
-//        selectedPemanenLainAdapter.clearAllWorkers()
     }
 
-    private suspend fun loadPemanenFullEstate(rootView: View) {
-        if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+
+
+    // New function to reload only main pemanen
+    private suspend fun loadMainPemanenOnly(rootView: View) {
+        if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
             try {
                 val karyawanDeferred = coroutineScope {
                     async {
@@ -3240,46 +3268,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
                 val allKaryawan = karyawanDeferred.await()
-
-                // Get user's afdeling ID (which is same as divisi)
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-                AppLogger.d("User's afdeling ID: $userAfdelingId")
 
-                // Only filter if presentNikSet has values
                 if (presentNikSet.isNotEmpty()) {
-                    // Filter karyawan list to only include those who are present
                     val presentKaryawan = allKaryawan.filter { karyawan ->
                         karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                     }
 
-                    // Filter by divisi - same divisi as user goes to karyawanList, others go to karyawanLainList
-                    if (userAfdelingId != null) {
-                        // Karyawan from same divisi as user
-                        karyawanList = presentKaryawan.filter { karyawan ->
-                            karyawan.divisi == userAfdelingId
-                        }
-
-                        // Karyawan from other divisi
-                        karyawanLainList = presentKaryawan.filter { karyawan ->
-                            karyawan.divisi != userAfdelingId
-                        }
+                    // Apply the same filtering logic to determine karyawanList only
+                    val presentKemandoranDivisi = if (absensiList.isNotEmpty()) {
+                        val firstAbsensi = absensiList.firstOrNull()
+                        firstAbsensi?.kemandoran?.divisi
                     } else {
-                        // If userAfdelingId is null, put all present karyawan in karyawanList
-                        karyawanList = presentKaryawan
-                        karyawanLainList = emptyList()
+                        null
                     }
 
-                    // Log statistics for debugging
-                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
-                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
-                    AppLogger.d("Same afdeling karyawan (karyawanList): ${karyawanList.size}")
-                    AppLogger.d("Other afdeling karyawan (karyawanLainList): ${karyawanLainList.size}")
+                    if (userAfdelingId != null && presentKemandoranDivisi != null) {
+                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
+                            divisiList.any { it.divisi == presentKemandoranDivisi }
+                        } else {
+                            false
+                        }
+
+                        karyawanList = if (isPresentDivisiInList) {
+                            if (presentKemandoranDivisi == userAfdelingId) {
+                                presentKaryawan // Same divisi -> karyawanList
+                            } else {
+                                emptyList() // Different divisi -> empty
+                            }
+                        } else {
+                            presentKaryawan // Not in divisiList -> karyawanList
+                        }
+                    } else {
+                        karyawanList = presentKaryawan
+                    }
 
                     val karyawanNames = karyawanList
-                        .sortedBy { it.nama }
-                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-
-                    val karyawanLainNames = karyawanLainList
                         .sortedBy { it.nama }
                         .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
@@ -3291,60 +3315,86 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             setupSpinnerView(layoutPemanen, karyawanNames)
                         } else {
                             setupSpinnerView(layoutPemanen, emptyList())
-                            val pemanenSpinner =
-                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            val pemanenSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                             pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                         }
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error reloading main karyawan: ${e.message}")
+            }
+        }
+    }
 
-                        val layoutPemanenLain =
-                            rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+    // New function to reload only lain pemanen
+    private suspend fun loadLainPemanenOnly(rootView: View) {
+        if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
+            try {
+                val karyawanDeferred = coroutineScope {
+                    async {
+                        panenViewModel.getAllKaryawan()
+                        delay(100)
+                        panenViewModel.allKaryawanList.value ?: emptyList()
+                    }
+                }
+
+                val allKaryawan = karyawanDeferred.await()
+                val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
+
+                if (presentNikSet.isNotEmpty()) {
+                    val presentKaryawan = allKaryawan.filter { karyawan ->
+                        karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+                    }
+
+                    // Apply the same filtering logic to determine karyawanLainList only
+                    val presentKemandoranDivisi = if (absensiList.isNotEmpty()) {
+                        val firstAbsensi = absensiList.firstOrNull()
+                        firstAbsensi?.kemandoran?.divisi
+                    } else {
+                        null
+                    }
+
+                    if (userAfdelingId != null && presentKemandoranDivisi != null) {
+                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
+                            divisiList.any { it.divisi == presentKemandoranDivisi }
+                        } else {
+                            false
+                        }
+
+                        karyawanLainList = if (isPresentDivisiInList) {
+                            if (presentKemandoranDivisi != userAfdelingId) {
+                                presentKaryawan // Different divisi -> karyawanLainList
+                            } else {
+                                emptyList() // Same divisi -> empty
+                            }
+                        } else {
+                            emptyList() // Not in divisiList -> empty (goes to main list)
+                        }
+                    } else {
+                        karyawanLainList = emptyList()
+                    }
+
+                    val karyawanLainNames = karyawanLainList
+                        .sortedBy { it.nama }
+                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+
+                    withContext(Dispatchers.Main) {
+                        val layoutPemanenLain = rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
                         if (layoutPemanenLain != null) {
                             if (karyawanLainNames.isNotEmpty()) {
                                 setupSpinnerView(layoutPemanenLain, karyawanLainNames)
                             } else {
                                 setupSpinnerView(layoutPemanenLain, emptyList())
-                                val pemanenLainSpinner =
-                                    layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                val pemanenLainSpinner = layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                 pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
                             }
                         }
-
-                    }
-                } else {
-                    // No present karyawan - clear both lists
-                    karyawanList = emptyList()
-                    karyawanLainList = emptyList()
-
-                    withContext(Dispatchers.Main) {
-                        val layoutPemanen = rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
-                        layoutPemanen.visibility = View.VISIBLE
-
-                        setupSpinnerView(layoutPemanen, emptyList())
-                        val pemanenSpinner =
-                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                        pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
-
-                        val layoutPemanenLain =
-                            rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
-                        setupSpinnerView(layoutPemanenLain, emptyList())
-                        val pemanenLainSpinner =
-                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                        pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
-
                     }
                 }
             } catch (e: Exception) {
-                AppLogger.e("Error reloading all karyawan: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@FeaturePanenTBSActivity,
-                        "Error reloading worker data: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                AppLogger.e("Error reloading lain karyawan: ${e.message}")
             }
         }
-
     }
 
 
@@ -3607,6 +3657,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 layoutBlok.visibility = View.VISIBLE
                 layoutNoTPH.visibility = View.VISIBLE
                 layoutAncak.visibility = View.VISIBLE
+                layoutNomorPemanen.visibility = View.VISIBLE
                 layoutKemandoran.visibility = View.VISIBLE
                 layoutPemanen.visibility = View.VISIBLE
                 if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -4675,13 +4726,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 selectedKemandoran = selectedItem.toString()
                 selectedKemandoranIdSpinner = position
                 AppLogger.d("selectedItem $selectedItem")
-
-
                 AppLogger.d("selectedKemandoran $selectedKemandoran")
+
                 val filteredKemandoranId: Int? = try {
-                    kemandoranList.find {
-                        it.nama == selectedKemandoran
-                    }?.id
+                    kemandoranList.find { it.nama == selectedKemandoran }?.id
                 } catch (e: Exception) {
                     AppLogger.e("Error finding Kemandoran ID: ${e.message}")
                     null
@@ -4690,114 +4738,103 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (filteredKemandoranId != null) {
                     AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
 
-                    // Show the filter container
-                    val filterContainer =
-                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                    val removeFilterButton =
-                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    // Show filter container and setup remove button
+                    val filterContainer = linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton = filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
-// Set up the remove filter button click listener
                     removeFilterButton.setOnClickListener {
-                        // Hide the filter container
                         vibrate()
                         filterContainer.visibility = View.GONE
-
-                        // Don't try to reset the spinner index to -1
-                        // Instead, just clear our tracking variables
                         selectedKemandoran = ""
-
-                        // Get the current adapter items
                         val kemandoranItems = kemandoranList.map { it.nama }
-
-                        // Recreate the spinner with the same items (this will reset to hint)
                         setupSpinnerView(linearLayout, kemandoranItems as List<String>)
 
-                        // Reload all karyawan using the new function, but keeping the animations
                         lifecycleScope.launch {
                             try {
-                                loadPemanenFullEstate(linearLayout.rootView)
+                                loadMainPemanenOnly(linearLayout.rootView) // Use full logic to restore both spinners
                             } catch (e: Exception) {
-                                Toast.makeText(
-                                    this@FeaturePanenTBSActivity,
-                                    "Error load full pemanen estate: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(this@FeaturePanenTBSActivity, "Error load full pemanen estate: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                         }
                     }
 
-                    // Use the original filtering approach
+                    // Apply dynamic filtering logic
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
-                            delay(1000) // 1 second delay
+                            delay(1000)
                         }
 
                         try {
                             val karyawanDeferred = async {
                                 datasetViewModel.getKaryawanList(filteredKemandoranId)
                             }
+                            val kemandoranKaryawan = karyawanDeferred.await()
 
-                            karyawanList = karyawanDeferred.await()
+                            // Apply the SAME dynamic logic as loadPemanenFullEstate
+                            val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
 
-                            // Check if we have absensi data to filter with
                             if (presentNikSet.isNotEmpty()) {
-                                // Filter karyawan list to only include those who are present
-                                val presentKaryawan = karyawanList.filter { karyawan ->
+                                val presentKaryawan = kemandoranKaryawan.filter { karyawan ->
                                     karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                                 }
 
-                                val absentKaryawan = karyawanList.filter { karyawan ->
-                                    karyawan.nik == null || !presentNikSet.contains(karyawan.nik)
+                                // Get the divisi of this specific kemandoran
+                                val selectedKemandoranDivisi = kemandoranList.find { it.id == filteredKemandoranId }?.divisi
+                                AppLogger.d("Selected kemandoran divisi: $selectedKemandoranDivisi")
+
+                                // Apply dynamic logic
+                                val (mainKaryawan, lainKaryawan) = if (userAfdelingId != null && selectedKemandoranDivisi != null) {
+                                    val isPresentDivisiInList = divisiList.any { it.divisi == selectedKemandoranDivisi }
+                                    AppLogger.d("Is selected kemandoran divisi in divisi list: $isPresentDivisiInList")
+
+                                    if (isPresentDivisiInList) {
+                                        if (selectedKemandoranDivisi == userAfdelingId) {
+                                            // Same divisi -> main spinner
+                                            AppLogger.d("CASE 1: Selected kemandoran matches user afdeling -> Main spinner")
+                                            Pair(presentKaryawan, emptyList<KaryawanModel>())
+                                        } else {
+                                            // Different divisi -> lain spinner
+                                            AppLogger.d("CASE 2: Selected kemandoran differs from user afdeling -> Lain spinner")
+                                            Pair(emptyList<KaryawanModel>(), presentKaryawan)
+                                        }
+                                    } else {
+                                        // Not in divisiList -> main spinner
+                                        AppLogger.d("CASE 3: Selected kemandoran not in divisi list -> Main spinner")
+                                        Pair(presentKaryawan, emptyList<KaryawanModel>())
+                                    }
+                                } else {
+                                    // Fallback -> main spinner
+                                    AppLogger.d("FALLBACK: Cannot determine divisi -> Main spinner")
+                                    Pair(presentKaryawan, emptyList<KaryawanModel>())
                                 }
 
-                                // Log statistics
-                                AppLogger.d("Total karyawan: ${karyawanList.size}")
-                                AppLogger.d("Present karyawan: ${presentKaryawan.size}")
-                                AppLogger.d("Absent karyawan: ${absentKaryawan.size}")
+                                // Update global variables
+                                karyawanList = mainKaryawan
+                                karyawanLainList = lainKaryawan
 
-                                val karyawanNames = presentKaryawan
-                                    .sortedBy { it.nama } // Sort by name alphabetically
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                AppLogger.d("Present karyawan names and NIKs: $karyawanNames")
-
-                                val absentKaryawanNames = absentKaryawan
-                                    .sortedBy { it.nama }
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                AppLogger.d("Absent karyawan names and NIKs: $absentKaryawanNames")
+                                val mainNames = mainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val lainNames = lainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                                 withContext(Dispatchers.Main) {
-                                    val layoutPemanen =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    // Update main spinner
+                                    val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                     layoutPemanen.visibility = View.VISIBLE
-
-                                    if (karyawanNames.isNotEmpty()) {
-                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                    if (mainNames.isNotEmpty()) {
+                                        setupSpinnerView(layoutPemanen, mainNames)
                                     } else {
-                                        // Set empty and update hint
                                         setupSpinnerView(layoutPemanen, emptyList())
-                                        val pemanenSpinner =
-                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        val pemanenSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                         pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
-
                                     }
-                                }
-                            } else {
-                                setupSpinnerView(layoutPemanen, emptyList())
-                                val pemanenSpinner =
-                                    layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
 
+                                }
                             }
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching karyawan data: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FeaturePanenTBSActivity,
-                                    "Error loading worker data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(this@FeaturePanenTBSActivity, "Error loading worker data: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
@@ -4805,8 +4842,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
                     }
-                } else {
-                    AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
                 }
             }
 
@@ -4919,12 +4954,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 selectedKemandoranLain = selectedItem.toString()
                 selectedKemandoranLainIdSpinner = position
 
-
                 AppLogger.d("Selected Kemandoran Lain: $selectedKemandoranLain")
                 val selectedIdKemandoranLain: Int? = try {
-                    kemandoranLainList.find {
-                        it.nama == selectedKemandoranLain
-                    }?.id
+                    kemandoranLainList.find { it.nama == selectedKemandoranLain }?.id
                 } catch (e: Exception) {
                     AppLogger.e("Error finding selected Kemandoran: ${e.message}")
                     null
@@ -4933,124 +4965,101 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (selectedIdKemandoranLain != null) {
                     AppLogger.d("Selected ID Kemandoran Lain: $selectedIdKemandoranLain")
 
-                    val filterContainer =
-                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                    val removeFilterButton =
-                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    val filterContainer = linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton = filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
-                    // Set up the remove filter button click listener
                     removeFilterButton.setOnClickListener {
-                        // Hide the filter container
                         vibrate()
                         filterContainer.visibility = View.GONE
-
-                        // Don't try to reset the spinner index to -1
-                        // Instead, just clear our tracking variables
                         selectedKemandoranLain = ""
-
-                        // Get the current adapter items
                         val kemandoranLainItems = kemandoranLainList.map { it.nama }
-
-                        // Recreate the spinner with the same items (this will reset to hint)
                         setupSpinnerView(linearLayout, kemandoranLainItems as List<String>)
 
-                        // Reload all karyawan using the new function, but keeping the animations
                         lifecycleScope.launch {
                             try {
-                                loadPemanenFullEstate(linearLayout.rootView)
+                                loadLainPemanenOnly(linearLayout.rootView) // Use full logic to restore both spinners
                             } catch (e: Exception) {
-                                Toast.makeText(
-                                    this@FeaturePanenTBSActivity,
-                                    "Error load full pemanen estate: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(this@FeaturePanenTBSActivity, "Error load full pemanen estate: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                         }
                     }
 
+                    // Apply the SAME dynamic logic as above
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
-                            delay(1000) // 1 second delay
+                            delay(1000)
                         }
 
                         try {
                             val karyawanDeferred = async {
                                 datasetViewModel.getKaryawanList(selectedIdKemandoranLain)
                             }
-
                             val kemandoranKaryawan = karyawanDeferred.await()
-
-                            // Get user's afdeling ID (which is same as divisi)
                             val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-                            AppLogger.d("User's afdeling ID for kemandoran filter: $userAfdelingId")
 
-                            // Check if we have absensi data to filter with
                             if (presentNikSet.isNotEmpty()) {
-                                // Filter karyawan list to only include those who are present
                                 val presentKaryawan = kemandoranKaryawan.filter { karyawan ->
                                     karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                                 }
 
-                                // Filter by divisi - only karyawan from other afdeling
-                                if (userAfdelingId != null) {
-                                    karyawanLainList = presentKaryawan.filter { karyawan ->
-                                        karyawan.divisi != userAfdelingId
+                                // Get the divisi of this specific kemandoran lain
+                                val selectedKemandoranLainDivisi = kemandoranLainList.find { it.id == selectedIdKemandoranLain }?.divisi
+                                AppLogger.d("Selected kemandoran lain divisi: $selectedKemandoranLainDivisi")
+
+                                // Apply the SAME dynamic logic
+                                val (mainKaryawan, lainKaryawan) = if (userAfdelingId != null && selectedKemandoranLainDivisi != null) {
+                                    val isPresentDivisiInList = divisiList.any { it.divisi == selectedKemandoranLainDivisi }
+                                    AppLogger.d("Is selected kemandoran lain divisi in divisi list: $isPresentDivisiInList")
+
+                                    if (isPresentDivisiInList) {
+                                        if (selectedKemandoranLainDivisi == userAfdelingId) {
+                                            // Same divisi -> main spinner
+                                            AppLogger.d("CASE 1: Selected kemandoran lain matches user afdeling -> Main spinner")
+                                            Pair(presentKaryawan, emptyList<KaryawanModel>())
+                                        } else {
+                                            // Different divisi -> lain spinner
+                                            AppLogger.d("CASE 2: Selected kemandoran lain differs from user afdeling -> Lain spinner")
+                                            Pair(emptyList<KaryawanModel>(), presentKaryawan)
+                                        }
+                                    } else {
+                                        // Not in divisiList -> main spinner
+                                        AppLogger.d("CASE 3: Selected kemandoran lain not in divisi list -> Main spinner")
+                                        Pair(presentKaryawan, emptyList<KaryawanModel>())
                                     }
                                 } else {
-                                    karyawanLainList = presentKaryawan
+                                    // Fallback -> main spinner
+                                    AppLogger.d("FALLBACK: Cannot determine divisi -> Main spinner")
+                                    Pair(presentKaryawan, emptyList<KaryawanModel>())
                                 }
 
-                                // Log statistics for debugging
-                                AppLogger.d("Total karyawan lain for kemandoran: ${kemandoranKaryawan.size}")
-                                AppLogger.d("Present karyawan for kemandoran: ${presentKaryawan.size}")
-                                AppLogger.d("Other afdeling present karyawan: ${karyawanLainList.size}")
+                                // Update global variables
+                                karyawanList = mainKaryawan
+                                karyawanLainList = lainKaryawan
 
-                                val namaKaryawanKemandoranLain = karyawanLainList
-                                    .sortedBy { it.nama } // Sort by name alphabetically
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val mainNames = mainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val lainNames = lainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                                 withContext(Dispatchers.Main) {
-                                    val layoutPemanenLain =
-                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
 
-                                    if (namaKaryawanKemandoranLain.isNotEmpty()) {
-                                        setupSpinnerView(
-                                            layoutPemanenLain,
-                                            namaKaryawanKemandoranLain
-                                        )
-                                    } else {
-                                        setupSpinnerView(
-                                            layoutPemanenLain,
-                                            emptyList()
-                                        )
-                                        val pemanenLainSpinner =
-                                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                        pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
+                                    // Update lain spinner
+                                    val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                    if (layoutPemanenLain != null) {
+                                        if (lainNames.isNotEmpty()) {
+                                            setupSpinnerView(layoutPemanenLain, lainNames)
+                                        } else {
+                                            setupSpinnerView(layoutPemanenLain, emptyList())
+                                            val pemanenLainSpinner = layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                            pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
+                                        }
                                     }
-                                }
-                            } else {
-                                karyawanLainList = emptyList()
-
-                                withContext(Dispatchers.Main) {
-                                    setupSpinnerView(
-                                        layoutPemanenLain,
-                                        emptyList()
-                                    )
-                                    val pemanenLainSpinner =
-                                        layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                    pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
                                 }
                             }
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching kemandoran lain data: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FeaturePanenTBSActivity,
-                                    "Error loading kemandoran lain data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(this@FeaturePanenTBSActivity, "Error loading kemandoran lain data: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                         } finally {
                             withContext(Dispatchers.Main) {

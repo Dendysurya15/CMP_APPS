@@ -115,6 +115,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+
     fun updateStatusUploadInspeksiPanen(ids: List<Int>, status: Int) {
         viewModelScope.launch {
             try {
@@ -377,7 +378,7 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         komentar: String,
         foto_pemulihan_tph: String,
         komentar_pemulihan_tph: String,
-        pemuatWorkers: List<Worker> = emptyList(), // Add this parameter
+        pemuatWorkers: List<Worker> = emptyList(),
     ): SaveDataInspectionDetailsState {
         return try {
             // PROCESS THE DATA FIRST - Reset values where emptyTree != 1, then filter valid data
@@ -419,7 +420,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         ?: AppUtils.kodeInspeksi.brondolanDigawangan,
                     parameterInspeksi.find { it.id == 1 }?.temuan_pokok ?: 1
                 ),
-
                 InspectionMapping(
                     2, { pageData, _, _ -> pageData.brdKtpPiringanPikulKetiak },
                     parameterInspeksi.find { it.id == 2 }?.status_ppro ?: 1,
@@ -427,7 +427,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         ?: AppUtils.kodeInspeksi.brondolanTidakDikutip,
                     parameterInspeksi.find { it.id == 2 }?.temuan_pokok ?: 1
                 ),
-
                 InspectionMapping(
                     3, { pageData, _, _ -> pageData.buahMasakTdkDipotong },
                     parameterInspeksi.find { it.id == 3 }?.status_ppro ?: 1,
@@ -435,7 +434,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         ?: AppUtils.kodeInspeksi.buahMasakTidakDipotong,
                     parameterInspeksi.find { it.id == 3 }?.temuan_pokok ?: 1
                 ),
-
                 InspectionMapping(
                     4, { pageData, _, _ -> pageData.btPiringanGawangan },
                     parameterInspeksi.find { it.id == 4 }?.status_ppro ?: 1,
@@ -443,7 +441,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         ?: AppUtils.kodeInspeksi.buahTertinggalPiringan,
                     parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1
                 ),
-
                 InspectionMapping(
                     7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
@@ -451,7 +448,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                         ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai,
                     parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1
                 ),
-
                 InspectionMapping(
                     8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
@@ -469,7 +465,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     parameterInspeksi.find { it.id == 9 }?.nama ?: AppUtils.kodeInspeksi.overPruning,
                     parameterInspeksi.find { it.id == 9 }?.temuan_pokok ?: 1
                 ),
-
                 InspectionMapping(
                     10, { pageData, _, _ -> if (pageData.kondisiPruning == 3) 1 else 0 }, // Under Pruning
                     parameterInspeksi.find { it.id == 10 }?.status_ppro ?: 0,
@@ -496,68 +491,73 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 pageData.pemanen.forEach { (nik, nama) ->
                     AppLogger.d("Processing pemanen: $nik - $nama")
 
-                    allMappings.forEach { mapping ->
-                        val rawValue = mapping.getValue(pageData, jumBrdTglPath, jumBuahTglPath)
+                    allMappings.forEach mappingLoop@ { mapping ->
+                        try {
+                            val rawValue = mapping.getValue(pageData, jumBrdTglPath, jumBuahTglPath)
 
-                        AppLogger.d("DEBUG: Page $pageNumber, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
+                            AppLogger.d("DEBUG: Page $pageNumber, Code ${mapping.kodeInspeksi} (${mapping.nama}): rawValue = $rawValue")
 
-                        // For pruning codes, log the kondisiPruning value
-                        if (mapping.kodeInspeksi == 9 || mapping.kodeInspeksi == 10) {
-                            AppLogger.d("Pruning check - Page $pageNumber, kondisiPruning: ${pageData.kondisiPruning}, kode_inspeksi: ${mapping.kodeInspeksi}, rawValue: $rawValue")
-                        }
+                            // For pruning codes, log the kondisiPruning value
+                            if (mapping.kodeInspeksi == 9 || mapping.kodeInspeksi == 10) {
+                                AppLogger.d("Pruning check - Page $pageNumber, kondisiPruning: ${pageData.kondisiPruning}, kode_inspeksi: ${mapping.kodeInspeksi}, rawValue: $rawValue")
+                            }
 
-                        val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
-                        val dividedValue = if (undivided == "False") {
-                            rawValue.toDouble()
-                        } else {
-                            rawValue.toDouble() / karyawanCount.toDouble()
-                        }
+                            val undivided = parameterInspeksi.find { it.id == mapping.kodeInspeksi }?.undivided ?: "True"
+                            val dividedValue = if (undivided == "False") {
+                                rawValue.toDouble()
+                            } else {
+                                rawValue.toDouble() / karyawanCount.toDouble()
+                            }
 
-                        // Skip if temuan_inspeksi value is 0 (this handles kondisiPruning = 1 (Normal) case)
-                        if (dividedValue == 0.0) {
-                            AppLogger.d("Skipping save for page $pageNumber, pemanen $nama, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
-                            return@forEach
-                        }
+                            // Skip if temuan_inspeksi value is 0 (this handles kondisiPruning = 1 (Normal) case)
+                            if (dividedValue == 0.0) {
+                                AppLogger.d("Skipping save for page $pageNumber, pemanen $nama, code ${mapping.kodeInspeksi} - temuan_inspeksi is 0")
+                                return@mappingLoop  // ← FIXED: This now properly skips to the next mapping
+                            }
 
-                        AppLogger.d("Page $pageNumber, Pemanen $nama ($nik), Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
+                            AppLogger.d("Page $pageNumber, Pemanen $nama ($nik), Code ${mapping.kodeInspeksi} (${mapping.nama}): $rawValue / $karyawanCount = $dividedValue")
 
-                        // Check if status_pemulihan is 1 and foto_pemulihan is not null
-                        val isPemulihanComplete = pageData.status_pemulihan == 1 && pageData.foto_pemulihan != null
+                            // Check if status_pemulihan is 1 and foto_pemulihan is not null
+                            val isPemulihanComplete = pageData.status_pemulihan == 1 && pageData.foto_pemulihan != null
 
-                        val inspectionDetail = InspectionDetailModel(
-                            id_inspeksi = inspectionId,
-                            created_date = pageData.createdDate ?: "",
-                            created_name = pageData.createdName ?: "",
-                            created_by = pageData.createdBy.toString(),
-                            // Set updated fields only if pemulihan is complete
-                            updated_date = if (isPemulihanComplete) pageData.createdDate ?: "" else null,
-                            updated_name = if (isPemulihanComplete) pageData.createdName ?: "" else null,
-                            updated_by = if (isPemulihanComplete) pageData.createdBy.toString() else null,
-                            nik = nik, // Use NIK from pemanen map
-                            nama = nama, // Use nama from pemanen map
-                            no_pokok = pageNumber,
-                            pokok_panen = pageData.harvestTree,
-                            kode_inspeksi = mapping.kodeInspeksi,
-                            temuan_inspeksi = dividedValue,
-                            status_pemulihan = pageData.status_pemulihan ?: 0,
-                            foto = pageData.photo,
-                            foto_pemulihan = pageData.foto_pemulihan,
-                            komentar = pageData.comment,
-                            komentar_pemulihan = if (isPemulihanComplete) pageData.komentar_pemulihan else null,
-                            latIssue = pageData.latIssue ?: 0.0,
-                            lonIssue = pageData.lonIssue ?: 0.0,
-                            // Set lat/lonPemulihan only if pemulihan is complete
-                            latPemulihan = if (isPemulihanComplete) pageData.latIssue ?: 0.0 else null,
-                            lonPemulihan = if (isPemulihanComplete) pageData.lonIssue ?: 0.0 else null,
-                            status_upload = "0",
-                            status_uploaded_image = "0"
-                        )
+                            val inspectionDetail = InspectionDetailModel(
+                                id_inspeksi = inspectionId,
+                                created_date = pageData.createdDate ?: "",
+                                created_name = pageData.createdName ?: "",
+                                created_by = pageData.createdBy.toString(),
+                                // Set updated fields only if pemulihan is complete
+                                updated_date = if (isPemulihanComplete) pageData.createdDate ?: "" else null,
+                                updated_name = if (isPemulihanComplete) pageData.createdName ?: "" else null,
+                                updated_by = if (isPemulihanComplete) pageData.createdBy.toString() else null,
+                                nik = nik, // Use NIK from pemanen map
+                                nama = nama, // Use nama from pemanen map
+                                no_pokok = pageNumber,
+                                pokok_panen = pageData.harvestTree,
+                                kode_inspeksi = mapping.kodeInspeksi,
+                                temuan_inspeksi = dividedValue,
+                                status_pemulihan = pageData.status_pemulihan ?: 0,
+                                foto = pageData.photo,
+                                foto_pemulihan = pageData.foto_pemulihan,
+                                komentar = pageData.comment,
+                                komentar_pemulihan = if (isPemulihanComplete) pageData.komentar_pemulihan else null,
+                                latIssue = pageData.latIssue ?: 0.0,
+                                lonIssue = pageData.lonIssue ?: 0.0,
+                                // Set lat/lonPemulihan only if pemulihan is complete
+                                latPemulihan = if (isPemulihanComplete) pageData.latIssue ?: 0.0 else null,
+                                lonPemulihan = if (isPemulihanComplete) pageData.lonIssue ?: 0.0 else null,
+                                status_upload = "0",
+                                status_uploaded_image = "0"
+                            )
 
-                        inspectionDetailList.add(inspectionDetail)
-                        AppLogger.d("Added inspection detail: Page $pageNumber, Pemanen $nama ($nik), Code ${mapping.kodeInspeksi}, Value $dividedValue")
+                            inspectionDetailList.add(inspectionDetail)
+                            AppLogger.d("Added inspection detail: Page $pageNumber, Pemanen $nama ($nik), Code ${mapping.kodeInspeksi}, Value $dividedValue")
 
-                        if (isPemulihanComplete) {
-                            AppLogger.d("Pemulihan data saved for page $pageNumber, pemanen $nama: lat=${pageData.latIssue}, lon=${pageData.lonIssue}")
+                            if (isPemulihanComplete) {
+                                AppLogger.d("Pemulihan data saved for page $pageNumber, pemanen $nama: lat=${pageData.latIssue}, lon=${pageData.lonIssue}")
+                            }
+                        } catch (mappingException: Exception) {
+                            AppLogger.e("Error processing mapping ${mapping.kodeInspeksi} for page $pageNumber, pemanen $nama: ${mappingException.message}")
+                            // Continue with next mapping instead of failing the entire operation
                         }
                     }
                 }
@@ -567,85 +567,102 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
 
             // Handle special case for no_pokok = 0 (kode_inspeksi 5 and 6 only)
             if (jumBuahTglPath != 0) {
-                val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
-                val inspectionDetail = InspectionDetailModel(
-                    id_inspeksi = inspectionId,
-                    created_date = createdDate,
-                    created_name = createdName,
-                    created_by = createdBy,
-                    updated_date = if (isPemulihanTphComplete) createdDate else null,
-                    updated_name = if (isPemulihanTphComplete) createdName else null,
-                    updated_by = if (isPemulihanTphComplete) createdBy else null,
-                    nik = "",
-                    nama = "",
-                    nik_pemuat = nikPemuatString,
-                    nama_pemuat = namaPemuatString,
-                    no_pokok = 0,
-                    pokok_panen = null,
-                    kode_inspeksi = 5,
-                    temuan_inspeksi = jumBuahTglPath.toDouble(),
-                    status_pemulihan = if (isPemulihanTphComplete) 1 else 0,
-                    foto = foto,
-                    komentar = komentar,
-                    foto_pemulihan = if (isPemulihanTphComplete) foto_pemulihan_tph else null,
-                    komentar_pemulihan = if (isPemulihanTphComplete) komentar_pemulihan_tph else null,
-                    latIssue = latTPH,
-                    lonIssue = lonTPH,
-                    latPemulihan = if (isPemulihanTphComplete) latTPH else null,
-                    lonPemulihan = if (isPemulihanTphComplete) lonTPH else null,
-                    status_upload = "0",
-                    status_uploaded_image = "0"
-                )
-                inspectionDetailList.add(inspectionDetail)
-                AppLogger.d("Added inspection detail: no_pokok 0, Code 5, Value ${jumBuahTglPath.toDouble()}")
+                try {
+                    val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
+                    val inspectionDetail = InspectionDetailModel(
+                        id_inspeksi = inspectionId,
+                        created_date = createdDate,
+                        created_name = createdName,
+                        created_by = createdBy,
+                        updated_date = if (isPemulihanTphComplete) createdDate else null,
+                        updated_name = if (isPemulihanTphComplete) createdName else null,
+                        updated_by = if (isPemulihanTphComplete) createdBy else null,
+                        nik = "",
+                        nama = "",
+                        nik_pemuat = nikPemuatString,
+                        nama_pemuat = namaPemuatString,
+                        no_pokok = 0,
+                        pokok_panen = null,
+                        kode_inspeksi = 5,
+                        temuan_inspeksi = jumBuahTglPath.toDouble(),
+                        status_pemulihan = if (isPemulihanTphComplete) 1 else 0,
+                        foto = foto,
+                        komentar = komentar,
+                        foto_pemulihan = if (isPemulihanTphComplete) foto_pemulihan_tph else null,
+                        komentar_pemulihan = if (isPemulihanTphComplete) komentar_pemulihan_tph else null,
+                        latIssue = latTPH,
+                        lonIssue = lonTPH,
+                        latPemulihan = if (isPemulihanTphComplete) latTPH else null,
+                        lonPemulihan = if (isPemulihanTphComplete) lonTPH else null,
+                        status_upload = "0",
+                        status_uploaded_image = "0"
+                    )
+                    inspectionDetailList.add(inspectionDetail)
+                    AppLogger.d("Added inspection detail: no_pokok 0, Code 5, Value ${jumBuahTglPath.toDouble()}")
+                } catch (e: Exception) {
+                    AppLogger.e("Error adding kode_inspeksi 5: ${e.message}")
+                }
             }
 
             if (jumBrdTglPath != 0) {
-                val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
-                val inspectionDetail = InspectionDetailModel(
-                    id_inspeksi = inspectionId,
-                    created_date = createdDate,
-                    created_name = createdName,
-                    created_by = createdBy,
-                    updated_date = if (isPemulihanTphComplete) createdDate else null,
-                    updated_name = if (isPemulihanTphComplete) createdName else null,
-                    updated_by = if (isPemulihanTphComplete) createdBy else null,
-                    nik = "",
-                    nama = "",
-                    nik_pemuat = nikPemuatString,
-                    nama_pemuat = namaPemuatString,
-                    no_pokok = 0,
-                    pokok_panen = null,
-                    kode_inspeksi = 6,
-                    temuan_inspeksi = jumBrdTglPath.toDouble(),
-                    status_pemulihan = if (isPemulihanTphComplete) 1 else 0,
-                    foto = foto,
-                    komentar = komentar,
-                    latIssue = latTPH,
-                    lonIssue = lonTPH,
-                    latPemulihan = if (isPemulihanTphComplete) latTPH else null,
-                    lonPemulihan = if (isPemulihanTphComplete) lonTPH else null,
-                    foto_pemulihan = if (isPemulihanTphComplete) foto_pemulihan_tph else null,
-                    komentar_pemulihan = if (isPemulihanTphComplete) komentar_pemulihan_tph else null,
-                    status_upload = "0",
-                    status_uploaded_image = "0"
-                )
-                inspectionDetailList.add(inspectionDetail)
+                try {
+                    val isPemulihanTphComplete = !foto_pemulihan_tph.isNullOrEmpty()
+                    val inspectionDetail = InspectionDetailModel(
+                        id_inspeksi = inspectionId,
+                        created_date = createdDate,
+                        created_name = createdName,
+                        created_by = createdBy,
+                        updated_date = if (isPemulihanTphComplete) createdDate else null,
+                        updated_name = if (isPemulihanTphComplete) createdName else null,
+                        updated_by = if (isPemulihanTphComplete) createdBy else null,
+                        nik = "",
+                        nama = "",
+                        nik_pemuat = nikPemuatString,
+                        nama_pemuat = namaPemuatString,
+                        no_pokok = 0,
+                        pokok_panen = null,
+                        kode_inspeksi = 6,
+                        temuan_inspeksi = jumBrdTglPath.toDouble(),
+                        status_pemulihan = if (isPemulihanTphComplete) 1 else 0,
+                        foto = foto,
+                        komentar = komentar,
+                        latIssue = latTPH,
+                        lonIssue = lonTPH,
+                        latPemulihan = if (isPemulihanTphComplete) latTPH else null,
+                        lonPemulihan = if (isPemulihanTphComplete) lonTPH else null,
+                        foto_pemulihan = if (isPemulihanTphComplete) foto_pemulihan_tph else null,
+                        komentar_pemulihan = if (isPemulihanTphComplete) komentar_pemulihan_tph else null,
+                        status_upload = "0",
+                        status_uploaded_image = "0"
+                    )
+                    inspectionDetailList.add(inspectionDetail)
+                    AppLogger.d("Added inspection detail: no_pokok 0, Code 6, Value ${jumBrdTglPath.toDouble()}")
+                } catch (e: Exception) {
+                    AppLogger.e("Error adding kode_inspeksi 6: ${e.message}")
+                }
             }
 
             AppLogger.d("Total inspection details to save: ${inspectionDetailList.size}")
 
             // Only insert if we have data to insert
             if (inspectionDetailList.isNotEmpty()) {
-                repository.insertInspectionDetails(inspectionDetailList)
-                SaveDataInspectionDetailsState.Success(inspectionDetailList.size)
+                try {
+                    repository.insertInspectionDetails(inspectionDetailList)
+                    AppLogger.d("Successfully saved ${inspectionDetailList.size} inspection details")
+                    SaveDataInspectionDetailsState.Success(inspectionDetailList.size)
+                } catch (insertException: Exception) {
+                    AppLogger.e("Error inserting inspection details to database: ${insertException.message}")
+                    SaveDataInspectionDetailsState.Error("Database insert failed: ${insertException.message}")
+                }
             } else {
+                AppLogger.w("No inspection details to save")
                 SaveDataInspectionDetailsState.Success(0)
             }
 
         } catch (e: Exception) {
             AppLogger.e("Error saving inspection details: ${e.message}")
-            SaveDataInspectionDetailsState.Error(e.toString())
+            AppLogger.e("Stack trace: ${e.stackTraceToString()}")
+            SaveDataInspectionDetailsState.Error("Failed to save inspection details: ${e.message}")
         }
     }
 

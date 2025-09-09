@@ -297,7 +297,6 @@ class AppRepository(context: Context) {
                             onFailure = { throw it }
                         )
                     } else {
-
                         if (existingRecord.status_scan_mpanen == 1) {
                             duplicates.add(tphData)
                             Log.d(
@@ -359,7 +358,6 @@ class AppRepository(context: Context) {
 
                     }
                 }
-
                 // Step 2: Group by unique (NIK, Block) combination
                 // Use records that were either saved or updated (not duplicates)
                 val recordsToProcess = tphDataList.filter { tphData ->
@@ -1453,10 +1451,10 @@ class AppRepository(context: Context) {
         }
 
 
-    suspend fun getAllTPHinWeek(): Result<List<PanenEntityWithRelations>> =
+    suspend fun getAllTPHinWeek(estateId: Int): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
-                val data = panenDao.getAllTPHinWeek()
+                val data = panenDao.getAllTPHinWeek(estateId)
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)

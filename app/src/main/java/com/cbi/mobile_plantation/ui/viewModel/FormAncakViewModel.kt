@@ -137,16 +137,26 @@ class FormAncakViewModel : ViewModel() {
         val currentData = _formData.value ?: mutableMapOf()
         val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
 
+        AppLogger.d("workers $workers")
+        AppLogger.d("totalPages $totalPages")
+
         // Convert worker names to Map<String, String> format
         val defaultPemanenMap = workers.associate { workerName ->
-            val parts = workerName.split(" - ")
-            if (parts.size >= 2) {
-                val nik = parts[0].trim()
-                val name = parts.subList(1, parts.size).joinToString(" - ").trim()
+            val dashIndex = workerName.indexOf(" - ")
+            if (dashIndex != -1) {
+                val nik = workerName.substring(0, dashIndex).trim()
+                val name = workerName.substring(dashIndex + 3).trim() // +3 to skip " - "
+                AppLogger.d("Parsed worker - NIK: '$nik', Name: '$name'")
                 nik to name
             } else {
+                AppLogger.w("Worker format unexpected, using as-is: '$workerName'")
                 workerName to workerName // fallback if format is different
             }
+        }
+
+        AppLogger.d("Created defaultPemanenMap with ${defaultPemanenMap.size} entries:")
+        defaultPemanenMap.forEach { (nik, name) ->
+            AppLogger.d("  $nik -> $name")
         }
 
         // Update pemanen for all pages (1 to totalPages)

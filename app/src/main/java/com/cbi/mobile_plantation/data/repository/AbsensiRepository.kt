@@ -48,6 +48,10 @@ class AbsensiRepository(context: Context) {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
 
+    suspend fun getKemandoranByIdPPRO(idKemandoran: List<String>): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranByIdPPRO(idKemandoran)
+    }
+
     suspend fun getAbsensiCount(): Int {
         return absensiDao.getCountAbsensi()
     }

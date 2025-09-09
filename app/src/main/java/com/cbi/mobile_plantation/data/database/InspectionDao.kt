@@ -33,7 +33,7 @@ abstract class InspectionDao {
     SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
     WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date) = :datetime)
     AND (:isPushedToServer IS NULL OR isPushedToServer = :isPushedToServer)
-    AND date(created_date) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+7 days')
+    AND date(created_date) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
     ORDER BY created_date DESC
 """)
     abstract suspend fun getInspectionData(

@@ -50,6 +50,7 @@ class RestanRepository(
                 put("created_name")
                 put("jjg_kirim")
                 put("spb_kode")
+                put("nomor_pemanen")
                 put("status_espb")
             })
 

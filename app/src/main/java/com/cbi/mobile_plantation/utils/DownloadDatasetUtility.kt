@@ -50,13 +50,12 @@ class DownloadDatasetUtility(
         )
 
 
-        // Handle special triggers first (these override normal role-based logic)
+//        // Handle special triggers first (these override normal role-based logic)
         if (handleSpecialTriggers(datasets, userRole, estateId, afdelingId)) {
             return datasets
         }
 
 
-        // Add common datasets for all roles (except when special triggers are active)
         addCommonDatasets(
             datasets,userRole, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
             lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
@@ -99,6 +98,11 @@ class DownloadDatasetUtility(
                 AppUtils.ListFeatureByRoleUser.MandorPanen,
                 ignoreCase = true
             ) -> UserRole.MANDOR_PANEN
+
+            jabatan.contains(
+                AppUtils.ListFeatureByRoleUser.Asisten,
+                ignoreCase = true
+            ) -> UserRole.ASISTEN
 
             jabatan.contains(
                 AppUtils.ListFeatureByRoleUser.ASKEP,
@@ -256,7 +260,7 @@ class DownloadDatasetUtility(
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?
     ) {
-
+        AppLogger.d("alskjdlkajsd flkjsflk j")
         when (userRole) {
             UserRole.KERANI_TIMBANG -> {
                 addKeraniTimbangDatasets(
@@ -280,14 +284,14 @@ class DownloadDatasetUtility(
 
             UserRole.KERANI_PANEN, UserRole.MANAGER, UserRole.ASKEP, UserRole.OTHER -> {
                 addDefaultUserDatasets(
-                    datasets, estateId, regionalUser,lastModifiedDatasetKemandoran,
+                    datasets, estateId, regionalUser,lastModifiedDatasetKemandoran,lastModifiedDatasetBlok,
                     lastModifiedDatasetTPH, lastModifiedDatasetPemanen, lastModifiedDatasetEstate
                 )
             }
 
             UserRole.GM -> {
                 addGMDatasets(
-                    datasets,  regionalUser,estateId,lastModifiedDatasetKemandoran,
+                    datasets,  regionalUser,estateId,lastModifiedDatasetKemandoran,lastModifiedDatasetBlok,
                     lastModifiedDatasetPemanen, lastModifiedDatasetEstate
                 )
             }
@@ -298,12 +302,20 @@ class DownloadDatasetUtility(
         datasets: MutableList<DatasetRequest>,
         regionalId: Int,
         estateId: Any,
+        lastModifiedDatasetBlok: String?,
         lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?
     ) {
+        AppLogger.d("ksjdlkfjs lkfjsldfj")
         datasets.addAll(
             listOf(
+                DatasetRequest(
+                    regional = regionalId,
+                    lastModified = lastModifiedDatasetBlok,
+                    dataset = AppUtils.DatasetNames.blok,
+                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
@@ -414,12 +426,18 @@ class DownloadDatasetUtility(
         estateId: Any,
         regionalUser: Int,
         lastModifiedDatasetKemandoran:String?,
+        lastModifiedDatasetBlok: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetPemanen: String?,
         lastModifiedDatasetEstate: String?
     ) {
         datasets.addAll(
             listOf(
+                DatasetRequest(
+                    estate = estateId,
+                    lastModified = lastModifiedDatasetBlok,
+                    dataset = AppUtils.DatasetNames.blok
+                ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
@@ -495,6 +513,12 @@ class DownloadDatasetUtility(
                 DatasetRequest(
                     lastModified = lastModifiedSettingJSON,
                     dataset = AppUtils.DatasetNames.settingJSON,
+                    jabatan = jabatanValue
+                ),
+                DatasetRequest(
+                    lastModified = null,
+                    idUser = prefManager.idUserLogin,
+                    dataset = AppUtils.DatasetNames.checkAppVersion,
                     jabatan = jabatanValue
                 )
             )

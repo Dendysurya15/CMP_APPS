@@ -306,9 +306,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllTPHinWeek() {
+    fun getAllTPHinWeek(estateId: Int) {
         viewModelScope.launch {
-            repository.getAllTPHinWeek()
+            repository.getAllTPHinWeek(estateId)
                 .onSuccess { panenList ->
                     _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
                 }

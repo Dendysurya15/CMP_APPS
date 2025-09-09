@@ -639,6 +639,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 )
                             }
                             btnEditEspb.setOnClickListener {
+                                AppLogger.d("tph1 $tph1")
+                                AppLogger.d("tph0 $tph0")
+                                AppLogger.d("espbId $espbId")
+                                AppLogger.d("idsToUpdate $idsToUpdate")
                                 AlertDialogUtility.withTwoActions(
                                     this@ListPanenTBSActivity,
                                     "EDIT",
@@ -661,6 +665,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "ListPanenTBSActivity",
                                             "tph_1_id_panen: $idsToUpdate"
                                         )
+
+                                        AppLogger.d("tph1 $tph1")
+                                        AppLogger.d("tph0 $tph0")
+                                        AppLogger.d("tph1 $espbId")
+                                        AppLogger.d("idsToUpdate $idsToUpdate")
                                         playSound(R.raw.berhasil_edit_data)
                                         intent.putExtra("FEATURE_NAME", featureName)
                                         Log.d("ListPanenTBSActivity", "FEATURE_NAME: $featureName")
@@ -1299,34 +1308,103 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     fun convertToFormattedString(input: String, int: Int = 1): String {
         try {
+            Log.d("DEBUG", "Input: $input")
+
             // Remove the outer brackets
             val content = input.trim().removeSurrounding("[", "]")
 
-            // Split into individual objects
-            val objects = content.split("}, {")
-
-            return objects.joinToString(";") { objStr ->
-                // Clean up the object string
-                val cleanObj = objStr.trim()
-                    .removePrefix("{")
-                    .removeSuffix("}")
-
-                // Split into key-value pairs
-                val map = cleanObj.split(", ").associate { pair ->
-                    val (key, value) = pair.split("=", limit = 2)
-                    key to value
-                }
-
-                // Extract jjg_json value
-                val jjgJson = map["jjg_json"]?.trim() ?: "{}"
-
-                // Construct the formatted string
-                "${map["tph_id"]},${map["date_created"]},${jjgJson},$int"
+            if (content.isEmpty()) {
+                return ""
             }
+
+            // Split the content into individual objects
+            val objects = splitObjects(content)
+
+            // Process each object and join with semicolons
+            val results = objects.map { obj ->
+                parseComplexObject(obj.trim(), int)
+            }.filter { it.isNotEmpty() }
+
+            val result = results.joinToString(";")
+            Log.d("DEBUG", "Result: $result")
+            return result
+
         } catch (e: Exception) {
+            Log.e("DEBUG", "Error in convertToFormattedString: ${e.message}")
             e.printStackTrace()
             return ""
         }
+    }
+
+    fun splitObjects(content: String): List<String> {
+        val objects = mutableListOf<String>()
+        var braceCount = 0
+        var bracketCount = 0
+        var start = 0
+
+        for (i in content.indices) {
+            when (content[i]) {
+                '{' -> braceCount++
+                '}' -> braceCount--
+                '[' -> bracketCount++
+                ']' -> bracketCount--
+                ',' -> {
+                    // If we're at the top level (no open braces/brackets), this is a separator
+                    if (braceCount == 0 && bracketCount == 0) {
+                        // Check if this comma is between objects by looking ahead
+                        val remaining = content.substring(i + 1).trim()
+                        if (remaining.startsWith("{id=")) {
+                            objects.add(content.substring(start, i).trim())
+                            start = i + 1
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add the last object
+        if (start < content.length) {
+            objects.add(content.substring(start).trim())
+        }
+
+        return objects.filter { it.isNotEmpty() }
+    }
+
+    fun parseComplexObject(objStr: String, int: Int): String {
+        try {
+            // Extract the key fields we need using regex patterns
+            val tphId = extractValue(objStr, "tph_id")
+            val dateCreated = extractValue(objStr, "date_created")
+            val jjgJson = extractJjgJson(objStr)
+
+            Log.d("DEBUG", "tph_id: $tphId")
+            Log.d("DEBUG", "date_created: $dateCreated")
+            Log.d("DEBUG", "jjg_json: $jjgJson")
+
+            if (tphId.isEmpty() || dateCreated.isEmpty()) {
+                return ""
+            }
+
+            return "$tphId,$dateCreated,$jjgJson,$int"
+
+        } catch (e: Exception) {
+            Log.e("DEBUG", "Error parsing object: ${e.message}")
+            return ""
+        }
+    }
+
+    fun extractValue(input: String, key: String): String {
+        // Look for pattern: key=value, where value stops at the next ", key=" or end
+        val pattern = "$key=([^,]*?)(?=,\\s*\\w+=|$)".toRegex()
+        val match = pattern.find(input)
+        return match?.groupValues?.get(1)?.trim() ?: ""
+    }
+
+    fun extractJjgJson(input: String): String {
+        // Extract the KP value from jjg_json field
+        val pattern = "jjg_json=\\{\"KP\":\\s*(\\d+)\\}".toRegex()
+        val match = pattern.find(input)
+        return match?.groupValues?.get(1) ?: ""
     }
 
     fun convertToFormattedString(input: String, tphFilter: String): String {

@@ -378,6 +378,8 @@ class UploadCMPRepository(context: Context) {
                                     path = basePathRequestBody
                                 )
 
+                                AppLogger.d("kfjalksjdfl asdfklj asldfk")
+
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")
                                 AppLogger.d("Response code: ${response.code()}")
@@ -1613,6 +1615,7 @@ class UploadCMPRepository(context: Context) {
                                 } else {
                                     tableIds
                                 }
+
                                 // Determine final message, status, and success
                                 val finalMessage = if (isMutuBuahWithSkipped) {
                                     "Data tidak dapat di-upload, Mohon hubungi Kerani Panen untuk upload data panen"
@@ -1623,6 +1626,8 @@ class UploadCMPRepository(context: Context) {
                                 val finalStatus = responseBody.status
                                 val finalSuccess = if (isMutuBuahWithSkipped) false else responseBody.success
 
+
+                                AppLogger.d("filteredTableIds $filteredTableIds")
                                 val jsonResponse = UploadV3Response(
                                     success = finalSuccess,
                                     trackingId = responseBody.trackingId,
@@ -1645,6 +1650,11 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Response Type: ${jsonResponse.type}")
                                 AppLogger.d("Response Table IDs: ${jsonResponse.table_ids}")
                                 AppLogger.d("Response Results: ${jsonResponse.results}")
+
+                                // ✅ ADD THIS: Update progress to 100% on success
+                                withContext(Dispatchers.Main) {
+                                    onProgressUpdate(100, true, finalMessage) // true = success
+                                }
 
                                 Result.success(jsonResponse)
                             } else {

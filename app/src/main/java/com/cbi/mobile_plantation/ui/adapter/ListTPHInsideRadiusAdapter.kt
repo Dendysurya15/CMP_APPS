@@ -77,26 +77,12 @@ class ListTPHInsideRadiusAdapter(
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
         // Get the TPH item for this position
         val tphItem = tphList[position]
-        if (tphItem.tph_from_pasar_tengah == "SEPARATOR") {
-            holder.radioButton.visibility = View.GONE
-            holder.jenisTPHNameTextView.visibility = View.GONE
-            holder.tphHasBeenSelected.visibility = View.GONE
-            holder.dashedLine.visibility = View.VISIBLE
 
-            holder.tphInfoTextView.visibility = View.VISIBLE
-            holder.tphInfoTextView.text = tphItem.blockCode
-            holder.tphInfoTextView.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.graytextdark))
-            holder.tphInfoTextView.setTypeface(null, Typeface.BOLD)
-            holder.tphInfoTextView.textSize = 14f
+        holder.radioButton.visibility = View.VISIBLE
+        holder.jenisTPHNameTextView.visibility = View.VISIBLE
+        holder.tphHasBeenSelected.visibility = View.GONE
+        holder.dashedLine.visibility = View.GONE
 
-            holder.itemView.setOnClickListener(null)
-            return
-        } else {
-            holder.radioButton.visibility = View.VISIBLE
-            holder.jenisTPHNameTextView.visibility = View.VISIBLE
-            holder.tphHasBeenSelected.visibility = View.GONE
-            holder.dashedLine.visibility = View.GONE
-        }
         val jenisTPHId = tphItem.jenisTPHId.toInt()
 
         // Create background drawable
@@ -171,17 +157,28 @@ class ListTPHInsideRadiusAdapter(
             val spannableWithSelected = SpannableString(selectedOutOfRangeText)
 
             // Copy existing spans
-            spannable.getSpans(0, spannable.length, ForegroundColorSpan::class.java).forEach { span ->
-                val start = spannable.getSpanStart(span)
-                val end = spannable.getSpanEnd(span)
-                spannableWithSelected.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
+            spannable.getSpans(0, spannable.length, ForegroundColorSpan::class.java)
+                .forEach { span ->
+                    val start = spannable.getSpanStart(span)
+                    val end = spannable.getSpanEnd(span)
+                    spannableWithSelected.setSpan(
+                        span,
+                        start,
+                        end,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
 
             // Add green color for selected indicator
             val selectedStart = selectedOutOfRangeText.indexOf("[TERPILIH")
             if (selectedStart >= 0) {
                 spannableWithSelected.setSpan(
-                    ForegroundColorSpan(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton)),
+                    ForegroundColorSpan(
+                        ContextCompat.getColor(
+                            holder.itemView.context,
+                            R.color.greendarkerbutton
+                        )
+                    ),
                     selectedStart,
                     selectedOutOfRangeText.length,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -254,18 +251,19 @@ class ListTPHInsideRadiusAdapter(
             }
 
             // Calculate the limit to use based on TPH type
-            val limit = if (jenisTPHId == 2 && jenisTPHList.find { it.id == 2 }?.jenis_tph == "induk") {
-                // Special case for jenis_tph = induk (id = 2)
-                if (customLimit != null && customLimit > 3 && customLimit <= 999) {
-                    // Use the custom limit if it's greater than 3 and up to 999
-                    customLimit
+            val limit =
+                if (jenisTPHId == 2 && jenisTPHList.find { it.id == 2 }?.jenis_tph == "induk") {
+                    // Special case for jenis_tph = induk (id = 2)
+                    if (customLimit != null && customLimit > 3 && customLimit <= 999) {
+                        // Use the custom limit if it's greater than 3 and up to 999
+                        customLimit
+                    } else {
+                        // Otherwise, use the default limit (7)
+                        defaultLimit
+                    }
                 } else {
-                    // Otherwise, use the default limit (7)
                     defaultLimit
                 }
-            } else {
-                defaultLimit
-            }
 
             if (tphItem.selectionCount >= limit!!) {
                 AppLogger.d("TPH reached maximum selections")
@@ -320,7 +318,7 @@ class ListTPHInsideRadiusAdapter(
             holder.itemView.setOnClickListener {
                 holder.radioButton.performClick()
             }
-        }else{
+        } else {
             if (tphItem.id == selectedTPHId) {
                 holder.radioButton.isChecked = true
             }

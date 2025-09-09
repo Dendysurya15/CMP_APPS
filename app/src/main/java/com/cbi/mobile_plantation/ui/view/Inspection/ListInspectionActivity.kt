@@ -177,7 +177,7 @@ class ListInspectionActivity : AppCompatActivity() {
             }
         }
 
-
+        
 
         currentState = 0
         lifecycleScope.launch {

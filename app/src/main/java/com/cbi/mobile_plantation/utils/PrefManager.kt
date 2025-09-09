@@ -166,6 +166,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var latestAppVersionSystem: String?
+        get() = pref.getString("latestAppVersionSystem", "")
+        set(latestAppVersionSystem) {
+            editor.putString("latestAppVersionSystem", latestAppVersionSystem)
+            editor.commit()
+        }
+
     var companyIdUserLogin: String?
         get() = pref.getString("companyIdUserLogin", "")
         set(companyIdUserLogin) {
