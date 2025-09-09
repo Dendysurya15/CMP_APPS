@@ -79,9 +79,22 @@ abstract class HektarPanenDao {
     @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0.0 AND date_created_panen LIKE '%' || :date || '%'")
     abstract fun countWhereLuasPanenIsZeroAndDate(date: String= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Int
 
-    //select blok distinct from hektar_panen where date_created_panen like '%' || :date || '%'
-    @Query("SELECT DISTINCT blok FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%'")
-    abstract fun getDistinctBlokByDate(date: String): List<Int>
+    @Query("""
+    SELECT DISTINCT blok, blok_ppro, dept, divisi, dept_abbr, divisi_abbr , blok_kode
+    FROM hektar_panen 
+    WHERE date_created_panen LIKE '%' || :date || '%'
+""")
+    abstract fun getDistinctBlokParamsByDate(date: String): List<BlokParams>
+
+    data class BlokParams(
+        val blok: Int,
+        val blok_ppro: Int?,
+        val dept: Int?,
+        val divisi: Int?,
+        val dept_abbr:String?,
+        val divisi_abbr:String?,
+        val blok_kode:String?,
+    )
 
     //select nik, luas_panen, luas_blok, dibayar from hektar_panen where date_created_panen like '%' || :date || '%' and blok = :blok
     @Query("SELECT * FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%' AND blok = :blok")

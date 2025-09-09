@@ -1,3 +1,5 @@
+@file:Suppress("IMPLICIT_CAST_TO_ANY")
+
 package com.cbi.mobile_plantation.ui.view
 
 import android.Manifest
@@ -19,7 +21,11 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
+import android.text.style.StyleSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -49,7 +55,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.KaryawanDao
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
@@ -60,6 +66,8 @@ import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
@@ -89,6 +97,7 @@ import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
+import com.cbi.mobile_plantation.ui.viewModel.MutuBuahViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
@@ -96,11 +105,15 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.formatToCamelCase
+import com.cbi.mobile_plantation.utils.AppUtils.getDeviceInfo
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
+import com.cbi.mobile_plantation.utils.DownloadDatasetUtility
+import com.cbi.mobile_plantation.utils.FeatureStateManager
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.NotificationScheduler
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ValidationSyncHelper
 import com.cbi.mobile_plantation.worker.DataCleanupWorker
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -125,6 +138,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
+import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -133,6 +147,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@Suppress("IMPLICIT_CAST_TO_ANY", "UNREACHABLE_CODE")
 class HomePageActivity : AppCompatActivity() {
 
     private lateinit var notificationScheduler: NotificationScheduler
@@ -150,6 +165,7 @@ class HomePageActivity : AppCompatActivity() {
     private val _allIdsAndFilenames = MutableLiveData<List<Pair<String, String>>>()
     val allIdsAndFilenames: LiveData<List<Pair<String, String>>> = _allIdsAndFilenames
     private lateinit var panenViewModel: PanenViewModel
+    private lateinit var mutuBuahViewModel: MutuBuahViewModel
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
     private lateinit var uploadCMPViewModel: UploadCMPViewModel
@@ -162,6 +178,8 @@ class HomePageActivity : AppCompatActivity() {
     private lateinit var dialog: Dialog
     private var countAbsensi: Int = 0  // Global variable for count
     private var countPanenTPH: Int = 0  // Global variable for count
+    private var countMutuBuah: Int = 0  // Global variable for count
+    private var countPanenTPHForTransferInspeksi: Int = 0  // Global variable for count
     private var countPanenTPHApproval: Int = 0  // Global variable for count
     private var counteSPBWBScanned: Int = 0  // Global variable for count
     private var countActiveESPB: Int = 0  // Global variable for count
@@ -171,6 +189,10 @@ class HomePageActivity : AppCompatActivity() {
     val masterEstateHasBeenChoice = mutableMapOf<String, Boolean>()
     private val _globalLastSync = MutableLiveData<String>()
     private val globalLastSync: LiveData<String> get() = _globalLastSync
+    private val _globalLastSyncDataPanenInspeksi = MutableLiveData<String>()
+    private val globalLastSyncDataPanenInspeksi: LiveData<String> get() = _globalLastSyncDataPanenInspeksi
+    private val _globalLastSyncFollowUpInspeksi = MutableLiveData<String>()
+    private val globalLastSyncFollowUpInspeksi: LiveData<String> get() = _globalLastSyncFollowUpInspeksi
 
     private var activityInitialized = false
 
@@ -183,11 +205,14 @@ class HomePageActivity : AppCompatActivity() {
     private val globalAbsensiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiPanenIdsByPart = mutableMapOf<String, List<Int>>()
     private val globalInspeksiDetailPanenIdsByPart = mutableMapOf<String, List<Int>>()
+    private val globalMutuBuahIdsByPart = mutableMapOf<String, List<Int>>()
+
     private var globalInspeksiIds: List<Int> = emptyList()
     private var globalPanenIds: List<Int> = emptyList()
     private var globalESPBIds: List<Int> = emptyList()
     private var globalHektaranIds: List<Int> = emptyList()
     private var globalAbsensiIds: List<Int> = emptyList()
+    private var globalMutuBuahIds: List<Int> = emptyList()
 
     private var zipFilePath: String? = null
     private var zipFileName: String? = null
@@ -195,6 +220,7 @@ class HomePageActivity : AppCompatActivity() {
     private var globalImageUploadError: List<String> = emptyList()
     private var globalImageNameError: List<String> = emptyList()
     private val processedTrackingIds = mutableSetOf<Int>()
+
     // PDF-related variables
 //    private lateinit var pdfManager: PDFManager
     private val pdfFileName = "User_Manual_CMP.pdf"
@@ -212,9 +238,10 @@ class HomePageActivity : AppCompatActivity() {
         val tanggal_upload: String,
         val type: String,
     )
+
     private var estateList: List<EstateModel> = emptyList()
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
-
+    private lateinit var downloadDatasetUtility: DownloadDatasetUtility
     private lateinit var datasetViewModel: DatasetViewModel
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
@@ -459,6 +486,39 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
                 try {
+                    val countDeferred = async { mutuBuahViewModel.loadMutuBuahToday() }
+                    countMutuBuah = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.RekapMutuBuah,
+                            countMutuBuah.toString()
+                        )
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapMutuBuah)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                    }
+                }
+
+                try {
+                    val countDeferred = async { panenViewModel.loadPanenCountForTransferInspeksi() }
+                    countPanenTPHForTransferInspeksi = countDeferred.await()
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.TransferInspeksiPanen,
+                            countPanenTPHForTransferInspeksi.toString()
+                        )
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error fetching data: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+                    }
+                }
+                try {
                     val countDeferred = async { panenViewModel.loadPanenCountApproval() }
                     countPanenTPHApproval = countDeferred.await()
                     withContext(Dispatchers.Main) {
@@ -589,7 +649,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Pencatatan panen TBS di TPH oleh kerani panen",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.PanenTBS)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -598,7 +659,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Rekapitulasi panen TBS dan transfer data ke supervisi",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapHasilPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -607,7 +669,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.panen_tbs_icon,
                 count = null,
                 functionDescription = "Asistensi pencatatan panen TBS ke estate lain",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.AsistensiEstateLain)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -616,7 +679,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_hasil_panen_icon,
                 count = null,
                 functionDescription = "Transfer data dari kerani panen ke supervisi untuk pembuatan eSPB",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanHasilPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -625,7 +689,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPHApproval.toString(),
                 functionDescription = "Rekapitulsasi panen TBS dan restan dari kerani panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapPanenDanRestan)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -634,7 +699,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.espb_icon,
                 functionDescription = "Transfer data dari driver ke supervisi untuk pembuatan eSPB",
                 displayType = DisplayType.ICON,
-                subTitle = "Scan QR Code eSPB"
+                subTitle = "Scan QR Code eSPB",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.BuatESPB)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -643,7 +709,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = "0",
                 functionDescription = "Rekapitulasi eSPB dan transfer data ke driver",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapESPB)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -652,7 +719,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.inspeksi_icon,
                 functionDescription = "Buat inspeksi panen",
                 displayType = DisplayType.ICON,
-                subTitle = "Scan QR Code eSPB"
+                subTitle = "Scan QR Code eSPB",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.InspeksiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -661,7 +729,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countInspection,
                 functionDescription = "Rekapitulasi inspeksi panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapInspeksiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -670,7 +739,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.baseline_travel_explore_24,
                 functionDescription = "Follow Up Inspeksi",
                 displayType = DisplayType.ICON,
-                subTitle = "Follow Up laporan inspeksi panen"
+                subTitle = "Follow Up laporan inspeksi panen",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.FollowUpInspeksi)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -679,7 +749,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.timbang_icon,
                 functionDescription = "Scan data eSPB dari driver oleh kerani timbang",
                 displayType = DisplayType.ICON,
-                subTitle = "Transfer data eSPB dari driver"
+                subTitle = "Transfer data eSPB dari driver",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanESPBTimbanganMill)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -688,7 +759,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.cbi,
                 functionDescription = "Rekapitulasi eSPB yang telah discan",
                 displayType = DisplayType.COUNT,
-                subTitle = "Transfer data eSPB dari driver"
+                subTitle = "Transfer data eSPB dari driver",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapESPBTimbanganMill)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -697,7 +769,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.absensi_panen_icon,
                 count = null,
                 functionDescription = "Absensi kehadiran karyawan panen oleh supervisi",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.AbsensiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -706,7 +779,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countAbsensi.toString(),
                 functionDescription = "Rekapitulasi absensi karyawan dan transfer data ke kerani panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapAbsensiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -715,7 +789,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_qr_icon,
                 count = null,
                 functionDescription = "Transfer data abseni dari supervisi ke kerani panen",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanAbsensiPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -724,7 +799,9 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.sync_icon,
                 functionDescription = "Update semua data master",
                 displayType = DisplayType.ICON,
-                subTitle = "Sinkronisasi data manual"
+
+                subTitle = "Sinkronisasi data manual",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.SinkronisasiData)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greendarkerbutton,
@@ -733,7 +810,9 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.baseline_download_24,
                 functionDescription = "Unduh Master TPH untuk asistensi estate lain",
                 displayType = DisplayType.ICON,
-                subTitle = "Unduh TPH Asistensi"
+
+                subTitle = "Unduh TPH Asistensi",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.UnduhTPHAsistensi)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDarkerLight,
@@ -742,7 +821,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.upload_icon_2,
                 functionDescription = "Upload semua data di aplikasi",
                 displayType = DisplayType.ICON,
-                subTitle = "Upload Semua Data CMP"
+                subTitle = "Upload Semua Data CMP",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.UploadDataCMP)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -751,7 +831,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = R.drawable.scan_hasil_panen_icon,
                 count = null,
                 functionDescription = "Transfer data dari kerani panen ke mandor panen untuk input hektar panen",
-                displayType = DisplayType.ICON
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanPanenMPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -760,7 +841,8 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Input dan upload hektar panen oleh mandor panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.DaftarHektarPanen)
             ),
             FeatureCard(
                 cardBackgroundColor = R.color.greenDefault,
@@ -769,8 +851,50 @@ class HomePageActivity : AppCompatActivity() {
                 iconResource = null,
                 count = countPanenTPH.toString(),
                 functionDescription = "Transfer data dari kerani panen ke mandor panen untuk input hektar panen",
-                displayType = DisplayType.COUNT
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.TransferHektarPanen)
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.colorRedDark,
+                featureName = AppUtils.ListFeatureNames.MutuBuah,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = R.drawable.panen_tbs_icon,
+                count = null,
+                functionDescription = "Inspeksi Mutu Buah",
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.MutuBuah)
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.colorRedDark,
+                featureName = AppUtils.ListFeatureNames.RekapMutuBuah,
+                featureNameBackgroundColor = R.color.greenBorder,
+                iconResource = null,
+                count = countMutuBuah.toString(),
+                functionDescription = "Rekap Inspeksi Mutu Buah",
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.RekapMutuBuah)
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = AppUtils.ListFeatureNames.TransferInspeksiPanen,
+                featureNameBackgroundColor = R.color.graytextdark,
+                iconResource = null,
+                count = countPanenTPHForTransferInspeksi.toString(),
+                functionDescription = "Transfer data dari kerani panen untuk hasil inspeksi H+0",
+                displayType = DisplayType.COUNT,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+            ),
+            FeatureCard(
+                cardBackgroundColor = R.color.greenDefault,
+                featureName = AppUtils.ListFeatureNames.ScanTransferInspeksiPanen,
+                featureNameBackgroundColor = R.color.orange,
+                iconResource = R.drawable.scan_inspect_icon,
+                count = countPanenTPHForTransferInspeksi.toString(),
+                functionDescription = "Scan data panen untuk proses Inspeksi H+0",
+                displayType = DisplayType.ICON,
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanTransferInspeksiPanen)
             )
+
         )
 
         fun getFilteredFeaturesByJabatan(jabatan: String): List<FeatureCard> {
@@ -817,6 +941,7 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapHasilPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.AsistensiEstateLain },
                     features.find { it.featureName == AppUtils.ListFeatureNames.TransferHektarPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
 //                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanAbsensiPanen },
@@ -834,10 +959,14 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
                     features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
                 )
 
@@ -846,8 +975,12 @@ class HomePageActivity : AppCompatActivity() {
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan },
                     features.find { it.featureName == AppUtils.ListFeatureNames.BuatESPB },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapESPB },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
@@ -855,37 +988,49 @@ class HomePageActivity : AppCompatActivity() {
                 AppUtils.ListFeatureByRoleUser.MandorPanen -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanPanenMPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.DaftarHektarPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.AbsensiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapAbsensiPanen },
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UnduhTPHAsistensi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
 
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.GM -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
-                    )
+                )
 
                 AppUtils.ListFeatureByRoleUser.ASKEP -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
                     features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
-                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
-                    )
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
+                )
 
                 AppUtils.ListFeatureByRoleUser.IT -> features
 
@@ -918,6 +1063,8 @@ class HomePageActivity : AppCompatActivity() {
             featureAdapter = FeatureCardAdapter { featureCard ->
                 onFeatureCardClicked(featureCard)
             }
+
+            featureAdapter?.setLifecycleOwner(this@HomePageActivity)
 
             adapter = featureAdapter
             featureAdapter.setFeatures(filteredFeatures)
@@ -955,12 +1102,12 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun startPeriodicDateTimeChecking() {
         dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
-
     }
 
     override fun onResume() {
         super.onResume()
         checkDateTimeSettings()
+        FeatureStateManager.checkAndUpdateAppVersion(this, prefManager!!)
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
             startPeriodicDateTimeChecking()
         }
@@ -986,23 +1133,30 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    // Update setupUI method
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
+
+        AppLogger.d("prefmanager ${prefManager!!.latestAppVersionSystem}")
         initViewModel()
+        downloadDatasetUtility = DownloadDatasetUtility(prefManager!!, datasetViewModel)
+
         _globalLastSync.value = prefManager!!.lastSyncDate
+        _globalLastSyncDataPanenInspeksi.value = prefManager!!.lastSyncDataPanenInspeksi
+        _globalLastSyncFollowUpInspeksi.value = prefManager!!.lastSyncFollowUpInspeksi
         setupDownloadDialog()
         setupTitleAppNameAndVersion()
         setupName()
         setupLogout()
         datasetViewModel.getAllEstates()
         checkPermissions()
-        checkPermissions() // This will now handle all permissions at once
+        FeatureStateManager.checkAndUpdateAppVersion(this, prefManager!!)
         setupRecyclerView()
         setupCheckingAfterLogoutUser()
         setupObserver()
         prefManager!!.registeredDeviceUsername = prefManager!!.username
+
+        AppLogger.d("estate ${prefManager!!.estateIdUserLogin}")
     }
 
     private fun setupObserver() {
@@ -1061,6 +1215,31 @@ class HomePageActivity : AppCompatActivity() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun onFeatureCardClicked(feature: FeatureCard) {
+        if (FeatureStateManager.isFeatureDisabled(feature.featureName)) {
+            val messageVersion = SpannableStringBuilder("Silakan perbarui aplikasi Anda ke ")
+
+            val latestVersionSpan = SpannableString("versi ${prefManager!!.latestAppVersionSystem}")
+            latestVersionSpan.setSpan(
+                StyleSpan(Typeface.BOLD),
+                0,
+                latestVersionSpan.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+
+            messageVersion.append(latestVersionSpan)
+            messageVersion.append(" untuk menggunakan fitur ini.")
+
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                "OK",
+                "Pembaruan Diperlukan",
+                messageVersion,
+                "warning.json",
+                R.color.colorRedDark
+            ) {
+            }
+            return
+        }
 
         vibrate()
         when (feature.featureName) {
@@ -1068,172 +1247,49 @@ class HomePageActivity : AppCompatActivity() {
                 if (feature.displayType == DisplayType.ICON) {
                     lifecycleScope.launch {
                         try {
-                            // Get afdeling ID from preferences
-                            val afdelingId = prefManager!!.afdelingIdUserLogin
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
-                            if (afdelingId == "X" || afdelingId!!.isEmpty()) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Afdeling tidak valid",
-                                    "Data afdeling saat ini adalah $afdelingId",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
+                            AppLogger.d("jabatan user $jabatanUser")
 
-                            // Check afdeling data and sinkronisasi_otomatis
-                            val afdelingDeferred = CompletableDeferred<AfdelingModel?>()
+                            // Validate afdeling and get afdeling data
+                            val afdeling = ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            )
 
-                            withContext(Dispatchers.IO) {
-                                val afdelingData =
-                                    datasetViewModel.getAfdelingById(afdelingId!!.toInt())
-                                afdelingDeferred.complete(afdelingData)
-                            }
+                            // If afdeling validation failed and we're not skipping, return
+                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
 
-                            val afdeling = afdelingDeferred.await()
+                            // Check sync requirement based on afdeling settings
+                            val isSyncValid = ValidationSyncHelper.validateSyncRequirement(
+                                this@HomePageActivity,
+                                afdeling,
+                                prefManager
+                            )
 
-                            if (afdeling == null) {
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Afdeling Tidak Ditemukan",
-                                    "Data afdeling tidak ditemukan di database lokal. Silakan sinkronisasi terlebih dahulu.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                                return@launch
-                            }
+                            if (!isSyncValid) return@launch
 
-                            // Check sinkronisasi_otomatis value
-                            if (afdeling.sinkronisasi_otomatis != 0) {
-                                // Check if sinkronisasi is required
-                                val lastSyncDateTime = prefManager!!.lastSyncDate
-                                val lastSyncDate =
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                        SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).parse(lastSyncDateTime)!!
-                                    )
-                                val currentDate = SimpleDateFormat(
-                                    "yyyy-MM-dd",
-                                    Locale.getDefault()
-                                ).format(Date())
+                            // Validate present karyawan
+                            val presentKaryawan = ValidationSyncHelper.validatePresentKaryawan(
+                                this@HomePageActivity,
+                                this@HomePageActivity,
+                                absensiViewModel,
+                                panenViewModel
+                            ) ?: return@launch
 
-                                if (lastSyncDate != currentDate) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@HomePageActivity,
-                                        "Kembali",
-                                        "Sinkronisasi Database Diperlukan",
-                                        "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) {
-                                        // Do nothing on click
-                                    }
-                                    return@launch
-                                }
-                            }
-
-                            // All validations passed, proceed with attendance check
-                            val absensiDeferred =
-                                CompletableDeferred<List<AbsensiKemandoranRelations>>()
-
-                            absensiViewModel.loadActiveAbsensi()
-                            delay(100)
-
-                            withContext(Dispatchers.Main) {
-                                absensiViewModel.activeAbsensiList.observe(this@HomePageActivity) { absensiWithRelations ->
-                                    val absensiData = absensiWithRelations ?: emptyList()
-                                    absensiDeferred.complete(absensiData)
-                                }
-                            }
-
-                            // Wait for absensi data
-                            val absensiData = absensiDeferred.await()
-
-                            // Extract all NIKs of present karyawan from all absensi entries
-                            val presentNikSet = mutableSetOf<String>()
-                            absensiData.forEach { absensiRelation ->
-                                val absensi = absensiRelation.absensi
-                                // Split the comma-separated NIK string and add each NIK to the set
-                                val niks = absensi.karyawan_msk_nik.split(",")
-                                presentNikSet.addAll(niks.filter {
-                                    it.isNotEmpty() && it.trim().isNotEmpty()
-                                })
-                            }
-
-                            val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
-
-                            panenViewModel.getAllKaryawan()
-                            delay(100)
-
-                            withContext(Dispatchers.Main) {
-                                panenViewModel.allKaryawanList.observe(this@HomePageActivity) { list ->
-                                    val allKaryawan = list ?: emptyList()
-
-                                    // Only filter if presentNikSet has values
-                                    val presentKaryawan = if (presentNikSet.isNotEmpty()) {
-                                        // Filter to get only present karyawan
-                                        allKaryawan.filter { karyawan ->
-                                            karyawan.nik != null && presentNikSet.contains(karyawan.nik)
-                                        }
-                                    } else {
-                                        emptyList()
-                                    }
-
-                                    AppLogger.d("Total karyawan: ${allKaryawan.size}")
-                                    AppLogger.d("Filtered to present karyawan: ${presentKaryawan.size}")
-
-                                    // Complete the deferred with the filtered karyawan
-                                    karyawanDeferred.complete(presentKaryawan)
-                                }
-                            }
-
-                            // Wait for karyawan data
-                            val presentKaryawan = karyawanDeferred.await()
-
-                            // Check if presentKaryawan is empty
-                            if (presentKaryawan.isEmpty()) {
-                                // Show alert if no present karyawan found
-                                AlertDialogUtility.withSingleAction(
-                                    this@HomePageActivity,
-                                    "Kembali",
-                                    "Data Karyawan Tidak Hadir",
-                                    "Tidak ditemukan data kehadiran karyawan untuk hari ini.\nSilakan melakukan scan QR Absensi dari Mandor Panen.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Do nothing on click
-                                }
-                            } else {
-                                // Present karyawan found, proceed to activity
-                                val intent = Intent(
-                                    this@HomePageActivity,
-                                    FeaturePanenTBSActivity::class.java
-                                )
-                                intent.putExtra("FEATURE_NAME", feature.featureName)
-                                startActivity(intent)
-                            }
+                            // All validations passed, proceed to activity
+                            val intent =
+                                Intent(this@HomePageActivity, FeaturePanenTBSActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
 
                         } catch (e: Exception) {
                             AppLogger.e("Error in validation checks: ${e.message}")
-                            AlertDialogUtility.withSingleAction(
-                                this@HomePageActivity,
-                                "Kembali",
-                                "Terjadi Kesalahan",
-                                "Gagal melakukan validasi data. Silakan coba lagi.",
-                                "error.json",
-                                R.color.colorRedDark
-                            ) {
-                                // Do nothing on click
-                            }
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
                         }
                     }
                 }
@@ -1249,42 +1305,137 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.AsistensiEstateLain -> {
                 if (feature.displayType == DisplayType.ICON) {
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
-                    AlertDialogUtility.withTwoActions(
-                        this,
-                        "Ya",
-                        getString(R.string.confirmation_asistensi_estate),
-                        getString(R.string.al_confirm_asistensi),
-                        "warning.json",
-                        ContextCompat.getColor(this, R.color.bluedarklight),
-                        function = {
-                            vibrate()
-                            val intent = Intent(this, FeaturePanenTBSActivity::class.java)
-                            intent.putExtra("FEATURE_NAME", feature.featureName)
-                            startActivity(intent)
-                        },
-                        cancelFunction = { }
-                    )
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
 
+                            // Validate sync date (you may need to specify which sync date to check)
+                            val lastSyncDateTime =
+                                prefManager?.lastSyncDate // or whatever sync property you want to check
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (!isSyncValid) return@launch
+
+                            // All validations passed, show confirmation dialog
+                            AlertDialogUtility.withTwoActions(
+                                this@HomePageActivity,
+                                "Ya",
+                                getString(R.string.confirmation_asistensi_estate),
+                                getString(R.string.al_confirm_asistensi),
+                                "warning.json",
+                                ContextCompat.getColor(
+                                    this@HomePageActivity,
+                                    R.color.bluedarklight
+                                ),
+                                function = {
+                                    vibrate()
+                                    val intent = Intent(
+                                        this@HomePageActivity,
+                                        FeaturePanenTBSActivity::class.java
+                                    )
+                                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                                    startActivity(intent)
+                                },
+                                cancelFunction = { }
+                            )
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.ScanHasilPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date - adjust the sync property as needed
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.BuatESPB -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
-
 
             AppUtils.ListFeatureNames.RekapESPB -> {
                 if (feature.displayType == DisplayType.COUNT) {
@@ -1304,150 +1455,45 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.InspeksiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    AlertDialogUtility.withTwoActions(
-                        this,
-                        "Unduh/Perbarui Data Panen",
-                        getString(R.string.confirmation_dialog_title),
-                        getString(R.string.al_confirm_download_data_panen_case_inspection),
-                        "warning.json",
-                        ContextCompat.getColor(this, R.color.bluedarklight),
-                        cancelText = "Lanjutkan Isi Form Inspeksi",
-                        function = {
-                            isTriggerFeatureInspection = true
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Sedang mempersiapkan data...")
-                            lifecycleScope.launch {
-                                try {
-                                    delay(500)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
-                                    val isMandor1 = prefManager!!.jabatanUserLogin!!.contains(
-                                        AppUtils.ListFeatureByRoleUser.Mandor1,
-                                        ignoreCase = true
-                                    )
-                                    val isAsisten = prefManager!!.jabatanUserLogin!!.contains(
-                                        AppUtils.ListFeatureByRoleUser.Asisten,
-                                        ignoreCase = true
-                                    )
+                            AppLogger.d("jabatan user $jabatanUser")
+                            AppLogger.d("shouledSKip $shouldSkipAfdelingCheck")
 
-                                    val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
-                                        AppUtils.ListFeatureByRoleUser.KeraniPanen,
-                                        ignoreCase = true
-                                    )
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
 
-                                    var previewDataPanenInspeksi = ""
-                                    val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
-                                    val afdelingIdString = prefManager!!.afdelingIdUserLogin
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDataPanenInspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
 
-                                    // Validate afdelingId and get valid integer value
-                                    var validAfdelingId: Int? = null
-
-                                    if (!isKeraniPanen) {
-
-                                        // Check if afdelingId is null or empty
-                                        if (afdelingIdString.isNullOrEmpty()) {
-                                            AppLogger.d("afdelingId is null or empty - blocking user")
-                                            withContext(Dispatchers.Main) {
-                                                previewDataPanenInspeksi =
-                                                    "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
-                                            }
-                                        } else {
-                                            // Try to convert afdelingId to integer
-                                            validAfdelingId = try {
-                                                afdelingIdString.toInt()
-                                            } catch (e: NumberFormatException) {
-                                                AppLogger.d("NumberFormatException caught: ${e.message}")
-                                                null
-                                            }
-
-                                            // If conversion failed, set error message
-                                            if (validAfdelingId == null) {
-                                                AppLogger.d("afdelingId is not a valid integer - blocking user")
-                                                withContext(Dispatchers.Main) {
-                                                    previewDataPanenInspeksi =
-                                                        "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
-                                                }
-                                            } else {
-                                                AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
-                                            }
-                                        }
-                                    } else {
-                                        AppLogger.d("Validation skipped - user is Kerani Panen")
-                                    }
-
-                                    // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                    if ((!isKeraniPanen) && validAfdelingId != null) {
-                                        // Create a deferred result that will be completed when data is received
-                                        val dataPanenInspeksiDeffered =
-                                            CompletableDeferred<String>()
-
-                                        // Set up the observer for restanPreviewData
-                                        val dataPanenObserver = Observer<String> { data ->
-                                            if (!dataPanenInspeksiDeffered.isCompleted) {
-                                                dataPanenInspeksiDeffered.complete(data)
-                                            }
-                                        }
-
-                                        // Register the observer
-                                        datasetViewModel.dataPanenInspeksiPreview.observe(
-                                            this@HomePageActivity,
-                                            dataPanenObserver
-                                        )
-
-                                        // Start the API request with validated afdelingId
-                                        datasetViewModel.getPreviewDataPanenInspeksiWeek(
-                                            estateIdString,
-                                            validAfdelingId.toString()
-                                        )
-
-                                        try {
-                                            // Wait for the API response with a timeout
-                                            previewDataPanenInspeksi = withTimeout(15000) {
-                                                dataPanenInspeksiDeffered.await()
-                                            }
-
-                                            AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
-
-                                            // Remove the observer to prevent memory leaks
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                    dataPanenObserver
-                                                )
-                                            }
-                                        } catch (e: Exception) {
-                                            // Clean up observer in case of timeout or error
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                    dataPanenObserver
-                                                )
-                                            }
-                                            AppLogger.e("Error getting restan data: ${e.message}")
-                                            // Don't throw here, we'll continue with empty previewDataPanenInspeksi
-                                        }
-                                    } else {
-                                        AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
-                                    }
-
-                                    loadingDialog.dismiss()
-                                    withContext(Dispatchers.Main) {
-                                        startDownloads(previewDataPanenInspeksi, "Unduh Data Panen")
-                                    }
-                                } catch (e: Exception) {
-                                    // Handle any errors
-                                    AppLogger.d("Loading estates failed: ${e.message}")
-                                    withContext(Dispatchers.Main) {
-                                        loadingDialog.dismiss()
-                                        showErrorDialog("Error loading estates data: ${e.message}")
-                                    }
-                                }
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    FormInspectionActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
                             }
-                        },
-                        cancelFunction = {
-                            val intent = Intent(this, FormInspectionActivity::class.java)
-                            intent.putExtra("FEATURE_NAME", feature.featureName)
-                            startActivity(intent)
-                        }
-                    )
 
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
@@ -1461,154 +1507,86 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.FollowUpInspeksi -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    AlertDialogUtility.withTwoActions(
-                        this,
-                        "Unduh/Perbarui Data Inspeksi",
-                        getString(R.string.confirmation_dialog_title),
-                        getString(R.string.al_confirm_download_data_inspeksi_case_inspection),
-                        "warning.json",
-                        ContextCompat.getColor(this, R.color.greenDarker),
-                        cancelText = "Lanjutkan Follow Up",
-                        function = {
-                            isTriggerFeatureInspection = false
-                            isTriggerFollowUp = true
-                            loadingDialog.show()
-                            loadingDialog.setMessage("Sedang mempersiapkan data...")
-                            lifecycleScope.launch {
-                                try {
-                                    delay(500)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
-                                    val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
-                                        AppUtils.ListFeatureByRoleUser.KeraniPanen,
-                                        ignoreCase = true
-                                    )
+                            AppLogger.d("jabatan user $jabatanUser")
 
-                                    var previewDataInspeksi = ""
-                                    val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
-                                    val afdelingIdString = prefManager!!.afdelingIdUserLogin
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
 
-                                    // Validate afdelingId and get valid integer value
-                                    var validAfdelingId: Int? = null
-
-                                    if (!isKeraniPanen) {
-                                        AppLogger.d("Validation triggered for Mandor Panen or Asisten")
-
-                                        // Check if afdelingId is null or empty
-                                        if (afdelingIdString.isNullOrEmpty()) {
-                                            AppLogger.d("afdelingId is null or empty - blocking user")
-                                            withContext(Dispatchers.Main) {
-                                                previewDataInspeksi =
-                                                    "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
-                                            }
-                                        } else {
-                                            // Try to convert afdelingId to integer
-                                            validAfdelingId = try {
-                                                afdelingIdString.toInt()
-                                            } catch (e: NumberFormatException) {
-                                                AppLogger.d("NumberFormatException caught: ${e.message}")
-                                                null
-                                            }
-
-                                            // If conversion failed, set error message
-                                            if (validAfdelingId == null) {
-                                                AppLogger.d("afdelingId is not a valid integer - blocking user")
-                                                withContext(Dispatchers.Main) {
-                                                    previewDataInspeksi =
-                                                        "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
-                                                }
-                                            } else {
-                                                AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
-                                            }
-                                        }
-                                    } else {
-                                        AppLogger.d("Validation skipped - user is Kerani Panen")
-                                    }
-
-                                    // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                    if ((!isKeraniPanen) && validAfdelingId != null) {
-                                        // Create a deferred result that will be completed when data is received
-                                        val dataPanenInspeksiDeffered =
-                                            CompletableDeferred<String>()
-
-                                        // Set up the observer for restanPreviewData
-                                        val dataPanenObserver = Observer<String> { data ->
-                                            if (!dataPanenInspeksiDeffered.isCompleted) {
-                                                dataPanenInspeksiDeffered.complete(data)
-                                            }
-                                        }
-
-                                        // Register the observer
-                                        datasetViewModel.dataPanenInspeksiPreview.observe(
-                                            this@HomePageActivity,
-                                            dataPanenObserver
-                                        )
-
-                                        // Start the API request with validated afdelingId
-                                        datasetViewModel.getPreviewDataInspeksiWeek(
-                                            estateIdString,
-                                            validAfdelingId.toString()
-                                        )
-
-                                        try {
-                                            // Wait for the API response with a timeout
-                                            previewDataInspeksi = withTimeout(15000) {
-                                                dataPanenInspeksiDeffered.await()
-                                            }
-
-                                            AppLogger.d("previewDataInspeksi $previewDataInspeksi")
-
-                                            // Remove the observer to prevent memory leaks
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                    dataPanenObserver
-                                                )
-                                            }
-                                        } catch (e: Exception) {
-                                            // Clean up observer in case of timeout or error
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                    dataPanenObserver
-                                                )
-                                            }
-                                            AppLogger.e("Error getting restan data: ${e.message}")
-                                            // Don't throw here, we'll continue with empty previewDataInspeksi
-                                        }
-                                    } else {
-                                        AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
-                                    }
-
-                                    loadingDialog.dismiss()
-                                    withContext(Dispatchers.Main) {
-                                        startDownloads(previewDataInspeksi, "Unduh Data Panen")
-                                    }
-                                } catch (e: Exception) {
-                                    // Handle any errors
-                                    AppLogger.d("Loading estates failed: ${e.message}")
-                                    withContext(Dispatchers.Main) {
-                                        loadingDialog.dismiss()
-                                        showErrorDialog("Error loading estates data: ${e.message}")
-                                    }
-                                }
-                            }
-                        },
-                        cancelFunction = {
-                            val intent = Intent(this, ListFollowUpInspeksi::class.java)
-                            intent.putExtra(
-                                "FEATURE_NAME",
-                                AppUtils.ListFeatureNames.ListFollowUpInspeksi
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncFollowUpInspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
                             )
-                            startActivity(intent)
-                        }
-                    )
 
+                            if (isSyncValid) {
+                                val intent =
+                                    Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
+                                intent.putExtra(
+                                    "FEATURE_NAME",
+                                    AppUtils.ListFeatureNames.ListFollowUpInspeksi
+                                )
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.AbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, FeatureAbsensiActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    FeatureAbsensiActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
@@ -1643,12 +1621,30 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             if (mill.sinkronisasi_pks == "1") {
-                                try {
-                                    val lastSyncDateTime = prefManager!!.lastSyncDate
-                                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                    val currentDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                val lastSyncDateTime = prefManager!!.lastSyncDate
 
-                                    val lastSyncDate = currentDateFormat.format(dateFormat.parse(lastSyncDateTime)!!)
+                                if (lastSyncDateTime.isNullOrEmpty()) {
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Sinkronisasi Database Diperlukan",
+                                        "Database belum pernah disinkronisasi. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
+                                    return@launch
+                                }
+
+                                try {
+                                    val dateFormat =
+                                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                    val currentDateFormat =
+                                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+                                    val lastSyncDate =
+                                        currentDateFormat.format(dateFormat.parse(lastSyncDateTime)!!)
                                     val currentDate = currentDateFormat.format(Date())
 
                                     if (lastSyncDate != currentDate) {
@@ -1666,13 +1662,23 @@ class HomePageActivity : AppCompatActivity() {
                                     }
                                 } catch (dateException: Exception) {
                                     AppLogger.e("Error parsing sync date: ${dateException.message}")
-                                    showErrorDialog("Error dalam validasi tanggal sinkronisasi.")
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Sinkronisasi Database Diperlukan",
+                                        "Data sinkronisasi tidak valid. Silakan lakukan sinkronisasi ulang terlebih dahulu sebelum menggunakan fitur ini.",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {
+                                        // Do nothing on click
+                                    }
                                     return@launch
                                 }
                             }
 
                             // Launch the activity (this was missing in your else block)
-                            val intent = Intent(this@HomePageActivity, ScanWeighBridgeActivity::class.java)
+                            val intent =
+                                Intent(this@HomePageActivity, ScanWeighBridgeActivity::class.java)
                             intent.putExtra("FEATURE_NAME", feature.featureName)
                             startActivity(intent)
 
@@ -1692,35 +1698,202 @@ class HomePageActivity : AppCompatActivity() {
                 }
             }
 
-            AppUtils.ListFeatureNames.ScanESPBTimbanganMill -> {
-                if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanWeighBridgeActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
-                }
-            }
-
             AppUtils.ListFeatureNames.ScanPanenMPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanQR::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.DaftarHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, ListHistoryESPBActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    ListHistoryESPBActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
             AppUtils.ListFeatureNames.TransferHektarPanen -> {
                 if (feature.displayType == DisplayType.COUNT) {
-                    val intent = Intent(this, TransferHektarPanenActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(
+                                    this@HomePageActivity,
+                                    TransferHektarPanenActivity::class.java
+                                )
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
+                }
+            }
+
+            AppUtils.ListFeatureNames.TransferInspeksiPanen -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime =
+                                prefManager?.lastSyncFollowUpInspeksi // Use specific sync for inspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent =
+                                    Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
+                }
+            }
+
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime =
+                                prefManager?.lastSyncDate // Use specific sync for inspeksi
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 
@@ -1730,7 +1903,8 @@ class HomePageActivity : AppCompatActivity() {
                     val view = LayoutInflater.from(this)
                         .inflate(R.layout.layout_bottom_sheet_edit_nama_pemanen, null)
 
-                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text = "Unduh Data Master TPH Asistensi"
+                    view.findViewById<TextView>(R.id.titleDialogDetailTable).text =
+                        "Unduh Data Master TPH Asistensi"
 
                     view.findViewById<Button>(R.id.btnCancel).setOnClickListener {
                         bottomSheetDialog.dismiss()
@@ -1751,8 +1925,10 @@ class HomePageActivity : AppCompatActivity() {
 
                     try {
                         val editText = layoutMasterDept.findViewById<EditText>(R.id.etHomeMarkerTPH)
-                        val spinner = layoutMasterDept.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                        val tvError = layoutMasterDept.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                        val spinner =
+                            layoutMasterDept.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                        val tvError =
+                            layoutMasterDept.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
 
                         spinner.setItems(estateNames)
 
@@ -1790,7 +1966,10 @@ class HomePageActivity : AppCompatActivity() {
                                                 estate?.let {
                                                     val estateId = it.id ?: 0
                                                     val estateAbbr = it.abbr ?: "unknown"
-                                                    val lastModified = prefManager!!.getEstateLastModified(estateAbbr)
+                                                    val lastModified =
+                                                        prefManager!!.getEstateLastModified(
+                                                            estateAbbr
+                                                        )
 
                                                     Log.d(
                                                         "Estate Download",
@@ -1818,7 +1997,6 @@ class HomePageActivity : AppCompatActivity() {
                                     )
 
 
-
                                 }
                             } else {
                                 AlertDialogUtility.withSingleAction(
@@ -1837,7 +2015,8 @@ class HomePageActivity : AppCompatActivity() {
 
                         fun ensureKeyboardHidden() {
                             try {
-                                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                                val imm =
+                                    getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                                 imm.hideSoftInputFromWindow(layoutMasterDept.windowToken, 0)
                                 editText.clearFocus()
                             } catch (e: Exception) {
@@ -1847,7 +2026,8 @@ class HomePageActivity : AppCompatActivity() {
 
                         fun updateButtonText(selectedItems: Map<String, Boolean>) {
                             val count = selectedItems.count { it.value }
-                            downloadButton.text = if (count > 0) "Unduh $count master dataset" else "Unduh Master"
+                            downloadButton.text =
+                                if (count > 0) "Unduh $count master dataset" else "Unduh Master"
                         }
 
                         spinner.setOnTouchListener { _, event ->
@@ -1868,12 +2048,20 @@ class HomePageActivity : AppCompatActivity() {
                                             val selectedEstate = estateList[position]
                                             AppLogger.d(selectedEstate.toString())
                                         } catch (e: Exception) {
-                                            Log.e("SetupSpinnerView", "Error in item selection: ${e.message}", e)
+                                            Log.e(
+                                                "SetupSpinnerView",
+                                                "Error in item selection: ${e.message}",
+                                                e
+                                            )
                                         }
                                     }
                                 }
                             } catch (e: Exception) {
-                                Log.e("SetupSpinnerView", "Error in touch listener: ${e.message}", e)
+                                Log.e(
+                                    "SetupSpinnerView",
+                                    "Error in touch listener: ${e.message}",
+                                    e
+                                )
                             }
                             true
                         }
@@ -1883,7 +2071,11 @@ class HomePageActivity : AppCompatActivity() {
                             val selectedCount = masterEstateHasBeenChoice.count { it.value }
                             updateButtonText(masterEstateHasBeenChoice)
                         } catch (e: Exception) {
-                            Log.e("SetupSpinnerView", "Error processing selection count: ${e.message}", e)
+                            Log.e(
+                                "SetupSpinnerView",
+                                "Error processing selection count: ${e.message}",
+                                e
+                            )
                         }
 
                     } catch (e: Exception) {
@@ -1922,34 +2114,46 @@ class HomePageActivity : AppCompatActivity() {
                                 // Start data loading
                                 datasetViewModel.getAllEstates()
 
-                                val isMandor1 = prefManager!!.jabatanUserLogin!!.contains(
-                                    AppUtils.ListFeatureByRoleUser.Mandor1,
-                                    ignoreCase = true
-                                )
-                                val isAsisten = prefManager!!.jabatanUserLogin!!.contains(
-                                    AppUtils.ListFeatureByRoleUser.Asisten,
-                                    ignoreCase = true
-                                )
-
+                                var previewDataPanenInspeksi = ""
                                 var previewRestanData = ""
-                                val estateIdString = prefManager!!.estateIdUserLogin!!.toInt()
+                                var previewDataFollowUpInspeksi = ""
+                                val estateIdString = prefManager!!.estateIdUserLogin!!
+
+
                                 val afdelingIdString = prefManager!!.afdelingIdUserLogin
 
                                 // Add debug logging
-                                AppLogger.d("User role: ${prefManager!!.jabatanUserLogin}")
-                                AppLogger.d("afdelingIdString: $afdelingIdString")
-                                AppLogger.d("isMandor1: $isMandor1")
-                                AppLogger.d("isAsisten: $isAsisten")
+                                val isKeraniPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.KeraniPanen,
+                                    ignoreCase = true
+                                )
+
+                                val isGM = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.GM,
+                                    ignoreCase = true
+                                )
+
+                                val isMandorPanen = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.MandorPanen,
+                                    ignoreCase = true
+                                )
+
+                                val estateIds = if (isGM && estateIdString!!.contains(",")) {
+                                    estateIdString.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .map { it.toInt() }
+                                } else {
+                                    estateIdString!!.toInt()
+                                }
+
 
                                 // Validate afdelingId and get valid integer value
                                 var validAfdelingId: Int? = null
 
-                                if (isMandor1 || isAsisten) {
-                                    AppLogger.d("Validation triggered for Mandor Panen or Asisten")
-
+                                if (!isKeraniPanen && !isGM) {
                                     // Check if afdelingId is null or empty
                                     if (afdelingIdString.isNullOrEmpty()) {
-                                        AppLogger.d("afdelingId is null or empty - blocking user")
                                         withContext(Dispatchers.Main) {
                                             previewRestanData =
                                                 "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
@@ -1978,56 +2182,139 @@ class HomePageActivity : AppCompatActivity() {
                                     AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
                                 }
 
-                                // Only call API if user is Mandor1/Asisten AND afdelingId is valid
-                                if ((isMandor1 || isAsisten) && validAfdelingId != null) {
-                                    // Create a deferred result that will be completed when data is received
-                                    val restanDataDeferred = CompletableDeferred<String>()
+                                if (!isKeraniPanen) {
+                                    if (!isGM && !isMandorPanen) {
+                                        val restanDataDeferred = CompletableDeferred<String>()
+                                        val restanObserver = Observer<String> { data ->
+                                            if (!restanDataDeferred.isCompleted) {
+                                                restanDataDeferred.complete(data)
+                                            }
+                                        }
+                                        datasetViewModel.restanPreviewData.observe(
+                                            this@HomePageActivity,
+                                            restanObserver
+                                        )
+
+                                        datasetViewModel.getPreviewDataRestanWeek(
+                                            estateIdString.toInt(),
+                                            validAfdelingId.toString()
+                                        )
+                                        try {
+                                            previewRestanData = withTimeout(15000) {
+                                                restanDataDeferred.await()
+                                            }
+
+                                            AppLogger.d("previewRestanData $previewRestanData")
+
+                                            // Remove the observer to prevent memory leaks
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.restanPreviewData.removeObserver(
+                                                    restanObserver
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            // Clean up observer in case of timeout or error
+                                            withContext(Dispatchers.Main) {
+                                                datasetViewModel.restanPreviewData.removeObserver(
+                                                    restanObserver
+                                                )
+                                            }
+
+                                        }
+                                    } else {
+                                        AppLogger.d("Skipping restan data fetch - GM or Mandor Panen role doesn't have afdeling")
+                                    }
+
+                                    // === DATA PANEN INSPEKSI API (doesn't require afdeling - can call for all roles) ===
+                                    val dataPanenInspeksiDeffered = CompletableDeferred<String>()
 
                                     // Set up the observer for restanPreviewData
-                                    val restanObserver = Observer<String> { data ->
-                                        if (!restanDataDeferred.isCompleted) {
-                                            restanDataDeferred.complete(data)
+                                    val dataPanenObserver = Observer<String> { data ->
+                                        if (!dataPanenInspeksiDeffered.isCompleted) {
+                                            dataPanenInspeksiDeffered.complete(data)
                                         }
                                     }
 
                                     // Register the observer
-                                    datasetViewModel.restanPreviewData.observe(
+                                    datasetViewModel.dataPanenInspeksiPreview.observe(
                                         this@HomePageActivity,
-                                        restanObserver
+                                        dataPanenObserver
                                     )
 
-                                    // Start the API request with validated afdelingId
-                                    datasetViewModel.getPreviewDataRestanWeek(
+                                    datasetViewModel.getPreviewDataPanenInspeksiWeek(
+                                        estateIds,
+                                    )
+
+                                    try {
+                                        previewDataPanenInspeksi = withTimeout(15000) {
+                                            dataPanenInspeksiDeffered.await()
+                                        }
+
+                                        withContext(Dispatchers.Main) {
+                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                dataPanenObserver
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+                                                dataPanenObserver
+                                            )
+                                        }
+                                    }
+
+                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
+
+                                    // === FOLLOW UP INSPEKSI API (requires afdeling - skip for GM) ===
+//                                    if (!isGM) {
+                                    val dataFollowUpInspeksiDeferred =
+                                        CompletableDeferred<String>()
+
+                                    val dataFollowUpInspeksiObserver =
+                                        Observer<String> { data ->
+                                            if (!dataFollowUpInspeksiDeferred.isCompleted) {
+                                                dataFollowUpInspeksiDeferred.complete(data)
+                                            }
+                                        }
+
+                                    datasetViewModel.followUpInspeksiPreview.observe(
+                                        this@HomePageActivity,
+                                        dataFollowUpInspeksiObserver
+                                    )
+
+                                    datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
                                         estateIdString,
                                         validAfdelingId.toString()
                                     )
 
                                     try {
-                                        // Wait for the API response with a timeout
-                                        previewRestanData = withTimeout(15000) {
-                                            restanDataDeferred.await()
+                                        // ✅ FIXED - Await correct deferred
+                                        previewDataFollowUpInspeksi = withTimeout(15000) {
+                                            dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
                                         }
 
-                                        AppLogger.d("previewRestanData $previewRestanData")
+                                        AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
 
-                                        // Remove the observer to prevent memory leaks
                                         withContext(Dispatchers.Main) {
-                                            datasetViewModel.restanPreviewData.removeObserver(
-                                                restanObserver
+                                            // ✅ FIXED - Remove from correct LiveData
+                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
+                                                dataFollowUpInspeksiObserver
                                             )
                                         }
                                     } catch (e: Exception) {
-                                        // Clean up observer in case of timeout or error
                                         withContext(Dispatchers.Main) {
-                                            datasetViewModel.restanPreviewData.removeObserver(
-                                                restanObserver
+                                            // ✅ FIXED - Remove from correct LiveData
+                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
+                                                dataFollowUpInspeksiObserver
                                             )
                                         }
-                                        AppLogger.e("Error getting restan data: ${e.message}")
-                                        // Don't throw here, we'll continue with empty previewRestanData
+                                        AppLogger.e("Error getting follow up data: ${e.message}")
                                     }
+//                                    } else {
+//                                        AppLogger.d("Skipping follow up inspeksi data fetch - GM role doesn't have afdeling")
+//                                    }
                                 } else {
-                                    AppLogger.d("Skipping restan data fetch - either user is not Mandor1/Asisten or afdelingId is invalid")
+                                    AppLogger.d("Skipping all API calls - either user is not Mandor1/Asisten or afdelingId is invalid")
                                 }
 
                                 // Wait for estates list with timeout
@@ -2038,7 +2325,12 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 withContext(Dispatchers.Main) {
-                                    startDownloads(previewRestanData, "Sinkronisasi Data")
+                                    startDownloads(
+                                        previewRestanData,
+                                        previewDataPanenInspeksi,
+                                        previewDataFollowUpInspeksi,
+                                        "Sinkronisasi Data"
+                                    )
                                 }
                             } catch (e: Exception) {
                                 // Handle any errors
@@ -2063,7 +2355,6 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
             }
-
 
             AppUtils.ListFeatureNames.UploadDataCMP -> {
                 if (feature.displayType == DisplayType.ICON) {
@@ -2165,6 +2456,57 @@ class HomePageActivity : AppCompatActivity() {
 
                 }
             }
+
+            AppUtils.ListFeatureNames.MutuBuah -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling and get afdeling data
+                            val afdeling = ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            )
+
+                            // If afdeling validation failed and we're not skipping, return
+                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
+
+                            // Check sync requirement based on afdeling settings
+                            val isSyncValid = ValidationSyncHelper.validateSyncRequirement(
+                                this@HomePageActivity,
+                                afdeling,
+                                prefManager
+                            )
+
+                            if (!isSyncValid) return@launch
+
+
+                            // All validations passed, proceed to activity
+                            val intent =
+                                Intent(this@HomePageActivity, FeaturePanenTBSActivity::class.java)
+                            intent.putExtra("FEATURE_NAME", feature.featureName)
+                            startActivity(intent)
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
+                }
+            }
+
+            AppUtils.ListFeatureNames.RekapMutuBuah -> {
+                if (feature.displayType == DisplayType.COUNT) {
+                    val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
         }
     }
 
@@ -2203,7 +2545,8 @@ class HomePageActivity : AppCompatActivity() {
             val featuresToFetch = listOf(
                 AppUtils.DatabaseTables.ESPB,
                 AppUtils.DatabaseTables.PANEN,
-                AppUtils.DatabaseTables.INSPEKSI
+                AppUtils.DatabaseTables.INSPEKSI,
+                AppUtils.DatabaseTables.MUTU_BUAH
             )
             val combinedUploadData = mutableMapOf<String, Any>()
             lifecycleScope.launch {
@@ -2217,6 +2560,8 @@ class HomePageActivity : AppCompatActivity() {
                 val inspeksiDeferred =
                     CompletableDeferred<List<InspectionWithDetailRelations>>()
                 val zipDeferred = CompletableDeferred<Boolean>()
+                val mutuBuahDeffered =
+                    CompletableDeferred<List<MutuBuahEntity>>()
 
 
                 panenViewModel.loadActivePanenESPBAll()
@@ -2226,6 +2571,15 @@ class HomePageActivity : AppCompatActivity() {
                     panenDeferred.complete(
                         list ?: emptyList()
                     ) // Ensure it's never null
+                }
+
+                mutuBuahViewModel.loadMutuBuahAll()
+                delay(100)
+                mutuBuahViewModel.mutuBuahList.observeOnce(this@HomePageActivity) { list ->
+                    Log.d("UploadCheck", "MutuBuah Data Size: ${list.size}")
+                    mutuBuahDeffered.complete(
+                        list
+                    )
                 }
 
                 // Load ESPB Data
@@ -2270,6 +2624,7 @@ class HomePageActivity : AppCompatActivity() {
                 var unzippedPanenData: List<Map<String, Any>> = emptyList()
                 var unzippedESPBData: List<Map<String, Any>> = emptyList()
                 var unzippedHektaranData: List<Map<String, Any>> = emptyList()
+                var unzippedMutuBuah: List<Map<String, Any>> = emptyList()
                 var unzippedAbsensiData: List<Map<String, Any>> = emptyList()
                 var unzippedInspeksiData = mutableListOf<Map<String, Any>>()
 
@@ -2277,7 +2632,8 @@ class HomePageActivity : AppCompatActivity() {
                 var mappedESPBData: List<Map<String, Any>> = emptyList()
                 var mappedInspeksiData = mutableListOf<Map<String, Any>>()
                 var allPhotosInspeksi = mutableListOf<Map<String, String>>()
-
+                var allPhotosMutuBuah = mutableListOf<Map<String, String>>()
+                var allSelfiesMutuBuah = mutableListOf<Map<String, String>>()
                 var allPhotosPanen = mutableListOf<Map<String, String>>()
                 var allPhotosAbsensi = mutableListOf<Map<String, String>>()
                 var hektaranJson = ""
@@ -2287,6 +2643,7 @@ class HomePageActivity : AppCompatActivity() {
                     val espbList = espbDeferred.await()
                     val absensiList = absensiDeferred.await()
                     val hektarPanenList = hektarPanenDeferred.await()
+                    val mutuBuahList = mutuBuahDeffered.await()
                     val inspeksiList = inspeksiDeferred.await()
 
                     // Prepare to search for photo files in CMP directories
@@ -2586,6 +2943,8 @@ class HomePageActivity : AppCompatActivity() {
                                 "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
                                 "tph" to (panenWithRelations.tph?.id ?: 0) as Int,
                                 "tph_nomor" to (panenWithRelations.tph?.nomor
+                                    ?: ""),
+                                "nomor_pemanen" to (panenWithRelations.panen?.nomor_pemanen
                                     ?: ""),
                                 "ancak" to panenWithRelations.panen.ancak,
                                 "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
@@ -3006,16 +3365,19 @@ class HomePageActivity : AppCompatActivity() {
                                         val dateCreatedPanenList =
                                             data.date_created_panen.split(";")
 
+                                        AppLogger.d("data $data")
                                         // Get kemandoran data (keeping your existing code)
                                         val kemandoranDeferred =
                                             CompletableDeferred<List<KemandoranModel>>()
                                         val kemandoranIds = listOf(data.kemandoran_id ?: "")
 
+
+                                        AppLogger.d("kemandoranids $kemandoranIds")
                                         if (kemandoranIds.first().isNotEmpty()) {
                                             lifecycleScope.launch(Dispatchers.IO) {
                                                 try {
                                                     val kemandoranList =
-                                                        absensiViewModel.getKemandoranById(
+                                                        absensiViewModel.getKemandoranByIdPPRO(
                                                             kemandoranIds
                                                         )
                                                     kemandoranDeferred.complete(kemandoranList)
@@ -3095,6 +3457,8 @@ class HomePageActivity : AppCompatActivity() {
                                         AppLogger.d("Data item: ${data.nik}, Total JJG Panen: $totalJjgPanen")
                                         AppLogger.d("Creating hektaran_detail for Date: $dateOnly, Blok: $blokId, Pemanen: ${data.pemanen_nama}")
 
+                                        AppLogger.d("kemandoranppro $kemandoranPpro ")
+                                        AppLogger.d("kemandoranKode $kemandoranKode ")
                                         // Create single entry with summed values for this data item
                                         detailRecords.add(
                                             mapOf<String, Any>(
@@ -3418,12 +3782,16 @@ class HomePageActivity : AppCompatActivity() {
                                     .filter { it.isNotEmpty() }.map { it.trim() }
 
                                 // Create a deferred to fetch all kemandoran data in one go
-                                val kemandoranDeferred = CompletableDeferred<List<KemandoranModel>>()
+                                val kemandoranDeferred =
+                                    CompletableDeferred<List<KemandoranModel>>()
 
                                 // Fetch kemandoran data from database
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     try {
-                                        val kemandoranList = absensiViewModel.getKemandoranById(kemandoranIds)
+                                        val kemandoranList =
+                                            absensiViewModel.getKemandoranById(
+                                                kemandoranIds
+                                            )
                                         kemandoranDeferred.complete(kemandoranList)
                                     } catch (e: Exception) {
                                         AppLogger.e("Error fetching kemandoran data: ${e.message}")
@@ -3440,7 +3808,8 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // Create a map of ID to KemandoranModel for easy lookup
-                                val kemandoranMap = kemandoranList.associateBy { it.id.toString() }
+                                val kemandoranMap =
+                                    kemandoranList.associateBy { it.id.toString() }
 
                                 // Collect all NIKs from present and absent employees
                                 val allNiks = mutableListOf<String>()
@@ -3460,12 +3829,16 @@ class HomePageActivity : AppCompatActivity() {
                                 )
 
                                 // Create a deferred to fetch all employee data
-                                val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
+                                val karyawanDeferred =
+                                    CompletableDeferred<List<KaryawanModel>>()
 
                                 // Fetch employee data from database
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     try {
-                                        val karyawanList = absensiViewModel.getKaryawanByNikList(allNiks)
+                                        val karyawanList =
+                                            absensiViewModel.getKaryawanByNikList(
+                                                allNiks
+                                            )
                                         karyawanDeferred.complete(karyawanList)
                                     } catch (e: Exception) {
                                         AppLogger.e("Error fetching karyawan data: ${e.message}")
@@ -3481,15 +3854,18 @@ class HomePageActivity : AppCompatActivity() {
                                     emptyList()
                                 }
 
-                                val kemandoranNamaDeferred = CompletableDeferred<KemandoranModel?>()
+
+                                val kemandoranNamaDeferred =
+                                    CompletableDeferred<KemandoranModel?>()
 
                                 // Fetch blok data from database using absensi fields
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     try {
-                                        val blokData = datasetViewModel.getBlokByDivisiAndDept(
-                                            absensi.divisi,
-                                            absensi.dept
-                                        )
+                                        val blokData =
+                                            datasetViewModel.getBlokByDivisiAndDept(
+                                                absensi.divisi,
+                                                absensi.dept
+                                            )
                                         kemandoranNamaDeferred.complete(blokData)
                                     } catch (e: Exception) {
                                         AppLogger.e("Error fetching blok data: ${e.message}")
@@ -3506,12 +3882,14 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // Create a map of NIK to KaryawanModel for easy lookup
-                                val karyawanMap = karyawanList.associateBy { it.nik }
+                                val karyawanMap =
+                                    karyawanList.associateBy { it.nik }
 
                                 // Process each kemandoran ID separately to create individual records
                                 for (singleKemandoranId in kemandoranIds) {
                                     // Get the related kemandoran model for this ID
-                                    val kemandoran = kemandoranMap[singleKemandoranId]
+                                    val kemandoran =
+                                        kemandoranMap[singleKemandoranId]
 
                                     val dateStr = try {
                                         val fullDate = absensi.date_absen ?: ""
@@ -3525,7 +3903,8 @@ class HomePageActivity : AppCompatActivity() {
                                                 Locale.getDefault()
                                             )
                                             val date = inputFormat.parse(fullDate)
-                                            date?.let { outputFormat.format(it) } ?: fullDate
+                                            date?.let { outputFormat.format(it) }
+                                                ?: fullDate
                                         } else {
                                             ""
                                         }
@@ -3540,7 +3919,9 @@ class HomePageActivity : AppCompatActivity() {
                                             "yyyy-MM-dd HH:mm:ss",
                                             Locale.getDefault()
                                         )
-                                        val date = dateFormat.parse(absensi.date_absen ?: "")
+                                        val date = dateFormat.parse(
+                                            absensi.date_absen ?: ""
+                                        )
                                         val outputFormat = SimpleDateFormat(
                                             "yyyy/MM/dd",
                                             Locale.getDefault()
@@ -3557,22 +3938,24 @@ class HomePageActivity : AppCompatActivity() {
                                     }
 
                                     // Create base path for photo, exactly like in panenList
-                                    val basePath = "$formattedDatePath/${prefManager!!.estateUserLogin}/"
+                                    val basePath =
+                                        "$formattedDatePath/${prefManager!!.estateUserLogin}/"
 
                                     // Process the photo filenames to prepend the base path, exactly like in panenList
                                     val originalFotoString = absensi.foto ?: ""
-                                    val modifiedFotoString = if (originalFotoString.contains(";")) {
-                                        // Multiple photos - split, modify each one, and rejoin
-                                        originalFotoString.split(";")
-                                            .map { photoName -> "$basePath${photoName.trim()}" }
-                                            .joinToString(";")
-                                    } else if (originalFotoString.isNotEmpty()) {
-                                        // Single photo - just prepend the base path
-                                        "$basePath$originalFotoString"
-                                    } else {
-                                        // No photos
-                                        ""
-                                    }
+                                    val modifiedFotoString =
+                                        if (originalFotoString.contains(";")) {
+                                            // Multiple photos - split, modify each one, and rejoin
+                                            originalFotoString.split(";")
+                                                .map { photoName -> "$basePath${photoName.trim()}" }
+                                                .joinToString(";")
+                                        } else if (originalFotoString.isNotEmpty()) {
+                                            // Single photo - just prepend the base path
+                                            "$basePath$originalFotoString"
+                                        } else {
+                                            // No photos
+                                            ""
+                                        }
 
                                     // Create structure for this absensi record
                                     val absensiData = mutableMapOf<String, Any>(
@@ -3581,20 +3964,30 @@ class HomePageActivity : AppCompatActivity() {
                                         "tanggal" to (absensi.date_absen ?: ""),
                                         "regional" to (blokData?.regional ?: 0),
                                         "company" to (blokData?.company ?: 0),
-                                        "company_ppro" to (blokData?.company_ppro ?: 0),
-                                        "company_abbr" to (blokData?.company_abbr ?: ""),
-                                        "company_nama" to (blokData?.company_nama ?: ""),
+                                        "company_ppro" to (blokData?.company_ppro
+                                            ?: 0),
+                                        "company_abbr" to (blokData?.company_abbr
+                                            ?: ""),
+                                        "company_nama" to (blokData?.company_nama
+                                            ?: ""), // Not available in BlokModel
                                         "dept" to (absensi.dept ?: 0),
                                         "dept_ppro" to (blokData?.dept_ppro ?: 0),
                                         "dept_abbr" to (absensi.dept_abbr ?: ""),
-                                        "dept_nama" to (blokData?.dept_nama ?: ""),
+                                        "dept_nama" to (blokData?.dept_nama
+                                            ?: ""), // Not available in BlokModel
                                         "divisi" to (absensi.divisi ?: 0),
-                                        "divisi_ppro" to (blokData?.divisi_ppro ?: 0),
-                                        "divisi_abbr" to (absensi.divisi_abbr ?: ""),
-                                        "divisi_nama" to (blokData?.divisi_nama ?: ""),
-                                        "kemandoran_ppro" to (kemandoran?.kemandoran_ppro ?: ""),
-                                        "kemandoran_kode" to (kemandoran?.kode ?: ""),
-                                        "kemandoran_nama" to (kemandoran?.nama ?: ""),
+                                        "divisi_ppro" to (blokData?.divisi_ppro
+                                            ?: 0),
+                                        "divisi_abbr" to (absensi.divisi_abbr
+                                            ?: ""),
+                                        "divisi_nama" to (blokData?.divisi_nama
+                                            ?: ""),
+                                        "kemandoran_ppro" to (kemandoran?.kemandoran_ppro
+                                            ?: ""),
+                                        "kemandoran_kode" to (kemandoran?.kode
+                                            ?: ""),
+                                        "kemandoran_nama" to (kemandoran?.nama
+                                            ?: ""),
                                         "foto" to modifiedFotoString,
                                         "komentar" to (absensi.komentar ?: ""),
                                         "created_by" to (absensi.created_by),
@@ -3626,17 +4019,20 @@ class HomePageActivity : AppCompatActivity() {
                                     // Combine both present and absent maps
                                     val allNikByCategory = nikByCategory.toMutableMap()
                                     nikByCategoryAbsent.forEach { (key, value) ->
-                                        allNikByCategory[key] = (allNikByCategory[key] ?: emptyList()) + value
+                                        allNikByCategory[key] =
+                                            (allNikByCategory[key] ?: emptyList()) + value
                                     }
 
                                     val allIdByCategory = idByCategory.toMutableMap()
                                     idByCategoryAbsent.forEach { (key, value) ->
-                                        allIdByCategory[key] = (allIdByCategory[key] ?: emptyList()) + value
+                                        allIdByCategory[key] =
+                                            (allIdByCategory[key] ?: emptyList()) + value
                                     }
 
                                     val allNameByCategory = nameByCategory.toMutableMap()
                                     nameByCategoryAbsent.forEach { (key, value) ->
-                                        allNameByCategory[key] = (allNameByCategory[key] ?: emptyList()) + value
+                                        allNameByCategory[key] =
+                                            (allNameByCategory[key] ?: emptyList()) + value
                                     }
 
                                     // MODIFIED: Combine work location data properly
@@ -3657,7 +4053,9 @@ class HomePageActivity : AppCompatActivity() {
 
                                         nikList.forEachIndexed { index, nik ->
                                             val karyawan = karyawanMap[nik]
-                                            val employeeName = karyawan?.nama ?: nameList.getOrNull(index).orEmpty()
+                                            val employeeName =
+                                                karyawan?.nama ?: nameList.getOrNull(index)
+                                                    .orEmpty()
 
                                             // Get work location for this employee
                                             val workLocationValue = workLocationList.getOrNull(index)?.trim() ?: ""
@@ -3700,7 +4098,8 @@ class HomePageActivity : AppCompatActivity() {
                                     AppLogger.d("Created ${detailRecords.size} detail records for kemandoran $singleKemandoranId")
 
                                     // Attach detail records
-                                    absensiData[AppUtils.DatabaseTables.ABSENSI_DETAIL] = detailRecords
+                                    absensiData[AppUtils.DatabaseTables.ABSENSI_DETAIL] =
+                                        detailRecords
 
                                     // Add this complete record to our restructured data
                                     restructuredData.add(absensiData)
@@ -3715,26 +4114,27 @@ class HomePageActivity : AppCompatActivity() {
                             // Convert to JSON
                             absensiJson = Gson().toJson(finalData)
 
-                            AppLogger.d("ngbug ges")
-                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
-                            try {
-                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-                                    if (!exists()) mkdirs()
-                                }
-
-                                val filename = "absensi_data_${System.currentTimeMillis()}.json"
-                                val tempFile = File(tempDir, filename)
-
-                                FileOutputStream(tempFile).use { fos ->
-                                    fos.write(absensiJson.toByteArray())
-                                }
-
-                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-                            } catch (e: Exception) {
-                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-                                e.printStackTrace()
-                            }
+//                            try {
+//                                val tempDir =
+//                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
+//
+//                                val filename =
+//                                    "absensi_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
+//
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(absensiJson.toByteArray())
+//                                }
+//
+//                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
 
                             unzippedAbsensiData = restructuredData.filter { item ->
                                 // Get the kemandoran_id from the current item
@@ -3768,9 +4168,9 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
-//                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
                     if (inspeksiList.isNotEmpty()) {
 
+                        AppLogger.d("${inspeksiList.size}")
                         val uniquePhotos = mutableMapOf<String, Map<String, String>>()
 
                         val picturesDirs = listOf(
@@ -3811,28 +4211,37 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("Found CMP directories: ${cmpDirectories.map { it.name }}")
 
                         // Helper function to find photo in appropriate directories based on photo type
-                        fun findPhotoInDirectories(photoName: String, photoType: String, noPokok: Int): File? {
+                        fun findPhotoInDirectories(
+                            photoName: String,
+                            photoType: String,
+                            noPokok: Int
+                        ): File? {
                             val targetDirectories = when {
                                 photoType == "selfie" -> {
                                     // Selfie photos should be in CMP-INSPEKSI_BY_USER
                                     cmpDirectories.filter { it.name == "CMP-INSPEKSI_BY_USER" }
                                 }
+
                                 photoType == "regular" && noPokok == 0 -> {
                                     // TPH regular photos should be in CMP-INSPEKSI_TPH
                                     cmpDirectories.filter { it.name == "CMP-INSPEKSI_TPH" }
                                 }
+
                                 photoType == "regular" && noPokok > 0 -> {
                                     // Pokok regular photos should be in CMP-INSPEKSI_POKOK
                                     cmpDirectories.filter { it.name == "CMP-INSPEKSI_POKOK" }
                                 }
+
                                 photoType == "followup" && noPokok == 0 -> {
                                     // TPH follow-up photos should be in CMP-FU_INSPEKSI_TPH
                                     cmpDirectories.filter { it.name == "CMP-FU_INSPEKSI_TPH" }
                                 }
+
                                 photoType == "followup" && noPokok > 0 -> {
                                     // Pokok follow-up photos should be in CMP-FU_INSPEKSI_POKOK
                                     cmpDirectories.filter { it.name == "CMP-FU_INSPEKSI_POKOK" }
                                 }
+
                                 else -> {
                                     // Fallback: search all directories
                                     AppLogger.w("Unknown photo type combination: $photoType, no_pokok: $noPokok - searching all directories")
@@ -3869,7 +4278,8 @@ class HomePageActivity : AppCompatActivity() {
                         mappedInspeksiData = inspeksiList.mapNotNull { inspeksiWithRelations ->
 
                             // Process selfie photos from the main inspection
-                            val inspeksiSelfiePhotoNames = inspeksiWithRelations.inspeksi.foto_user?.split(";") ?: listOf()
+                            val inspeksiSelfiePhotoNames =
+                                inspeksiWithRelations.inspeksi.foto_user?.split(";") ?: listOf()
 
                             for (photoName in inspeksiSelfiePhotoNames) {
                                 val trimmedName = photoName.trim()
@@ -3896,7 +4306,10 @@ class HomePageActivity : AppCompatActivity() {
                                     if (inspeksiWithRelations.inspeksi.status_uploaded_image == "0") {
                                         shouldAdd = true
                                         AppLogger.d("Selfie photo $trimmedName hasn't been uploaded (status 0)")
-                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith("{")) {
+                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith(
+                                            "{"
+                                        )
+                                    ) {
                                         try {
                                             val errorJson = Gson().fromJson(
                                                 inspeksiWithRelations.inspeksi.status_uploaded_image,
@@ -3915,7 +4328,8 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
+                                    val createdDate =
+                                        inspeksiWithRelations.inspeksi.created_date ?: ""
                                     val formattedDate = try {
                                         val dateFormat = SimpleDateFormat(
                                             "yyyy-MM-dd HH:mm:ss",
@@ -3936,14 +4350,16 @@ class HomePageActivity : AppCompatActivity() {
                                         outputFormat.format(Date())
                                     }
 
-                                    val basePathImage = formattedDate + prefManager!!.estateUserLogin
+                                    val basePathImage =
+                                        formattedDate + prefManager!!.estateUserLogin
 
                                     if (shouldAdd) {
                                         uniquePhotos[trimmedName] = mapOf(
                                             "name" to trimmedName,
                                             "path" to photoFile.absolutePath,
                                             "size" to photoFile.length().toString(),
-                                            "table_ids" to (inspeksiWithRelations.inspeksi.id ?: 0).toString(),
+                                            "table_ids" to (inspeksiWithRelations.inspeksi.id
+                                                ?: 0).toString(),
                                             "table" to AppUtils.DatabaseTables.INSPEKSI,
                                             "base_path" to basePathImage,
                                             "database" to AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser,
@@ -3959,7 +4375,9 @@ class HomePageActivity : AppCompatActivity() {
                             }
 
                             //process selfie pemulihan
-                            val inspeksiSelfiePemulihanPhotoNames = inspeksiWithRelations.inspeksi.foto_user_pemulihan?.split(";") ?: listOf()
+                            val inspeksiSelfiePemulihanPhotoNames =
+                                inspeksiWithRelations.inspeksi.foto_user_pemulihan?.split(";")
+                                    ?: listOf()
 
                             for (photoName in inspeksiSelfiePemulihanPhotoNames) {
                                 val trimmedName = photoName.trim()
@@ -3986,7 +4404,10 @@ class HomePageActivity : AppCompatActivity() {
                                     if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan == "0") {
                                         shouldAdd = true
                                         AppLogger.d("Selfie photo $trimmedName hasn't been uploaded (status 0)")
-                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan?.startsWith("{") == true) {
+                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan?.startsWith(
+                                            "{"
+                                        ) == true
+                                    ) {
                                         try {
                                             val errorJson = Gson().fromJson(
                                                 inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan,
@@ -4005,7 +4426,8 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
+                                    val createdDate =
+                                        inspeksiWithRelations.inspeksi.created_date ?: ""
                                     val formattedDate = try {
                                         val dateFormat = SimpleDateFormat(
                                             "yyyy-MM-dd HH:mm:ss",
@@ -4026,14 +4448,16 @@ class HomePageActivity : AppCompatActivity() {
                                         outputFormat.format(Date())
                                     }
 
-                                    val basePathImage = formattedDate + prefManager!!.estateUserLogin
+                                    val basePathImage =
+                                        formattedDate + prefManager!!.estateUserLogin
 
                                     if (shouldAdd) {
                                         uniquePhotos[trimmedName] = mapOf(
                                             "name" to trimmedName,
                                             "path" to photoFile.absolutePath,
                                             "size" to photoFile.length().toString(),
-                                            "table_ids" to (inspeksiWithRelations.inspeksi.id ?: 0).toString(),
+                                            "table_ids" to (inspeksiWithRelations.inspeksi.id
+                                                ?: 0).toString(),
                                             "table" to AppUtils.DatabaseTables.INSPEKSI,
                                             "base_path" to basePathImage,
                                             "database" to AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser,
@@ -4050,22 +4474,27 @@ class HomePageActivity : AppCompatActivity() {
 
                             // Process detail inspection photos
                             // Build lookup map for already uploaded photos (status 200)
-                            val alreadyUploadedPhotosMap = mutableMapOf<Pair<Int, String>, Boolean>()
+                            val alreadyUploadedPhotosMap =
+                                mutableMapOf<Pair<Int, String>, Boolean>()
 
                             inspeksiWithRelations.detailInspeksi.forEach { detail ->
                                 val noPokok = detail.no_pokok
-                                val fotoNames = detail.foto?.split(";")?.map { it.trim() } ?: listOf()
-                                val followUpNames = detail.foto_pemulihan?.split(";")?.map { it.trim() } ?: listOf()
+                                val fotoNames =
+                                    detail.foto?.split(";")?.map { it.trim() } ?: listOf()
+                                val followUpNames =
+                                    detail.foto_pemulihan?.split(";")?.map { it.trim() } ?: listOf()
 
                                 if (detail.status_uploaded_image == "200") {
                                     fotoNames.forEach { name ->
-                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] = true
+                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] =
+                                            true
                                     }
                                 }
 
                                 if (detail.status_uploaded_image_pemulihan == "200") {
                                     followUpNames.forEach { name ->
-                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] = true
+                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] =
+                                            true
                                     }
                                 }
                             }
@@ -4089,22 +4518,38 @@ class HomePageActivity : AppCompatActivity() {
                                         shouldAdd = true
                                     } else if (detail.status_uploaded_image?.startsWith("{") == true) {
                                         try {
-                                            val errorJson = Gson().fromJson(detail.status_uploaded_image, JsonObject::class.java)
+                                            val errorJson = Gson().fromJson(
+                                                detail.status_uploaded_image,
+                                                JsonObject::class.java
+                                            )
                                             val errorArray = errorJson?.get("error")?.asJsonArray
-                                            errorArray?.forEach { if (it.asString == trimmedName) shouldAdd = true }
+                                            errorArray?.forEach {
+                                                if (it.asString == trimmedName) shouldAdd = true
+                                            }
                                         } catch (e: Exception) {
                                             AppLogger.e("Error parsing JSON: ${e.message}")
                                         }
                                     }
 
-                                    val photoFile = findPhotoInDirectories(trimmedName, "regular", noPokok)
+                                    val photoFile =
+                                        findPhotoInDirectories(trimmedName, "regular", noPokok)
                                     if (shouldAdd && photoFile != null) {
                                         val formattedDate = try {
-                                            val input = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                            val output = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
-                                            output.format(input.parse(inspeksiWithRelations.inspeksi.created_date) ?: Date())
+                                            val input = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val output =
+                                                SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+                                            output.format(
+                                                input.parse(inspeksiWithRelations.inspeksi.created_date)
+                                                    ?: Date()
+                                            )
                                         } catch (e: Exception) {
-                                            SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault()).format(Date())
+                                            SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            ).format(Date())
                                         }
 
                                         uniquePhotos[trimmedName] = mapOf(
@@ -4123,7 +4568,8 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 // ✅ Follow-up Photos
-                                val followUpPhotoNames = detail.foto_pemulihan?.split(";") ?: listOf()
+                                val followUpPhotoNames =
+                                    detail.foto_pemulihan?.split(";") ?: listOf()
                                 for (photoName in followUpPhotoNames) {
                                     val trimmedName = photoName.trim()
                                     if (trimmedName.isEmpty() || trimmedName in uniquePhotos) continue
@@ -4138,22 +4584,38 @@ class HomePageActivity : AppCompatActivity() {
                                         shouldAdd = true
                                     } else if (detail.status_uploaded_image_pemulihan?.startsWith("{") == true) {
                                         try {
-                                            val errorJson = Gson().fromJson(detail.status_uploaded_image_pemulihan, JsonObject::class.java)
+                                            val errorJson = Gson().fromJson(
+                                                detail.status_uploaded_image_pemulihan,
+                                                JsonObject::class.java
+                                            )
                                             val errorArray = errorJson?.get("error")?.asJsonArray
-                                            errorArray?.forEach { if (it.asString == trimmedName) shouldAdd = true }
+                                            errorArray?.forEach {
+                                                if (it.asString == trimmedName) shouldAdd = true
+                                            }
                                         } catch (e: Exception) {
                                             AppLogger.e("Error parsing JSON (follow-up): ${e.message}")
                                         }
                                     }
 
-                                    val photoFile = findPhotoInDirectories(trimmedName, "followup", noPokok)
+                                    val photoFile =
+                                        findPhotoInDirectories(trimmedName, "followup", noPokok)
                                     if (shouldAdd && photoFile != null) {
                                         val formattedDate = try {
-                                            val input = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                            val output = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
-                                            output.format(input.parse(inspeksiWithRelations.inspeksi.created_date) ?: Date())
+                                            val input = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val output =
+                                                SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+                                            output.format(
+                                                input.parse(inspeksiWithRelations.inspeksi.created_date)
+                                                    ?: Date()
+                                            )
                                         } catch (e: Exception) {
-                                            SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault()).format(Date())
+                                            SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            ).format(Date())
                                         }
 
                                         uniquePhotos[trimmedName] = mapOf(
@@ -4310,6 +4772,8 @@ class HomePageActivity : AppCompatActivity() {
                                         ?: ""),
                                     "inspeksi_putaran" to (inspeksiWithRelations.inspeksi.inspeksi_putaran
                                         ?: 0),
+                                    "jjg_panen" to (inspeksiWithRelations.inspeksi.jjg_panen
+                                        ?: 0),
                                     "rute_masuk" to (inspeksiWithRelations.inspeksi.jalur_masuk
                                         ?: ""),
                                     "jenis_inspeksi" to (inspeksiWithRelations.inspeksi.jenis_kondisi
@@ -4399,7 +4863,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-// Add photos to upload data with proper logging
                         if (selfiePhotos.isNotEmpty()) {
                             AppLogger.d("Adding ${selfiePhotos.size} unique selfie photos to upload data")
                             combinedUploadData["foto_selfie"] = selfiePhotos
@@ -4442,33 +4905,32 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.w("No follow-up Pokok photos found to upload")
                         }
 
-// Keep the original combined list if needed elsewhere
-                        allPhotosInspeksi = (selfiePhotos + selfiePhotosPemulihan + allPhotosInspeksiTph + allPhotosInspeksiPokok + allPhotosFollowUpTPH + allPhotosFollowUpPokok).toMutableList()
+                        allPhotosInspeksi =
+                            (selfiePhotos + selfiePhotosPemulihan + allPhotosInspeksiTph + allPhotosInspeksiPokok + allPhotosFollowUpTPH + allPhotosFollowUpPokok).toMutableList()
 
                         val wrappedInspeksiData = mapOf(
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
                         val inspeksiJson = Gson().toJson(wrappedInspeksiData)
-                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
-                        try {
-                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-                                if (!exists()) mkdirs()
-                            }
+//                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                        try {
+//                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                if (!exists()) mkdirs()
+//                            }
+//
+//                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
+//                            val tempFile = File(tempDir, filename)
+//
+//                            FileOutputStream(tempFile).use { fos ->
+//                                fos.write(inspeksiJson.toByteArray())
+//                            }
+//
+//                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
+//                        } catch (e: Exception) {
+//                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
+//                            e.printStackTrace()
+//                        }
 
-                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
-                            val tempFile = File(tempDir, filename)
-
-                            FileOutputStream(tempFile).use { fos ->
-                                fos.write(inspeksiJson.toByteArray())
-                            }
-
-                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
-                        } catch (e: Exception) {
-                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
-                            e.printStackTrace()
-                        }
-
-// ENHANCED FILTER: Filter data to upload with improved logic
                         val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
                             val statusUpload = inspeksiMap["status_upload"] as? String
                             val isPushedToServer = inspeksiMap["isPushedToServer"] as? Int ?: 0
@@ -4479,7 +4941,7 @@ class HomePageActivity : AppCompatActivity() {
                             when {
                                 // Skip if status_upload is not "0"
                                 statusUpload != "0" -> {
-                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - status_upload is $statusUpload (not 0)")
+//                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - status_upload is $statusUpload (not 0)")
                                     false
                                 }
 
@@ -4499,14 +4961,14 @@ class HomePageActivity : AppCompatActivity() {
                                         AppLogger.d("Including inspection ${inspeksiMap["id"]} - downloaded data with updates (isPushedToServer = 1, has update data)")
                                         true
                                     } else {
-                                        AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - downloaded data without updates (isPushedToServer = 1, no update data)")
+//                                        AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - downloaded data without updates (isPushedToServer = 1, no update data)")
                                         false
                                     }
                                 }
 
                                 // Default case - skip
                                 else -> {
-                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - unknown isPushedToServer value: $isPushedToServer")
+//                                    AppLogger.d("Skipping inspection ${inspeksiMap["id"]} - unknown isPushedToServer value: $isPushedToServer")
                                     false
                                 }
                             }
@@ -4560,7 +5022,8 @@ class HomePageActivity : AppCompatActivity() {
 
                             AppLogger.d("inspeksiBatchMap $inspeksiBatchMap")
                             if (inspeksiBatchMap.isNotEmpty()) {
-                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] = inspeksiBatchMap
+                                combinedUploadData[AppUtils.DatabaseTables.INSPEKSI] =
+                                    inspeksiBatchMap
                                 AppLogger.d("Added ${inspeksiBatchMap.size} inspection batches to combinedUploadData")
                             }
                         } else {
@@ -4582,6 +5045,364 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
 
+                    if (mutuBuahList.isNotEmpty()) {
+                        val uniquePhotosMutuBuah = mutableMapOf<String, Map<String, String>>()
+                        val uniqueSelfiesMutuBuah = mutableMapOf<String, Map<String, String>>()
+
+                        // Prepare to search for photo files in CMP directories
+                        val picturesDirs = listOf(
+                            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                            File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
+                        ).filterNotNull()
+
+                        // Find all CMP directories upfront
+                        val cmpDirectories = mutableListOf<File>()
+                        for (picturesDir in picturesDirs) {
+                            if (!picturesDir.exists() || !picturesDir.isDirectory) {
+                                AppLogger.w("Pictures directory not found: ${picturesDir.absolutePath}")
+                                continue
+                            }
+
+                            // Look specifically for CMP-MUTU BUAH directory
+                            val cmpMutuBuahDir = File(picturesDir, "CMP-MUTU BUAH")
+                            if (cmpMutuBuahDir.exists() && cmpMutuBuahDir.isDirectory) {
+                                cmpDirectories.add(cmpMutuBuahDir)
+                            }
+
+                            // Also check for any other CMP directories
+                            val otherCmpDirs = picturesDir.listFiles { file ->
+                                file.isDirectory && file.name.startsWith("CMP") && file.name != "CMP-MUTU BUAH"
+                            } ?: emptyArray()
+
+                            cmpDirectories.addAll(otherCmpDirs)
+                        }
+
+                        AppLogger.d("Found ${cmpDirectories.size} CMP directories for MutuBuah")
+
+                        // Helper function to process photos
+                        // Helper function to process photos
+                        fun processMutuBuahPhotos(
+                            photoString: String?,
+                            mutuBuah: MutuBuahEntity,
+                            photoType: String, // "foto" or "foto_selfie"
+                            targetMap: MutableMap<String, Map<String, String>>
+                        ) {
+                            val photoNames = photoString?.split(";") ?: listOf()
+
+                            for (photoName in photoNames) {
+                                val trimmedName = photoName.trim()
+                                if (trimmedName.isEmpty()) continue
+
+                                if (trimmedName in targetMap) continue
+
+                                // Get the appropriate status based on photo type
+                                val uploadStatusImage = when (photoType) {
+                                    "foto" -> mutuBuah.status_uploaded_image
+                                    "foto_selfie" -> mutuBuah.status_uploaded_image_selfie
+                                    else -> mutuBuah.status_uploaded_image // fallback
+                                }
+
+                                val folderServer = when (photoType) {
+                                    "foto" -> AppUtils.DatabaseTables.MUTU_BUAH
+                                    "foto_selfie" -> "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie"
+                                    else -> AppUtils.DatabaseTables.MUTU_BUAH
+                                }
+
+                                // Skip only if status is 200 (fully uploaded)
+                                if (uploadStatusImage == "200") {
+                                    AppLogger.d("Skipping $photoType photo $trimmedName - record ${mutuBuah.id} fully uploaded (status 200)")
+                                    continue
+                                }
+
+                                var photoFound = false
+
+                                for (cmpDir in cmpDirectories) {
+                                    val photoFile = File(cmpDir, trimmedName)
+
+                                    if (photoFile.exists() && photoFile.isFile) {
+                                        var shouldAdd = false
+
+                                        if (uploadStatusImage == "0") {
+                                            shouldAdd = true
+                                            AppLogger.d("$photoType photo $trimmedName hasn't been uploaded (status 0)")
+                                        } else if (uploadStatusImage.startsWith("{")) {
+                                            try {
+                                                val errorJson = Gson().fromJson(
+                                                    uploadStatusImage,
+                                                    JsonObject::class.java
+                                                )
+                                                val errorArray =
+                                                    errorJson?.get("error")?.asJsonArray
+
+                                                errorArray?.forEach { errorItem ->
+                                                    if (errorItem.asString == trimmedName) {
+                                                        shouldAdd = true
+                                                        AppLogger.d("$photoType photo $trimmedName is marked as error in record ${mutuBuah.id}")
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error parsing upload status JSON: ${e.message}")
+                                            }
+                                        }
+
+                                        val createdDate = mutuBuah.createdDate
+                                        val formattedDate = try {
+                                            val dateFormat = SimpleDateFormat(
+                                                "yyyy-MM-dd HH:mm:ss",
+                                                Locale.getDefault()
+                                            )
+                                            val date = dateFormat.parse(createdDate)
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(date ?: Date())
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error formatting date: ${e.message}")
+                                            val outputFormat = SimpleDateFormat(
+                                                "yyyy/MM/dd/",
+                                                Locale.getDefault()
+                                            )
+                                            outputFormat.format(Date())
+                                        }
+
+                                        val basePathImage =
+                                            formattedDate + prefManager!!.estateUserLogin
+
+                                        if (shouldAdd) {
+                                            targetMap[trimmedName] = mapOf(
+                                                "name" to trimmedName,
+                                                "path" to photoFile.absolutePath,
+                                                "size" to photoFile.length().toString(),
+                                                "table_ids" to mutuBuah.id.toString(),
+                                                "table" to folderServer,
+                                                "base_path" to basePathImage,
+                                                "database" to AppUtils.DatabaseTables.MUTU_BUAH,
+                                            )
+                                            AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                        } else {
+                                            AppLogger.d("Skipping $photoType photo $trimmedName - no upload needed")
+                                        }
+
+                                        photoFound = true
+                                        break
+                                    }
+                                }
+
+                                if (!photoFound) {
+                                    AppLogger.w("$photoType photo not found: $trimmedName")
+                                }
+                            }
+                        }
+
+                        // Process both foto and foto_selfie for each MutuBuah record
+                        for (mutuBuah in mutuBuahList) {
+                            processMutuBuahPhotos(
+                                mutuBuah.foto,
+                                mutuBuah,
+                                "foto",
+                                uniquePhotosMutuBuah
+                            )
+                            processMutuBuahPhotos(
+                                mutuBuah.foto_selfie,
+                                mutuBuah,
+                                "foto_selfie",
+                                uniqueSelfiesMutuBuah
+                            )
+                        }
+
+                        // Map MutuBuah data for upload
+                        val mappedMutuBuahData = mutuBuahList.map { mutuBuah ->
+                            val createdDate = mutuBuah.createdDate
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
+
+                            // Process foto with path
+                            val originalFotoString = mutuBuah.foto
+                            val modifiedFotoString = if (originalFotoString.contains(";")) {
+                                originalFotoString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalFotoString.isNotEmpty()) {
+                                "$basePath$originalFotoString"
+                            } else {
+                                ""
+                            }
+
+                            // Process foto_selfie with path
+                            val originalSelfieString = mutuBuah.foto_selfie
+                            val modifiedSelfieString = if (originalSelfieString.contains(";")) {
+                                originalSelfieString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalSelfieString.isNotEmpty()) {
+                                "$basePath$originalSelfieString"
+                            } else {
+                                ""
+                            }
+
+                            mapOf(
+                                "id" to mutuBuah.id,
+                                "tanggal" to mutuBuah.tanggal,
+                                "regional" to mutuBuah.regional,
+                                "wilayah" to mutuBuah.wilayah,
+                                "company" to mutuBuah.company,
+                                "company_abbr" to mutuBuah.companyAbbr,
+                                "company_nama" to mutuBuah.companyNama,
+                                "dept" to mutuBuah.dept,
+                                "dept_ppro" to mutuBuah.deptPpro,
+                                "dept_abbr" to mutuBuah.deptAbbr,
+                                "dept_nama" to mutuBuah.deptNama,
+                                "divisi" to mutuBuah.divisi,
+                                "divisi_ppro" to mutuBuah.divisiPpro,
+                                "divisi_abbr" to mutuBuah.divisiAbbr,
+                                "divisi_nama" to mutuBuah.divisiNama,
+                                "blok" to mutuBuah.blok,
+                                "blok_ppro" to mutuBuah.blokPpro,
+                                "blok_kode" to mutuBuah.blokKode,
+                                "blok_nama" to mutuBuah.blokNama,
+                                "tph" to mutuBuah.tph,
+                                "tph_nomor" to mutuBuah.tphNomor,
+                                "kemandoran" to mutuBuah.kemandoran,
+                                "jumlah_pemanen" to mutuBuah.jumlahPemanen,
+                                "nomor_pemanen" to mutuBuah.nomorPemanen,
+                                "jjg_panen" to mutuBuah.jjgPanen,
+                                "jjg_masak" to mutuBuah.jjgMasak,
+                                "jjg_mentah" to mutuBuah.jjgMentah,
+                                "jjg_lewat_masak" to mutuBuah.jjgLewatMasak,
+                                "jjg_kosong" to mutuBuah.jjgKosong,
+                                "jjg_abnormal" to mutuBuah.jjgAbnormal,
+                                "jjg_serangan_tikus" to mutuBuah.jjgSeranganTikus,
+                                "jjg_panjang" to mutuBuah.jjgPanjang,
+                                "jjg_tidak_vcut" to mutuBuah.jjgTidakVcut,
+                                "jjg_bayar" to mutuBuah.jjgBayar,
+                                "jjg_kirim" to mutuBuah.jjgKirim,
+                                "created_by" to mutuBuah.createdBy,
+                                "created_name" to mutuBuah.createdName,
+                                "created_date" to mutuBuah.createdDate,
+                                "updated_by" to mutuBuah.updatedBy,
+                                "updated_name" to mutuBuah.updatedName,
+                                "updated_date" to mutuBuah.updatedDate,
+                                "history" to mutuBuah.history,
+                                "foto" to modifiedFotoString,
+                                "foto_selfie" to modifiedSelfieString,
+                                "komentar" to mutuBuah.komentar,
+                                "app_version" to mutuBuah.appVersion,
+                                "status_data_panen" to mutuBuah.statusDataPanen,
+                                "lat" to mutuBuah.lat,
+                                "lon" to mutuBuah.lon
+                            )
+                        }
+
+                        // Filter data to upload (status_upload == 0)
+                        val mutuBuahDataToUpload = mappedMutuBuahData.filter { mutuBuahMap ->
+                            val id = mutuBuahMap["id"] as? Int ?: 0
+                            val original = mutuBuahList.find { it.id == id }
+                            original?.status_upload == 0
+                        }
+
+                        // Create upload data if there's data to upload
+                        if (mutuBuahDataToUpload.isNotEmpty()) {
+                            val wrappedData = mapOf(
+                                AppUtils.DatabaseTables.MUTU_BUAH to mutuBuahDataToUpload
+                            )
+                            val mutuBuahJson = Gson().toJson(wrappedData)
+                            val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
+
+                            combinedUploadData[AppUtils.DatabaseTables.MUTU_BUAH] = mapOf(
+                                "data" to mutuBuahJson,
+                                "filename" to "Data Mutu Buah ${prefManager!!.estateUserLogin}",
+                                "ids" to mutuBuahIds
+                            )
+                        }
+
+                        // Create upload data if there's data to upload
+                        if (mutuBuahDataToUpload.isNotEmpty()) {
+                            val wrappedData = mapOf(
+                                AppUtils.DatabaseTables.MUTU_BUAH to mutuBuahDataToUpload
+                            )
+                            val mutuBuahJson = Gson().toJson(wrappedData)
+
+                            // Save JSON to temp directory for inspection
+//                            try {
+//                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                    if (!exists()) mkdirs()
+//                                }
+//
+//                                val filename = "mutu_buah_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
+//
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(mutuBuahJson.toByteArray())
+//                                }
+//
+//                                AppLogger.d("Saved raw mutu buah data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save mutu buah data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
+
+                            val mutuBuahIds = mutuBuahDataToUpload.mapNotNull { it["id"] as? Int }
+
+                            combinedUploadData[AppUtils.DatabaseTables.MUTU_BUAH] = mapOf(
+                                "data" to mutuBuahJson,
+                                "filename" to "Data Mutu Buah ${prefManager!!.estateUserLogin}",
+                                "ids" to mutuBuahIds
+                            )
+                        }
+
+
+                        // Add photos to upload data
+                        val allPhotosMutuBuah = uniquePhotosMutuBuah.values.toMutableList()
+                        val allSelfiesMutuBuah = uniqueSelfiesMutuBuah.values.toMutableList()
+
+                        if (allPhotosMutuBuah.isNotEmpty()) {
+                            AppLogger.d("Adding ${allPhotosMutuBuah.size} unique MutuBuah photos to upload data")
+                            combinedUploadData["foto_mutu_buah"] = allPhotosMutuBuah
+                        } else {
+                            AppLogger.w("No MutuBuah photos found to upload")
+                        }
+
+                        if (allSelfiesMutuBuah.isNotEmpty()) {
+                            AppLogger.d("Adding ${allSelfiesMutuBuah.size} unique MutuBuah selfies to upload data")
+                            combinedUploadData["foto_selfie_mutu_buah"] = allSelfiesMutuBuah
+                        } else {
+                            AppLogger.w("No MutuBuah selfies found to upload")
+                        }
+
+                        unzippedMutuBuah = mappedMutuBuahData.filter { item ->
+                            val id = item["id"] as? Int ?: 0
+                            val original = mutuBuahList.find { it.id == id }
+                            val isZipped = original?.dataIsZipped ?: 0
+                            isZipped == 0
+                        } as List<Map<String, Any>>
+
+                        globalMutuBuahIds = unzippedMutuBuah.mapNotNull { item ->
+                            item["id"] as? Int
+                        }
+
+                        AppLogger.d("globalMutuBuahIds $globalMutuBuahIds")
+                    }
+
                 } catch (e: Exception) {
                     Log.e("UploadCheck", "❌ Error: ${e.message}")
                 } finally {
@@ -4599,6 +5420,10 @@ class HomePageActivity : AppCompatActivity() {
                     }
                     if (unzippedInspeksiData.isNotEmpty()) {
                         uploadDataList.add(AppUtils.DatabaseTables.INSPEKSI to unzippedInspeksiData)
+                    }
+
+                    if (unzippedMutuBuah.isNotEmpty()) {
+                        uploadDataList.add(AppUtils.DatabaseTables.MUTU_BUAH to unzippedMutuBuah)
                     }
 
                     if (uploadDataList.isNotEmpty()) {
@@ -4620,6 +5445,7 @@ class HomePageActivity : AppCompatActivity() {
                                                 AppUtils.DatabaseTables.ESPB -> globalESPBIds
                                                 AppUtils.DatabaseTables.PANEN -> globalPanenIds
                                                 AppUtils.DatabaseTables.INSPEKSI -> globalInspeksiIds
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> globalMutuBuahIds
                                                 else -> emptyList()
                                             }
 
@@ -4662,6 +5488,22 @@ class HomePageActivity : AppCompatActivity() {
 
                                                     AppUtils.DatabaseTables.INSPEKSI -> {
                                                         inspectionViewModel.updateStatus.observeOnce(
+                                                            this@HomePageActivity
+                                                        ) { success ->
+                                                            if (success) {
+                                                                AppLogger.d("✅ $feature Archive Updated Successfully")
+                                                                updateDeferred.complete(true)
+                                                            } else {
+                                                                AppLogger.e("❌ $feature Archive Update Failed")
+                                                                updateDeferred.complete(false)
+                                                            }
+                                                        }
+                                                        // Trigger the update
+                                                        archiveUpdateActions[feature]?.invoke(ids)
+                                                    }
+
+                                                    AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                        mutuBuahViewModel.updateStatus.observeOnce(
                                                             this@HomePageActivity
                                                         ) { success ->
                                                             if (success) {
@@ -4786,8 +5628,7 @@ class HomePageActivity : AppCompatActivity() {
                 val updatedHektarPanenList = hektarPanenDeferred.await()
                 val updatedAbsensiList = absensiDeferred.await()
                 val updatedInspeksiList = inspeksiDeferred.await()
-
-                AppLogger.d("updatedESPBList $updatedESPBList")
+                val updatedMutuBuahList = mutuBuahDeffered.await()
 
                 val panenToUpload = updatedPanenList.filter {
                     it.panen.status_upload == 0
@@ -4802,17 +5643,42 @@ class HomePageActivity : AppCompatActivity() {
                     it.absensi.status_upload == 0
                 }
                 val inspeksiPanenToUpload = updatedInspeksiList.filter {
-                    it.inspeksi.status_upload == "0"
+                    it.inspeksi.status_upload == "0" && it.inspeksi.isPushedToServer == 0
                 }
 
+                val mutuBuahToUpload = updatedMutuBuahList.filter {
+                    it.status_upload == 0
+                }
+
+
+                AppLogger.d("mutubuahtoupload $mutuBuahToUpload")
+
+
+                val hasPhotosMutuBuahToUpload = allPhotosMutuBuah.isNotEmpty()
+                val hasSelfiesMutuBuahToUpload = allSelfiesMutuBuah.isNotEmpty()
                 val hasPhotosPanenToUpload = allPhotosPanen.isNotEmpty()
                 val hasPhotosAbsensiToUpload = allPhotosAbsensi.isNotEmpty()
                 val hasPhotosInspeksiToUpload = allPhotosInspeksi.isNotEmpty()
-                val hasItemsToUpload =
-                    panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty() || hasPhotosInspeksiToUpload
+
+                AppLogger.d("hasPhotosMutuBuahToUpload $hasPhotosMutuBuahToUpload")
+                AppLogger.d("hasSelfiesMutuBuahToUpload $hasSelfiesMutuBuahToUpload")
+                val hasItemsToUpload = panenToUpload.isNotEmpty() ||
+                        espbToUpload.isNotEmpty() ||
+                        hasPhotosPanenToUpload ||
+                        hektarPanenToUpload.isNotEmpty() ||
+                        absensiPanenToUpload.isNotEmpty() ||
+                        hasPhotosAbsensiToUpload ||
+                        inspeksiPanenToUpload.isNotEmpty() ||
+                        hasPhotosInspeksiToUpload ||
+                        mutuBuahToUpload.isNotEmpty() ||
+                        hasPhotosMutuBuahToUpload ||
+                        hasSelfiesMutuBuahToUpload
 
 
-                AppLogger.d("combinedUploadData $combinedUploadData")
+                AppLogger.d("inspeksiPanenToUpload $inspeksiPanenToUpload")
+                AppLogger.d("hasPhotosInspeksiToUpload $hasPhotosInspeksiToUpload")
+                AppLogger.d("hasitemupload $hasItemsToUpload")
+
                 if (hasItemsToUpload) {
                     val uploadDataJson = Gson().toJson(combinedUploadData)
                     setupDialogUpload(uploadDataJson)
@@ -4831,43 +5697,12 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractEmployeesFromJson(jsonString: String?, kemandoranId: String): List<String> {
-        if (jsonString.isNullOrEmpty()) return emptyList()
-
-        return try {
-            val gson = Gson()
-            val jsonObject = gson.fromJson(jsonString, JsonObject::class.java)
-
-            val employees = mutableListOf<String>()
-
-            // Iterate through all categories (h, m, etc.)
-            for ((category, categoryData) in jsonObject.entrySet()) {
-                if (categoryData.isJsonObject) {
-                    val categoryObject = categoryData.asJsonObject
-
-                    // Check if this category contains data for our kemandoran
-                    if (categoryObject.has(kemandoranId)) {
-                        val employeeData = categoryObject.get(kemandoranId).asString
-                        if (employeeData.isNotEmpty()) {
-                            employees.addAll(
-                                employeeData.split(",")
-                                    .filter { it.isNotEmpty() }
-                                    .map { it.trim() }
-                            )
-                        }
-                    }
-                }
-            }
-
-            employees
-        } catch (e: Exception) {
-            AppLogger.e("Error parsing JSON for kemandoran $kemandoranId: ${e.message}")
-            emptyList()
-        }
-    }
 
     // Alternative approach if you want to extract employees by category
-    private fun extractEmployeesByCategory(jsonString: String?, kemandoranId: String): Map<String, List<String>> {
+    private fun extractEmployeesByCategory(
+        jsonString: String?,
+        kemandoranId: String
+    ): Map<String, List<String>> {
         if (jsonString.isNullOrEmpty()) return emptyMap()
 
         return try {
@@ -4911,6 +5746,7 @@ class HomePageActivity : AppCompatActivity() {
         val absensiPanenIds = globalAbsensiPanenIdsByPart[partNumber] ?: emptyList()
         val inspeksiPanenIds = globalInspeksiPanenIdsByPart[partNumber] ?: emptyList()
         val inspeksiDetailPanenIds = globalInspeksiDetailPanenIdsByPart[partNumber] ?: emptyList()
+        val mutuBuahIds = globalMutuBuahIdsByPart[partNumber] ?: emptyList()
 
 
         if (panenIds.isNotEmpty()) {
@@ -4931,6 +5767,9 @@ class HomePageActivity : AppCompatActivity() {
         if (inspeksiDetailPanenIds.isNotEmpty()) {
             tableMap[AppUtils.DatabaseTables.INSPEKSI_DETAIL] = inspeksiDetailPanenIds
         }
+        if (mutuBuahIds.isNotEmpty()) {
+            tableMap[AppUtils.DatabaseTables.MUTU_BUAH] = mutuBuahIds
+        }
 
         return Gson().toJson(tableMap) // Convert to JSON string
     }
@@ -4950,6 +5789,7 @@ class HomePageActivity : AppCompatActivity() {
                 1
             )
         },
+
         AppUtils.DatabaseTables.HEKTAR_PANEN to { ids: List<Int> ->
             hektarPanenViewModel.updateDataIsZippedHP(
                 ids,
@@ -4968,7 +5808,13 @@ class HomePageActivity : AppCompatActivity() {
                 ids,
                 1
             )
-        }
+        },
+        AppUtils.DatabaseTables.MUTU_BUAH to { ids: List<Int> ->
+            mutuBuahViewModel.updateDataIsZippedMutuBuah(
+                ids,
+                1
+            )
+        },
     )
 
     data class Pemanen(val nik: String, val nama: String)
@@ -5040,7 +5886,6 @@ class HomePageActivity : AppCompatActivity() {
                 val dataMap = gson.fromJson(uploadData, Map::class.java)
                 AppLogger.d("Data map keys: ${dataMap.keys}")
                 AppLogger.d(dataMap.toString())
-                AppLogger.d("slkdjflkajsfd")
 
                 // Extract the data for panen, espb, and photo files
                 val panenFilePath = dataMap[AppUtils.DatabaseTables.PANEN] as? String
@@ -5241,6 +6086,129 @@ class HomePageActivity : AppCompatActivity() {
                         } else {
                             AppLogger.d("Inspeksi batch $batchKey is missing required fields: data=$inspeksiData, filename=$inspeksiFilename")
                         }
+                    }
+                }
+
+                // Process MutuBuah data
+                val mutuBuahInfo = dataMap[AppUtils.DatabaseTables.MUTU_BUAH] as? Map<*, *>
+                if (mutuBuahInfo != null) {
+                    AppLogger.d("Found mutu_buah data: $mutuBuahInfo")
+
+                    val mutuBuahData = mutuBuahInfo["data"] as? String
+                    val mutuBuahFilename = mutuBuahInfo["filename"] as? String
+                    val mutuBuahIds = mutuBuahInfo["ids"] as? List<Int> ?: emptyList()
+
+                    AppLogger.d("mutubuahuiids $mutuBuahIds")
+
+                    if (mutuBuahData != null && mutuBuahData.isNotEmpty()) {
+                        val dataSize = mutuBuahData.length.toLong()
+                        AppLogger.d("MutuBuah data size: $dataSize")
+
+                        val tableIdsJson = JSONObject().apply {
+                            put(AppUtils.DatabaseTables.MUTU_BUAH, JSONArray(mutuBuahIds))
+                        }.toString()
+
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = "Data Mutu Buah",
+                            fullPath = "",
+                            baseFilename = mutuBuahFilename!!,
+                            data = mutuBuahData,
+                            type = "json",
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        adapter.setFileSize(uploadItem.id, dataSize)
+                        adapter.notifyDataSetChanged()
+                        AppLogger.d("Added MutuBuah to upload items (size: $dataSize bytes)")
+                    } else {
+                        AppLogger.d("MutuBuah data is missing required fields: data=$mutuBuahData, filename=$mutuBuahFilename")
+                    }
+                }
+
+                // Process foto_mutu_buah (regular photos)
+                val fotoMutuBuah = dataMap["foto_mutu_buah"] as? List<*>
+                if (fotoMutuBuah != null && fotoMutuBuah.isNotEmpty()) {
+                    AppLogger.d("Processing MutuBuah photo data: ${fotoMutuBuah.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoMutuBuah.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("MutuBuah Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing MutuBuah photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount MutuBuah photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Mutu Buah ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_mutu_buah",
+                            baseFilename = "",
+                            data = gson.toJson(fotoMutuBuah),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding MutuBuah photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No MutuBuah photo files found for upload")
+                    }
+                }
+
+// Process foto_selfie_mutu_buah (selfie photos)
+                val fotoSelfieMutuBuah = dataMap["foto_selfie_mutu_buah"] as? List<*>
+                if (fotoSelfieMutuBuah != null && fotoSelfieMutuBuah.isNotEmpty()) {
+                    AppLogger.d("Processing MutuBuah selfie photo data: ${fotoSelfieMutuBuah.size} photos")
+                    var totalPhotoSize = 0L
+                    val foundPhotoCount = fotoSelfieMutuBuah.count { photoData ->
+                        try {
+                            (photoData as? Map<*, *>)?.let { photoMap ->
+                                val name = photoMap["name"] as? String ?: ""
+                                val sizeStr = photoMap["size"] as? String
+                                val size = sizeStr?.toLongOrNull() ?: 0L
+                                totalPhotoSize += size
+                                AppLogger.d("MutuBuah Selfie Photo: $name, size: $size")
+                                size > 0
+                            } ?: false
+                        } catch (e: Exception) {
+                            AppLogger.e("Error processing MutuBuah selfie photo data: ${e.message}")
+                            false
+                        }
+                    }
+
+                    AppLogger.d("Found $foundPhotoCount MutuBuah selfie photos with a total size of $totalPhotoSize bytes")
+                    if (foundPhotoCount > 0) {
+                        val photoTitle = "Foto Selfie Mutu Buah ($foundPhotoCount file)"
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = photoTitle,
+                            fullPath = "foto_selfie_mutu_buah",
+                            baseFilename = "",
+                            data = gson.toJson(fotoSelfieMutuBuah),
+                            type = "image",
+                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                        )
+
+                        uploadItems.add(uploadItem)
+                        AppLogger.d("Adding MutuBuah selfie photo upload item with ID ${uploadItem.id}")
+                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                    } else {
+                        AppLogger.w("No MutuBuah selfie photo files found for upload")
                     }
                 }
 
@@ -5849,7 +6817,6 @@ class HomePageActivity : AppCompatActivity() {
             zipFileName = null
             zipFilePath = null
             uploadCMPViewModel.resetState()
-            // (recyclerView.adapter as? UploadProgressCMPDataAdapter)?.onDestroy()
             dialog.dismiss()
         }
 
@@ -6059,6 +7026,7 @@ class HomePageActivity : AppCompatActivity() {
                 globalHektarPanenIdsByPart.clear()
                 globalAbsensiPanenIdsByPart.clear()
                 globalResponseJsonUploadList.clear()
+                globalMutuBuahIdsByPart.clear()
 
                 AppLogger.d("responseMap $responseMap")
 
@@ -6078,12 +7046,25 @@ class HomePageActivity : AppCompatActivity() {
 
                             val keyJsonName = response.trackingId.toString()
 
-                            if (response.success) {
+                            AppLogger.d("response nya masuuk apa gessss ${response.success}")
+
+                            // Check if this is a mutu_buah feature
+                            val isMutuBuahFeature = try {
+                                response.table_ids?.let {
+                                    val tableIdsJson = JSONObject(it)
+                                    tableIdsJson.has(AppUtils.DatabaseTables.MUTU_BUAH)
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
+
+                            // Process table_ids if success OR if it's mutu_buah feature (even with success=false)
+                            if (response.success || isMutuBuahFeature) {
                                 try {
                                     // Extract table_ids from the response
                                     val tableIds = response.table_ids
                                     if (tableIds != null) {
-                                        // Parse the table_ids to determine table types
+                                        // Parse the table_ids JSON string to determine table types
                                         val tableIdsJson = JSONObject(tableIds)
                                         AppLogger.d("tableIdsJson $tableIdsJson")
 
@@ -6159,6 +7140,18 @@ class HomePageActivity : AppCompatActivity() {
                                                         inspeksiDetailPanenIds
                                                     AppLogger.d("Extracted Inspeksi Detail IDs from response: $inspeksiDetailPanenIds")
                                                 }
+
+                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                    val MutuBuahIdsArray =
+                                                        tableIdsJson.getJSONArray(AppUtils.DatabaseTables.MUTU_BUAH)
+                                                    val MutuBuahIds =
+                                                        (0 until MutuBuahIdsArray.length()).map {
+                                                            MutuBuahIdsArray.getInt(it)
+                                                        }
+                                                    globalMutuBuahIdsByPart[keyJsonName] =
+                                                        MutuBuahIds
+                                                    AppLogger.d("Extracted Mutu Buah IDs from response: $MutuBuahIds")
+                                                }
                                             }
                                         }
                                     } else {
@@ -6170,6 +7163,7 @@ class HomePageActivity : AppCompatActivity() {
                                         globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                         globalInspeksiDetailPanenIdsByPart[keyJsonName] =
                                             emptyList()
+                                        globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                                     }
                                 } catch (e: Exception) {
                                     AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
@@ -6179,6 +7173,7 @@ class HomePageActivity : AppCompatActivity() {
                                     globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                     globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                     globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                    globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                                 }
                             } else {
                                 globalPanenIdsByPart[keyJsonName] = emptyList()
@@ -6187,6 +7182,7 @@ class HomePageActivity : AppCompatActivity() {
                                 globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
                                 globalInspeksiPanenIdsByPart[keyJsonName] = emptyList()
                                 globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
+                                globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                             }
                         } else if (response.type == "image") {
                             globalResponseJsonUploadList.add(
@@ -6333,6 +7329,20 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("No inspeksi detail IDs found for file $trackingId")
                     }
 
+                    val mutuBuahIds =
+                        globalMutuBuahIdsByPart[trackingId] ?: emptyList()
+                    if (mutuBuahIds.isNotEmpty()) {
+                        AppLogger.d("Found ${mutuBuahIds.size} mutu buah IDs for file $trackingId: $mutuBuahIds")
+
+                        mutuBuahViewModel.updateStatusUploadMutuBuah(
+                            mutuBuahIds,
+                            responseInfo.status
+                        )
+                        AppLogger.d("Updated status_upload to ${responseInfo.status} for mutu buah IDs: $mutuBuahIds")
+                    } else {
+                        AppLogger.d("No mutu buah IDs found for file $trackingId")
+                    }
+
                     val jsonResultTableIds = createJsonTableNameMapping(trackingId)
                     AppLogger.d("Processing successful upload: $trackingId with tracking ID $trackingId, status code: ${responseInfo.status}")
 
@@ -6411,8 +7421,6 @@ class HomePageActivity : AppCompatActivity() {
         }
         retryDownloadDataset.setOnClickListener {
 
-
-//            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
 
             containerDownloadDataset.visibility = View.GONE
             cancelDownloadDataset.visibility = View.GONE
@@ -6510,8 +7518,12 @@ class HomePageActivity : AppCompatActivity() {
                     val currentDateTimeIndonesia = simpleDateFormat.format(Date())
 
                     prefManager!!.lastSyncDate = currentDateTimeIndonesia
+                    prefManager!!.lastSyncDataPanenInspeksi = currentDateTimeIndonesia
+                    prefManager!!.lastSyncFollowUpInspeksi = currentDateTimeIndonesia
 
                     _globalLastSync.value = currentDateTimeIndonesia
+                    _globalLastSyncDataPanenInspeksi.value = currentDateTimeIndonesia
+                    _globalLastSyncFollowUpInspeksi.value = currentDateTimeIndonesia
                 }
 
                 if (prefManager!!.isFirstTimeLaunch && downloadItems.any { it.isStoringCompleted || it.isUpToDate || it.error != null }) {
@@ -6525,17 +7537,22 @@ class HomePageActivity : AppCompatActivity() {
                     containerDownloadDataset.visibility = View.VISIBLE
                     retryDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
+                    checkAndShowDialogVersion()
                 } else {
                     containerDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
+                    checkAndShowDialogVersion()
                 }
+
             }
         }
     }
 
     private fun startDownloadsV2(
         datasetRequests: List<DatasetRequest>,
-        previewData: String? = null,
+        previewDataRestan: String? = null,
+        previewDataPanen: String? = null,
+        previewDataFollowUpInspeksi: String? = null,
         titleDialog: String? = "Sinkronisasi Restan & Dataset"
     ) {
 
@@ -6552,7 +7569,6 @@ class HomePageActivity : AppCompatActivity() {
         val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
         val btnSinkronisasiDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
         val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
-
         // Update button text to reflect download operation
         btnSinkronisasiDataset.text = "Sinkronisasi Data"
         btnSinkronisasiDataset.setIconResource(R.drawable.baseline_refresh_24) // Assuming you have this icon
@@ -6566,10 +7582,10 @@ class HomePageActivity : AppCompatActivity() {
         btnSinkronisasiDataset.visibility = View.VISIBLE
         btnRetryDownload.visibility = View.GONE
 
+
         // Create upload items from dataset requests (we'll reuse the existing adapter)
         val downloadItems = mutableListOf<UploadCMPItem>()
 
-        AppLogger.d("previewData $previewData")
         var itemId = 0
         datasetRequests.forEach { request ->
             val itemTitle = if (!request.estateAbbr.isNullOrEmpty()) {
@@ -6577,9 +7593,15 @@ class HomePageActivity : AppCompatActivity() {
             } else {
                 "${request.dataset}"
             }
+
+
             val itemData =
-                if ((request.dataset == AppUtils.DatasetNames.sinkronisasiRestan || request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) && !previewData.isNullOrEmpty()) {
-                    previewData
+                if ((request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) && !previewDataRestan.isNullOrEmpty()) {
+                    previewDataRestan
+                } else if ((request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) && !previewDataFollowUpInspeksi.isNullOrEmpty()) {
+                    previewDataFollowUpInspeksi
+                } else if ((request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) && !previewDataPanen.isNullOrEmpty()) {
+                    previewDataPanen
                 } else {
                     ""
                 }
@@ -6590,7 +7612,7 @@ class HomePageActivity : AppCompatActivity() {
                     title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
-                    data = itemData,  // Use the data we just determined
+                    data = itemData ?: "",
                     type = "",
                     databaseTable = ""
                 )
@@ -6732,7 +7754,6 @@ class HomePageActivity : AppCompatActivity() {
 
 
         closeDialogBtn.setOnClickListener {
-
             refreshPanenCount()
             datasetViewModel.processingComplete.removeObservers(this)
             datasetViewModel.itemProgressMap.removeObservers(this)
@@ -6742,8 +7763,11 @@ class HomePageActivity : AppCompatActivity() {
 
             datasetViewModel.resetState()
 
+            isTriggerButtonSinkronisasiData = false
             isTriggerFeatureInspection = false
             isTriggerFollowUp = false
+
+
             dialog.dismiss()
         }
 
@@ -6778,7 +7802,7 @@ class HomePageActivity : AppCompatActivity() {
                 val failedIds = mutableListOf<Int>()
 
                 currentStatusMap.forEach { (id, status) ->
-                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED) {
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED || status == AppUtils.UploadStatusUtils.DONE_CHECK) {
                         successfulIds.add(id)
                     } else {
                         failedIds.add(id)
@@ -6823,8 +7847,12 @@ class HomePageActivity : AppCompatActivity() {
                             val currentDateTimeIndonesia = simpleDateFormat.format(Date())
 
                             prefManager!!.lastSyncDate = currentDateTimeIndonesia
+                            prefManager!!.lastSyncDataPanenInspeksi = currentDateTimeIndonesia
+                            prefManager!!.lastSyncFollowUpInspeksi = currentDateTimeIndonesia
 
                             _globalLastSync.value = currentDateTimeIndonesia
+                            _globalLastSyncDataPanenInspeksi.value = currentDateTimeIndonesia
+                            _globalLastSyncFollowUpInspeksi.value = currentDateTimeIndonesia
                         } else {
                             // Some or all failed
                             AppLogger.d("ada yg error update dataset")
@@ -6842,6 +7870,8 @@ class HomePageActivity : AppCompatActivity() {
                             btnRetryDownload.alpha = 1f
                             btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
                         }
+
+                        checkAndShowDialogVersion()
 
                         // Enable close button
                         closeDialogBtn.isEnabled = true
@@ -6876,18 +7906,57 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
-//    private fun extractEmployeesFromJson(jsonString: String, kemandoranId: String): List<String> {
-//        return try {
-//            val jsonObj = JSONObject(jsonString)
-//            val employeeArray = jsonObj.optString(kemandoranId, "")
-//            employeeArray.split(",").filter { it.trim().isNotEmpty() }
-//        } catch (e: Exception) {
-//            AppLogger.e("Error: ${e.message}")
-//            emptyList()
-//        }
-//    }
+    private fun checkAndShowDialogVersion(){
+        FeatureStateManager.checkAndUpdateAppVersion(this@HomePageActivity, prefManager!!)
+        val needsUpdate = AppUtils.checkAppVersionUpdate(this@HomePageActivity, prefManager!!)
+        val deviceInfo = getDeviceInfo(this@HomePageActivity)
+        val currentAppVersion = deviceInfo.optString("app_version", "")
+        AppUtils.isAppUpdateRequired = needsUpdate
+        val messageVersion = SpannableStringBuilder()
+        messageVersion.append("Aplikasi saat ini ")
 
-    private fun startDownloads(previewData: String? = null, titleDialog: String? = null) {
+        val currentVersionSpan = SpannableString("versi $currentAppVersion")
+        currentVersionSpan.setSpan(
+            StyleSpan(Typeface.BOLD),
+            0,
+            currentVersionSpan.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        messageVersion.append(currentVersionSpan)
+
+        messageVersion.append(", Silakan menghubungi Admin CMP untuk update aplikasi ")
+
+        val latestVersionSpan = SpannableString("versi ${prefManager!!.latestAppVersionSystem}")
+        latestVersionSpan.setSpan(
+            StyleSpan(Typeface.BOLD),
+            0,
+            latestVersionSpan.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        messageVersion.append(latestVersionSpan)
+        messageVersion.append("!")
+
+        if (needsUpdate) {
+            AppLogger.d("update required - features will be disabled")
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_internet_connection),
+                messageVersion,
+                "warning.json",
+                R.color.colorRedDark
+            ) { }
+        } else {
+            AppLogger.d("no update needed - all features enabled")
+        }
+    }
+
+    private fun startDownloads(
+        previewDataRestan: String? = null,
+        previewDataPanen: String? = null,
+        previewDataFollowUpInspeksi: String? = null,
+        titleDialog: String? = null
+    ) {
         val regionalIdString = prefManager!!.regionalIdUserLogin
         val estateIdString = prefManager!!.estateIdUserLogin
         val afdelingIdString = prefManager!!.afdelingIdUserLogin
@@ -6901,63 +7970,104 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
-        if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
-            showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
-            loadingDialog.dismiss()
-            return
-        }
+        val jabatanUser = prefManager!!.jabatanUserLogin
+        val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
 
-        try {
-            val estateId = estateIdString.toInt()
-            if (estateId <= 0) {
-                showErrorDialog("Estate ID must be a positive number")
+        if (!isGMUser) {
+            if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
+                showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
                 loadingDialog.dismiss()
                 return
             }
 
-
-            val filteredRequests = if (isTriggerButtonSinkronisasiData) {
-
-                getDatasetsToDownload(
-                    regionalIdString!!.toInt(),
-                    estateId,
-                    afdelingIdString!!,
-                    lastModifiedDatasetEstate,
-                    lastModifiedDatasetTPH,
-                    lastModifiedDatasetJenisTPH,
-                    lastModifiedDatasetBlok,
-                    lastModifiedDatasetPemanen,
-                    lastModifiedDatasetKemandoran,
-                    lastModifiedDatasetTransporter,
-                    lastModifiedDatasetKendaraan,
-                    lastModifiedSettingJSON
-                )
-            } else {
-                getDatasetsToDownload(
-                    regionalIdString!!.toInt(),
-                    estateId,
-                    afdelingIdString!!,
-                    lastModifiedDatasetEstate,
-                    lastModifiedDatasetTPH,
-                    lastModifiedDatasetJenisTPH,
-                    lastModifiedDatasetBlok,
-                    lastModifiedDatasetPemanen,
-                    lastModifiedDatasetKemandoran,
-                    lastModifiedDatasetTransporter,
-                    lastModifiedDatasetKendaraan,
-                    lastModifiedSettingJSON
-                ).filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
+            if (estateIdString.contains(",")) {
+                showErrorDialog("Non-GM users should have only one Estate ID")
+                loadingDialog.dismiss()
+                return
             }
+
+            try {
+                val estateId = estateIdString.toInt()
+                if (estateId <= 0) {
+                    showErrorDialog("Estate ID must be a positive number")
+                    loadingDialog.dismiss()
+                    return
+                }
+            } catch (e: NumberFormatException) {
+                showErrorDialog("Invalid Estate ID format: '$estateIdString'")
+                loadingDialog.dismiss()
+                return
+            }
+        }
+
+        try {
+            // Set the trigger flags in the utility
+            downloadDatasetUtility.apply {
+                isTriggerFeatureInspection = this@HomePageActivity.isTriggerFeatureInspection
+                isTriggerFollowUp = this@HomePageActivity.isTriggerFollowUp
+                isTriggerButtonSinkronisasiData =
+                    this@HomePageActivity.isTriggerButtonSinkronisasiData
+            }
+
+            val estateIds = if (isGMUser && estateIdString!!.contains(",")) {
+                estateIdString.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .map { it.toInt() }
+            } else {
+                estateIdString!!
+            }
+
+            AppLogger.d("estateIds $estateIds")
+
+
+            val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
+                regionalIdString!!.toInt(),
+                estateIds,
+                afdelingIdString!!,
+                lastModifiedDatasetEstate,
+                lastModifiedDatasetTPH,
+                lastModifiedDatasetJenisTPH,
+                lastModifiedDatasetBlok,
+                lastModifiedDatasetPemanen,
+                lastModifiedDatasetKemandoran,
+                lastModifiedDatasetTransporter,
+                lastModifiedDatasetKendaraan,
+                lastModifiedSettingJSON
+            )
+
+            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+
+            AppLogger.d("storedList $storedList")
+            AppLogger.d("allDatasets $allDatasets")
+
+            val filteredRequests =
+                if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
+                    allDatasets
+                } else {
+                    allDatasets.filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
+                }
 
             // Dismiss loading dialog if it was shown
             if (isTriggerButtonSinkronisasiData) {
                 loadingDialog.dismiss()
             }
+
+            AppLogger.d("filteredRequests $filteredRequests")
+
             if (filteredRequests.isNotEmpty()) {
                 if (isTriggerButtonSinkronisasiData || isTriggerFeatureInspection || isTriggerFollowUp) {
-                    startDownloadsV2(filteredRequests, previewData, titleDialog)
+                    startDownloadsV2(
+                        filteredRequests,
+                        previewDataRestan,
+                        previewDataPanen,
+                        previewDataFollowUpInspeksi,
+                        titleDialog
+                    )
                 } else {
                     dialog.show()
+
+                    AppLogger.d("Masuk gesssssssssssssssssssssssss")
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
                 }
             } else {
@@ -6965,239 +8075,9 @@ class HomePageActivity : AppCompatActivity() {
             }
         } catch (e: NumberFormatException) {
             loadingDialog.dismiss()
-            AppLogger.d("Downloads: Failed to parse Estate ID to integer: ${e.message}")
+            AppLogger.d("Downloads: Failed to parse Estate ID: ${e.message}")
             showErrorDialog("Invalid Estate ID format: ${e.message}")
         }
-    }
-
-    private fun getDatasetsToDownload(
-        regionalId: Int,
-        estateId: Int,
-        afdelingId: String,
-        lastModifiedDatasetEstate: String?,
-        lastModifiedDatasetTPH: String?,
-        lastModifiedDatasetJenisTPH: String?,
-        lastModifiedDatasetBlok: String?,
-        lastModifiedDatasetPemanen: String?,
-        lastModifiedDatasetKemandoran: String?,
-        lastModifiedDatasetTransporter: String?,
-        lastModifiedDatasetKendaraan: String?,
-        lastModifiedSettingJSON: String?
-    ): List<DatasetRequest> {
-        val datasets = mutableListOf<DatasetRequest>()
-
-        val jabatan = prefManager!!.jabatanUserLogin
-        val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
-        val isKeraniTimbang =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)
-
-        val isKeraniPanen =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true)
-
-        val isMandor1 =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Mandor1, ignoreCase = true)
-
-        val isAsisten =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.Asisten, ignoreCase = true)
-
-        val isMandorPanen =
-            jabatan!!.contains(AppUtils.ListFeatureByRoleUser.MandorPanen, ignoreCase = true)
-
-
-        AppLogger.d(" isTriggerFeatureInspection $isTriggerFeatureInspection")
-        if (isTriggerFeatureInspection && !isKeraniPanen) {
-            AppLogger.d("Inspection triggered - downloading only parameter dataset")
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-                )
-            )
-            return datasets
-        }
-
-        if (isTriggerFollowUp && !isKeraniPanen) {
-            AppLogger.d("Inspection triggered - downloading only parameter dataset")
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
-                )
-            )
-            return datasets
-        }
-
-        if (isTriggerButtonSinkronisasiData && !isKeraniTimbang) {
-            // Get all estate timestamps directly from prefManager
-            val estateTimestamps = prefManager!!.getMasterTPHEstateLastModifiedMap()
-            AppLogger.d("Estate timestamps (${estateTimestamps.size} estates):")
-
-            // Check if estateTimestamps is not empty before proceeding
-            if (estateTimestamps.isNotEmpty()) {
-                // For each estate in the timestamps map
-                estateTimestamps.forEach { (abbr, timestamp) ->
-                    AppLogger.d("  $abbr: $timestamp")
-
-                    // Find the estate ID from the allEstatesList
-                    val estate = datasetViewModel.allEstatesList.value?.find { it.abbr == abbr }
-                    val estateId = estate?.id?.toInt()
-                    val estateName = estate?.nama ?: "Unknown Estate"
-
-                    if (estateId != null) {
-                        AppLogger.d("Adding estate dataset: $abbr ($estateName)")
-                        datasets.add(
-                            DatasetRequest(
-                                estate = estateId,
-                                estateAbbr = abbr,
-                                lastModified = timestamp,
-                                dataset = AppUtils.DatasetNames.tph
-                            )
-                        )
-                    } else {
-                        AppLogger.d("Skipping estate $abbr - could not find estate ID")
-                    }
-                }
-            } else {
-                AppLogger.d("No estate timestamps found to process")
-            }
-        }
-
-
-        if (isTriggerFeatureInspection && (isMandor1 || isAsisten)) {
-            AppLogger.d(isTriggerFeatureInspection.toString())
-            datasets.add(
-                DatasetRequest(
-                    afdeling = afdelingId,
-                    estate = estateId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-                )
-            )
-            datasets.add(
-                DatasetRequest(
-                    regional = null,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.parameter
-                ),
-            )
-        }
-
-        if (!isTriggerButtonSinkronisasiData) {
-
-            datasets.add(
-                DatasetRequest(
-                    regional = null,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.parameter
-                ),
-            )
-        }
-
-
-        if (isTriggerButtonSinkronisasiData) {
-            datasets.add(
-                DatasetRequest(
-                    lastModified = null,
-                    idUser = prefManager!!.idUserLogin,
-                    dataset = AppUtils.DatasetNames.sinkronisasiDataUser
-                )
-            )
-        }
-
-        if (isMandorPanen || isMandor1) {
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                ),
-            )
-        }
-
-        if (isKeraniTimbang) {
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-            )
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                )
-            )
-        } else {
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-            )
-
-            datasets.add(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                ),
-            )
-
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetEstate,
-                    dataset = AppUtils.DatasetNames.estate
-                ),
-            )
-        }
-
-        datasets.addAll(
-            listOf(
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetJenisTPH,
-                    dataset = AppUtils.DatasetNames.jenisTPH
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetTransporter,
-                    dataset = AppUtils.DatasetNames.transporter
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetKendaraan,
-                    dataset = AppUtils.DatasetNames.kendaraan
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedSettingJSON,
-                    dataset = AppUtils.DatasetNames.settingJSON
-                )
-            )
-        )
-
-        return datasets
     }
 
     private fun resetEstateSelection(successfulEstates: List<String>) {
@@ -7579,7 +8459,8 @@ class HomePageActivity : AppCompatActivity() {
         isMultiSelect: Boolean = false,
         onItemSelected: (String, Int) -> Unit
     ) {
-        val popupView = LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
+        val popupView =
+            LayoutInflater.from(spinner.context).inflate(R.layout.layout_dropdown_search, null)
         val listView = popupView.findViewById<ListView>(R.id.listViewChoices)
         val editTextSearch = popupView.findViewById<EditText>(R.id.searchEditText)
 
@@ -7651,7 +8532,12 @@ class HomePageActivity : AppCompatActivity() {
 
                     if (hasExistingData || isUserEstate) {
                         textView.setTypeface(textView.typeface, Typeface.BOLD)
-                        textView.setTextColor(ContextCompat.getColor(context, R.color.greendarkerbutton))
+                        textView.setTextColor(
+                            ContextCompat.getColor(
+                                context,
+                                R.color.greendarkerbutton
+                            )
+                        )
 
                         if (isUserEstate) {
                             textView.text = "★ $itemValue"
@@ -7694,7 +8580,8 @@ class HomePageActivity : AppCompatActivity() {
                                 ContextCompat.getColor(context, R.color.greenBorder)
                             )
 
-                            val errorTextView = linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
+                            val errorTextView =
+                                linearLayout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
                             if (errorTextView.visibility == View.VISIBLE && isAnyCheckboxSelected()) {
                                 errorTextView.visibility = View.GONE
                             }
@@ -7765,13 +8652,22 @@ class HomePageActivity : AppCompatActivity() {
                             filteredData
                         }
                     ) {
-                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                        override fun getView(
+                            position: Int,
+                            convertView: View?,
+                            parent: ViewGroup
+                        ): View {
                             val view = super.getView(position, convertView, parent)
                             val textView = view.findViewById<TextView>(R.id.text1)
                             val checkbox = view.findViewById<CheckBox>(R.id.checkbox)
 
                             if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTextColor(
+                                    ContextCompat.getColor(
+                                        context,
+                                        R.color.colorRedDark
+                                    )
+                                )
                                 textView.setTypeface(textView.typeface, Typeface.ITALIC)
                                 checkbox.visibility = View.GONE
                                 view.isEnabled = false
@@ -7813,12 +8709,21 @@ class HomePageActivity : AppCompatActivity() {
                             filteredData
                         }
                     ) {
-                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                        override fun getView(
+                            position: Int,
+                            convertView: View?,
+                            parent: ViewGroup
+                        ): View {
                             val view = super.getView(position, convertView, parent)
                             val textView = view.findViewById<TextView>(android.R.id.text1)
 
                             if (filteredData.isEmpty() && !s.isNullOrEmpty()) {
-                                textView.setTextColor(ContextCompat.getColor(context, R.color.colorRedDark))
+                                textView.setTextColor(
+                                    ContextCompat.getColor(
+                                        context,
+                                        R.color.colorRedDark
+                                    )
+                                )
                                 textView.setTypeface(textView.typeface, Typeface.ITALIC)
                                 view.isEnabled = false
                             } else {
@@ -7856,7 +8761,8 @@ class HomePageActivity : AppCompatActivity() {
         popupWindow.showAsDropDown(spinner)
 
         editTextSearch.requestFocus()
-        val imm = spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm =
+            spinner.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editTextSearch, InputMethodManager.SHOW_IMPLICIT)
     }
 
@@ -7883,7 +8789,6 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
     }
-
 
 
     private fun showErrorDialog(errorMessage: String) {
@@ -8033,6 +8938,10 @@ class HomePageActivity : AppCompatActivity() {
         val factoryInspection = InspectionViewModel.InspectionViewModelFactory(application)
         inspectionViewModel =
             ViewModelProvider(this, factoryInspection)[InspectionViewModel::class.java]
+
+        val factoryMBVM = MutuBuahViewModel.MutuBuahViewModelFactory(application)
+        mutuBuahViewModel =
+            ViewModelProvider(this, factoryMBVM)[MutuBuahViewModel::class.java]
     }
 
 
@@ -8071,7 +8980,11 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         otherPermissions.forEach { permission ->
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    permission
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(permission)
             }
         }

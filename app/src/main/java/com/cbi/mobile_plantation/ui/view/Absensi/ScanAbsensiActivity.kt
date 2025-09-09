@@ -177,6 +177,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
     }
 
     private fun processQRResult(qrResult: String) {
+
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
                 loadingDialog.show()
@@ -203,7 +204,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val rawDatetime = datetimeList.firstOrNull() ?: ""
 
-                    // Extract dept and dept_abbr
+                    // Extract dept and dept_abbr (previously estate)
                     val deptList = jsonObject.optJSONArray("dept")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val dept = deptList.firstOrNull() ?: ""
@@ -212,7 +213,14 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val deptAbbr = deptAbbrList.firstOrNull() ?: ""
 
-                    // Extract divisi and divisi_abbr
+                    // Use estate as fallback for dept_abbr if not present
+                    val estateList = jsonObject.optJSONArray("dept")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val estate = estateList.firstOrNull() ?: ""
+
+                    val finalDeptAbbr = if (deptAbbr.isNotEmpty()) deptAbbr else estate
+
+                    // Extract divisi and divisi_abbr (previously afdeling)
                     val divisiList = jsonObject.optJSONArray("divisi")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val divisi = divisiList.firstOrNull() ?: ""
@@ -220,6 +228,13 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     val divisiAbbrList = jsonObject.optJSONArray("divisi_abbr")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val divisiAbbr = divisiAbbrList.firstOrNull() ?: ""
+
+                    // Use afdeling as fallback for divisi_abbr if not present
+                    val afdelingList = jsonObject.optJSONArray("divisi")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val afdeling = afdelingList.firstOrNull() ?: ""
+
+                    val finalDivisiAbbr = if (divisiAbbr.isNotEmpty()) divisiAbbr else afdeling
 
                     // Extract info field
                     val infoList = jsonObject.optJSONArray("info")
@@ -257,101 +272,20 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ""
                     }
 
-                    // Process the NEW employee data structure
-                    val karyawanMskIdList = mutableListOf<String>()
-                    val karyawanTdkMskIdList = mutableListOf<String>()
-                    val nikKaryawanMskList = mutableListOf<String>()
-                    val nikKaryawanTdkMskList = mutableListOf<String>()
+                    // Process the employee data
+                    // First try karyawan_msk_id and karyawan_tdk_msk_id
+                    val karyawanMskIdList = jsonObject.optJSONArray("karyawan_msk_id")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val karyawanTdkMskIdList = jsonObject.optJSONArray("karyawan_tdk_msk_id")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    // Process karyawan_msk_id with nested structure
-                    val karyawanMskIdObj = jsonObject.optJSONObject("karyawan_msk_id")
-                    if (karyawanMskIdObj != null) {
-                        // Iterate through categories (h, c, s, etc.)
-                        val categories = karyawanMskIdObj.keys()
-                        while (categories.hasNext()) {
-                            val category = categories.next()
-                            val categoryObj = karyawanMskIdObj.optJSONObject(category)
-                            if (categoryObj != null) {
-                                // Iterate through kemandoran IDs
-                                val kemandoranIds = categoryObj.keys()
-                                while (kemandoranIds.hasNext()) {
-                                    val kemandoranId = kemandoranIds.next()
-                                    val employeeIds = categoryObj.optString(kemandoranId)
-                                    if (employeeIds.isNotEmpty()) {
-                                        karyawanMskIdList.addAll(employeeIds.split(",").map { it.trim() })
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Fallback to NIK if ID lists are empty
+                    val nikKaryawanMskList = jsonObject.optJSONArray("karyawan_msk_nik")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val nikKaryawanTdkMskList = jsonObject.optJSONArray("karyawan_tdk_msk_nik")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    // Process karyawan_tdk_msk_id with nested structure
-                    val karyawanTdkMskIdObj = jsonObject.optJSONObject("karyawan_tdk_msk_id")
-                    if (karyawanTdkMskIdObj != null) {
-                        // Iterate through categories (h, c, s, etc.)
-                        val categories = karyawanTdkMskIdObj.keys()
-                        while (categories.hasNext()) {
-                            val category = categories.next()
-                            val categoryObj = karyawanTdkMskIdObj.optJSONObject(category)
-                            if (categoryObj != null) {
-                                // Iterate through kemandoran IDs
-                                val kemandoranIds = categoryObj.keys()
-                                while (kemandoranIds.hasNext()) {
-                                    val kemandoranId = kemandoranIds.next()
-                                    val employeeIds = categoryObj.optString(kemandoranId)
-                                    if (employeeIds.isNotEmpty()) {
-                                        karyawanTdkMskIdList.addAll(employeeIds.split(",").map { it.trim() })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Process karyawan_msk_nik with nested structure
-                    val karyawanMskNikObj = jsonObject.optJSONObject("karyawan_msk_nik")
-                    if (karyawanMskNikObj != null) {
-                        // Iterate through categories (h, c, s, etc.)
-                        val categories = karyawanMskNikObj.keys()
-                        while (categories.hasNext()) {
-                            val category = categories.next()
-                            val categoryObj = karyawanMskNikObj.optJSONObject(category)
-                            if (categoryObj != null) {
-                                // Iterate through kemandoran IDs
-                                val kemandoranIds = categoryObj.keys()
-                                while (kemandoranIds.hasNext()) {
-                                    val kemandoranId = kemandoranIds.next()
-                                    val employeeNiks = categoryObj.optString(kemandoranId)
-                                    if (employeeNiks.isNotEmpty()) {
-                                        nikKaryawanMskList.addAll(employeeNiks.split(",").map { it.trim() })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Process karyawan_tdk_msk_nik with nested structure
-                    val karyawanTdkMskNikObj = jsonObject.optJSONObject("karyawan_tdk_msk_nik")
-                    if (karyawanTdkMskNikObj != null) {
-                        // Iterate through categories (h, c, s, etc.)
-                        val categories = karyawanTdkMskNikObj.keys()
-                        while (categories.hasNext()) {
-                            val category = categories.next()
-                            val categoryObj = karyawanTdkMskNikObj.optJSONObject(category)
-                            if (categoryObj != null) {
-                                // Iterate through kemandoran IDs
-                                val kemandoranIds = categoryObj.keys()
-                                while (kemandoranIds.hasNext()) {
-                                    val kemandoranId = kemandoranIds.next()
-                                    val employeeNiks = categoryObj.optString(kemandoranId)
-                                    if (employeeNiks.isNotEmpty()) {
-                                        nikKaryawanTdkMskList.addAll(employeeNiks.split(",").map { it.trim() })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Use IDs if available, otherwise use NIKs (maintain backward compatibility)
+                    // Use IDs if available, otherwise use NIKs
                     val finalKaryawanMskIdList = if (karyawanMskIdList.isNotEmpty()) karyawanMskIdList else nikKaryawanMskList
                     val finalKaryawanTdkMskIdList = if (karyawanTdkMskIdList.isNotEmpty()) karyawanTdkMskIdList else nikKaryawanTdkMskList
 
@@ -362,10 +296,8 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     val nikKaryawanTdkMskString = nikKaryawanTdkMskList.joinToString(",")
                     val idKemandoranString = idKemandoranList.joinToString(",")
 
-                    AppLogger.d("Present employees (ID): ${karyawanMskIdList.joinToString(", ")}")
-                    AppLogger.d("Absent employees (ID): ${karyawanTdkMskIdList.joinToString(", ")}")
-                    AppLogger.d("Present employees (NIK): ${nikKaryawanMskList.joinToString(", ")}")
-                    AppLogger.d("Absent employees (NIK): ${nikKaryawanTdkMskList.joinToString(", ")}")
+                    AppLogger.d("Present employees (ID/NIK): ${finalKaryawanMskIdList.joinToString(", ")}")
+                    AppLogger.d("Absent employees (ID/NIK): ${finalKaryawanTdkMskIdList.joinToString(", ")}")
 
                     // Get employee names if needed
                     var karyawanMskNamaString = ""
@@ -408,8 +340,8 @@ class ScanAbsensiActivity : AppCompatActivity() {
                     val kehadiranText = "$totalMasuk / $totalAll"
 
                     AppLogger.d("Attendance stats: $kehadiranText")
-                    AppLogger.d("dept: $dept, dept_abbr: $deptAbbr")
-                    AppLogger.d("divisi: $divisi, divisi_abbr: $divisiAbbr")
+                    AppLogger.d("dept: $dept, dept_abbr: $finalDeptAbbr")
+                    AppLogger.d("divisi: $divisi, divisi_abbr: $finalDivisiAbbr")
 
                     // Set global variables for saving data
                     globalIdKemandoran = idKemandoranString
@@ -421,13 +353,14 @@ class ScanAbsensiActivity : AppCompatActivity() {
 
                     // Store dept and divisi information
                     globalDept = dept
-                    globalDeptAbbr = deptAbbr
+                    globalDeptAbbr = finalDeptAbbr
                     globalDivisi = divisi
-                    globalDivisiAbbr = divisiAbbr
+                    globalDivisiAbbr = finalDivisiAbbr
 
                     // Store employee names
-                    AppLogger.d("NIK Present: $nikKaryawanMskString")
-                    AppLogger.d("Nama Present: $karyawanMskNamaString")
+
+                    AppLogger.d(nikKaryawanMskString)
+                    AppLogger.d(karyawanMskNamaString)
                     globalKaryawanMskNama = karyawanMskNamaString
                     globalKaryawanTdkMskNama = karyawanTdkMskNamaString
                     globalKaryawanMskNik = nikKaryawanMskString
@@ -437,7 +370,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         try {
                             showBottomSheetWithData(
                                 datetimeQR = formattedDatetime,
-                                estateAfdelingQR = "$deptAbbr / $divisiAbbr",
+                                estateAfdelingQR = "$finalDeptAbbr / $finalDivisiAbbr",
                                 namaKemandoranQR = namaKemandoran,
                                 kehadiranQR = kehadiranText,
                                 hasError = false,

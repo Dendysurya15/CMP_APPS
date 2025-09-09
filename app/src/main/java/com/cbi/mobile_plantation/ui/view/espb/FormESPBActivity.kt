@@ -51,7 +51,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
@@ -891,7 +891,10 @@ class FormESPBActivity : AppCompatActivity() {
                             kemandoran_id = uniqueKemandoranId
                         )
 
+                        AppLogger.d("json $json")
+
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
+
 
 
                         if (encodedData != null) {

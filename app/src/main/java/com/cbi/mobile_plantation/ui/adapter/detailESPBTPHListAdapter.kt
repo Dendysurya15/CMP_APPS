@@ -25,7 +25,8 @@ data class TPHItem(
     val tphNomor: String,
     var isChecked: Boolean = false,
     var blokKode: String,
-    val isFromESPB: Boolean = false // Add this field
+    val isFromESPB: Boolean = false,
+    val nomorPemanen: String = "0"
 )
 
 // Complete adapter with visual indicator

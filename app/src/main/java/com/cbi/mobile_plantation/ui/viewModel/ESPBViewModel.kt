@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -189,8 +189,19 @@ class ESPBViewModel(private val repository: AppRepository) : ViewModel() {
         return repository.getBlokById(listBlokId)
     }
 
-    suspend fun getBlokByIdOrIdPPRO(listBlokId: List<Int>): List<BlokModel> {
-        return repository.fetchBlokListbyIdorIdPpro(listBlokId)
+    suspend fun getBlokByParams(blockId: Int, blokPpro: Int?, dept: String?, divisi: String?): BlokModel? {
+        return try {
+            val result = repository.fetchBlokbyParams(blockId, blokPpro, dept, divisi)
+            if (result.isSuccess) {
+                result.getOrNull()
+            } else {
+                AppLogger.e("Error fetching blok by params: ${result.exceptionOrNull()?.message}")
+                null
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Exception in getBlokByParams: ${e.message}")
+            null
+        }
     }
 
     suspend fun getTransporterNameById(transporterId: Int): String? {

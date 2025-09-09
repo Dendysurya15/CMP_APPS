@@ -16,7 +16,10 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,13 +28,20 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
+import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel
 import com.cbi.mobile_plantation.ui.viewModel.FormAncakViewModel.PageData
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.android.flexbox.FlexboxLayout
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.card.MaterialCardView
+import com.jaredrummler.materialspinner.MaterialSpinner
 
 class FormAncakFragment : Fragment() {
     data class InputMapping(
@@ -41,7 +51,9 @@ class FormAncakFragment : Fragment() {
         val dataField: (PageData, Int) -> PageData,
         val currentValue: (PageData) -> Int
     )
-
+    private var availableWorkersForSpinner = mutableListOf<String>()
+    private lateinit var spinnerAdapter: ArrayAdapter<String>
+    private lateinit var selectedPemanenTemuanAdapter: SelectedWorkerAdapter
     private lateinit var viewModel: FormAncakViewModel
     private val errorViewsMap = mutableMapOf<Int, TextView>()
     private var isFragmentInitializing = false // Add this flag
@@ -60,7 +72,7 @@ class FormAncakFragment : Fragment() {
             "1" to "Tinggi",
             "2" to "Rendah"
         ),
-        "ExistsOrNot" to mapOf(
+            "ExistsOrNot" to mapOf(
             "1" to "Ada",
             "2" to "Tidak"
         ),
@@ -80,14 +92,17 @@ class FormAncakFragment : Fragment() {
     )
 
     private var pageNumber: Int = 1
+    private var featureName: String? = null
 
     companion object {
         private const val ARG_PAGE_NUMBER = "page_number"
+        private const val ARG_FEATURE_NAME = "feature_name"
 
-        fun newInstance(pageNumber: Int): FormAncakFragment {
+        fun newInstance(pageNumber: Int, featureName: String?): FormAncakFragment {
             return FormAncakFragment().apply {
                 arguments = Bundle().apply {
                     putInt(ARG_PAGE_NUMBER, pageNumber)
+                    putString(ARG_FEATURE_NAME, featureName)
                 }
             }
         }
@@ -97,10 +112,14 @@ class FormAncakFragment : Fragment() {
         super.onCreate(savedInstanceState)
         arguments?.let {
             pageNumber = it.getInt(ARG_PAGE_NUMBER, 1)
+            featureName = it.getString(ARG_FEATURE_NAME)
         }
+
+        AppLogger.d("Fragment created with featureName: $featureName, pageNumber: $pageNumber")
 
         viewModel = ViewModelProvider(requireActivity())[FormAncakViewModel::class.java]
     }
+
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -123,6 +142,28 @@ class FormAncakFragment : Fragment() {
         // Setup title observers
         setupTitleObservers(view)
 
+        setupPemanenTemuanRecyclerView()
+
+        viewModel.formData.observe(viewLifecycleOwner) { formDataMap ->
+            val pageData = formDataMap[pageNumber]
+            if (pageData != null) {
+                AppLogger.d("Fragment $pageNumber received pageData update: ${pageData.pemanen.size} workers in pemanen")
+
+                // Populate RecyclerView based on pemanen field
+                populateRecyclerViewFromPemanen(pageData.pemanen)
+
+                updateSpinnerWithAvailableWorkers(pageData.pemanen)
+            }
+        }
+
+        viewModel.availableWorkers.observe(viewLifecycleOwner) { allWorkers ->
+            val currentPageData = viewModel.getPageData(pageNumber)
+            if (currentPageData != null) {
+                updateSpinnerWithAvailableWorkers(currentPageData.pemanen)
+            }
+        }
+
+
         setupAllInputs()
 
         // ⏰ Enable TextWatchers AFTER all setup is complete
@@ -131,6 +172,136 @@ class FormAncakFragment : Fragment() {
                 isFragmentInitializing = false
             }, 300)
         }
+    }
+
+    private fun updateSpinnerWithAvailableWorkers(currentPemanen: Map<String, String>) {
+        val allWorkers = viewModel.availableWorkers.value ?: emptyList()
+
+        // Filter out workers that are already selected for this page
+        availableWorkersForSpinner.clear()
+        allWorkers.forEach { workerName ->
+            // Split only on first " - " occurrence
+            val firstDashIndex = workerName.indexOf(" - ")
+            if (firstDashIndex != -1) {
+                val nik = workerName.substring(0, firstDashIndex).trim()
+                // Only add to spinner if not currently in this pa  ge's pemanen
+                if (!currentPemanen.containsKey(nik)) {
+                    availableWorkersForSpinner.add(workerName)
+                }
+            }
+        }
+        updatePemanenSpinnerDropdown()
+    }
+
+
+    private fun updatePemanenSpinnerDropdown() {
+        val linearLayout = view?.findViewById<LinearLayout>(R.id.lyPemanenTemuan) ?: return
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS) ?: return
+
+        if (availableWorkersForSpinner.isEmpty()) {
+
+            AppLogger.d("masuk sini ges")
+            spinner.hint = "Semua pemanen terpilih"
+
+            spinner.setItems(emptyList<String>())
+            return
+        }
+
+        spinner.hint = "Tambah Pemanen (${availableWorkersForSpinner.size} tersedia)"
+
+        spinner.setItems(availableWorkersForSpinner)
+
+        // Handle spinner selection
+        spinner.setOnItemSelectedListener { view, position, id, item ->
+            val selectedWorker = item.toString()
+            addWorkerBackToPage(selectedWorker)
+
+            spinner.text = ""
+
+            AppLogger.d("Selected worker from spinner: $selectedWorker")
+        }
+
+        AppLogger.d("Jared Drummler MaterialSpinner updated with ${availableWorkersForSpinner.size} available workers")
+    }
+
+    private fun addWorkerBackToPage(workerName: String) {
+        val firstDashIndex = workerName.indexOf(" - ")
+        if (firstDashIndex != -1) {
+            val nik = workerName.substring(0, firstDashIndex).trim()
+            val name = workerName.substring(firstDashIndex + 3).trim() // +3 to skip " - "
+
+            val currentPageData = viewModel.getPageData(pageNumber) ?: return
+            val updatedPemanen = currentPageData.pemanen.toMutableMap()
+            updatedPemanen[nik] = name
+
+            val updatedPageData = currentPageData.copy(pemanen = updatedPemanen)
+            viewModel.updatePageData(pageNumber, updatedPageData)
+
+            AppLogger.d("Added worker back to page $pageNumber: $workerName (NIK: $nik, Name: $name)")
+        }
+    }
+
+    // Update the existing setupPemanenSpinner function
+    private fun setupPemanenSpinner(
+        layoutId: Int,
+        titleText: String,
+        selectedPemanen: Map<String, String>
+    ) {
+        val linearLayout = view?.findViewById<LinearLayout>(layoutId) ?: return
+        val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        val titleTextView = linearLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
+
+        titleTextView.text = titleText
+
+        // Initial setup - will be updated by updateSpinnerWithAvailableWorkers
+        spinner.setHint("Memuat pemanen...")
+
+        AppLogger.d("Pemanen spinner setup for page $pageNumber")
+    }
+
+    // Update the existing removePemanenFromPageData function
+    private fun removePemanenFromPageData(removedWorker: Worker) {
+        val currentPageData = viewModel.getPageData(pageNumber) ?: return
+
+        val nik = removedWorker.id
+
+        // Remove from page data
+        val updatedPemanen = currentPageData.pemanen.toMutableMap()
+        updatedPemanen.remove(nik)
+
+        val updatedPageData = currentPageData.copy(pemanen = updatedPemanen)
+        viewModel.updatePageData(pageNumber, updatedPageData)
+
+        AppLogger.d("Removed pemanen from page $pageNumber data: ${removedWorker.name}")
+
+    }
+
+    private fun populateRecyclerViewFromPemanen(pemanenMap: Map<String, String>) {
+        if (pemanenMap.isEmpty()) {
+            AppLogger.d("No pemanen data for page $pageNumber")
+            selectedPemanenTemuanAdapter.clearAllWorkers()
+            updateRecyclerViewVisibility()
+            return
+        }
+
+        // Clear existing workers first
+        selectedPemanenTemuanAdapter.clearAllWorkers()
+
+        // Convert pemanen map to Worker objects and add to RecyclerView
+        pemanenMap.forEach { (nik, name) ->
+            val workerDisplayName = "$nik - $name"
+            val worker = Worker(nik, workerDisplayName)
+
+            // Add worker to RecyclerView
+            selectedPemanenTemuanAdapter.addWorker(worker)
+
+            AppLogger.d("Added worker to page $pageNumber RecyclerView: $workerDisplayName")
+        }
+
+        // Show RecyclerView since it now has items
+        updateRecyclerViewVisibility()
+
+        AppLogger.d("Populated RecyclerView for page $pageNumber with ${pemanenMap.size} workers from pemanen field")
     }
 
     private fun setupTitleObservers(view: View) {
@@ -197,7 +368,7 @@ class FormAncakFragment : Fragment() {
             ),
             InputMapping(
                 R.id.lyKondisiPruningInspect,
-                "Over Pruning?",
+                "Kondisi Pruning?",
                 InputType.RADIO,
                 { currentData, value -> currentData.copy(kondisiPruning = value) },
                 { it.kondisiPruning }
@@ -230,6 +401,16 @@ class FormAncakFragment : Fragment() {
                 { currentData, value -> currentData.copy(brdKtpPiringanPikulKetiak = value) },
                 { it.brdKtpPiringanPikulKetiak }
             ),
+            InputMapping(
+                R.id.lyPemanenTemuan,
+                "Pemanen",
+                InputType.SPINNER,
+                { currentData, value ->
+                    // Note: This will be handled differently since it's a Map, not a single value
+                    currentData // Return unchanged, actual handling in spinner selection
+                },
+                { it.pemanen.isEmpty().let { if (it) -1 else 0 } } // Return -1 if empty, 0 if has data
+            ),
         )
 
         val currentPageData =
@@ -254,6 +435,17 @@ class FormAncakFragment : Fragment() {
                     currentValue = valueForThisPage
                 )
 
+                InputType.SPINNER -> {
+                    when (layoutId) {
+                        R.id.lyPemanenTemuan -> {
+                            setupPemanenSpinner(layoutId, label, currentPageData.pemanen)
+                        }
+                        else -> {
+                            // Handle other spinners if any
+                        }
+                    }
+                }
+
                 else -> {}
             }
         }
@@ -261,6 +453,45 @@ class FormAncakFragment : Fragment() {
         val harvestTreeValue = currentPageData.harvestTree
         updateHarvestTreeNumberVisibility(harvestTreeValue)
     }
+
+    private fun setupPemanenTemuanRecyclerView() {
+        val rvSelectedPemanenTemuan = view?.findViewById<RecyclerView>(R.id.rvSelectedPemanenTemuan) ?: return
+
+        selectedPemanenTemuanAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanenTemuan.adapter = selectedPemanenTemuanAdapter
+        rvSelectedPemanenTemuan.layoutManager = FlexboxLayoutManager(requireContext()).apply {
+            justifyContent = JustifyContent.FLEX_START
+        }
+
+        // Set up the remove listener
+        selectedPemanenTemuanAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
+            AppLogger.d("Pemanen Temuan removal callback triggered for: ${removedWorker.name}")
+
+            // Remove from page data
+            removePemanenFromPageData(removedWorker)
+
+            // Show RecyclerView if it has items, hide if empty
+            updateRecyclerViewVisibility()
+        }
+
+        AppLogger.d("RecyclerView setup completed for page $pageNumber")
+    }
+
+
+    private fun updateRecyclerViewVisibility() {
+        val rvSelectedPemanenTemuan = view?.findViewById<RecyclerView>(R.id.rvSelectedPemanenTemuan)
+        val selectedWorkers = selectedPemanenTemuanAdapter.getSelectedWorkers()
+
+        rvSelectedPemanenTemuan?.visibility = if (selectedWorkers.isNotEmpty()) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
+        AppLogger.d("RecyclerView visibility updated for page $pageNumber: ${selectedWorkers.size} workers")
+    }
+
+
 
 
     fun scrollToTop() {
@@ -310,6 +541,7 @@ class FormAncakFragment : Fragment() {
         return 0
     }
 
+
     private fun setupRadioGroup(
         layoutId: Int,
         titleText: String,
@@ -323,6 +555,9 @@ class FormAncakFragment : Fragment() {
         val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
 
         titleTextView.text = titleText
+
+        // Check if this is follow-up inspection
+        val isFollowUpInspection = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
 
         if (layoutId == R.id.lyExistsTreeInspect) {
             viewModel.isInspection.observe(viewLifecycleOwner) { isInspection ->
@@ -345,24 +580,49 @@ class FormAncakFragment : Fragment() {
 
         itemList.forEach { (id, label) ->
             val idValue = id.toInt()
+
+            // Determine if this specific radio button should be disabled
+            val shouldDisableThisButton = if (isFollowUpInspection) {
+                if (layoutId == R.id.lyExistsTreeInspect) {
+                    // For lyExistsTreeInspect: only disable if there's a selection and this isn't it
+                    fieldValue != 0 && idValue != fieldValue
+                } else {
+                    // For other layouts: disable if this isn't the selected value
+                    idValue != fieldValue
+                }
+            } else {
+                false // Not follow-up inspection, don't disable
+            }
+
             val radioButton = RadioButton(layoutView.context).apply {
                 text = label
                 tag = idValue
                 textSize = 18f
-                setTextColor(Color.BLACK)
+                setTextColor(if (shouldDisableThisButton) Color.GRAY else Color.BLACK)
                 setPadding(10, 0, 30, 0)
-                buttonTintList = ContextCompat.getColorStateList(layoutView.context, R.color.greenDefault)
+                buttonTintList = ContextCompat.getColorStateList(
+                    layoutView.context,
+                    if (shouldDisableThisButton) R.color.graydarker else R.color.greenDefault
+                )
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
 
                 isChecked = idValue == fieldValue
+                isEnabled = !shouldDisableThisButton
+
                 if (isChecked) {
                     lastSelectedRadioButton = this
                 }
 
                 setOnClickListener {
+                    // Skip click handling if disabled
+                    if (shouldDisableThisButton) {
+                        AppLogger.d("Radio button disabled for follow-up inspection")
+                        return@setOnClickListener
+                    }
+
                     clearValidationErrors()
 
                     lastSelectedRadioButton?.isChecked = false
@@ -377,7 +637,6 @@ class FormAncakFragment : Fragment() {
                         updateDependentLayoutVisibility(idValue)
                     }
 
-                    // ADD THIS: Handle lyHarvestTreeNumber visibility
                     if (layoutId == R.id.lyHarvestTreeInspect) {
                         updateHarvestTreeNumberVisibility(idValue)
                     }
@@ -411,6 +670,8 @@ class FormAncakFragment : Fragment() {
         if (currentPageData != null) {
             updateHarvestTreeNumberVisibility(currentPageData.harvestTree)
             updateDependentLayoutVisibility(currentPageData.emptyTree)
+
+            populateRecyclerViewFromPemanen(currentPageData.pemanen)
         }
 
         view?.post {
@@ -432,66 +693,99 @@ class FormAncakFragment : Fragment() {
         val btnMinus = layoutView.findViewById<CardView>(R.id.btDec)
         val btnPlus = layoutView.findViewById<CardView>(R.id.btInc)
 
+        // Check if this is follow-up inspection
+        val isFollowUpInspection = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
+
         titleTextView.text = titleText
-        editText.setText(currentValue.toString())  // ✅ KEEP THIS
+        editText.setText(currentValue.toString())
+
+        // Disable components for follow-up inspection
+        editText.isEnabled = !isFollowUpInspection
+        btnMinus.isEnabled = !isFollowUpInspection
+        btnPlus.isEnabled = !isFollowUpInspection
+
+        // Change visual appearance when disabled
+        if (isFollowUpInspection) {
+            editText.setTextColor(Color.BLACK)
+            editText.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.graylight))
+            btnMinus.alpha = 0.5f
+            btnPlus.alpha = 0.5f
+        } else {
+            editText.setTextColor(Color.BLACK)
+            editText.setBackgroundColor(Color.WHITE)
+            btnMinus.alpha = 1.0f
+            btnPlus.alpha = 1.0f
+        }
 
         // Plus button setup
-        handleLongPress(editText, btnPlus, dataField, minValue, maxValue)
-        btnPlus.setOnClickListener {
-            val currentVal = editText.text.toString().toIntOrNull() ?: 0
-            val newValue = if (maxValue != null) {
-                minOf(currentVal + 1, maxValue)
-            } else {
-                currentVal + 1
+        if (!isFollowUpInspection) {
+            handleLongPress(editText, btnPlus, dataField, minValue, maxValue)
+            btnPlus.setOnClickListener {
+                val currentVal = editText.text.toString().toIntOrNull() ?: 0
+                val newValue = if (maxValue != null) {
+                    minOf(currentVal + 1, maxValue)
+                } else {
+                    currentVal + 1
+                }
+                editText.setText(newValue.toString())
+                saveNumericValue(newValue, dataField)
             }
-            editText.setText(newValue.toString())
-            saveNumericValue(newValue, dataField)
+        } else {
+            btnPlus.setOnClickListener {
+                AppLogger.d("Plus button disabled for follow-up inspection")
+            }
         }
 
         // Minus button setup
-        handleLongPress(editText, btnMinus, dataField, minValue, maxValue, false)
-        btnMinus.setOnClickListener {
-            val currentVal = editText.text.toString().toIntOrNull() ?: 0
-            val newValue = maxOf(currentVal - 1, minValue)
-            editText.setText(newValue.toString())
-            saveNumericValue(newValue, dataField)
+        if (!isFollowUpInspection) {
+            handleLongPress(editText, btnMinus, dataField, minValue, maxValue, false)
+            btnMinus.setOnClickListener {
+                val currentVal = editText.text.toString().toIntOrNull() ?: 0
+                val newValue = maxOf(currentVal - 1, minValue)
+                editText.setText(newValue.toString())
+                saveNumericValue(newValue, dataField)
+            }
+        } else {
+            btnMinus.setOnClickListener {
+                AppLogger.d("Minus button disabled for follow-up inspection")
+            }
         }
 
-        // 🚨 ADD TEXTWATCHER WITH INITIALIZATION CHECK
-        editText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        // TextWatcher setup
+        if (!isFollowUpInspection) {
+            editText.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
-            override fun afterTextChanged(s: Editable?) {
-                // 🛡️ GUARD: Skip if fragment is still initializing
-                if (isFragmentInitializing || isUpdatingData) {
-                    return
-                }
+                override fun afterTextChanged(s: Editable?) {
+                    if (isFragmentInitializing || isUpdatingData) {
+                        return
+                    }
 
-                if (!s.isNullOrBlank()) {
-                    try {
-                        val enteredValue = s.toString().toInt()
+                    if (!s.isNullOrBlank()) {
+                        try {
+                            val enteredValue = s.toString().toInt()
 
-                        val validatedValue = when {
-                            enteredValue < minValue -> minValue
-                            maxValue != null && enteredValue > maxValue -> maxValue
-                            else -> enteredValue
+                            val validatedValue = when {
+                                enteredValue < minValue -> minValue
+                                maxValue != null && enteredValue > maxValue -> maxValue
+                                else -> enteredValue
+                            }
+
+                            if (enteredValue != validatedValue) {
+                                editText.setText(validatedValue.toString())
+                                editText.setSelection(editText.text.length)
+                            }
+
+                            saveNumericValue(validatedValue, dataField)
+                        } catch (e: NumberFormatException) {
+                            editText.setText(minValue.toString())
+                            saveNumericValue(minValue, dataField)
                         }
-
-                        if (enteredValue != validatedValue) {
-                            editText.setText(validatedValue.toString())
-                            editText.setSelection(editText.text.length)
-                        }
-
-                        saveNumericValue(validatedValue, dataField)
-                    } catch (e: NumberFormatException) {
-                        editText.setText(minValue.toString())
-                        saveNumericValue(minValue, dataField)
                     }
                 }
-            }
-        })
-
+            })
+        }
     }
 
     private fun saveNumericValue(value: Int, dataField: (PageData, Int) -> PageData) {

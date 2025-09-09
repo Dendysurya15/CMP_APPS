@@ -22,7 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.google.gson.Gson
@@ -73,8 +73,9 @@ object AppUtils {
         const val SUCCESS = "Berhasil Upload!"
         const val DOWNLOADING = "Sedang Mengunduh"
         const val DOWNLOADED = "Berhasil Mengunduh!"
-        const val UPTODATE = "tidak ada pembaruan yang diperlukan!"
-        const val UPDATED = "berhasil diperbarui"
+        const val UPTODATE = "Tidak ada pembaruan yang diperlukan!"
+        const val UPDATED = "Berhasil diperbarui"
+        const val DONE_CHECK = "Sudah diperiksa"
         const val FAILED = "Gagal Upload!"
         const val ERROR = "ERROR!"
     }
@@ -163,6 +164,7 @@ object AppUtils {
     }
 
     object DatabaseTables {
+        const val MUTU_BUAH = "mutu_buah"
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
@@ -203,6 +205,7 @@ object AppUtils {
     }
 
 
+
     object ListFeatureNames {
         const val PanenTBS = "Panen TBS"
         const val RekapHasilPanen = "Rekap Hasil Panen"
@@ -229,7 +232,34 @@ object AppUtils {
         const val ScanPanenMPanen = "Scan Mandor Panen"
         const val DaftarHektarPanen = "Daftar Hektar Panen"
         const val TransferHektarPanen = "Transfer Hektar Panen"
+        const val MutuBuah = "Inspeksi Mutu Buah"
+        const val RekapMutuBuah = "Rekap Mutu Buah"
+        const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
+        const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
+    }
+
+    object ExemptFeatures {
+        val ALWAYS_ENABLED = listOf(
+            ListFeatureNames.UploadDataCMP,
+            ListFeatureNames.RekapHasilPanen,
+            ListFeatureNames.RekapPanenDanRestan,
+            ListFeatureNames.DaftarHektarPanen,
+            ListFeatureNames.RekapESPB,
+            ListFeatureNames.RekapInspeksiPanen,
+            ListFeatureNames.RekapESPBTimbanganMill,
+            ListFeatureNames.RekapAbsensiPanen,
+            ListFeatureNames.ListFollowUpInspeksi,
+            ListFeatureNames.SinkronisasiData
+        )
+    }
+
+    // Global variable to track if features should be disabled
+    var isAppUpdateRequired: Boolean = false
+
+    // Check if a feature should be disabled
+    fun isFeatureDisabled(featureName: String): Boolean {
+        return isAppUpdateRequired && !ExemptFeatures.ALWAYS_ENABLED.contains(featureName)
     }
 
     object WaterMarkFotoDanFolder {
@@ -272,6 +302,7 @@ object AppUtils {
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+7)"
         const val sinkronisasiFollowUpInspeksi = "Data Inspeksi (H+1 hingga H+7)"
         const val settingJSON = "setting.json"
+        const val checkAppVersion = "Cek Versi Aplikasi"
     }
 
     object kodeInspeksi {
@@ -563,8 +594,12 @@ object AppUtils {
                     // Handle inspeksi photos with proper folder organization
                     processInspeksiPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
+                featureKey.lowercase().contains("mutu_buah") -> {
+                    // Handle MutuBuah photos with both foto and foto_selfie
+                    processMutuBuahPhotos(data, allCmpDirectories, zip, zipParams, context)
+                }
                 else -> {
-                    // Handle other features normally
+                    // Handle other features normally (PANEN, ESPB, etc.)
                     processRegularPhotos(data, featureKey, allCmpDirectories, zip, zipParams, context)
                 }
             }
@@ -870,6 +905,58 @@ object AppUtils {
         }
     }
 
+    private fun processMutuBuahPhotos(
+        data: Map<String, Any>,
+        allCmpDirectories: List<File>,
+        zip: ZipFile,
+        zipParams: ZipParameters,
+        context: Context
+    ) {
+        AppLogger.d("Processing MutuBuah photos for id: ${data["id"]}")
+
+        // Process regular photos (foto)
+        val photoPathString = data["foto"] as? String
+        if (!photoPathString.isNullOrBlank()) {
+            val photoPaths = photoPathString.split(";")
+
+            photoPaths.forEach { photoPath ->
+                if (photoPath.isNotBlank()) {
+                    val photoFileName = photoPath.trim().substringAfterLast("/")
+                    addPhotoToZip(
+                        photoPath.trim(),
+                        photoFileName,
+                        "mutu_buah/photos/regular", // Regular photos folder
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+
+        // Process selfie photos (foto_selfie)
+        val selfiePathString = data["foto_selfie"] as? String
+        if (!selfiePathString.isNullOrBlank()) {
+            val selfiePaths = selfiePathString.split(";")
+
+            selfiePaths.forEach { selfiePath ->
+                if (selfiePath.isNotBlank()) {
+                    val selfieFileName = selfiePath.trim().substringAfterLast("/")
+                    addPhotoToZip(
+                        selfiePath.trim(),
+                        selfieFileName,
+                        "mutu_buah/photos/selfie", // Selfie photos folder
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
+                }
+            }
+        }
+    }
+
     // You'll need this helper function (if not already exists)
     private fun findPhotoFile(
         cmpDirectories: List<File>,
@@ -980,6 +1067,62 @@ object AppUtils {
         )
     }
 
+    fun compareVersions(currentVersion: String, requiredVersion: String): Int {
+        // Remove .debug suffix and split by dots
+        val current = currentVersion.replace(".debug", "").split(".").map { it.toIntOrNull() ?: 0 }
+        val required = requiredVersion.split(".").map { it.toIntOrNull() ?: 0 }
+
+        // Pad shorter version with zeros
+        val maxLength = maxOf(current.size, required.size)
+        val currentPadded = current + List(maxLength - current.size) { 0 }
+        val requiredPadded = required + List(maxLength - required.size) { 0 }
+
+        // Compare each part
+        for (i in 0 until maxLength) {
+            when {
+                currentPadded[i] < requiredPadded[i] -> return -1 // Current is older
+                currentPadded[i] > requiredPadded[i] -> return 1  // Current is newer
+            }
+        }
+        return 0 // Versions are equal
+    }
+
+    /**
+     * Checks if app version update is required
+     * @param context Context to get device info
+     * @param prefManager PrefManager to get latest system version
+     * @return true if update is required, false otherwise
+     */
+    fun checkAppVersionUpdate(context: Context, prefManager: PrefManager): Boolean {
+        val deviceInfo = getDeviceInfo(context)
+        val currentAppVersion = deviceInfo.optString("app_version", "")
+        val requiredVersion = prefManager.latestAppVersionSystem ?: ""
+
+        AppLogger.d("Current app version: $currentAppVersion")
+        AppLogger.d("Required app version: $requiredVersion")
+
+        if (requiredVersion.isNotEmpty() && currentAppVersion.isNotEmpty()) {
+            val comparison = compareVersions(currentAppVersion, requiredVersion)
+
+            when {
+                comparison < 0 -> {
+                    AppLogger.w("App version is outdated. Current: $currentAppVersion, Required: $requiredVersion")
+                    return true // Update required
+                }
+                comparison == 0 -> {
+                    AppLogger.d("App version is up to date")
+                    return false
+                }
+                comparison > 0 -> {
+                    AppLogger.d("App version is newer than required")
+                    return false
+                }
+            }
+        } else {
+            AppLogger.w("Cannot compare versions - missing data")
+        }
+        return false
+    }
 
     fun getDeviceInfo(context: Context): JSONObject {
         val json = JSONObject()
@@ -1310,23 +1453,35 @@ object AppUtils {
         return if (featureName == ListFeatureNames.RekapHasilPanen ||
             featureName == ListFeatureNames.RekapPanenDanRestan ||
             featureName == ListFeatureNames.DetailESPB ||
-            featureName == ListFeatureNames.TransferHektarPanen) {
+            featureName == ListFeatureNames.TransferHektarPanen ||
+            featureName == ListFeatureNames.TransferInspeksiPanen) {
 
-            val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
+            if (featureName == ListFeatureNames.TransferInspeksiPanen) {
+                // For TransferInspeksiPanen, just show blok names without sum/count
+                mappedData
+                    .filter { it["blok_name"].toString() != "-" }
+                    .map { it["blok_name"].toString() }
+                    .distinct()
+                    .sorted()
+                    .joinToString(", ")
+            } else {
+                // For other features, show with sum and count
+                val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
-            mappedData
-                .filter { it["blok_name"].toString() != "-" }
-                .groupBy { it["blok_name"].toString() }
-                .mapValues { (_, items) ->
-                    val count = items.size
-                    val paSum = items.sumOf { item ->
-                        extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                mappedData
+                    .filter { it["blok_name"].toString() != "-" }
+                    .groupBy { it["blok_name"].toString() }
+                    .mapValues { (_, items) ->
+                        val count = items.size
+                        val paSum = items.sumOf { item ->
+                            extractJSONValue(item["jjg_json"].toString(), fieldToExtract)
+                        }
+                        "${paSum.toInt()}/$count"  // Convert double sum to integer for display
                     }
-                    "${paSum.toInt()}/$count"  // Convert double sum to integer for display
-                }
-                .toSortedMap() // Sort by blok_name
-                .map { (blokName, summary) -> "$blokName ($summary)" }
-                .joinToString(", ")
+                    .toSortedMap() // Sort by blok_name
+                    .map { (blokName, summary) -> "$blokName ($summary)" }
+                    .joinToString(", ")
+            }
         } else {
             getDistinctBlokNames(mappedData)
         }
@@ -1377,6 +1532,28 @@ object AppUtils {
      * Get a map of all calculated data for easy access
      */
     fun getPanenProcessedData(mappedData: List<Map<String, Any?>>, featureName: String?): Map<String, Any> {
+        val totalJjgCount = if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
+            // For Mutu Buah, use jjg_panen instead of jjg_kirim
+            mappedData.sumOf { data ->
+                val jjgPanen = data["jjg_panen"] as? Int ?: 0
+                jjgPanen
+            }
+        } else {
+            // For other features, use the existing logic with jjg_json
+            mappedData.sumOf { data ->
+                try {
+                    val jjgJsonStr = data["jjg_json"]?.toString() ?: "{}"
+                    val jjgJson = JSONObject(jjgJsonStr)
+
+                    when (featureName) {
+                        AppUtils.ListFeatureNames.RekapPanenDanRestan -> jjgJson.optInt("KP", 0)
+                        else -> jjgJson.optInt("KP", 0) // Default to KP for other features
+                    }
+                } catch (e: Exception) {
+                    0
+                }
+            }
+        }
         return mapOf(
             "blokNames" to getDistinctBlokNames(mappedData),
             "blokDisplay" to getBlokDisplay(mappedData, featureName),

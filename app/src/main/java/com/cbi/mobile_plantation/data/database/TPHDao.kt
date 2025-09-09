@@ -6,7 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.repository.DatasetRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 
@@ -199,5 +199,9 @@ AND id IN (:tphIds)
     //get blok_kode by tphid
     @Query("SELECT blok_kode FROM tph WHERE id = :tphId")
     abstract suspend fun getBlokKodeByTphId(tphId: Int): String?
+
+    @Query("SELECT * FROM tph WHERE id = :tphId LIMIT 1")
+    abstract suspend fun getTPHById(tphId: Int): TPHNewModel
+
 
 }

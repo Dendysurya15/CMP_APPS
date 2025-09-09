@@ -24,6 +24,7 @@ data class BlokModel(
     val kode_pmmp:String?,
     val ancak:Int?,
     val jumlah_tph:Int?,
+    val jml_pokok_ha:Int?,
     val luas_area:Int?,
     val tahun:Int?,
     val jumlah_pokok:Int?,

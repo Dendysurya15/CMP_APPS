@@ -206,6 +206,11 @@ class AbsensiViewModel(application: Application) : AndroidViewModel(application)
             repository.getKemandoranById(idKemandoran)
         }
     }
+    suspend fun getKemandoranByIdPPRO(idKemandoran: List<String>): List<KemandoranModel> {
+        return withContext(Dispatchers.IO) {  // Run on background thread
+            repository.getKemandoranByIdPPRO(idKemandoran)
+        }
+    }
 
     fun updateDataIsZippedAbsensi(ids: List<Int>, status:Int) {
         viewModelScope.launch {

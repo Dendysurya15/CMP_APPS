@@ -43,6 +43,16 @@ abstract class KemandoranDao {
     @Query(
         """
     SELECT * FROM kemandoran 
+    WHERE kemandoran_ppro IN (:idKemandoran)
+    """
+    )
+    abstract fun getKemandoranByIdPPRO(
+        idKemandoran: List<String>,
+    ): List<KemandoranModel>
+
+    @Query(
+        """
+    SELECT * FROM kemandoran 
     WHERE kemandoran_ppro = :idKemandoran
     LIMIT 1
     """

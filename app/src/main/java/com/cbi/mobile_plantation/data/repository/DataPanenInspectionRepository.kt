@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import com.cbi.mobile_plantation.data.api.ApiService
+import com.cbi.mobile_plantation.data.database.ParameterDao
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -20,7 +21,7 @@ class DataPanenInspectionRepository(
     private val TestingApiService: ApiService = TestingAPIClient.instance,
 ){
 
-    suspend fun getDataPanen(estate: Int, afdeling: String): Response<ResponseBody> {
+    suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
         // Calculate date range - from yesterday to 7 days ago (excluding today)
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
@@ -42,6 +43,7 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
 
+        AppLogger.d("estate $estate")
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
             put("table", "panen")
@@ -50,28 +52,42 @@ class DataPanenInspectionRepository(
                 put("tph")
                 put("tph_nomor")
                 put("ancak")
+                put("tipe")
+                put("dept_abbr")
+                put("jjg_kirim")
                 put("created_date")
                 put("created_by")
-                put("jjg_panen")
-                put("jjg_masak")
-                put("jjg_mentah")
-                put("jjg_lewat_masak")
-                put("jjg_kosong")
-                put("jjg_abnormal")
-                put("jjg_serangan_tikus")
-                put("jjg_panjang")
-                put("jjg_tidak_vcut")
-                put("jjg_bayar")
-                put("jjg_kirim")
+                put("created_name")
                 put("kemandoran")
-                put("spb_kode")
             })
 
             // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition
-                put("dept", estate)
-
+                // Estate condition - handle both Int and List<Int>
+                when (estate) {
+                    is Int -> {
+                        put("dept", estate)
+                    }
+                    is String -> {
+                        // Convert string to int, or handle as string depending on your API
+                        put("dept", estate.toIntOrNull() ?: estate)
+                        // OR if your API expects string IDs:
+                        // put("dept", estate)
+                    }
+                    is List<*> -> {
+                        put("dept", JSONObject().apply {
+                            put("in", JSONArray().apply {
+                                (estate as List<Int>).forEach { estateId ->
+                                    put(estateId)
+                                }
+                            })
+                        })
+                    }
+                    else -> {
+                        // Fallback to Int
+                        put("dept", estate as Int)
+                    }
+                }
 
                 // Date range condition using BETWEEN with full datetime
                 put("created_date", JSONObject().apply {
@@ -86,17 +102,52 @@ class DataPanenInspectionRepository(
         // Convert JSONObject to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
 
-        AppLogger.d("kljasldkfjalskf j")
+        AppLogger.d("jsonObject $jsonObject")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
         return apiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
-        estate: Int,
+        estate: Any, // Changed from Int to Any
         afdeling: String,
-        joinTable: Boolean = true
+        joinTable: Boolean = true,
+        parameterDao: ParameterDao
     ): Response<ResponseBody> {
+
+        // Get parameter JSON and extract status_ppro = 1 IDs
+        val validKodeInspeksiIds = try {
+            val parameterJson = parameterDao.getParameterInspeksiJson()
+            if (parameterJson != null) {
+                val jsonArray = JSONArray(parameterJson)
+                val validIds = mutableListOf<Int>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val item = jsonArray.getJSONObject(i)
+                    val statusPpro = item.optInt("status_ppro", 0)
+                    if (statusPpro == 1) {
+                        val id = item.optInt("id", 0)
+                        if (id > 0) {
+                            validIds.add(id)
+                        }
+                    }
+                }
+
+                //tambahkan kode untuk TPH agar bisa di download
+                validIds.add(5)
+                validIds.add(6)
+
+                AppLogger.d("Valid kode_inspeksi IDs (status_ppro=1): $validIds")
+                validIds
+            } else {
+                AppLogger.d("No parameter JSON found, will not filter by kode_inspeksi")
+                emptyList<Int>()
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error parsing parameter JSON: ${e.message}")
+            emptyList<Int>()
+        }
+
         // Calculate date range with full datetime
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
@@ -107,14 +158,15 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        // 7 days ago at 00:00:00 (start of day)
-        calendar.add(Calendar.DAY_OF_YEAR, -6)
+        calendar.add(Calendar.WEEK_OF_YEAR, -1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val sevenDaysAgo = formatter.format(calendar.time)
+        val oneWeekAgo = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $sevenDaysAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $oneWeekAgo to $today (inclusive, full datetime)")
+
+
 
         // Create the JSON request using JSONObject
         val jsonObject = JSONObject().apply {
@@ -152,20 +204,41 @@ class DataPanenInspectionRepository(
 
             // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition
-                put("dept", estate)
-
-                // Afdeling/divisi condition (if provided)
-//                if (!afdeling.isNullOrEmpty() && afdeling != "0") {
-//                    put("divisi", afdeling)
-//                }
+                // Estate condition - handle both Int and List<Int>
+                when (estate) {
+                    is Int -> {
+                        put("dept", estate)
+                    }
+                    is String ->{
+                        put("dept", estate.toIntOrNull() ?: estate)
+                    }
+                    is List<*> -> {
+                        // Multiple estates: "dept": {"in": [112, 134, 145, 129]}
+                        put("dept", JSONObject().apply {
+                            put("in", JSONArray().apply {
+                                (estate as List<Int>).forEach { estateId ->
+                                    put(estateId)
+                                }
+                            })
+                        })
+                    }
+                    else -> {
+                        // Fallback to Int
+                        put("dept", estate as Int)
+                    }
+                }
 
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(sevenDaysAgo)
+                        put(oneWeekAgo)
                         put(today)
                     })
+                })
+
+                // ✅ NEW: Skip records where inspeksi_putaran == 2
+                put("inspeksi_putaran", JSONObject().apply {
+                    put("!=", 2)
                 })
             })
 
@@ -193,11 +266,27 @@ class DataPanenInspectionRepository(
                             put("lat")
                             put("lon")
                         })
-                        // Add WHERE condition to skip records where status_pemulihan == 1
+
+                        // Build WHERE condition for inspeksi_detail
                         put("where", JSONObject().apply {
+                            // Skip records where status_pemulihan == 1
                             put("status_pemulihan", JSONObject().apply {
                                 put("!=", 1)
                             })
+
+                            // ✅ Filter by kode_inspeksi if we have valid IDs
+                            if (validKodeInspeksiIds.isNotEmpty()) {
+                                put("kode_inspeksi", JSONObject().apply {
+                                    put("in", JSONArray().apply {
+                                        validKodeInspeksiIds.forEach { id ->
+                                            put(id)
+                                        }
+                                    })
+                                })
+                                AppLogger.d("Added kode_inspeksi filter: $validKodeInspeksiIds")
+                            } else {
+                                AppLogger.d("No kode_inspeksi filter applied")
+                            }
                         })
                     })
                 })

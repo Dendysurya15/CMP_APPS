@@ -33,6 +33,7 @@ abstract class InspectionDao {
     SELECT * FROM ${AppUtils.DatabaseTables.INSPEKSI}
     WHERE (:datetime IS NULL OR strftime('%Y-%m-%d', created_date) = :datetime)
     AND (:isPushedToServer IS NULL OR isPushedToServer = :isPushedToServer)
+    AND date(created_date) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
     ORDER BY created_date DESC
 """)
     abstract suspend fun getInspectionData(
@@ -47,6 +48,15 @@ abstract class InspectionDao {
     abstract suspend fun getInspectionById(
         inspectionId: String
     ): List<InspectionWithDetailRelations>
+
+
+    // In InspectionDao
+    @Query("SELECT * FROM inspeksi WHERE tph_id = :tphId AND created_date = :createdDate AND dept = :dept AND divisi = :divisi AND isPushedToServer = :isPushedToServer LIMIT 1")
+    abstract  suspend fun getInspectionByBusinessKey(tphId: Int, createdDate: String, dept: Int, divisi: Int, isPushedToServer: Int): InspectionModel?
+
+    // In InspectionDetailDao
+    @Query("DELETE FROM inspeksi_detail WHERE id_inspeksi = :inspectionId")
+    abstract  suspend fun deleteByInspectionId(inspectionId: String)
 
     @Query("SELECT * FROM inspeksi WHERE created_date = :createdDate AND tph_id = :tphId AND dept_abbr = :deptAbbr AND divisi_abbr = :divisiAbbr LIMIT 1")
     abstract suspend fun getDataInspeksi(createdDate: String, tphId: Int, deptAbbr: String?, divisiAbbr: String?): InspectionModel?

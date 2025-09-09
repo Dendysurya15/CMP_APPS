@@ -34,7 +34,6 @@ class AuthRepository {
                     } else {
                         errorBody ?: "{\"message\":\"Unknown server error\"}"
                     }
-                    AppLogger.d("asdasdasdasdasdas")
 
                     Response.error(response.code(),
                         ResponseBody.create("application/json".toMediaType(), customErrorBody))

@@ -166,6 +166,13 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var latestAppVersionSystem: String?
+        get() = pref.getString("latestAppVersionSystem", "")
+        set(latestAppVersionSystem) {
+            editor.putString("latestAppVersionSystem", latestAppVersionSystem)
+            editor.commit()
+        }
+
     var companyIdUserLogin: String?
         get() = pref.getString("companyIdUserLogin", "")
         set(companyIdUserLogin) {
@@ -241,6 +248,20 @@ class PrefManager(_context: Context) {
         get() = pref.getString("lastSyncDate", "")
         set(lastSyncDate) {
             editor.putString("lastSyncDate", lastSyncDate)
+            editor.commit()
+        }
+
+    var lastSyncDataPanenInspeksi: String?
+        get() = pref.getString("lastSyncDataPanenInspeksi", "")
+        set(lastSyncDataPanenInspeksi) {
+            editor.putString("lastSyncDataPanenInspeksi", lastSyncDataPanenInspeksi)
+            editor.commit()
+        }
+
+    var lastSyncFollowUpInspeksi: String?
+        get() = pref.getString("lastSyncFollowUpInspeksi", "")
+        set(lastSyncFollowUpInspeksi) {
+            editor.putString("lastSyncFollowUpInspeksi", lastSyncFollowUpInspeksi)
             editor.commit()
         }
 

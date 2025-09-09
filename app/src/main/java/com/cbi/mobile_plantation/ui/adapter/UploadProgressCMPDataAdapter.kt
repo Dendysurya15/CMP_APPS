@@ -126,7 +126,7 @@ class UploadProgressCMPDataAdapter(
         when (status) {
             AppUtils.UploadStatusUtils.WAITING -> {
                 stopDotsAnimation(item.id)
-                if ((item.title.contains(AppUtils.DatasetNames.sinkronisasiRestan) || item.title.contains(AppUtils.DatasetNames.sinkronisasiDataPanen)) && item.data.isNotEmpty()) {
+                if ((item.title.contains(AppUtils.DatasetNames.sinkronisasiRestan) || item.title.contains(AppUtils.DatasetNames.sinkronisasiDataPanen)) || item.title.contains(AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) && item.data.isNotEmpty()) {
                     holder.statusProgress.text = item.data
                 } else {
                     holder.statusProgress.text = status
@@ -161,6 +161,10 @@ class UploadProgressCMPDataAdapter(
                 holder.statusProgress.text = status
             }
             AppUtils.UploadStatusUtils.UPDATED -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = "${item.title} - ${status}"
+            }
+            AppUtils.UploadStatusUtils.DONE_CHECK -> {
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = "${item.title} - ${status}"
             }

@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.data.model.uploadCMP
 
+import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 
 data class UploadCMPResponse(
@@ -85,9 +86,19 @@ data class UploadResults(
     val created: Int,
     val updated: Int,
     val errors: Int,
-    val skipped: Int
+    val skipped: Int,
+    val skipErrorDetails: List<SkipErrorDetail>? = null
 )
 
+
+data class SkipErrorDetail(
+    val index: Int,
+    val tph: String,
+    val tanggal: String,
+    @SerializedName("created_date") val createdDate: String,
+    val reason: String,
+    val data: JsonObject? = null  // or create another data class if you need specific fields
+)
 
 data class CheckDuplicateResponse(
     @SerializedName("status") val status: String,

@@ -5,12 +5,13 @@ import com.google.gson.annotations.SerializedName
 // In data/model/DatasetRequest.kt
 data class DatasetRequest(
     @SerializedName("afdeling") val afdeling: String? = null,
-    @SerializedName("estate") val estate: Int? = null,
+    @SerializedName("estate") val estate:Any? = null,
     @SerializedName("estateAbbr") val estateAbbr: String? = null,
     @SerializedName("idUser") val idUser: Int? = null,
     @SerializedName("regional") val regional: Int? = null,
     @SerializedName("last_modified") val lastModified: String?,
     @SerializedName("dataset") val dataset: String,
+    @SerializedName("jabatan") val jabatan: String? = null,
     @SerializedName("data") val data: List<String>? = null,
     @SerializedName("isDownloadMasterTPHAsistensi") val isDownloadMasterTPHAsistensi: Boolean = false
 )

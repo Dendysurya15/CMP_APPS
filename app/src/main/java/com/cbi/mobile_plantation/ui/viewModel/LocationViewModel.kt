@@ -42,7 +42,8 @@ import com.google.android.material.snackbar.Snackbar
 class LocationViewModel(
     application: Application,
     private val imageView: ImageView,
-    private val activity: Activity
+    private val activity: Activity,
+    private val boundaryAccuracy: Float = 10f  // Add this parameter
 ) : AndroidViewModel(application) {
 
     private val _locationPermissions = MutableLiveData<Boolean>()
@@ -279,7 +280,7 @@ class LocationViewModel(
             isFirstLocationReceived = true
             _locationData.value = location
             _locationAccuracy.value = location.accuracy
-            updateLocationIcon(isFirstLocationReceived)
+            updateLocationIcon(isFirstLocationReceived, location.accuracy)  // ✅ Pass accuracy here
 
             Log.d("LocationViewModel", "Location accepted: lat=${location.latitude}, lon=${location.longitude}, accuracy=${location.accuracy}m")
         }
@@ -361,17 +362,22 @@ class LocationViewModel(
             }
     }
 
-    private fun updateLocationIcon(isEnabled: Boolean) {
+    private fun updateLocationIcon(isEnabled: Boolean, accuracy: Float? = null) {
         _locationIconState.value = isEnabled
+
+        // Determine if location is good based on both enabled state and accuracy
+        val isLocationGood = isEnabled && (accuracy == null || accuracy <= boundaryAccuracy)
+
         imageView.setImageResource(
-            if (isEnabled) R.drawable.baseline_location_on_24
+            if (isLocationGood) R.drawable.baseline_location_on_24
             else R.drawable.baseline_wrong_location_24
         )
         imageView.imageTintList = ColorStateList.valueOf(
             activity.resources.getColor(
-                if (isEnabled) R.color.greenbutton else R.color.colorRedDark
+                if (isLocationGood) R.color.greenbutton else R.color.colorRedDark
             )
         )
+
     }
 
     fun refreshLocationStatus() {
@@ -406,11 +412,12 @@ class LocationViewModel(
     class Factory(
         private val application: Application,
         private val imageView: ImageView,
-        private val activity: Activity
+        private val activity: Activity,
+        private val boundaryAccuracy: Float = 10f  // Add this parameter
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(LocationViewModel::class.java)) {
-                return LocationViewModel(application, imageView, activity) as T
+                return LocationViewModel(application, imageView, activity, boundaryAccuracy) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

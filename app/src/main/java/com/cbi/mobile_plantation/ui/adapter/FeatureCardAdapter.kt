@@ -9,8 +9,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.FeatureStateManager
 
 data class FeatureCard(
     val cardBackgroundColor: Int,
@@ -20,23 +23,88 @@ data class FeatureCard(
     val count: String? = null,
     val functionDescription: String,
     val displayType: DisplayType,
-    val subTitle: String? = ""
-)
+    val subTitle: String? = "",
+    var isDisabled: Boolean = false // Make this var for reactive updates
+) {
+    /**
+     * Get the current disabled state from FeatureStateManager
+     * This ensures we always have the most up-to-date state
+     */
+    fun getCurrentDisabledState(): Boolean {
+        return FeatureStateManager.isFeatureDisabled(featureName)
+    }
+}
 
 enum class DisplayType {
     ICON,
     COUNT
 }
 
-
 class FeatureCardAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) :
     RecyclerView.Adapter<FeatureCardAdapter.FeatureViewHolder>() {
 
     private var features = ArrayList<FeatureCard>()
+    private var lifecycleOwner: LifecycleOwner? = null
+
+    /**
+     * Set lifecycle owner to enable reactive updates
+     * Call this from your Activity/Fragment after creating the adapter
+     */
+    fun setLifecycleOwner(owner: LifecycleOwner) {
+        lifecycleOwner = owner
+        observeFeatureStates()
+        AppLogger.d("FeatureCardAdapter: Lifecycle owner set, starting state observation")
+    }
+
+    /**
+     * Observe state changes from FeatureStateManager
+     * Automatically updates UI when states change
+     */
+    private fun observeFeatureStates() {
+        lifecycleOwner?.let { owner ->
+            // Observe app update requirement changes
+            FeatureStateManager.isUpdateRequired.observe(owner) { updateRequired ->
+                AppLogger.d("FeatureCardAdapter: Update required changed to: $updateRequired")
+                refreshAllFeatureStates()
+            }
+
+            // Observe specific feature disabled changes
+            FeatureStateManager.featuresDisabled.observe(owner) { disabledFeatures ->
+                AppLogger.d("FeatureCardAdapter: Disabled features changed: $disabledFeatures")
+                refreshAllFeatureStates()
+            }
+        }
+    }
+
+    /**
+     * Refresh all feature disabled states
+     * Only updates items that actually changed
+     */
+    private fun refreshAllFeatureStates() {
+        var changeCount = 0
+        features.forEachIndexed { index, feature ->
+            val newDisabledState = feature.getCurrentDisabledState()
+            if (feature.isDisabled != newDisabledState) {
+                feature.isDisabled = newDisabledState
+                notifyItemChanged(index, "disabled_state_changed")
+                changeCount++
+            }
+        }
+
+        if (changeCount > 0) {
+            AppLogger.d("FeatureCardAdapter: Updated $changeCount feature states automatically")
+        }
+    }
 
     fun setFeatures(newFeatures: List<FeatureCard>) {
+        // Update disabled states before setting features
+        newFeatures.forEach { feature ->
+            feature.isDisabled = feature.getCurrentDisabledState()
+        }
+
         features = ArrayList(newFeatures)
         notifyDataSetChanged()
+        AppLogger.d("FeatureCardAdapter: Set ${features.size} features")
     }
 
     fun updateCount(featureName: String, newCount: String) {
@@ -108,14 +176,36 @@ class FeatureCardAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) :
         return FeatureViewHolder(view)
     }
 
+    override fun onBindViewHolder(
+        holder: FeatureViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isNotEmpty()) {
+            when (payloads[0]) {
+                "show_loading" -> holder.showLoadingAnimation()
+                "hide_loading" -> holder.hideLoadingAnimation()
+                "disabled_state_changed" -> {
+                    // Only update the visual state, not the entire view - more efficient
+                    updateFeatureVisualState(holder, features[position])
+                    return
+                }
+                else -> super.onBindViewHolder(holder, position, payloads)
+            }
+            return
+        }
+        onBindViewHolder(holder, position)
+    }
+
     override fun onBindViewHolder(holder: FeatureViewHolder, position: Int) {
         val feature = features[position]
         val context = holder.itemView.context
 
+        // Bind basic data
         holder.featureName.text = feature.featureName
-        holder.featureNameBackground.setCardBackgroundColor(
-            ContextCompat.getColor(context, feature.featureNameBackgroundColor)
-        )
+        holder.functionDescription.text = feature.functionDescription
+
+        // Handle display type
         when (feature.displayType) {
             DisplayType.ICON -> {
                 holder.iconFeature.visibility = View.VISIBLE
@@ -131,26 +221,74 @@ class FeatureCardAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) :
             }
         }
 
-        holder.functionDescription.text = feature.functionDescription
-        holder.cardView.setOnClickListener {
-            onFeatureClicked(feature)
-        }
+        // Update visual state and click behavior based on disabled status
+        updateFeatureVisualState(holder, feature)
     }
 
-    override fun onBindViewHolder(
-        holder: FeatureViewHolder,
-        position: Int,
-        payloads: MutableList<Any>
-    ) {
-        if (payloads.isNotEmpty()) {
-            when (payloads[0]) {
-                "show_loading" -> holder.showLoadingAnimation()
-                "hide_loading" -> holder.hideLoadingAnimation()
-                else -> super.onBindViewHolder(holder, position, payloads)
-            }
-            return
+    /**
+     * Update only the visual appearance and click behavior
+     * This method is called both in full bind and partial updates
+     */
+    private fun updateFeatureVisualState(holder: FeatureViewHolder, feature: FeatureCard) {
+        val context = holder.itemView.context
+
+        AppLogger.d("FeatureCardAdapter: Updating visual state for ${feature.featureName}, disabled: ${feature.isDisabled}")
+
+        if (feature.isDisabled) {
+            // Apply disabled styling
+            holder.itemView.alpha = 0.5f
+
+            // Gray border and background
+            holder.featureNameBackground.setCardBackgroundColor(
+                ContextCompat.getColor(context, R.color.graytextdark)
+            )
+            holder.cardView.setCardBackgroundColor(
+                ContextCompat.getColor(context, R.color.white)
+            )
+
+            // Dim icon
+            holder.iconFeature.alpha = 0.7f
+            holder.iconFeature.setColorFilter(
+                ContextCompat.getColor(context, R.color.graydarker)
+            )
+
+
+
+        } else {
+            // Apply enabled styling
+            holder.itemView.alpha = 1.0f
+
+            // Restore original colors
+            holder.cardView.setCardBackgroundColor(
+                ContextCompat.getColor(context, R.color.white)
+            )
+            holder.featureNameBackground.setCardBackgroundColor(
+                ContextCompat.getColor(context, feature.featureNameBackgroundColor)
+            )
+
+            // Restore text colors
+            holder.functionDescription.setTextColor(
+                ContextCompat.getColor(context, R.color.black)
+            )
+            holder.countFeature.setTextColor(
+                ContextCompat.getColor(context, R.color.black)
+            )
+
+            // Restore icon
+            holder.iconFeature.alpha = 1.0f
+            holder.iconFeature.clearColorFilter()
+
+
         }
-        onBindViewHolder(holder, position)
+
+        holder.cardView.setOnClickListener {
+            AppLogger.d("FeatureCardAdapter: Card clicked for: ${feature.featureName}")
+            onFeatureClicked(feature)
+        }
+
+        // Keep these enabled for visual feedback
+        holder.cardView.isClickable = true
+        holder.cardView.isEnabled = true
     }
 
     override fun getItemCount() = features.size

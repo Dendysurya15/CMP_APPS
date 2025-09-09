@@ -1,7 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
-import com.cbi.markertph.data.model.JenisTPHModel
+
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.KaryawanDao
@@ -13,12 +13,13 @@ import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.markertph.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.DepartmentInfo
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.EstateModel
+import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
@@ -101,6 +102,7 @@ class DatasetRepository(
             AppUtils.DatasetNames.transporter -> transporterDao.getCount()
             AppUtils.DatasetNames.kendaraan -> kendaraanDao.getCount()
             AppUtils.DatasetNames.jenisTPH -> jenisTPHDao.getCount()
+            AppUtils.DatasetNames.blok -> blokDao.getCount()
             else -> 0
         }
     }
@@ -142,6 +144,10 @@ class DatasetRepository(
 
     suspend fun getBlokList(idEstate: Int, idDivisi: Int): List<TPHNewModel> {
         return tphDao.getBlokByCriteria(idEstate, idDivisi)
+    }
+
+    suspend fun getListOfBlok(idEstate: Int, idDivisi: Int): List<BlokModel> {
+        return blokDao.getListOfBlok(idEstate, idDivisi)
     }
 
     suspend fun getTPHDetailsByID(tphId: Int): TPHDao.TPHDetails? = withContext(Dispatchers.IO) {
@@ -266,8 +272,10 @@ class DatasetRepository(
         return tphDao.getTPHsByIds(tphIds)
     }
 
-    suspend fun getTPHEstate(estateAbbr: String): Response<ResponseBody> {
+    suspend fun getTPHEstate(estateValue: String, useAbbr: Boolean = true): Response<ResponseBody> {
         // Build the JSON object for the request
+
+        AppLogger.d("gasdkjalksjf lkasjdlf")
         val jsonObject = JSONObject().apply {
             put("table", "tph")
             put("select", JSONArray().apply {
@@ -290,17 +298,35 @@ class DatasetRepository(
                 put("ancak")
                 put("nomor")
                 put("tahun")
+                put("lat")
+                put("lon")
+                put("update_date")
+                put("status")
+                put("jenis_tph_id")
+                put("limit_tph")
             })
 
             put("where", JSONObject().apply {
-                put("dept_abbr", estateAbbr)
+                if (useAbbr) {
+                    // For non-GM users: use dept_abbr with estate abbreviation
+                    put("dept_abbr", estateValue)
+                } else {
+                    // For GM users: use dept with estate ID
+                    put("dept", estateValue.toIntOrNull() ?: estateValue)
+                }
                 put("status", 1)
             })
         }
 
 
+
+
+        AppLogger.d(" json $jsonObject")
+
         // Convert to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+
+        AppLogger.d("requestBody $requestBody")
 
         // Perform API call
         return apiService.getDataRaw(requestBody)

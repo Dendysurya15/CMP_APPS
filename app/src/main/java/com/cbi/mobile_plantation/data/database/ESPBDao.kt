@@ -38,7 +38,11 @@ abstract class ESPBDao {
     @Query("SELECT * FROM espb_table WHERE status_upload = 0")
     abstract fun getAllActive(): List<ESPBEntity>
 
-    @Query("SELECT * FROM espb_table WHERE status_upload = 0")
+    @Query("""
+    SELECT * FROM espb_table 
+    WHERE status_upload = 0
+    AND date(created_at) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
+""")
     abstract fun getAllActiveESPB(): List<ESPBEntity>
 
     @Query("SELECT * FROM espb_table WHERE  id IN (:ids)")
