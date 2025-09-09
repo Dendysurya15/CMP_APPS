@@ -16,6 +16,7 @@ import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -391,6 +392,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo? {
         return repository.getTPHAndBlokInfo(id)
+    }
+
+    suspend fun getTPHBlokPpro(id: Int): TPHNewModel? {
+        return repository.getTPHBlokPpro(id)
     }
 
     fun loadDataPanenTransferInspeksi(

@@ -1396,6 +1396,15 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getTPHBlokPpro(id: Int): TPHNewModel? = withContext(Dispatchers.IO) {
+        try {
+            panenDao.getTPHBlokPpro(id)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting TPH blok_ppro info", e)
+            null
+        }
+    }
+
     suspend fun getAllPanen(): List<PanenEntity> = withContext(Dispatchers.IO) {
         panenDao.getAll()
     }

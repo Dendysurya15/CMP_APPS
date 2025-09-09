@@ -4,6 +4,7 @@ import androidx.room.*
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 
@@ -237,6 +238,17 @@ abstract class PanenDao {
     @Transaction
     @Query("SELECT * FROM panen_table WHERE status_upload = 0 AND status_espb = 0")
     abstract fun getAllActivePanenESPBWithRelations(): List<PanenEntityWithRelations>
+
+    @Query(
+        """
+    SELECT 
+        id,
+        blok_ppro
+    FROM tph
+    WHERE id = :id
+"""
+    )
+    abstract suspend fun getTPHBlokPpro(id: Int): TPHNewModel?
 
     @Transaction
     @Query("""
