@@ -477,6 +477,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                         val btnConfirmScanAbsensi: MaterialButton =
                             view.findViewById(R.id.btnConfirmScanPanenTPH)
 
+
                         btnConfirmScanAbsensi.setOnClickListener {
                             AlertDialogUtility.withTwoActions(
                                 this@ListAbsensiActivity,
@@ -1013,21 +1014,28 @@ class ListAbsensiActivity : AppCompatActivity() {
                     kemandoranValue = ": -"
                 }
 
-                // Calculate attendance
-                var totalMasuk = 0
-                var totalTidakMasuk = 0
+                // Replace the attendance calculation section with this filtered version:
 
-                for (data in mappedData) {
+// Calculate attendance using filtered data (work location = 1 only)
+                var totalMasuk = 0
+                var totalAllEmployees = 0
+
+                if (mappedData.isNotEmpty()) {
+                    val data = mappedData[0]  // Take only first item to avoid duplicates
+
                     val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
                     val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
+                    val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
 
-                    totalMasuk += karyawanMskNik.split(",").filter { it.isNotEmpty() }.size
-                    totalTidakMasuk += karyawanTdkMskNik.split(",").filter { it.isNotEmpty() }.size
+                    // Count present employees with work location = 1 (filtered) - this is your focus
+                    totalMasuk = countFilteredEmployees(karyawanMskNik, karyawanMskWorkLocation)
+
+                    // Total employees = all present + all absent (no filtering)
+                    totalAllEmployees = countEmployeesFromJson(karyawanMskNik) + countEmployeesFromJson(karyawanTdkMskNik)
                 }
 
-                val totalKaryawan = totalMasuk + totalTidakMasuk
-                val totalAttendance = "$totalMasuk / $totalKaryawan"
-                AppLogger.d("Total attendance: $totalAttendance")
+                val totalAttendance = "$totalMasuk / $totalAllEmployees"
+                AppLogger.d("Total attendance (filtered present / total): $totalAttendance")
 
                 // Generate current date and time for footer and counter
                 val currentDate = Date()
@@ -1112,6 +1120,75 @@ class ListAbsensiActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun countFilteredEmployees(jsonString: String, workLocationJsonString: String): Int {
+        if (jsonString.isEmpty() || workLocationJsonString.isEmpty()) return 0
+
+        var count = 0
+        try {
+            val jsonObject = JSONObject(jsonString)
+            val workLocationObject = JSONObject(workLocationJsonString)
+
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.get(outerKey)
+                val workLocationOuterValue = workLocationObject.get(outerKey)
+
+                if (outerValue is JSONObject && workLocationOuterValue is JSONObject) {
+                    outerValue.keys().forEach { innerKey ->
+                        if (workLocationOuterValue.has(innerKey)) {
+                            val innerValue = outerValue.getString(innerKey)
+                            val workLocationInnerValue = workLocationOuterValue.getString(innerKey)
+
+                            val dataValues = innerValue.split(",")
+                            val workLocationValues = workLocationInnerValue.split(",")
+
+                            // Count only employees with work location = 1
+                            dataValues.forEachIndexed { index, value ->
+                                if (index < workLocationValues.size &&
+                                    workLocationValues[index].trim() == "1" &&
+                                    value.trim().isNotEmpty()) {
+                                    count++
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error counting filtered employees: ${e.message}")
+            // Fallback to original counting method
+            return countEmployeesFromJson(jsonString)
+        }
+        return count
+    }
+
+    // Helper function to count employees from JSON (for absent employees)
+    private fun countEmployeesFromJson(jsonString: String): Int {
+        if (jsonString.isEmpty()) return 0
+
+        var count = 0
+        try {
+            val jsonObject = JSONObject(jsonString)
+
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.get(outerKey)
+
+                if (outerValue is JSONObject) {
+                    outerValue.keys().forEach { innerKey ->
+                        val innerValue = outerValue.getString(innerKey)
+                        count += innerValue.split(",").count { it.trim().isNotEmpty() }
+                    }
+                } else {
+                    count += outerValue.toString().split(",").count { it.trim().isNotEmpty() }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error counting employees from JSON: ${e.message}")
+            // Simple fallback - count commas + 1
+            return if (jsonString.isNotEmpty()) jsonString.split(",").count { it.trim().isNotEmpty() } else 0
+        }
+        return count
     }
 
     private fun getAndIncrementScreenshotCounter(): Int {
@@ -1505,16 +1582,19 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
                 val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
-
+                val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
 
                 // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
                 // Extract values from nested JSON and add to sets
-                extractValuesFromNestedJson(karyawanMskNik, mergedKaryawanMskNik)
+                // For present employees, filter by work location = 1
+                extractValuesFromNestedJsonWithFilter(karyawanMskNik, karyawanMskWorkLocation, mergedKaryawanMskNik)
+                extractValuesFromNestedJsonWithFilter(karyawanMskId, karyawanMskWorkLocation, mergedKaryawanMskId)
+
+                // For absent employees, no filtering needed
                 extractValuesFromNestedJson(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
-                extractValuesFromNestedJson(karyawanMskId, mergedKaryawanMskId)
                 extractValuesFromNestedJson(karyawanTdkMskId, mergedKaryawanTdkMskId)
 
                 // Add other data
@@ -1598,103 +1678,51 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-    // Helper function to merge JSON objects
-    private fun mergeJsonObjects(jsonString: String, targetObject: JSONObject) {
-        if (jsonString.isNotEmpty()) {
-            try {
-                val sourceJson = JSONObject(jsonString)
-                val statusKeys = sourceJson.keys()
+    // New helper function to extract values with work location filtering
+    private fun extractValuesFromNestedJsonWithFilter(
+        jsonString: String,
+        workLocationJsonString: String,
+        targetSet: MutableSet<String>
+    ) {
+        if (jsonString.isEmpty() || workLocationJsonString.isEmpty()) return
 
-                while (statusKeys.hasNext()) {
-                    val statusKey = statusKeys.next()
-                    val statusValue = sourceJson.opt(statusKey)
-
-                    when (statusValue) {
-                        is JSONObject -> {
-                            // Handle nested structure: {"status": {"kemandoran": "values"}}
-                            if (!targetObject.has(statusKey)) {
-                                targetObject.put(statusKey, JSONObject())
-                            }
-
-                            val targetStatusObject = targetObject.getJSONObject(statusKey)
-                            val kemandoranKeys = statusValue.keys()
-
-                            while (kemandoranKeys.hasNext()) {
-                                val kemandoranKey = kemandoranKeys.next()
-                                val kemandoranValue = statusValue.getString(kemandoranKey)
-
-                                if (targetStatusObject.has(kemandoranKey)) {
-                                    // Merge values if key already exists
-                                    val existingValue = targetStatusObject.getString(kemandoranKey)
-                                    val mergedValue = "$existingValue,$kemandoranValue"
-                                    targetStatusObject.put(kemandoranKey, mergedValue)
-                                } else {
-                                    targetStatusObject.put(kemandoranKey, kemandoranValue)
-                                }
-                            }
-                        }
-                        is String -> {
-                            // Handle flat structure: {"kemandoran": "values"}
-                            if (targetObject.has(statusKey)) {
-                                val existingValue = targetObject.getString(statusKey)
-                                val mergedValue = "$existingValue,$statusValue"
-                                targetObject.put(statusKey, mergedValue)
-                            } else {
-                                targetObject.put(statusKey, statusValue)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                AppLogger.e("Error merging JSON objects: ${e.message}")
-            }
-        }
-    }
-
-    // Helper function to extract values from JSON string and add to set
-    private fun extractAndAddFromJson(jsonString: String, targetSet: MutableSet<String>) {
         try {
-            if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
-                val jsonObj = JSONObject(jsonString)
+            val jsonObject = JSONObject(jsonString)
+            val workLocationObject = JSONObject(workLocationJsonString)
 
-                // Handle nested JSON structure: {"status": {"kemandoran": "values"}}
-                jsonObj.keys().forEach { statusKey ->
-                    val statusValue = jsonObj.opt(statusKey)
+            // Iterate through all keys in the JSON object
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.get(outerKey)
+                val workLocationOuterValue = workLocationObject.get(outerKey)
 
-                    when (statusValue) {
-                        is JSONObject -> {
-                            // This is a nested object (status -> kemandoran -> values)
-                            statusValue.keys().forEach { kemandoranKey ->
-                                val kemandoranValue = statusValue.optString(kemandoranKey, "")
-                                if (kemandoranValue.isNotEmpty()) {
-                                    kemandoranValue.split(",").filter { it.trim().isNotEmpty() }
-                                        .forEach { targetSet.add(it.trim()) }
+                if (outerValue is JSONObject && workLocationOuterValue is JSONObject) {
+                    // If both are nested objects, iterate through their keys
+                    outerValue.keys().forEach { innerKey ->
+                        if (workLocationOuterValue.has(innerKey)) {
+                            val innerValue = outerValue.getString(innerKey)
+                            val workLocationInnerValue = workLocationOuterValue.getString(innerKey)
+
+                            // Split comma-separated values
+                            val dataValues = innerValue.split(",")
+                            val workLocationValues = workLocationInnerValue.split(",")
+
+                            // Filter values where work location is "1"
+                            dataValues.forEachIndexed { index, value ->
+                                if (index < workLocationValues.size && workLocationValues[index].trim() == "1") {
+                                    val trimmedValue = value.trim()
+                                    if (trimmedValue.isNotEmpty()) {
+                                        targetSet.add(trimmedValue)
+                                    }
                                 }
                             }
                         }
-                        is String -> {
-                            // This is a direct string value (old format)
-                            if (statusValue.isNotEmpty()) {
-                                statusValue.split(",").filter { it.trim().isNotEmpty() }
-                                    .forEach { targetSet.add(it.trim()) }
-                            }
-                        }
                     }
-                }
-            } else {
-                // Handle old format (comma-separated values)
-                if (jsonString.isNotEmpty()) {
-                    jsonString.split(",").filter { it.trim().isNotEmpty() }
-                        .forEach { targetSet.add(it.trim()) }
                 }
             }
         } catch (e: Exception) {
-            AppLogger.e("Error extracting from JSON: ${e.message}")
-            // Fallback to treat as comma-separated string
-            if (jsonString.isNotEmpty()) {
-                jsonString.split(",").filter { it.trim().isNotEmpty() }
-                    .forEach { targetSet.add(it.trim()) }
-            }
+            AppLogger.e("Error parsing JSON with filter: $jsonString", e.toString())
+            // Fallback to original method if filtering fails
+            extractValuesFromNestedJson(jsonString, targetSet)
         }
     }
 

@@ -4114,27 +4114,27 @@ class HomePageActivity : AppCompatActivity() {
                             // Convert to JSON
                             absensiJson = Gson().toJson(finalData)
 
-//                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
-//                            try {
-//                                val tempDir =
-//                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                        if (!exists()) mkdirs()
-//                                    }
-//
-//                                val filename =
-//                                    "absensi_data_${System.currentTimeMillis()}.json"
-//                                val tempFile = File(tempDir, filename)
-//
-//                                FileOutputStream(tempFile).use { fos ->
-//                                    fos.write(absensiJson.toByteArray())
-//                                }
-//
-//                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                            } catch (e: Exception) {
-//                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                e.printStackTrace()
-//                            }
+                            try {
+                                val tempDir =
+                                    File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
+
+                                val filename =
+                                    "absensi_data_${System.currentTimeMillis()}.json"
+                                val tempFile = File(tempDir, filename)
+
+                                FileOutputStream(tempFile).use { fos ->
+                                    fos.write(absensiJson.toByteArray())
+                                }
+
+                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+                                e.printStackTrace()
+                            }
 
                             unzippedAbsensiData = restructuredData.filter { item ->
                                 // Get the kemandoran_id from the current item
