@@ -316,13 +316,35 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                     val allKaryawanMasuk = absensiList.filter { it.isChecked }
                                     val allKaryawanMskIdList = allKaryawanMasuk.map { it.id.toString() }
 
+                                    val karyawanMskWorkLocationJson = JSONObject().apply {
+                                        if (hadirIdMap.isNotEmpty()) {
+                                            val hadirJson = JSONObject()
+                                            hadirIdMap.forEach { (kemandoran, employeeList) ->
+                                                hadirJson.put(kemandoran, List(employeeList.size) { "1" }.joinToString(","))
+                                            }
+                                            put("h", hadirJson)
+                                        }
+                                    }
+
+                                    val karyawanTdkMskWorkLocationJson = JSONObject().apply {
+                                        if (mangkirIdMap.isNotEmpty()) {
+                                            val mangkirJson = JSONObject()
+                                            mangkirIdMap.forEach { (kemandoran, employeeList) ->
+                                                mangkirJson.put(kemandoran, List(employeeList.size) { "1" }.joinToString(","))
+                                            }
+                                            put("m", mangkirJson)
+                                        }
+                                    }
+
+
                                     val isDuplicate = absensiViewModel.isAbsensiExist(dateAbsen, allKaryawanMskIdList)
                                     if (isDuplicate) {
                                         return@withContext SaveDataAbsensiState.Error("Data absensi sudah ada untuk sebagian karyawan.")
                                     }
 
                                     AppLogger.d("Tgl ${dateAbsen} + JSON Structure Created")
-                                    AppLogger.d("karyawanMskIdJson: ${karyawanMskIdJson.toString()}")
+                                    AppLogger.d("karyawanMskIdJson: ${karyawanMskIdJson}")
+                                    AppLogger.d("karyawanMskWorkLocationJson $karyawanMskWorkLocationJson")
 
                                     val listKemandoran = (filteredKemandoranId + selectedKemandoranIds + filteredKemandoranIdLain + selectedKemandoranIdsLain)
                                         .sortedBy { id -> kemandoranList.find { it.id == id }?.divisi_abbr ?: "" }
@@ -345,6 +367,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         karyawan_msk_id = karyawanMskIdJson.toString(),      // JSON with "h" key
                                         karyawan_tdk_msk_id = karyawanTdkMskIdJson.toString(), // JSON with "m" key
                                         karyawan_msk_nik = karyawanMskNikJson.toString(),    // JSON with "h" key
+                                        karyawan_msk_work_location = karyawanMskWorkLocationJson.toString(),
+                                        karyawan_tdk_msk_work_location = karyawanTdkMskWorkLocationJson.toString(),
                                         karyawan_tdk_msk_nik = karyawanTdkMskNikJson.toString(), // JSON with "m" key
                                         karyawan_msk_nama = karyawanMskNamaJson.toString(),    // JSON with "h" key
                                         karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(), // JSON with "m" key
