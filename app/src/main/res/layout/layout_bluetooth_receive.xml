@@ -110,7 +110,7 @@
                 android:layout_marginTop="8dp"
 
                 android:text="Status Bluetooth: Menunggu koneksi..."
-                android:textSize="@dimen/s"
+                android:textSize="@dimen/m"
                 android:fontFamily="@font/manrope_medium"
                 android:textStyle="italic"
                 android:textColor="@color/bluedark" />

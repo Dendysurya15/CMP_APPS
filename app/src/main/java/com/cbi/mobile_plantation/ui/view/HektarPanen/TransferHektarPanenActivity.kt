@@ -771,7 +771,6 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                 bluetoothDataInfo = """
             Data $capitalizedFeatureName:
-            • Total Item: $effectiveLimit
             • Blok: ${processedData["blokDisplay"] ?: "N/A"}
             • Total JJG: ${processedData["totalJjgCount"] ?: "0"}
             • Total TPH: ${processedData["tphCount"] ?: "0"}
@@ -910,7 +909,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
             AlertDialogUtility.withTwoActions(
                 this@TransferHektarPanenActivity,
                 "Kirim Data",
-                "Konfirmasi Transfer Data Hektar",
+                "Konfirmasi Transfer Hektaran Panen",
                 "Kirim data ke ${selectedDevice.name ?: "Perangkat Tidak Dikenal"}?\n\n$bluetoothDataInfo",
                 "warning.json",
                 ContextCompat.getColor(this@TransferHektarPanenActivity, R.color.bluedarklight),

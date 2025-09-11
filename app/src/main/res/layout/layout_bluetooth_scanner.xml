@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
-        android:text="Scanner Perangkat Transfer Bluetooth"
+        android:text="Scan Perangkat Transfer Hektaran"
         android:textColor="@color/black"
         android:textSize="@dimen/l"
         android:textStyle="bold"
@@ -43,61 +43,49 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/titleDialogBluetooth" />
 
-    <!-- Scrollable content area -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/scrollContent"
+    <!-- Data Info Section -->
+    <TextView
+        android:id="@+id/tvDataInfo"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/dashedLine">
+        android:text="Data yang akan dikirim:\n• Blok: -\n• Total JJG: 0\n• Total TPH: 0"
+        android:textSize="@dimen/m"
+        android:fontFamily="@font/manrope_medium"
+        android:textStyle="italic"
+        app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+        android:textColor="@color/bluedarklight" />
 
-        <LinearLayout
-            android:id="@+id/contentContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+    <!-- Status Text -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Pilih perangkat tujuan untuk mentransfer data"
+        android:textSize="@dimen/m"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintTop_toBottomOf="@+id/tvDataInfo"
+        android:textColor="@color/greenDarker" />
 
-            <!-- Data Info Section -->
-            <TextView
-                android:id="@+id/tvDataInfo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:padding="12dp"
-                android:text="Data yang akan dikirim:\n• Total Item: 0\n• Blok: -\n• Total JJG: 0\n• Total TPH: 0"
-                android:textSize="@dimen/s"
-                android:fontFamily="@font/manrope_medium"
-                android:textColor="@color/bluedark" />
-
-            <!-- Status Text -->
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Pilih perangkat tujuan untuk mentransfer data"
-                android:textSize="@dimen/m"
-                android:fontFamily="@font/manrope_bold"
-                android:textColor="@color/greenDarker" />
-
-            <!-- Device List -->
-            <ListView
-                android:id="@+id/lvBluetoothDevices"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:divider="@android:color/transparent"
-                android:dividerHeight="4dp"
-                android:nestedScrollingEnabled="false" />
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
 
     <!-- Button Container -->
+
+    <ListView
+        android:id="@+id/lvBluetoothDevices"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="4dp"
+        android:nestedScrollingEnabled="false"
+        app:layout_constraintBottom_toTopOf="@id/buttonContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvStatus"
+        app:layout_constraintVertical_bias="0.0" />
+
     <LinearLayout
         android:id="@+id/buttonContainer"
         android:layout_width="match_parent"
@@ -109,27 +97,29 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <Button
-            android:id="@+id/btnScanStop"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:backgroundTint="@color/bluedarklight"
-            android:fontFamily="@font/manrope_bold"
-            android:text="Scan"
-            android:textColor="#FFFFFF"
-            android:textSize="@dimen/m" />
+
 
         <Button
             android:id="@+id/btnClose"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"
             android:text="Tutup"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/m" />
+
+        <Button
+            android:id="@+id/btnScanStop"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/bluedarklight"
+            android:fontFamily="@font/manrope_bold"
+            android:text="Scan"
             android:textColor="#FFFFFF"
             android:textSize="@dimen/m" />
 

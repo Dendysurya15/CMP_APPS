@@ -507,7 +507,12 @@ class ListTPHApproval : AppCompatActivity() {
                         data = parseTphData(it)
                         withContext(Dispatchers.Main) {
                             if (data.isNotEmpty()) {
-                                playSound(R.raw.berhasil_scan)
+                                val isTransferBluetooth = intent.getBooleanExtra("IS_TRANSFER_BLUETOOTH", false)
+
+                                if (!isTransferBluetooth) {
+                                    playSound(R.raw.berhasil_scan)
+                                }
+
 
                                 val totalSection: LinearLayout =
                                     findViewById(R.id.total_section)
@@ -1161,7 +1166,7 @@ class ListTPHApproval : AppCompatActivity() {
         bluetoothReceiveDialog?.setContentView(dialogView)
 
         // Use the EXACT same pattern as your working code
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.45).toInt()
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.35).toInt()
 
         bluetoothReceiveDialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?.let { bottomSheet ->
@@ -1295,7 +1300,6 @@ class ListTPHApproval : AppCompatActivity() {
 
                                 if (startIndex > 0 && endIndex > startIndex) {
                                     val base64Data = currentData.substring(startIndex, endIndex).trim()
-
 
 
                                     // Just validate it's not empty - no JSON validation needed
