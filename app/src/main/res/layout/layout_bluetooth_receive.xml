@@ -9,29 +9,29 @@
 
     <!-- Title section -->
     <TextView
-        android:id="@+id/titleDialogBluetooth"
+        android:id="@+id/titleDialogBluetoothReceive"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
         android:fontFamily="@font/manrope_extrabold"
-        android:text="Scanner Perangkat Transfer Bluetooth"
+        android:text="Data Transfer Hektaran Bluetooth"
         android:textColor="@color/black"
         android:textSize="@dimen/l"
         android:textStyle="bold"
-        app:layout_constraintEnd_toStartOf="@+id/progressBar"
+        app:layout_constraintEnd_toStartOf="@+id/progressBarReceive"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Progress bar on the right -->
     <ProgressBar
-        android:id="@+id/progressBar"
+        android:id="@+id/progressBarReceive"
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:layout_marginStart="12dp"
-        android:visibility="gone"
+        android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/titleDialogBluetooth"
-        app:layout_constraintBottom_toBottomOf="@+id/titleDialogBluetooth" />
+        app:layout_constraintTop_toTopOf="@+id/titleDialogBluetoothReceive"
+        app:layout_constraintBottom_toBottomOf="@+id/titleDialogBluetoothReceive" />
 
     <View
         android:id="@+id/dashedLine"
@@ -41,7 +41,7 @@
         android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/titleDialogBluetooth" />
+        app:layout_constraintTop_toBottomOf="@+id/titleDialogBluetoothReceive" />
 
     <!-- Scrollable content area -->
     <androidx.core.widget.NestedScrollView
@@ -61,38 +61,71 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Data Info Section -->
+            <!-- Error card (initially hidden) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/errorCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/bgPinkRed"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/bgpinkBrown"
+                app:strokeWidth="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:id="@+id/errorIcon"
+                        android:layout_width="30dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/circle_exclamation_solid"
+                        android:tint="@color/colorRedDark"
+                        tools:ignore="UseAppTint" />
+
+                    <TextView
+                        android:id="@+id/errorText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_bold"
+                        android:textColor="@color/grayDefault"
+                        android:textSize="17dp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Bluetooth Status Section -->
             <TextView
-                android:id="@+id/tvDataInfo"
+                android:id="@+id/tvBluetoothStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:padding="12dp"
-                android:text="Data yang akan dikirim:\n• Total Item: 0\n• Blok: -\n• Total JJG: 0\n• Total TPH: 0"
+
+                android:text="Status Bluetooth: Menunggu koneksi..."
                 android:textSize="@dimen/s"
                 android:fontFamily="@font/manrope_medium"
+                android:textStyle="italic"
                 android:textColor="@color/bluedark" />
 
             <!-- Status Text -->
             <TextView
-                android:id="@+id/tvStatus"
+                android:id="@+id/tvReceiveStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Pilih perangkat tujuan untuk mentransfer data"
+                android:layout_marginTop="8dp"
+                android:text="Menunggu data dari perangkat pengirim..."
                 android:textSize="@dimen/m"
                 android:fontFamily="@font/manrope_bold"
                 android:textColor="@color/greenDarker" />
 
-            <!-- Device List -->
-            <ListView
-                android:id="@+id/lvBluetoothDevices"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:divider="@android:color/transparent"
-                android:dividerHeight="4dp"
-                android:nestedScrollingEnabled="false" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -110,22 +143,9 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <Button
-            android:id="@+id/btnScanStop"
+            android:id="@+id/btnCloseReceive"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:backgroundTint="@color/bluedarklight"
-            android:fontFamily="@font/manrope_bold"
-            android:text="Scan"
-            android:textColor="#FFFFFF"
-            android:textSize="@dimen/m" />
-
-        <Button
-            android:id="@+id/btnClose"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"

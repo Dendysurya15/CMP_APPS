@@ -12,6 +12,7 @@ import android.app.Dialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -99,6 +100,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -115,6 +117,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     private var prefManager: PrefManager? = null
     private var featureName: String? = null
     private var regionalId: String? = null
+    private var bluetoothAdapter: BluetoothAdapter? = null
     private var estateId: String? = null
     private var estateName: String? = null
     private var userName: String? = null
@@ -135,7 +138,8 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     private var jjg = 0
     private var blok = "NULL"
     private var tph = 0
-
+    private var bluetoothJsonData: String = ""
+    private var bluetoothDataInfo: String = ""
     private lateinit var tvEmptyState: TextView // Add this
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private var activityInitialized = false
@@ -667,7 +671,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
             }
             else -> {
                 // Bluetooth is enabled, proceed with scanning
-                showBluetoothDevicesDialog()
+                generateJsonAndShowBluetoothDialog()
             }
         }
     }
@@ -684,12 +688,114 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
         if (requestCode == REQUEST_ENABLE_BT) {
             if (resultCode == Activity.RESULT_OK) {
-                // Bluetooth was enabled, now show the dialog
-                Toast.makeText(this, "Bluetooth enabled. Starting scan...", Toast.LENGTH_SHORT).show()
-                showBluetoothDevicesDialog()
+                // Bluetooth was enabled, now generate JSON and show the dialog
+                Toast.makeText(this, "Bluetooth diaktifkan. Menyiapkan data...", Toast.LENGTH_SHORT).show()
+                generateJsonAndShowBluetoothDialog()
             } else {
-                // User cancelled or couldn't enable Bluetooth
-                Toast.makeText(this, "Bluetooth is required for device scanning", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Bluetooth diperlukan untuk transfer data", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun generateJsonAndShowBluetoothDialog() {
+        // Show loading dialog while generating JSON
+        loadingDialog.show()
+        loadingDialog.setMessage("Menyiapkan data untuk transfer...", true)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            delay(500)
+            try {
+                // DEBUG: Check mappedData first
+                AppLogger.d("DEBUG: mappedData size = ${mappedData?.size ?: "NULL"}")
+                AppLogger.d("DEBUG: mappedData content = $mappedData")
+
+                if (mappedData.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()
+                        Toast.makeText(
+                            this@TransferHektarPanenActivity,
+                            "Tidak ada data untuk ditransfer. Pastikan data sudah dimuat.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                // Generate JSON data for all items
+                val effectiveLimit = mappedData.size
+
+                val jsonData = try {
+                    // Take all items for Bluetooth transfer
+                    val limitedData = mappedData.take(effectiveLimit)
+                    AppLogger.d("DEBUG: limitedData size = ${limitedData.size}")
+                    formatPanenDataForQR(limitedData)
+                } catch (e: Exception) {
+                    AppLogger.e("Error generating JSON data for Bluetooth: ${e.message}")
+                    throw e
+                }
+
+                AppLogger.d("Original JSON data: $jsonData")
+
+                // ENCODE THE JSON DATA BEFORE SENDING
+                val encodedData = try {
+                    encodeJsonToBase64ZipQR(jsonData) ?: throw Exception("Encoding failed - data too large or invalid")
+                } catch (e: Exception) {
+                    AppLogger.e("Error encoding data for Bluetooth: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()
+                        Toast.makeText(
+                            this@TransferHektarPanenActivity,
+                            "Terjadi kesalah ketika hash data ke Base64: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                AppLogger.d("Encoded data size: ${encodedData.length} characters")
+
+                // Get processed data info for display
+                val limitedData = mappedData.take(effectiveLimit)
+                val processedData = AppUtils.getPanenProcessedData(limitedData, featureName)
+
+                // DEBUG: Check processed data
+                AppLogger.d("DEBUG: processedData = $processedData")
+                AppLogger.d("DEBUG: featureName = $featureName")
+
+                // Store the ENCODED data for transfer instead of raw JSON
+                bluetoothJsonData = encodedData
+
+                val capitalizedFeatureName = featureName?.split(" ")?.joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                } ?: "Unknown Feature"
+
+                bluetoothDataInfo = """
+            Data $capitalizedFeatureName:
+            • Total Item: $effectiveLimit
+            • Blok: ${processedData["blokDisplay"] ?: "N/A"}
+            • Total JJG: ${processedData["totalJjgCount"] ?: "0"}
+            • Total TPH: ${processedData["tphCount"] ?: "0"}
+            • Size: ${String.format("%.2f", encodedData.length / 1024.0)} KB (encoded)
+        """.trimIndent()
+
+                AppLogger.d("DEBUG: bluetoothDataInfo = $bluetoothDataInfo")
+
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
+                    // Now show Bluetooth devices dialog
+                    showBluetoothDevicesDialog()
+                }
+
+            } catch (e: Exception) {
+                AppLogger.e("Error in Bluetooth JSON generation: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
+                    Toast.makeText(
+                        this@TransferHektarPanenActivity,
+                        "Gagal menyiapkan data untuk transfer: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -701,38 +807,51 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
         val bottomSheetDialog = BottomSheetDialog(this)
         val dialogView = layoutInflater.inflate(R.layout.layout_bluetooth_scanner, null)
+        bottomSheetDialog.setContentView(dialogView)
+
+        // Use the SAME working pattern as your receiver
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.55).toInt()
+
+        bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?.let { bottomSheet ->
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                behavior.apply {
+                    this.peekHeight = maxHeight
+                    this.state = BottomSheetBehavior.STATE_EXPANDED
+                    this.isFitToContents = true
+                    this.isDraggable = false
+                    this.isHideable = false
+                }
+
+                bottomSheet.layoutParams?.height = maxHeight
+            }
 
         val listView = dialogView.findViewById<ListView>(R.id.lvBluetoothDevices)
         val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
         val tvStatus = dialogView.findViewById<TextView>(R.id.tvStatus)
         val btnScanStop = dialogView.findViewById<Button>(R.id.btnScanStop)
         val btnClose = dialogView.findViewById<Button>(R.id.btnClose)
+        val tvDataInfo = dialogView.findViewById<TextView>(R.id.tvDataInfo)
+
+        // UPDATE THE tvDataInfo WITH THE CALCULATED DATA
+        tvDataInfo.text = bluetoothDataInfo
+        AppLogger.d("UI UPDATE: Setting tvDataInfo.text = $bluetoothDataInfo")
 
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames)
         listView.adapter = adapter
 
-        bottomSheetDialog.setContentView(dialogView)
+        // Prevent outside touch dismissal
+        bottomSheetDialog.setCanceledOnTouchOutside(false)
 
-        // FIX THE HEIGHT SETTING
-        bottomSheetDialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
-        val displayMetrics = resources.displayMetrics
-        val height = (displayMetrics.heightPixels * 0.5).toInt()
-        bottomSheetDialog.behavior.peekHeight = height
-
-        // SET THE LAYOUT PARAMS FOR THE DIALOG VIEW
-        val layoutParams = dialogView.layoutParams
-        layoutParams.height = height
-        dialogView.layoutParams = layoutParams
-
-        // ADD THIS - Handle dialog dismissal cleanup
+        // Handle dialog dismissal cleanup
         bottomSheetDialog.setOnDismissListener {
             bluetoothScanner.stopScan()
-            // Clear the callbacks to prevent memory leaks
             bluetoothScanner.onDeviceFound = null
             bluetoothScanner.onDiscoveryFinished = null
         }
 
-        // Rest of your existing code...
+
         btnScanStop.setOnClickListener {
             if (!isScanning) {
                 devices.clear()
@@ -787,13 +906,160 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedDevice = devices[position]
 
-            Toast.makeText(this, "Dipilih: ${selectedDevice.name ?: "Tidak Dikenal"}", Toast.LENGTH_SHORT).show()
-            bluetoothScanner.stopScan()
-            bottomSheetDialog.dismiss()
+            // Show confirmation dialog before transfer
+            AlertDialogUtility.withTwoActions(
+                this@TransferHektarPanenActivity,
+                "Kirim Data",
+                "Konfirmasi Transfer Data Hektar",
+                "Kirim data ke ${selectedDevice.name ?: "Perangkat Tidak Dikenal"}?\n\n$bluetoothDataInfo",
+                "warning.json",
+                ContextCompat.getColor(this@TransferHektarPanenActivity, R.color.bluedarklight),
+                function = {
+                    // User confirmed - start the transfer
+                    bluetoothScanner.stopScan()
+                    bottomSheetDialog.dismiss()
+                    startBluetoothTransfer(selectedDevice)
+                },
+                cancelFunction = {
+                    // User cancelled - just close dialog and continue scanning
+                }
+            )
         }
 
         bottomSheetDialog.show()
         btnScanStop.performClick()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startBluetoothTransfer(targetDevice: BluetoothDevice) {
+        loadingDialog.show()
+        loadingDialog.setMessage("Mengirim data ke ${targetDevice.name ?: "Perangkat Tidak Dikenal"}...", true)
+
+        Thread {
+            var bluetoothSocket: BluetoothSocket? = null
+            try {
+                val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+                // Cancel any ongoing discovery first
+                bluetoothAdapter?.cancelDiscovery()
+
+                runOnUiThread {
+                    loadingDialog.setMessage("Membuat koneksi ke ${targetDevice.name ?: "Perangkat"}...", true)
+                }
+
+                // Try multiple connection methods
+                bluetoothSocket = try {
+                    targetDevice.createRfcommSocketToServiceRecord(uuid)
+                } catch (e: Exception) {
+                    // Fallback method for some devices
+                    AppLogger.d("Primary connection failed, trying fallback method")
+                    val method = targetDevice.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                    method.invoke(targetDevice, 1) as BluetoothSocket
+                }
+
+                runOnUiThread {
+                    loadingDialog.setMessage("Menghubungkan...", true)
+                }
+
+                // Set connection timeout and connect
+                bluetoothSocket!!.connect()
+
+                // Wait for connection to stabilize
+                Thread.sleep(1000)
+
+                runOnUiThread {
+                    loadingDialog.setMessage("Terhubung! Mengirim data...", true)
+                }
+
+                // Send data with proper formatting
+                val outputStream = bluetoothSocket.outputStream
+
+                // Add a simple header and footer to mark start/end of transmission
+                val dataToSend = "START_DATA\n$bluetoothJsonData\nEND_DATA"
+                val dataBytes = dataToSend.toByteArray(Charsets.UTF_8)
+
+                AppLogger.d("Sending ${dataBytes.size} bytes of data")
+
+                // Send data in smaller chunks with delays
+                val chunkSize = 512 // Smaller chunks for better reliability
+                var bytesSent = 0
+
+                while (bytesSent < dataBytes.size) {
+                    val remainingBytes = dataBytes.size - bytesSent
+                    val currentChunkSize = if (remainingBytes < chunkSize) remainingBytes else chunkSize
+
+                    // Send chunk
+                    outputStream.write(dataBytes, bytesSent, currentChunkSize)
+                    outputStream.flush()
+
+                    bytesSent += currentChunkSize
+
+                    val progress = (bytesSent * 100) / dataBytes.size
+                    runOnUiThread {
+                        loadingDialog.setMessage("Mengirim data... $progress%", true)
+                    }
+
+                    // Longer delay between chunks for stability
+                    Thread.sleep(100)
+                }
+
+                // Send final flush and wait for processing
+                outputStream.flush()
+                Thread.sleep(2000) // Give receiver time to process
+
+                runOnUiThread {
+                    loadingDialog.dismiss()
+                    Toast.makeText(
+                        this@TransferHektarPanenActivity,
+                        "Data berhasil dikirim ke ${targetDevice.name ?: "Perangkat Tidak Dikenal"}!\nSize: ${dataBytes.size} bytes",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+                AppLogger.d("Bluetooth transfer completed successfully")
+
+            } catch (e: Exception) {
+                AppLogger.e("Bluetooth transfer error: ${e.message}")
+
+                runOnUiThread {
+                    loadingDialog.dismiss()
+
+                    val errorMessage = when {
+                        e.message?.contains("read failed") == true ->
+                            "Koneksi terputus saat transfer. Pastikan kedua perangkat dalam jarak dekat dan Mandor panen Scan Data dengan Transfer Bluetooth"
+                        e.message?.contains("Service discovery failed") == true ->
+                            "Perangkat tidak mendukung layanan transfer data"
+                        e.message?.contains("Connection refused") == true ->
+                            "Koneksi ditolak. Pastikan perangkat penerima siap menerima data"
+                        e.message?.contains("Device or resource busy") == true ->
+                            "Perangkat sedang sibuk. Tutup aplikasi Bluetooth lain dan coba lagi"
+                        e.message?.contains("timeout") == true ->
+                            "Koneksi timeout. Pastikan kedua perangkat dalam jarak dekat"
+                        else -> "Gagal mengirim data: ${e.message}"
+                    }
+
+                    AlertDialogUtility.withTwoActions(
+                        this@TransferHektarPanenActivity,
+                        "Coba Lagi",
+                        "Transfer Gagal",
+                        errorMessage,
+                        "warning.json",
+                        ContextCompat.getColor(this@TransferHektarPanenActivity, R.color.colorRedDark),
+                        function = {
+                            startBluetoothTransfer(targetDevice)
+                        },
+                        cancelFunction = { }
+                    )
+                }
+            } finally {
+                try {
+                    bluetoothSocket?.close()
+                    AppLogger.d("Bluetooth socket closed")
+                } catch (e: Exception) {
+                    AppLogger.e("Error closing Bluetooth socket: ${e.message}")
+                }
+            }
+        }.start()
     }
 
     private fun generateQRTPH(limitFun: Int) {

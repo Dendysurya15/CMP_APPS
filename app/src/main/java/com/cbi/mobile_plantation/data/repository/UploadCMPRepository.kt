@@ -8,7 +8,7 @@ import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
-import com.cbi.mobile_plantation.data.network.CMPApiClient
+import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -328,6 +328,7 @@ class UploadCMPRepository(context: Context) {
                             AppLogger.d("Image path: ${fileInfo.file.absolutePath}")
                             AppLogger.d("File size: ${fileInfo.file.length()} bytes")
                             AppLogger.d("Table ID: ${fileInfo.tableId}")
+                            AppLogger.d("basePath: ${fileInfo.basePath}")
 
                             try {
 
@@ -348,6 +349,7 @@ class UploadCMPRepository(context: Context) {
 
                                 val datasetType = when (fileInfo.databaseTable) {
                                     AppUtils.DatabaseTables.ABSENSI -> AppUtils.DatabaseTables.ABSENSI
+                                    AppUtils.DatabaseTables.MUTU_BUAH -> AppUtils.DatabaseTables.MUTU_BUAH
                                     AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok
                                     AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH
                                     AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser
@@ -357,6 +359,7 @@ class UploadCMPRepository(context: Context) {
                                     else -> AppUtils.DatabaseTables.PANEN
                                 }
 
+                                AppLogger.d("datasetType $datasetType")
                                 // Create RequestBody once
                                 val datasetTypeRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
@@ -371,14 +374,14 @@ class UploadCMPRepository(context: Context) {
 
                                 AppLogger.d("photoPart $photoPart")
                                 AppLogger.d("datasetTypeRequestBody $datasetTypeRequestBody")
+                                AppLogger.d("basePathRequestBody $basePathRequestBody")
+
                                 // Make the API call for single image
-                                val response = CMPApiClient.instance.uploadPhotos(
+                                val response = TestingAPIClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
                                 )
-
-                                AppLogger.d("kfjalksjdfl asdfklj asldfk")
 
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")
@@ -926,7 +929,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1508,7 +1511,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1801,7 +1804,7 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request...")
 
-                val response = CMPApiClient.instance.uploadZip(filePart)
+                val response = TestingAPIClient.instance.uploadZip(filePart)
 
                 AppLogger.d(response.toString())
                 if (response.isSuccessful) {

@@ -1723,9 +1723,29 @@ class HomePageActivity : AppCompatActivity() {
                             )
 
                             if (isSyncValid) {
-                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
-                                intent.putExtra("FEATURE_NAME", feature.featureName)
-                                startActivity(intent)
+                                AlertDialogUtility.withTwoActions(
+                                    this@HomePageActivity,
+                                    actionText = "Scan QR",  // Right button
+                                    titleText = getString(R.string.confirmation_dialog_title),
+                                    alertText = "Choose your preferred method",
+                                    animAsset = "warning.json",
+                                    buttonColor = ContextCompat.getColor(this@HomePageActivity, R.color.bluedarklight),
+                                    cancelText = "Transfer Bluetooth", // Left button (instead of default "Batal")
+                                    function = {
+                                        // Scan QR action (right button)
+                                        val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        startActivity(intent)
+                                    },
+                                    cancelFunction = {
+                                        // Transfer Bluetooth action (left button)
+                                        val intent = Intent(this@HomePageActivity, ListTPHApproval::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        intent.putExtra("IS_TRANSFER_BLUETOOTH", true)
+                                        startActivity(intent)
+
+                                    }
+                                )
                             }
 
                         } catch (e: Exception) {

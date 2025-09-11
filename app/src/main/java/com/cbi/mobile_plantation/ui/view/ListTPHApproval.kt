@@ -1,5 +1,12 @@
 package com.cbi.mobile_plantation.ui.view
 
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -11,14 +18,18 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -27,6 +38,7 @@ import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.model.TphRvData
 import com.cbi.mobile_plantation.data.repository.SaveTPHResult
+import com.cbi.mobile_plantation.ui.adapter.ReceiveDataBTHektaranAdapter
 import com.cbi.mobile_plantation.ui.adapter.TPHRvAdapter
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -34,6 +46,9 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.JsonObject
 import es.dmoral.toasty.Toasty
@@ -43,6 +58,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.UUID
 
 
 // Update the SaveDataPanenState to handle the new result types
@@ -63,13 +79,27 @@ class ListTPHApproval : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: TPHRvAdapter
     private val repository by lazy { AppRepository(this) }
+    private var bluetoothReceiveDialog: BottomSheetDialog? = null
+    private var bluetoothAdapter: BluetoothAdapter? = null
+    private var bluetoothServerSocket: BluetoothServerSocket? = null
+    private var receivedDataList = mutableListOf<BluetoothDataItem>()
+    private lateinit var receivedDataAdapter: ReceiveDataBTHektaranAdapter
+    // Add this to your companion object
 
+    // Data class for received Bluetooth data
+    data class BluetoothDataItem(
+        val senderName: String,
+        val jsonData: String,
+        val timestamp: String
+    )
     private var featureName: String? = null
     private val saveDataTransferInspeksiList = mutableListOf<PanenEntity>()
 
     companion object {
         const val EXTRA_QR_RESULT = "scannedResult"
         private const val TAG = "ListTPHApproval"
+        private const val REQUEST_ENABLE_BT = 1
+        private const val REQUEST_ENABLE_BT_RECEIVE = 2
     }
 
     var menuString = ""
@@ -208,6 +238,12 @@ class ListTPHApproval : AppCompatActivity() {
 
         featureName = intent.getStringExtra("FEATURE_NAME")
 
+
+        val isTransferBluetooth = intent.getBooleanExtra("IS_TRANSFER_BLUETOOTH", false)
+        if (isTransferBluetooth) {
+            // Show Bluetooth receive bottom sheet
+            checkBluetoothAndShowReceiveDialog()
+        }
 
         btnGenerateQRTPH.setOnClickListener {
             AlertDialogUtility.withTwoActions(
@@ -458,8 +494,8 @@ class ListTPHApproval : AppCompatActivity() {
         )
     }
 
-    private fun processQRResult() {
-        val qrResult = intent.getStringExtra(EXTRA_QR_RESULT).orEmpty()
+    private fun processQRResult(base64Data: String? = null) {
+        val qrResult = base64Data ?: intent.getStringExtra(EXTRA_QR_RESULT).orEmpty()
 
         lifecycleScope.launch {
             try {
@@ -1083,5 +1119,324 @@ class ListTPHApproval : AppCompatActivity() {
     sealed class SaveDataType {
         data class TPHData(val data: TphRvData) : SaveDataType()
         data class PanenData(val data: PanenEntity) : SaveDataType()
+    }
+
+
+    @SuppressLint("MissingPermission")
+    private fun checkBluetoothAndShowReceiveDialog() {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
+
+        when {
+            bluetoothAdapter == null -> {
+                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT).show()
+            }
+            !bluetoothAdapter!!.isEnabled -> {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Aktifkan",
+                    "Bluetooth Nonaktif",
+                    "Aktifkan Bluetooth untuk menerima data",
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                        startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT_RECEIVE)
+                    },
+                    cancelFunction = {
+                        // User cancelled enabling Bluetooth
+                    }
+                )
+            }
+            else -> {
+                // Bluetooth is enabled, show receive dialog
+                showBluetoothReceiveDialog()
+            }
+        }
+    }
+
+    private fun showBluetoothReceiveDialog() {
+        bluetoothReceiveDialog = BottomSheetDialog(this)
+        val dialogView = layoutInflater.inflate(R.layout.layout_bluetooth_receive, null)
+        bluetoothReceiveDialog?.setContentView(dialogView)
+
+        // Use the EXACT same pattern as your working code
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.45).toInt()
+
+        bluetoothReceiveDialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?.let { bottomSheet ->
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                behavior.apply {
+                    this.peekHeight = maxHeight
+                    this.state = BottomSheetBehavior.STATE_EXPANDED
+                    this.isFitToContents = true
+                    this.isDraggable = false
+                }
+
+                bottomSheet.layoutParams?.height = maxHeight
+            }
+
+        // Get views and set content
+        val tvBluetoothStatus = dialogView.findViewById<TextView>(R.id.tvBluetoothStatus)
+        val tvReceiveStatus = dialogView.findViewById<TextView>(R.id.tvReceiveStatus)
+        val btnCloseReceive = dialogView.findViewById<Button>(R.id.btnCloseReceive)
+
+        tvBluetoothStatus.text = "Status Bluetooth: Aktif - Mendengarkan koneksi"
+        tvReceiveStatus.text = "Menunggu data dari perangkat pengirim..."
+
+        // Setup RecyclerView
+        receivedDataAdapter = ReceiveDataBTHektaranAdapter(receivedDataList)
+
+
+        btnCloseReceive.setOnClickListener {
+            stopBluetoothServer()
+            bluetoothReceiveDialog?.dismiss()
+        }
+
+        bluetoothReceiveDialog?.setOnDismissListener {
+            stopBluetoothServer()
+        }
+
+        bluetoothReceiveDialog?.show()
+        startBluetoothServer(dialogView)
+    }
+    @SuppressLint("MissingPermission")
+    private fun startBluetoothServer(dialogView: View) {
+        val tvReceiveStatus = dialogView.findViewById<TextView>(R.id.tvReceiveStatus)
+        val tvBluetoothStatus = dialogView.findViewById<TextView>(R.id.tvBluetoothStatus)
+        val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBarReceive)
+
+        tvReceiveStatus.text = "Menunggu koneksi dari perangkat pengirim..."
+        tvBluetoothStatus.text = "Status Bluetooth: Aktif - Mendengarkan koneksi"
+        progressBar.visibility = View.VISIBLE
+
+        Thread {
+            try {
+                val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard SPP UUID
+                bluetoothServerSocket = bluetoothAdapter?.listenUsingRfcommWithServiceRecord(
+                    "TPHTransferService", uuid
+                )
+
+                runOnUiThread {
+                    tvReceiveStatus.text = "Server Bluetooth aktif. Menunggu koneksi..."
+                }
+
+                while (true) {
+                    try {
+                        val socket = bluetoothServerSocket?.accept()
+                        socket?.let { bluetoothSocket ->
+                            handleBluetoothConnection(bluetoothSocket, dialogView)
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Bluetooth server error: ${e.message}")
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Failed to start Bluetooth server: ${e.message}")
+                runOnUiThread {
+                    tvReceiveStatus.text = "Gagal memulai server Bluetooth"
+                    progressBar.visibility = View.GONE
+                }
+            }
+        }.start()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun handleBluetoothConnection(socket: BluetoothSocket, dialogView: View) {
+        val tvReceiveStatus = dialogView.findViewById<TextView>(R.id.tvReceiveStatus)
+        val btnCloseReceive = dialogView.findViewById<Button>(R.id.btnCloseReceive)
+        Thread {
+            try {
+                val inputStream = socket.inputStream
+                val buffer = ByteArray(2048) // Larger buffer
+                val stringBuilder = StringBuilder()
+                var totalBytesReceived = 0
+
+                runOnUiThread {
+                    tvReceiveStatus.text = "Terhubung! Menerima data dari ${socket.remoteDevice.name ?: "Unknown Device"}..."
+                    btnCloseReceive.isEnabled = false
+                    btnCloseReceive.alpha = 0.5f
+                }
+
+                var isDataStarted = false
+                var consecutiveEmptyReads = 0
+                val maxEmptyReads = 10
+
+                while (consecutiveEmptyReads < maxEmptyReads) {
+                    try {
+                        val bytes = inputStream.read(buffer)
+                        if (bytes > 0) {
+                            consecutiveEmptyReads = 0
+                            totalBytesReceived += bytes
+                            val receivedData = String(buffer, 0, bytes, Charsets.UTF_8)
+                            stringBuilder.append(receivedData)
+
+                            val currentData = stringBuilder.toString()
+
+                            runOnUiThread {
+                                tvReceiveStatus.text = "Menerima data... ${totalBytesReceived} bytes"
+                            }
+
+                            // Check for start marker
+                            if (!isDataStarted && currentData.contains("START_DATA")) {
+                                isDataStarted = true
+                                AppLogger.d("Data transmission started")
+                            }
+
+                            // Check for end marker and complete data
+                            if (isDataStarted && currentData.contains("END_DATA")) {
+                                AppLogger.d("Data transmission completed")
+
+                                // Extract base64 data between markers
+                                val startIndex = currentData.indexOf("START_DATA") + "START_DATA".length
+                                val endIndex = currentData.indexOf("END_DATA")
+
+                                if (startIndex > 0 && endIndex > startIndex) {
+                                    val base64Data = currentData.substring(startIndex, endIndex).trim()
+
+
+
+                                    // Just validate it's not empty - no JSON validation needed
+                                    if (base64Data.isNotBlank()) {
+                                        val senderName = socket.remoteDevice.name ?: "Unknown Device"
+                                        val timestamp = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault())
+                                            .format(java.util.Date())
+
+                                        val dataItem = BluetoothDataItem(senderName, base64Data, timestamp)
+
+                                        runOnUiThread {
+                                            receivedDataList.add(dataItem)
+                                            tvReceiveStatus.text = "Data berhasil diterima dari $senderName (${totalBytesReceived} bytes)"
+
+                                            // Start countdown and auto-process
+                                            startCountdownAndProcess(tvReceiveStatus, senderName, btnCloseReceive)
+                                        }
+
+                                        AppLogger.d("Successfully received base64 data: ${base64Data.length} characters")
+                                        break
+                                    } else {
+                                        AppLogger.e("Received empty data")
+                                        runOnUiThread {
+                                            tvReceiveStatus.text = "Error: Data kosong"
+                                            tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                                            // RE-ENABLE BUTTON ON ERROR
+                                            btnCloseReceive.isEnabled = true
+                                            btnCloseReceive.alpha = 1.0f
+                                        }
+                                        break
+                                    }
+                                }
+                            }
+
+                        } else {
+                            consecutiveEmptyReads++
+                            Thread.sleep(100) // Wait a bit before next read
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error reading data: ${e.message}")
+                        runOnUiThread {
+                            tvReceiveStatus.text = "Error membaca data: ${e.message}"
+                            tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                        }
+                        break
+                    }
+                }
+
+                if (consecutiveEmptyReads >= maxEmptyReads) {
+                    runOnUiThread {
+                        tvReceiveStatus.text = "Koneksi timeout - tidak ada data lebih lanjut"
+                        tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                    }
+                }
+
+                socket.close()
+
+            } catch (e: Exception) {
+                AppLogger.e("Error handling Bluetooth connection: ${e.message}")
+                runOnUiThread {
+                    tvReceiveStatus.text = "Error menerima data: ${e.message}"
+                    tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                }
+            }
+        }.start()
+    }
+
+    private fun startCountdownAndProcess(tvReceiveStatus: TextView, senderName: String, btnCloseReceive: Button) {
+        // Start countdown on main thread
+        lifecycleScope.launch {
+            for (i in 2 downTo 1) {
+                tvReceiveStatus.text = "Konversi data JSON dalam $i detik..."
+                delay(1000) // Wait 1 second
+            }
+
+            // Process the data after countdown
+            tvReceiveStatus.text = "Memproses data..."
+            processReceivedBluetoothData()
+
+            // Show success message
+            tvReceiveStatus.text = "Data berhasil diproses dari $senderName"
+
+            btnCloseReceive.isEnabled = true
+            btnCloseReceive.alpha = 1.0f
+            // Auto-close dialog after 2 seconds
+            delay(1000)
+            bluetoothReceiveDialog?.dismiss()
+
+        }
+    }
+
+    private fun processReceivedBluetoothData() {
+        if (receivedDataList.isNotEmpty()) {
+            val latestData = receivedDataList.last()
+            try {
+                AppLogger.d("Processing Bluetooth received base64 data...")
+
+                // Call processQRResult with the received base64 data
+                processQRResult(latestData.jsonData)
+
+            } catch (e: Exception) {
+                Toast.makeText(this, "Error memproses data: ${e.message}", Toast.LENGTH_LONG).show()
+                AppLogger.e("Error processing received data: ${e.message}")
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun stopBluetoothServer() {
+        try {
+            bluetoothServerSocket?.close()
+            bluetoothServerSocket = null
+        } catch (e: Exception) {
+            AppLogger.e("Error stopping Bluetooth server: ${e.message}")
+        }
+    }
+
+
+
+    // Update your existing onActivityResult method
+    @SuppressLint("MissingPermission")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        when (requestCode) {
+            REQUEST_ENABLE_BT -> {
+                if (resultCode == Activity.RESULT_OK) {
+                    Toast.makeText(this, "Bluetooth diaktifkan. Menyiapkan data...", Toast.LENGTH_SHORT).show()
+                    // Your existing generateJsonAndShowBluetoothDialog() call
+                } else {
+                    Toast.makeText(this, "Bluetooth diperlukan untuk transfer data", Toast.LENGTH_SHORT).show()
+                }
+            }
+            REQUEST_ENABLE_BT_RECEIVE -> {
+                if (resultCode == Activity.RESULT_OK) {
+                    Toast.makeText(this, "Bluetooth diaktifkan. Memulai penerima...", Toast.LENGTH_SHORT).show()
+                    showBluetoothReceiveDialog()
+                } else {
+                    Toast.makeText(this, "Bluetooth diperlukan untuk menerima data", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 }
