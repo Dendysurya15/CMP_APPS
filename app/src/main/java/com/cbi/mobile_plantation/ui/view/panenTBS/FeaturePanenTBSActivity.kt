@@ -96,6 +96,7 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
+import com.cbi.mobile_plantation.utils.BoundingBox
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.MathFun
 import com.cbi.mobile_plantation.utils.PrefManager
@@ -290,8 +291,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     )
 
     private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
-    private var radiusMinimum = 0F
-    private var boundaryAccuracy = 0F
+    private var radiusMinimum = 200F
+    private var boundaryAccuracy = 200F
     private var isEmptyScannedTPH = true
     private var isTriggeredBtnScanned = false
     private var activityInitialized = false
@@ -315,6 +316,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private lateinit var switchAutoScan: SwitchMaterial
     private lateinit var layoutAutoScan: LinearLayout
     private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
+
+    // Add these properties to your FeaturePanenTBSActivity class:
+    private var ffbDetectionResults: List<BoundingBox>? = null
+    private var ffbClassCounts: Map<String, Int>? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -352,10 +357,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
-
-
+        radiusMinimum = 200f
+        boundaryAccuracy = 200f
 
         initViewModel()
         initUI()
@@ -367,7 +370,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         userName = prefManager!!.nameUserLogin
         userId = prefManager!!.idUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
-
 
         backButton.setOnClickListener {
             onBackPressed()
@@ -1361,6 +1363,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
     private fun resetFormAfterSaveData() {
 
+        // Clear FFB detection results
+        ffbDetectionResults = null
+        ffbClassCounts = null
+
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
 
@@ -1781,24 +1787,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
         if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
-            // Reset selfie photo data
             photoCountSelfie = 0
             photoFilesSelfie.clear()
             selfiePhotoFile = null
 
-            // Reset selfie UI - THIS IS THE KEY FIX
             val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
             imageView.setImageResource(R.drawable.baseline_camera_front_24)
             imageView.setColorFilter(
                 ContextCompat.getColor(this, R.color.colorRedDark),
                 PorterDuff.Mode.SRC_IN
             )
-
-            // Reset scale type to default
             imageView.scaleType = ImageView.ScaleType.FIT_CENTER
         }
 
-        // Reset regular photos
         photoCount = 0
         photoFiles.clear()
         komentarFoto.clear()
@@ -5246,8 +5247,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
     }
 
+    // Update your handleSelfiePhotoClick method if you want to enable FFB detection for selfies too:
     private fun handleSelfiePhotoClick() {
-        // Check camera permission first
         when {
             ContextCompat.checkSelfPermission(
                 this,
@@ -5275,17 +5276,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val locationData = getCurrentLocationData()
         val (currentLat, currentLon) = getCurrentCoordinates()
 
-        // Check if GPS coordinates are available
         if (currentLat == null || currentLon == null) {
-            Toast.makeText(
-                this,
-                "Pastikan GPS mendapatkan titik Koordinat!",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "Pastikan GPS mendapatkan titik Koordinat!", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Check required fields for MutuBuah
         when {
             locationData.estate.isNullOrEmpty() -> {
                 Toast.makeText(this, "Pastikan sudah mengisi Estate terlebih dahulu!", Toast.LENGTH_SHORT).show()
@@ -5297,29 +5292,28 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
         }
 
-        // Make sure the unique code contains "selfie"
         val uniqueKodeFoto = "selfie_1"
         val sourceFoto = "${locationData.estate} ${locationData.afdeling}"
         val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
 
         if (selfiePhotoFile != null) {
-            // Show existing photo for edit/delete
             cameraViewModel.openZoomPhotos(
                 file = selfiePhotoFile!!,
                 position = "selfie_0",
                 onChangePhoto = {
                     cameraViewModel.takeCameraPhotos(
                         this,
-                        uniqueKodeFoto, // This should contain "selfie"
+                        uniqueKodeFoto,
                         imageView,
-                        0, // Position 0 for selfie
+                        0,
                         null,
                         "",
                         uniqueKodeFoto,
-                        featureName!!.uppercase(), // This will add the feature name to filename
+                        featureName!!.uppercase(),
                         currentLat,
                         currentLon,
-                        sourceFoto
+                        sourceFoto,
+                        CameraRepository.CameraType.FRONT
                     )
                 },
                 onDeletePhoto = { _ ->
@@ -5327,16 +5321,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
             )
         } else {
-            // Take new selfie photo
             cameraViewModel.takeCameraPhotos(
                 this,
-                uniqueKodeFoto, // This should contain "selfie"
+                uniqueKodeFoto,
                 imageView,
-                0, // Position 0 for selfie
+                0,
                 null,
                 "",
                 uniqueKodeFoto,
-                featureName!!.uppercase(), // This will add the feature name to filename
+                featureName!!.uppercase(),
                 currentLat,
                 currentLon,
                 sourceFoto,
@@ -6274,7 +6267,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         SoundPlayer.releaseMediaPlayer()
     }
 
-    // Update the onPhotoTaken method to handle selfie photos:
     override fun onPhotoTaken(
         photoFile: File,
         fname: String,
@@ -6291,7 +6283,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 fname.contains("selfie")
 
         if (isSelfiePhoto) {
-            // Handle selfie photo
+            // Handle selfie photo (existing code)
             AppLogger.d("Handling selfie photo: $fname")
 
             val tvErrorNotAttachPhotos = findViewById<TextView>(R.id.tvErrorNotAttachPhotos)
@@ -6300,29 +6292,34 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             selfiePhotoFile = photoFile
             photoCountSelfie = 1
 
-            // Clear and add to selfie list
             photoFilesSelfie.clear()
             photoFilesSelfie.add(fname)
 
-            // Update UI
             val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
-
-            // Load the image and clear any color filters
-            Glide.with(this)
-                .load(photoFile)
-                .into(imageView)
-
-            // Clear color filter to remove the red tint
+            Glide.with(this).load(photoFile).into(imageView)
             imageView.clearColorFilter()
-
-            // Ensure the image view shows the photo properly
             imageView.scaleType = ImageView.ScaleType.CENTER_CROP
 
             AppLogger.d("Selfie photo processed successfully: $fname")
 
         } else {
-            // Handle regular photos (existing code)
+            // Handle regular photos with FFB detection
             AppLogger.d("Handling regular photo: $fname at position: $position")
+
+            // Get locked FFB detection results if feature is not MutuBuah
+            if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
+                val (lockedBoxes, lockedCounts) = cameraViewModel.getLockedResults()
+                ffbDetectionResults = lockedBoxes
+                ffbClassCounts = lockedCounts
+
+                // Log FFB detection results
+                if (ffbDetectionResults?.isNotEmpty() == true) {
+                    AppLogger.d("FFB Detection locked for photo $fname:")
+                    ffbClassCounts?.forEach { (className, count) ->
+                        AppLogger.d("  $className: $count")
+                    }
+                }
+            }
 
             val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
             val adapter = recyclerView.adapter as? TakeFotoPreviewAdapter
@@ -6350,10 +6347,24 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             val viewHolder = recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
             viewHolder?.let {
-                Glide.with(this)
-                    .load(photoFile)
-                    .into(it.imageView)
+                Glide.with(this).load(photoFile).into(it.imageView)
             }
+
+            // Unlock detection for next photo
+            if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
+                cameraViewModel.unlockDetectionResults()
+            }
+        }
+    }
+
+    // Add this method to handle FFB detection results in your validation:
+    private fun getFFBDetectionSummary(): String {
+        return if (ffbClassCounts?.isNotEmpty() == true) {
+            val totalFFB = ffbClassCounts!!.values.sum()
+            val breakdown = ffbClassCounts!!.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+            "Total FFB: $totalFFB ($breakdown)"
+        } else {
+            "No FFB detected"
         }
     }
 

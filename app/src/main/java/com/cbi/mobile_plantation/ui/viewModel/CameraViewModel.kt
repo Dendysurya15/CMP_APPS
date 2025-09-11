@@ -7,7 +7,8 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.cbi.mobile_plantation.data.repository.CameraRepository
-import com.cbi.mobile_plantation.data.repository.CameraRepository.CameraType // Import the enum
+import com.cbi.mobile_plantation.data.repository.CameraRepository.CameraType
+import com.cbi.mobile_plantation.utils.BoundingBox
 import java.io.File
 
 class CameraViewModel(private val cameraRepository: CameraRepository) : ViewModel() {
@@ -43,6 +44,23 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
         )
     }
 
+    // FFB Detection methods
+    fun enableFFBDetection(enable: Boolean, useGPU: Boolean = false) {
+        cameraRepository.enableFFBDetection(enable, useGPU)
+    }
+
+    fun lockDetectionResults() {
+        cameraRepository.lockDetectionResults()
+    }
+
+    fun unlockDetectionResults() {
+        cameraRepository.unlockDetectionResults()
+    }
+
+    fun getLockedResults(): Pair<List<BoundingBox>?, Map<String, Int>?> {
+        return cameraRepository.getLockedResults()
+    }
+
     fun statusCamera(): Boolean = cameraRepository.statusCamera()
 
     fun closeCamera() {
@@ -63,6 +81,11 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
 
     fun deletePhotoSelected(fname: String): Boolean {
         return cameraRepository.deletePhotoSelected(fname)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        cameraRepository.cleanup()
     }
 
     @Suppress("UNCHECKED_CAST")
