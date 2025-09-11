@@ -810,7 +810,7 @@ class ListTPHApproval : AppCompatActivity() {
 
                             val tbsDibayar = ov + ab + ri
 
-                            jjg = tbsDibayar
+                            val jjg = ov + ab + ri +un + em
 
                             // Get the full date from the date map
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"
@@ -868,7 +868,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 namaBlok = "$displayName-$noTph",
                                 noTPH = karyawan, // Use karyawan name for display
                                 time = time,
-                                jjg = jjg.toString(),
+                                jjg = tbsDibayar.toString(),
                                 username = usernameString,
                                 kemandoran_id = "",
                                 tipePanen = "NULL",
