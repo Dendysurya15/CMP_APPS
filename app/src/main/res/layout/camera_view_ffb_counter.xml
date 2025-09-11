@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <RelativeLayout
+        android:id="@+id/rlCamera"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/black"
+        android:layout_marginBottom="20dp"
+        android:layout_above="@id/captureCam">
+
+        <!-- ADD THIS: CameraX preview target -->
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:keepScreenOn="true" />
+        <!-- (Optional) you can place an overlay view on top here later -->
+
+    </RelativeLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/captureCam"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="20dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:backgroundTint="@color/white"
+        app:fabCustomSize="75dp"
+        app:tint="@color/white"
+        tools:ignore="ContentDescription" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignTop="@id/captureCam"
+        android:layout_marginBottom="20dp"
+        android:layout_toEndOf="@id/captureCam">
+
+        <Button
+            android:id="@+id/torchButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/baseline_flash_on_24"
+            app:backgroundTint="@color/white" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignTop="@id/captureCam"
+        android:layout_marginBottom="20dp"
+        android:layout_toStartOf="@id/captureCam">
+
+        <Button
+            android:id="@+id/switchButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/baseline_cameraswitch_24"
+            app:backgroundTint="@color/white" />
+    </RelativeLayout>
+</RelativeLayout>

@@ -78,6 +78,7 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.repository.CameraRepository
 import com.cbi.mobile_plantation.data.repository.PanenTBSRepository
+import com.cbi.mobile_plantation.ffbcounter.BoundingBox
 import com.cbi.mobile_plantation.ui.adapter.ListTPHInsideRadiusAdapter
 import com.cbi.mobile_plantation.ui.adapter.SelectedWorkerAdapter
 import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter
@@ -290,8 +291,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     )
 
     private var panenStoredLocal: MutableMap<Int, TPHData> = mutableMapOf()
-    private var radiusMinimum = 0F
-    private var boundaryAccuracy = 0F
+    private var radiusMinimum = 200F
+    private var boundaryAccuracy = 200F
     private var isEmptyScannedTPH = true
     private var isTriggeredBtnScanned = false
     private var activityInitialized = false
@@ -316,6 +317,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private lateinit var layoutAutoScan: LinearLayout
     private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
 
+    private lateinit var cameraRepository: CameraRepository
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -323,6 +326,38 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         //cek tanggal otomatis
         checkDateTimeSettings()
         initializeAutoScan()
+
+        lifecycleScope.launchWhenStarted {
+            cameraViewModel.liveCount.collect { c ->
+                if (featureName == AppUtils.ListFeatureNames.PanenTBS && cameraViewModel.lockedCount.value == null) {
+                    // live preview value
+                    jumTBS = c
+                    findViewById<EditText>(R.id.etNumber)?.setText(c.toString())
+                    formulas()
+                    updateCounterTextViews()
+                }
+            }
+        }
+        lifecycleScope.launchWhenStarted {
+            cameraViewModel.lockedCount.collect { locked ->
+                if (featureName == AppUtils.ListFeatureNames.PanenTBS) {
+                    locked?.let { value ->
+                        // lock to stable value
+                        jumTBS = value
+                        findViewById<EditText>(R.id.etNumber)?.apply {
+                            setText(value.toString())
+                            isEnabled = false; isFocusable = false; isClickable = false
+                        }
+                        findViewById<View>(R.id.btInc)?.isEnabled = false
+                        findViewById<View>(R.id.btDec)?.isEnabled = false
+                        formulas()
+                        updateCounterTextViews()
+                        Toast.makeText(this@FeaturePanenTBSActivity, "Jumlah TBS dikunci: $value", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
     }
 
     private fun checkDateTimeSettings() {
@@ -352,8 +387,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 200f
+        boundaryAccuracy = 200f
 
 
 
@@ -2049,7 +2084,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         val idTakeFotoLayout = findViewById<View>(R.id.id_take_foto_layout)
         val idEditFotoLayout = findViewById<View>(R.id.id_editable_foto_layout)
-        val cameraRepository = CameraRepository(this, window, idTakeFotoLayout, idEditFotoLayout)
+        cameraRepository = CameraRepository(this, window, idTakeFotoLayout, idEditFotoLayout)
         cameraRepository.setPhotoCallback(this)
         cameraViewModel = ViewModelProvider(
             this,
@@ -2074,6 +2109,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val factoryAbsensiViewModel = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel =
             ViewModelProvider(this, factoryAbsensiViewModel)[AbsensiViewModel::class.java]
+
+        // Init detector once
+        cameraViewModel.initDetector(application)
+
+        // Start realtime camera if Panen TBS
+        if (featureName == AppUtils.ListFeatureNames.PanenTBS) {
+            val previewView = findViewById<androidx.camera.view.PreviewView>(R.id.previewView)
+
+            cameraRepository.startRealtime(
+                lifecycleOwner = this,
+                previewView = previewView,
+                context = this,
+                listener = object : CameraRepository.RealtimeDetectionListener {
+                    override fun onCountUpdate(count: Int) {
+                        // push into ViewModel for smoothing + lock
+                        cameraViewModel.onRealtimeCountFromRepo(count)
+                    }
+                    override fun onDetections(boxes: List<BoundingBox>) {
+                        // if you have an overlay view, update it here
+                        // overlay.setBoxes(boxes)
+                    }
+                }
+            )
+        }
     }
 
 
@@ -2132,7 +2191,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
 
         }
-
 
         inputMappings = listOf(
             Triple(
@@ -6272,6 +6330,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         SoundPlayer.releaseMediaPlayer()
+
+        cameraRepository.stopRealtime(this)
     }
 
     // Update the onPhotoTaken method to handle selfie photos:

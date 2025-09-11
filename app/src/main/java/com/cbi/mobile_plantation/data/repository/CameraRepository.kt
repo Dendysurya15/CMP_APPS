@@ -43,10 +43,20 @@ import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.ffbcounter.BoundingBox
+import com.cbi.mobile_plantation.ffbcounter.Constants
+import com.cbi.mobile_plantation.ffbcounter.DetectionMetrics
+import com.cbi.mobile_plantation.ffbcounter.Detector
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -90,6 +100,15 @@ class CameraRepository(
             longitude: Double?
         )
     }
+
+    interface RealtimeDetectionListener {
+        fun onCountUpdate(count: Int)
+        fun onDetections(boxes: List<BoundingBox>) {} // optional
+    }
+
+    private var analysisExecutor: java.util.concurrent.ExecutorService? = null
+    private var realtimeListener: RealtimeDetectionListener? = null
+
     private lateinit var orientationHandler: CameraOrientationHandler
     private var photoCallback: PhotoCallback? = null
     private var prefManager: PrefManager? = null
@@ -110,10 +129,140 @@ class CameraRepository(
     private var isCameraOpen = false
     private var isFlashlightOn = false
 
-
     fun setPhotoCallback(callback: PhotoCallback) {
         this.photoCallback = callback
     }
+
+    fun startRealtime(
+        lifecycleOwner: LifecycleOwner,
+        previewView: androidx.camera.view.PreviewView,
+        context: Context,
+        listener: RealtimeDetectionListener
+    ) {
+        realtimeListener = listener
+        analysisExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            val cameraProvider = cameraProviderFuture.get()
+
+            val preview = Preview.Builder().build().apply {
+                setSurfaceProvider(previewView.surfaceProvider)
+            }
+
+            val analysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                .build()
+
+            // Analyzer runs YOLO on each frame
+            analysis.setAnalyzer(analysisExecutor!!) { imageProxy ->
+                try {
+                    val rotation = imageProxy.imageInfo.rotationDegrees
+                    val bmp = imageProxyToBitmap(imageProxy, rotation)
+                    if (bmp != null) {
+                        // Collect results for this frame
+                        var boxes: List<BoundingBox> = emptyList()
+                        var classCounts: Map<String, Int> = emptyMap()
+
+                        // One-shot detector for this frame (uses your zip’s Detector)
+                        val tmp = Detector(
+                            context.applicationContext,
+                            Constants.MODEL_PATH,
+                            Constants.LABELS_PATH,
+                            object : Detector.DetectorListener {
+                                override fun onEmptyDetect(m: DetectionMetrics) {
+                                    boxes = emptyList()
+                                    classCounts = m.classCounts
+                                }
+                                override fun onDetect(
+                                    b: List<BoundingBox>,
+                                    m: DetectionMetrics
+                                ) {
+                                    boxes = b
+                                    classCounts = m.classCounts
+                                }
+                            }
+                        ) { /* ignore messages */ }
+
+                        // Run inference
+                        tmp.detect(bmp)
+
+                        // Count FFB only (exclude stalk/tangkai)
+                        val exclude = setOf("stalk", "tangkai", "peduncle", "long_stalk")
+                        val include = setOf("ffb", "tbs", "buah", "bunch", "ripe", "normal")
+
+                        val count = if (classCounts.isNotEmpty()) {
+                            val includeCount = classCounts.filterKeys { it.lowercase() in include }.values.sum()
+                            val excluded    = classCounts.filterKeys { it.lowercase() in exclude }.values.sum()
+                            if (includeCount > 0) includeCount else (boxes.size - excluded).coerceAtLeast(0)
+                        } else {
+                            boxes.size
+                        }
+
+                        realtimeListener?.onDetections(boxes) // optional overlay
+                        realtimeListener?.onCountUpdate(count)
+                    }
+                } catch (_: Throwable) {
+                } finally {
+                    imageProxy.close()
+                }
+            }
+
+            val selector = CameraSelector.DEFAULT_BACK_CAMERA
+            cameraProvider.unbindAll()
+            cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    fun stopRealtime(context: Context) {
+        try {
+            ProcessCameraProvider.getInstance(context).get().unbindAll()
+        } catch (_: Throwable) { }
+        analysisExecutor?.shutdownNow()
+        analysisExecutor = null
+        realtimeListener = null
+    }
+
+    private fun imageProxyToBitmap(imageProxy: ImageProxy, rotationDegrees: Int): Bitmap? {
+        val yuv = yuv420ToNv21(imageProxy) ?: return null
+        val y = imageProxy.height
+        val x = imageProxy.width
+        val yuvImage = android.graphics.YuvImage(yuv, android.graphics.ImageFormat.NV21, x, y, null)
+        val out = java.io.ByteArrayOutputStream()
+        yuvImage.compressToJpeg(android.graphics.Rect(0, 0, x, y), 90, out)
+        val bytes = out.toByteArray()
+        var bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        if (rotationDegrees != 0) {
+            val m = android.graphics.Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+            bmp = android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+        }
+        return bmp
+    }
+
+    private fun yuv420ToNv21(image: ImageProxy): ByteArray? {
+        val yBuffer = image.planes[0].buffer
+        val uBuffer = image.planes[1].buffer
+        val vBuffer = image.planes[2].buffer
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
+        val nv21 = ByteArray(ySize + uSize + vSize)
+        yBuffer.get(nv21, 0, ySize)
+        // V and U are swapped for NV21
+        val pixelStride = image.planes[2].pixelStride
+        if (pixelStride == 2) {
+            // fast path
+            vBuffer.get(nv21, ySize, vSize)
+            uBuffer.get(nv21, ySize + vSize, uSize)
+        } else {
+            vBuffer.get(nv21, ySize, vSize)
+            uBuffer.get(nv21, ySize + vSize, uSize)
+        }
+        return nv21
+    }
+
+
 
     private fun rotateBitmapWithOrientation(photoFilePath: String?, cameraId: Int, orientationHandler: CameraOrientationHandler): Bitmap {
         val TAG = "BitmapRotation"

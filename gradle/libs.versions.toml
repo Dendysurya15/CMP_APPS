@@ -1,5 +1,5 @@
 [versions]
-agp = "8.5.0-alpha07"
+agp = "8.5.2"
 kotlin = "1.9.0"
 coreKtx = "1.12.0"
 junit = "4.13.2"
@@ -21,6 +21,7 @@ fragmentKtx = "1.5.6"
 coreKtxVersion = "1.6.1"
 googleAndroidLibrariesMapsplatformSecretsGradlePlugin = "2.0.1"
 playServicesMaps = "19.2.0"
+litertMetadata = "1.4.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,6 +46,7 @@ androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview"
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragmentKtx" }
 core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+litert-metadata = { group = "com.google.ai.edge.litert", name = "litert-metadata", version.ref = "litertMetadata" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

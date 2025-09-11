@@ -866,7 +866,7 @@
 
     <include
         android:id="@+id/id_take_foto_layout"
-        layout="@layout/camera_view"
+        layout="@layout/camera_view_ffb_counter"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
