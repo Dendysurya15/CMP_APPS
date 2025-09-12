@@ -486,6 +486,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupSortButton()
         currentState = 0
         setActiveCard(cardTersimpan)
+        absensiViewModel.loadActiveAbsensi()
         if (featureName == "Detail eSPB") {
             findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap Per Transaksi"
             findViewById<TextView>(R.id.tv_card_terscan).text = "Rekap Per Blok"

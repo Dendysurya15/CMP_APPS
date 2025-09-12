@@ -55,6 +55,8 @@ class DataPanenInspectionRepository(
                 put("tipe")
                 put("dept_abbr")
                 put("jjg_kirim")
+                put("spb_kode")
+                put("status_espb")
                 put("created_date")
                 put("created_by")
                 put("created_name")
