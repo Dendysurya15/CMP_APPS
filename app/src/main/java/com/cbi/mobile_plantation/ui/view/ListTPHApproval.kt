@@ -209,7 +209,7 @@ class ListTPHApproval : AppCompatActivity() {
         featureName = intent.getStringExtra("FEATURE_NAME")
 
 
-        btnGenerateQRTPH.setOnClickListener {
+        btnGenerateQRTPH.setOnClickListener{
             AlertDialogUtility.withTwoActions(
                 this,
                 "Simpan",

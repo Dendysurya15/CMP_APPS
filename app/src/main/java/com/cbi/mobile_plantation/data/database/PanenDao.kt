@@ -51,7 +51,7 @@ abstract class PanenDao {
     abstract suspend fun exists(tphId: String, dateCreated: String): Boolean
 
     @Query("SELECT * FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
-    abstract suspend fun existsModel(tphId: String, dateCreated: String): PanenEntity?
+    abstract suspend fun existsModel(tphId: String, dateCreated: String): PanenEntityWithRelations?
 
     @Query("SELECT id FROM panen_table WHERE tph_id = :tphId AND date_created = :dateCreated LIMIT 1")
     abstract suspend fun getIdByTphIdAndDateCreated(tphId: String, dateCreated: String): Int
@@ -155,6 +155,7 @@ abstract class PanenDao {
     AND status_transfer_restan = 0 
     AND date(date_created) = date('now', 'localtime') 
     AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL')
+    AND scan_status = 1
 """)
     abstract suspend fun getCountApproval(): Int
 

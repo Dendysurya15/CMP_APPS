@@ -284,10 +284,10 @@ class AppRepository(context: Context) {
                 val kemandoranKode = kemandoranDao.getKemandoranByTheId(kemandoranId.toInt())!!.kode
 
                 // Step 1: Process each PanenEntity record
+                // Step 1: Process each PanenEntity record
                 for (tphData in tphDataList) {
                     // Check if this specific item exists in local database
-                    val existingRecord =
-                        panenDao.findByTphAndDate(tphData.tph_id, tphData.date_created)
+                    val existingRecord = panenDao.existsModel(tphData.tph_id, tphData.date_created)
 
                     if (existingRecord == null) {
                         // Record doesn't exist -> INSERT
@@ -297,65 +297,163 @@ class AppRepository(context: Context) {
                             onFailure = { throw it }
                         )
                     } else {
-                        if (existingRecord.status_scan_mpanen == 1) {
+                        if (existingRecord.panen.status_scan_mpanen == 1) {
                             duplicates.add(tphData)
                             Log.d(
                                 "AppRepository",
                                 "Already scanned duplicate: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
                             )
                         } else {
-                            if (existingRecord.isPushedToServer == 1) {
+                            if (existingRecord.panen.isPushedToServer == 1) {
                                 // Server record exists, update specific fields only
                                 val updatedRecord = existingRecord.copy(
-                                    karyawan_id = if ((existingRecord.karyawan_id.isNullOrEmpty() ||
-                                                existingRecord.karyawan_id == "NULL") &&
-                                        tphData.karyawan_id.isNotEmpty() &&
-                                        tphData.karyawan_id != "NULL"
-                                    ) {
-                                        tphData.karyawan_id
-                                    } else {
-                                        existingRecord.karyawan_id
-                                    },
+                                    panen = existingRecord.panen.copy(
+                                        karyawan_id = if ((existingRecord.panen.karyawan_id.isNullOrEmpty() ||
+                                                    existingRecord.panen.karyawan_id == "NULL") &&
+                                            tphData.karyawan_id.isNotEmpty() &&
+                                            tphData.karyawan_id != "NULL"
+                                        ) {
+                                            tphData.karyawan_id
+                                        } else {
+                                            existingRecord.panen.karyawan_id
+                                        },
 
-                                    karyawan_nama = if ((existingRecord.karyawan_nama.isNullOrEmpty() ||
-                                                existingRecord.karyawan_nama == "NULL") &&
-                                        tphData.karyawan_nama.isNotEmpty() &&
-                                        tphData.karyawan_nama != "NULL"
-                                    ) {
-                                        tphData.karyawan_nama
-                                    } else {
-                                        existingRecord.karyawan_nama
-                                    },
+                                        karyawan_nama = if ((existingRecord.panen.karyawan_nama.isNullOrEmpty() ||
+                                                    existingRecord.panen.karyawan_nama == "NULL") &&
+                                            tphData.karyawan_nama.isNotEmpty() &&
+                                            tphData.karyawan_nama != "NULL"
+                                        ) {
+                                            tphData.karyawan_nama
+                                        } else {
+                                            existingRecord.panen.karyawan_nama
+                                        },
 
-                                    jjg_json = if (tphData.jjg_json.isNotEmpty() &&
-                                        tphData.jjg_json != "NULL"
-                                    ) {
-                                        tphData.jjg_json
-                                    } else {
-                                        existingRecord.jjg_json
-                                    },
+                                        jjg_json = if (tphData.jjg_json.isNotEmpty() &&
+                                            tphData.jjg_json != "NULL"
+                                        ) {
+                                            tphData.jjg_json
+                                        } else {
+                                            existingRecord.panen.jjg_json
+                                        },
 
-                                    status_scan_mpanen = tphData.status_scan_mpanen
+                                        status_scan_mpanen = tphData.status_scan_mpanen
+                                    )
                                 )
 
-                                panenDao.update(listOf(updatedRecord))
-                                updated.add(updatedRecord)
+
+
+                                panenDao.update(listOf(updatedRecord.panen))
+                                updated.add(updatedRecord.panen)
 
                                 Log.d(
                                     "AppRepository",
                                     "Updated existing server record: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
                                 )
 
-                            } else {
-                                // Local record only (not pushed to server) -> Mark as duplicate
-                                duplicates.add(tphData)
-                                Log.d(
-                                    "AppRepository",
-                                    "Local duplicate found: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
-                                )
+                            }
+                            else {
+                                if (existingRecord.panen.status_scan_mpanen == 1) {
+                                    duplicates.add(tphData)
+                                    Log.d(
+                                        "AppRepository",
+                                        "Already scanned duplicate: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
+                                    )
+                                }else {
+                                    if (existingRecord.panen.status_scan_mpanen == 1) {
+                                        duplicates.add(tphData)
+                                        Log.d(
+                                            "AppRepository",
+                                            "Already scanned duplicate: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
+                                        )
+                                    } else {
+                                        if (existingRecord.panen.isPushedToServer == 1) {
+                                            // Server record exists, update specific fields only
+                                            val updatedRecord = existingRecord.copy(
+                                                panen = existingRecord.panen.copy(
+                                                    jjg_json = if (tphData.jjg_json.isNotEmpty() &&
+                                                        tphData.jjg_json != "NULL"
+                                                    ) {
+                                                        tphData.jjg_json
+                                                    } else {
+                                                        existingRecord.panen.jjg_json
+                                                    },
+                                                    status_scan_mpanen = tphData.status_scan_mpanen,
+                                                    jumlah_pemanen = tphData.jumlah_pemanen
+                                                )
+                                            )
+
+                                            panenDao.update(listOf(updatedRecord.panen))
+                                            updated.add(updatedRecord.panen)
+
+                                            Log.d(
+                                                "AppRepository",
+                                                "Updated existing server record: TPH=${tphData.tph_id}, Date=${tphData.date_created}"
+                                            )
+
+                                        } else {
+                                            // Local record only (not pushed to server) -> Check for exact duplicate
+                                            Log.d("AppRepository", "🔍 COMPARISON DETAILS for TPH=${tphData.tph_id}:")
+                                            Log.d("AppRepository", "   tph_id: '${tphData.tph_id}' vs '${existingRecord.panen.tph_id}' → ${tphData.tph_id == existingRecord.panen.tph_id}")
+                                            Log.d("AppRepository", "   date_created: '${tphData.date_created}' vs '${existingRecord.panen.date_created}' → ${tphData.date_created == existingRecord.panen.date_created}")
+                                            Log.d("AppRepository", "   kemandoran_id: '${tphData.kemandoran_id}' vs '${existingRecord.panen.kemandoran_id}' → ${tphData.kemandoran_id == existingRecord.panen.kemandoran_id}")
+                                            Log.d("AppRepository", "   karyawan_nik: '${tphData.karyawan_nik}' vs '${existingRecord.panen.karyawan_nik}' → ${tphData.karyawan_nik == existingRecord.panen.karyawan_nik}")
+
+                                            // Helper function to check if a value should be ignored
+                                            fun shouldIgnoreValue(value: String?): Boolean {
+                                                return value == null || value.isEmpty() || value == "NULL"
+                                            }
+
+                                            // Only compare jjg_json if incoming value is not NULL/empty
+                                            val jjgJsonMatches = if (shouldIgnoreValue(tphData.jjg_json)) {
+                                                true // Skip comparison if incoming is NULL/empty
+                                            } else {
+                                                tphData.jjg_json == existingRecord.panen.jjg_json
+                                            }
+                                            Log.d("AppRepository", "   jjg_json: '${tphData.jjg_json}' vs '${existingRecord.panen.jjg_json}' → $jjgJsonMatches ${if (shouldIgnoreValue(tphData.jjg_json)) "(skipped - incoming NULL/empty)" else ""}")
+
+                                            // Compare status_scan_mpanen
+                                            val statusScanMpanenMatches = tphData.status_scan_mpanen == existingRecord.panen.status_scan_mpanen
+                                            Log.d("AppRepository", "   status_scan_mpanen: '${tphData.status_scan_mpanen}' vs '${existingRecord.panen.status_scan_mpanen}' → $statusScanMpanenMatches")
+
+                                            // Compare jumlah_pemanen
+                                            val jumlahPemanenMatches = tphData.jumlah_pemanen == existingRecord.panen.jumlah_pemanen
+                                            Log.d("AppRepository", "   jumlah_pemanen: '${tphData.jumlah_pemanen}' vs '${existingRecord.panen.jumlah_pemanen}' → $jumlahPemanenMatches")
+
+                                            val isExactDuplicate = (
+                                                    tphData.tph_id == existingRecord.panen.tph_id &&
+                                                            tphData.date_created == existingRecord.panen.date_created &&
+                                                            tphData.kemandoran_id == existingRecord.panen.kemandoran_id &&
+                                                            tphData.karyawan_nik == existingRecord.panen.karyawan_nik &&
+                                                            jjgJsonMatches &&
+                                                            statusScanMpanenMatches &&
+                                                            jumlahPemanenMatches
+                                                    )
+
+                                            if (isExactDuplicate) {
+                                                // Add to duplicates list
+                                                duplicates.add(tphData)
+                                                Log.d("AppRepository", "⚠️ Exact duplicate found: TPH=${tphData.tph_id}, Date=${tphData.date_created}")
+                                            } else {
+                                                // Not duplicate, update the existing record
+                                                Log.d("AppRepository", "🔄 Data is different, updating existing local record")
+                                                val updatedRecord = existingRecord.copy(
+                                                    panen = existingRecord.panen.copy(
+                                                        jjg_json = if (!shouldIgnoreValue(tphData.jjg_json))
+                                                            tphData.jjg_json else existingRecord.panen.jjg_json,
+                                                        status_scan_mpanen = tphData.status_scan_mpanen,
+                                                        jumlah_pemanen = tphData.jumlah_pemanen
+                                                    )
+                                                )
+
+                                                panenDao.update(listOf(updatedRecord.panen))
+                                                updated.add(updatedRecord.panen)
+                                                Log.d("AppRepository", "✅ Successfully updated local record: TPH=${tphData.tph_id}")
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
-
                     }
                 }
                 // Step 2: Group by unique (NIK, Block) combination
@@ -1075,20 +1173,99 @@ class AppRepository(context: Context) {
 
                 // Keep track of successes and failures
                 val savedIds = mutableListOf<Long>()
+                val updatedIds = mutableListOf<Long>()
                 val duplicates = mutableListOf<TphRvData>()
 
                 // Check each item individually
                 for ((index, tphData) in tphDataList.withIndex()) {
                     AppLogger.d("Processing item ${index + 1}/${tphDataList.size}: TPH=${tphData.namaBlok}, Date=${tphData.time}, JJG=${tphData.jjg}, User=${tphData.username}")
 
-                    // Check if this specific item is a duplicate
-                    val isDuplicate = panenDao.exists(tphData.namaBlok, tphData.time)
+                    val existingRecord = panenDao.existsModel(tphData.namaBlok, tphData.time)
 
-                    if (isDuplicate) {
-                        // Add to duplicates list
-                        duplicates.add(tphData)
-                        AppLogger.w("⚠️ Duplicate found: TPH=${tphData.namaBlok}, Date=${tphData.time}")
-                    } else {
+                    if (existingRecord != null) {
+                        AppLogger.d("🔍 COMPARISON DETAILS for TPH=${tphData.namaBlok}:")
+                        AppLogger.d("   namaBlok: '${tphData.namaBlok}' vs '${existingRecord.tph?.id}' → ${tphData.namaBlok == existingRecord.tph?.id.toString()}")
+                        AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
+                        AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
+
+                        // Helper function to check if a value should be ignored
+                        fun shouldIgnoreValue(value: String?): Boolean {
+                            return value == null || value.isEmpty() || value == "NULL"
+                        }
+
+                        // Only compare username if incoming value is not NULL/empty
+                        val usernameMatches = if (shouldIgnoreValue(tphData.username)) {
+                            true // Skip comparison if incoming is NULL/empty
+                        } else {
+                            tphData.username == existingRecord.panen.username
+                        }
+                        AppLogger.d("   username: '${tphData.username}' vs '${existingRecord.panen.username}' → $usernameMatches ${if (shouldIgnoreValue(tphData.username)) "(skipped - incoming NULL/empty)" else ""}")
+
+                        val existingJJG = extractJJGFromJson(existingRecord.panen.jjg_json)
+                        val jjgMatches = if (shouldIgnoreValue(tphData.jjg)) {
+                            true // Skip comparison if incoming is NULL/empty
+                        } else {
+                            tphData.jjg == existingJJG
+                        }
+                        AppLogger.d("   jjg: '${tphData.jjg}' vs '$existingJJG' → $jjgMatches ${if (shouldIgnoreValue(tphData.jjg)) "(skipped - incoming NULL/empty)" else ""}")
+
+                        val incomingTipePanen = if (shouldIgnoreValue(tphData.tipePanen)) null else tphData.tipePanen.toIntOrNull()
+                        val tipePanenMatches = if (incomingTipePanen == null) {
+                            true // Skip comparison if incoming is NULL/empty
+                        } else {
+                            incomingTipePanen == existingRecord.panen.jenis_panen
+                        }
+                        AppLogger.d("   tipePanen: '${tphData.tipePanen}' vs '${existingRecord.panen.jenis_panen}' → $tipePanenMatches ${if (incomingTipePanen == null) "(skipped - incoming NULL/empty)" else ""}")
+
+                        val incomingAncak = if (shouldIgnoreValue(tphData.ancak)) null else tphData.ancak.toIntOrNull()
+                        val ancakMatches = if (incomingAncak == null) {
+                            true // Skip comparison if incoming is NULL/empty
+                        } else {
+                            incomingAncak == existingRecord.panen.ancak
+                        }
+                        AppLogger.d("   ancak: '${tphData.ancak}' vs '${existingRecord.panen.ancak}' → $ancakMatches ${if (incomingAncak == null) "(skipped - incoming NULL/empty)" else ""}")
+
+                        val isExactDuplicate = (
+                                tphData.namaBlok == existingRecord.tph?.id.toString() &&
+                                        tphData.time == existingRecord.panen.date_created &&
+                                        tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen &&
+                                        usernameMatches &&
+                                        jjgMatches &&
+                                        tipePanenMatches &&
+                                        ancakMatches
+                                )
+
+                        if (isExactDuplicate) {
+                            // Add to duplicates list
+                            duplicates.add(tphData)
+                            AppLogger.w("⚠️ Duplicate found: TPH=${tphData.namaBlok}, Date=${tphData.time}")
+                        } else {
+                            // Not duplicate, update the existing record (only update non-NULL values)
+                            AppLogger.d("🔄 Data is different, updating existing record")
+                            val updatedEntity = existingRecord.copy(
+                                panen = existingRecord.panen.copy(
+                                    nomor_pemanen = if (tphData.nomor_pemanen != 0)
+                                        tphData.nomor_pemanen else existingRecord.panen.nomor_pemanen,
+                                    username = if (!shouldIgnoreValue(tphData.username))
+                                        tphData.username else existingRecord.panen.username,
+                                    jjg_json = if (!shouldIgnoreValue(tphData.jjg))
+                                        "{\"KP\": ${tphData.jjg}}" else existingRecord.panen.jjg_json,
+                                    jenis_panen = if (incomingTipePanen != null) {
+                                        incomingTipePanen
+                                    } else existingRecord.panen.jenis_panen,
+                                    ancak = if (incomingAncak != null) {
+                                        incomingAncak
+                                    } else existingRecord.panen.ancak,
+                                    scan_status = 1
+                                )
+                            )
+
+                            // Update record
+                            panenDao.update(listOf(updatedEntity.panen))
+                            updatedIds.add(existingRecord.panen.id.toLong())
+                            AppLogger.d("✅ Successfully updated: TPH=${tphData.namaBlok}")
+                        }
+                    }else {
                         AppLogger.d("Creating new record for TPH=${tphData.namaBlok}, Date=${tphData.time}")
 
                         // Save non-duplicate
@@ -1142,18 +1319,24 @@ class AppRepository(context: Context) {
                 // In your saveTPHDataList function, change the result handling:
 
                 when {
-                    duplicates.isEmpty() -> {
-                        // All items were saved successfully
-                        AppLogger.d("🎉 All ${savedIds.size} items saved successfully!")
+                    duplicates.isEmpty() && updatedIds.isEmpty() -> {
+                        // All items were saved as new records
+                        AppLogger.d("All ${savedIds.size} items saved successfully!")
                         Result.success(SaveTPHResult.AllSuccess(savedIds))
                     }
 
-                    savedIds.isEmpty() -> {
-                        // Everything was a duplicate - return as success so we can show alert
+                    duplicates.isEmpty() && savedIds.isEmpty() -> {
+                        // All items were updates of existing records
+                        AppLogger.d("All ${updatedIds.size} items were updates!")
+                        Result.success(SaveTPHResult.AllSuccess(updatedIds)) // or create AllUpdated if you prefer
+                    }
+
+                    savedIds.isEmpty() && updatedIds.isEmpty() -> {
+                        // Everything was a duplicate
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
-                        AppLogger.w("⚠️ All data is duplicate - returning as success to show alert")
+                        AppLogger.w("All data is duplicate - returning as success to show alert")
                         AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.AllDuplicate(
@@ -1164,16 +1347,17 @@ class AppRepository(context: Context) {
                     }
 
                     else -> {
-                        // We had partial success
+                        // Mixed results: saves, updates, and/or duplicates
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
-                        AppLogger.w("⚠️ Partial success: ${savedIds.size} saved, ${duplicates.size} duplicates")
+                        AppLogger.w("Partial success: ${savedIds.size} saved, ${updatedIds.size} updated, ${duplicates.size} duplicates")
                         AppLogger.d("Saved IDs: $savedIds")
+                        AppLogger.d("Updated IDs: $updatedIds")
                         AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.PartialSuccess(
-                                savedIds = savedIds,
+                                savedIds = savedIds + updatedIds, // combine both lists
                                 duplicateCount = duplicates.size,
                                 duplicateInfo = duplicateInfo
                             )
@@ -1188,6 +1372,15 @@ class AppRepository(context: Context) {
                 AppLogger.d("=== SAVE TPH DATA LIST END ===")
             }
         }
+
+    private fun extractJJGFromJson(jjgJson: String): String {
+        return try {
+            val jsonObj = JSONObject(jjgJson)
+            jsonObj.getString("KP")
+        } catch (e: Exception) {
+            ""
+        }
+    }
 
     suspend fun updatePanen(panen: List<PanenEntity>) = withContext(Dispatchers.IO) {
         panenDao.update(panen)
