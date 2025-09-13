@@ -1727,7 +1727,7 @@ class HomePageActivity : AppCompatActivity() {
                                     this@HomePageActivity,
                                     actionText = "Scan QR",  // Right button
                                     titleText = getString(R.string.confirmation_dialog_title),
-                                    alertText = "Choose your preferred method",
+                                    alertText = "Pilih metode transfer data",
                                     animAsset = "warning.json",
                                     buttonColor = ContextCompat.getColor(this@HomePageActivity, R.color.bluedarklight),
                                     cancelText = "Transfer Bluetooth", // Left button (instead of default "Batal")
