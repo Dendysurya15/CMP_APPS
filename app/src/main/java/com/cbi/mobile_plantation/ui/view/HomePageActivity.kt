@@ -3052,7 +3052,6 @@ class HomePageActivity : AppCompatActivity() {
                                 )
                             }
 
-
                             if (panenBatchMap.isNotEmpty()) {
                                 combinedUploadData[AppUtils.DatabaseTables.PANEN] =
                                     panenBatchMap
@@ -5845,19 +5844,7 @@ class HomePageActivity : AppCompatActivity() {
         val pemanen: List<Pemanen>
     )
 
-    fun convertToJsonKaryawanKemandoran(kemandoranData: List<KaryawanDao.KaryawanKemandoranData>): String {
-        val groupedData = kemandoranData
-            .groupBy { it.kemandoranId }
-            .map { (kemandoranId, dataList) ->
-                Kemandoran(
-                    id = kemandoranId,
-                    kode = dataList.first().kodeKemandoran,
-                    nama = dataList.first().kemandoranNama,
-                    pemanen = dataList.map { Pemanen(it.nik, it.namaKaryawan.trim()) }
-                )
-            }
-        return Gson().toJson(groupedData)
-    }
+
 
     @SuppressLint("SetTextI18n")
     private fun setupDialogUpload(uploadData: String? = null) {
@@ -7558,10 +7545,12 @@ class HomePageActivity : AppCompatActivity() {
                     retryDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
                     checkAndShowDialogVersion()
+                    refreshPanenCount()
                 } else {
                     containerDownloadDataset.visibility = View.VISIBLE
                     cancelDownloadDataset.visibility = View.VISIBLE
                     checkAndShowDialogVersion()
+                    refreshPanenCount()
                 }
 
             }

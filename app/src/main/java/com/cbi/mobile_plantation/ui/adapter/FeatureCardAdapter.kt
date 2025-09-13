@@ -232,7 +232,7 @@ class FeatureCardAdapter(private val onFeatureClicked: (FeatureCard) -> Unit) :
     private fun updateFeatureVisualState(holder: FeatureViewHolder, feature: FeatureCard) {
         val context = holder.itemView.context
 
-        AppLogger.d("FeatureCardAdapter: Updating visual state for ${feature.featureName}, disabled: ${feature.isDisabled}")
+//        AppLogger.d("FeatureCardAdapter: Updating visual state for ${feature.featureName}, disabled: ${feature.isDisabled}")
 
         if (feature.isDisabled) {
             // Apply disabled styling
