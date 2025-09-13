@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bottom_sheet_background"
+    android:padding="16dp">
+
+    <!-- Title section -->
+    <TextView
+        android:id="@+id/titleDialogBluetooth"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:fontFamily="@font/manrope_extrabold"
+        android:text="Scan Perangkat Transfer Hektaran"
+        android:textColor="@color/black"
+        android:textSize="@dimen/l"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@+id/progressBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Progress bar on the right -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="12dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/titleDialogBluetooth"
+        app:layout_constraintBottom_toBottomOf="@+id/titleDialogBluetooth" />
+
+    <View
+        android:id="@+id/dashedLine"
+        android:layout_width="match_parent"
+        android:layout_height="10dp"
+        android:background="@drawable/dashed_straight_line"
+        android:visibility="visible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/titleDialogBluetooth" />
+
+    <!-- Data Info Section -->
+    <TextView
+        android:id="@+id/tvDataInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Data yang akan dikirim:\n• Blok: -\n• Total JJG: 0\n• Total TPH: 0"
+        android:textSize="@dimen/m"
+        android:fontFamily="@font/manrope_medium"
+        android:textStyle="italic"
+        app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+        android:textColor="@color/bluedarklight" />
+
+    <!-- Status Text -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Pilih perangkat tujuan untuk mentransfer data"
+        android:textSize="@dimen/m"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintTop_toBottomOf="@+id/tvDataInfo"
+        android:textColor="@color/greenDarker" />
+
+
+    <!-- Button Container -->
+
+    <ListView
+        android:id="@+id/lvBluetoothDevices"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="4dp"
+        android:nestedScrollingEnabled="false"
+        app:layout_constraintBottom_toTopOf="@id/buttonContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvStatus"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <LinearLayout
+        android:id="@+id/buttonContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+
+
+        <Button
+            android:id="@+id/btnClose"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+
+            android:layout_weight="1"
+            android:backgroundTint="@color/greenDarker"
+            android:fontFamily="@font/manrope_bold"
+            android:text="Tutup"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/m" />
+
+        <Button
+            android:id="@+id/btnScanStop"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/bluedarklight"
+            android:fontFamily="@font/manrope_bold"
+            android:text="Scan"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/m" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

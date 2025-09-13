@@ -17,9 +17,11 @@ data class AbsensiModel(
     val karyawan_msk_id: String,  //"30,59,9"
     val karyawan_tdk_msk_id: String,  //"30,59,9"
     val karyawan_msk_nik: String = "",
+    val karyawan_msk_work_location: String? = "",
     val karyawan_tdk_msk_nik: String = "",
     val karyawan_msk_nama: String = "",
     val karyawan_tdk_msk_nama: String = "",
+    val karyawan_tdk_msk_work_location: String? = "",
     val foto: String,
     val komentar: String,
     val asistensi: Int,

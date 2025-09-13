@@ -328,6 +328,7 @@ class UploadCMPRepository(context: Context) {
                             AppLogger.d("Image path: ${fileInfo.file.absolutePath}")
                             AppLogger.d("File size: ${fileInfo.file.length()} bytes")
                             AppLogger.d("Table ID: ${fileInfo.tableId}")
+                            AppLogger.d("basePath: ${fileInfo.basePath}")
 
                             try {
 
@@ -348,6 +349,7 @@ class UploadCMPRepository(context: Context) {
 
                                 val datasetType = when (fileInfo.databaseTable) {
                                     AppUtils.DatabaseTables.ABSENSI -> AppUtils.DatabaseTables.ABSENSI
+                                    AppUtils.DatabaseTables.MUTU_BUAH -> AppUtils.DatabaseTables.MUTU_BUAH
                                     AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok
                                     AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH
                                     AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser
@@ -357,6 +359,7 @@ class UploadCMPRepository(context: Context) {
                                     else -> AppUtils.DatabaseTables.PANEN
                                 }
 
+                                AppLogger.d("datasetType $datasetType")
                                 // Create RequestBody once
                                 val datasetTypeRequestBody = RequestBody.create(
                                     "text/plain".toMediaTypeOrNull(),
@@ -371,6 +374,8 @@ class UploadCMPRepository(context: Context) {
 
                                 AppLogger.d("photoPart $photoPart")
                                 AppLogger.d("datasetTypeRequestBody $datasetTypeRequestBody")
+                                AppLogger.d("basePathRequestBody $basePathRequestBody")
+
                                 // Make the API call for single image
                                 val response = CMPApiClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),
@@ -926,7 +931,6 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        AppLogger.d("kajdfjslkdaflk sadflkds fksd")
                         val response = CMPApiClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )

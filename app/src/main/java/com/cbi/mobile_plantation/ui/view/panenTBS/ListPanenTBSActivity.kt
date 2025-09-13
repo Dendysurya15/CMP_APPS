@@ -5511,14 +5511,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             val tphId = parts[0].trim()
                             val jjgValue = parts[2].trim().toIntOrNull() ?: 0
 
-                            // Get blok info for this TPH ID
-                            val tphBlokInfo = withContext(Dispatchers.IO) {
-                                panenViewModel.getTPHAndBlokInfo(tphId.toInt())
+                            // Get blok_ppro info for this TPH ID
+                            val tphBlokPproInfo = withContext(Dispatchers.IO) {
+                                panenViewModel.getTPHBlokPpro(tphId.toInt())
                             }
 
-                            if (tphBlokInfo != null) {
-                                tphRecords.add(Triple(tphId, tphBlokInfo.blokId, jjgValue))
-                                AppLogger.d("TPH $tphId -> Blok ${tphBlokInfo.blokId} -> JJG $jjgValue")
+                            if (tphBlokPproInfo != null) {
+                                tphRecords.add(Triple(tphId, tphBlokPproInfo.blok_ppro.toString(), jjgValue))
+                                AppLogger.d("TPH $tphId -> Blok Ppro ${tphBlokPproInfo.blok_ppro} -> JJG $jjgValue")
                             }
                         }
                     }

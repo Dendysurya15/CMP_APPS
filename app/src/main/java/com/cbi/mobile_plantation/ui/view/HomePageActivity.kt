@@ -1723,9 +1723,29 @@ class HomePageActivity : AppCompatActivity() {
                             )
 
                             if (isSyncValid) {
-                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
-                                intent.putExtra("FEATURE_NAME", feature.featureName)
-                                startActivity(intent)
+                                AlertDialogUtility.withTwoActions(
+                                    this@HomePageActivity,
+                                    actionText = "Scan QR",  // Right button
+                                    titleText = getString(R.string.confirmation_dialog_title),
+                                    alertText = "Choose your preferred method",
+                                    animAsset = "warning.json",
+                                    buttonColor = ContextCompat.getColor(this@HomePageActivity, R.color.bluedarklight),
+                                    cancelText = "Transfer Bluetooth", // Left button (instead of default "Batal")
+                                    function = {
+                                        // Scan QR action (right button)
+                                        val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        startActivity(intent)
+                                    },
+                                    cancelFunction = {
+                                        // Transfer Bluetooth action (left button)
+                                        val intent = Intent(this@HomePageActivity, ListTPHApproval::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        intent.putExtra("IS_TRANSFER_BLUETOOTH", true)
+                                        startActivity(intent)
+
+                                    }
+                                )
                             }
 
                         } catch (e: Exception) {
@@ -3518,23 +3538,23 @@ class HomePageActivity : AppCompatActivity() {
                             hektaranJson = Gson().toJson(finalData)
 
                             // Save JSON to a temporary file for inspection
-//                            try {
-//                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                    if (!exists()) mkdirs()
-//                                }
-//
-//                                val filename = "hektaran_data_${System.currentTimeMillis()}.json"
-//                                val tempFile = File(tempDir, filename)
-//
-//                                FileOutputStream(tempFile).use { fos ->
-//                                    fos.write(hektaranJson.toByteArray())
-//                                }
-//
-//                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
-//                            } catch (e: Exception) {
-//                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
-//                                e.printStackTrace()
-//                            }
+                            try {
+                                val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                    if (!exists()) mkdirs()
+                                }
+
+                                val filename = "hektaran_data_${System.currentTimeMillis()}.json"
+                                val tempFile = File(tempDir, filename)
+
+                                FileOutputStream(tempFile).use { fos ->
+                                    fos.write(hektaranJson.toByteArray())
+                                }
+
+                                AppLogger.d("Saved raw hektaran data to temp file: ${tempFile.absolutePath}")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to save hektaran data to temp file: ${e.message}")
+                                e.printStackTrace()
+                            }
 
                             // Extract all IDs for tracking
                             val hektaranIds = hektarPanenToUpload.mapNotNull { it.id }
@@ -3961,6 +3981,7 @@ class HomePageActivity : AppCompatActivity() {
                                         "kemandoran_id" to singleKemandoranId,
                                         "date" to dateStr,
                                         "tanggal" to (absensi.date_absen ?: ""),
+                                        "regional" to (blokData?.regional ?: 0),
                                         "company" to (blokData?.company ?: 0),
                                         "company_ppro" to (blokData?.company_ppro
                                             ?: 0),
@@ -3997,37 +4018,22 @@ class HomePageActivity : AppCompatActivity() {
                                     val statusMap = mapOf(
                                         "h" to 1, // Hadir
                                         "m" to 0, // Mangkir
-                                        "s" to 2, // Sakit
-                                        "i" to 3, // Izin
-                                        "c" to 4  // Cuti
+                                        "s" to 0, // Sakit
+                                        "i" to 0, // Izin
+                                        "c" to 0  // Cuti
                                     )
 
-                                    // Extract categorized data by status
-                                    val nikByCategory = extractEmployeesByCategory(
-                                        absensi.karyawan_msk_nik,
-                                        singleKemandoranId
-                                    )
-                                    val idByCategory = extractEmployeesByCategory(
-                                        absensi.karyawan_msk_id,
-                                        singleKemandoranId
-                                    )
-                                    val nameByCategory = extractEmployeesByCategory(
-                                        absensi.karyawan_msk_nama,
-                                        singleKemandoranId
-                                    )
+                                    // Extract categorized data by status - PRESENT employees
+                                    val nikByCategory = extractEmployeesByCategory(absensi.karyawan_msk_nik, singleKemandoranId)
+                                    val idByCategory = extractEmployeesByCategory(absensi.karyawan_msk_id, singleKemandoranId)
+                                    val nameByCategory = extractEmployeesByCategory(absensi.karyawan_msk_nama, singleKemandoranId)
+                                    val workLocationByCategory = extractEmployeesByCategory(absensi.karyawan_msk_work_location, singleKemandoranId)
 
-                                    val nikByCategoryAbsent = extractEmployeesByCategory(
-                                        absensi.karyawan_tdk_msk_nik,
-                                        singleKemandoranId
-                                    )
-                                    val idByCategoryAbsent = extractEmployeesByCategory(
-                                        absensi.karyawan_tdk_msk_id,
-                                        singleKemandoranId
-                                    )
-                                    val nameByCategoryAbsent = extractEmployeesByCategory(
-                                        absensi.karyawan_tdk_msk_nama,
-                                        singleKemandoranId
-                                    )
+                                    // Extract categorized data by status - ABSENT employees
+                                    val nikByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_nik, singleKemandoranId)
+                                    val idByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_id, singleKemandoranId)
+                                    val nameByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_nama, singleKemandoranId)
+                                    val workLocationByCategoryAbsent = extractEmployeesByCategory(absensi.karyawan_tdk_msk_work_location, singleKemandoranId)
 
                                     // Combine both present and absent maps
                                     val allNikByCategory = nikByCategory.toMutableMap()
@@ -4048,12 +4054,21 @@ class HomePageActivity : AppCompatActivity() {
                                             (allNameByCategory[key] ?: emptyList()) + value
                                     }
 
+                                    // MODIFIED: Combine work location data properly
+                                    val allWorkLocationByCategory = workLocationByCategory.toMutableMap()
+                                    workLocationByCategoryAbsent.forEach { (key, value) ->
+                                        allWorkLocationByCategory[key] = (allWorkLocationByCategory[key] ?: emptyList()) + value
+                                    }
+
                                     val detailRecords = mutableListOf<Map<String, Any>>()
 
-                                    // Generate detail records with status_kehadiran
+                                    // MODIFIED: Generate detail records with status_kehadiran and alokasi_kerja
                                     for ((statusCode, nikList) in allNikByCategory) {
-                                        val statusInt = statusMap[statusCode] ?: -1
+                                        val statusInt = statusMap[statusCode] ?: 0
                                         val nameList = allNameByCategory[statusCode] ?: emptyList()
+                                        val workLocationList = allWorkLocationByCategory[statusCode] ?: emptyList()
+
+                                        // Replace this section in your code (around line where you create detailRecord)
 
                                         nikList.forEachIndexed { index, nik ->
                                             val karyawan = karyawanMap[nik]
@@ -4061,14 +4076,41 @@ class HomePageActivity : AppCompatActivity() {
                                                 karyawan?.nama ?: nameList.getOrNull(index)
                                                     .orEmpty()
 
-                                            detailRecords.add(
-                                                mapOf(
-                                                    "nik" to nik,
-                                                    "nama" to employeeName,
-                                                    "status_kehadiran" to statusInt,
-                                                    "date_created" to (absensi.date_absen ?: "")
-                                                )
+                                            // Get work location for this employee
+                                            val workLocationValue = workLocationList.getOrNull(index)?.trim() ?: ""
+
+                                            // Create detail record
+                                            val detailRecord = mutableMapOf<String, Any>(
+                                                "nik" to nik,
+                                                "nama" to employeeName,
+                                                "status_kehadiran" to statusInt,
+                                                "date_created" to (absensi.date_absen ?: "")
                                             )
+
+                                            // FIXED: Always add alokasi_kerja, ensure it's always an integer
+                                            if (statusCode == "h" && statusInt == 1) { // Present employees
+                                                // Convert work location to integer, default to 1 (Panen) if invalid
+                                                val alokasiKerja = try {
+                                                    val workLocInt = workLocationValue.toIntOrNull()
+                                                    if (workLocInt != null && workLocInt in 1..9) {
+                                                        workLocInt
+                                                    } else {
+                                                        1 // Default to Panen
+                                                    }
+                                                } catch (e: Exception) {
+                                                    AppLogger.e("Error parsing work location '$workLocationValue' for employee $nik: ${e.message}")
+                                                    1 // Default to Panen
+                                                }
+                                                detailRecord["alokasi_kerja"] = alokasiKerja
+                                            } else {
+                                                // FIXED: Explicitly set alokasi_kerja to 0 as Integer for absent employees
+                                                detailRecord["alokasi_kerja"] = 0
+                                            }
+
+                                            AppLogger.d("Final detail record: $detailRecord")
+                                            detailRecords.add(detailRecord)
+
+                                            AppLogger.d("Employee: $employeeName ($nik) - Status: $statusInt - Work Location: $workLocationValue - Alokasi Kerja: ${detailRecord["alokasi_kerja"]}")
                                         }
                                     }
 
@@ -4091,45 +4133,39 @@ class HomePageActivity : AppCompatActivity() {
                             // Convert to JSON
                             absensiJson = Gson().toJson(finalData)
 
-//                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
-//                            try {
-//                                val tempDir =
-//                                    File(getExternalFilesDir(null), "TEMP").apply {
-//                                        if (!exists()) mkdirs()
-//                                    }
-//
-//                                val filename =
-//                                    "absensi_data_${System.currentTimeMillis()}.json"
-//                                val tempFile = File(tempDir, filename)
-//
-//                                FileOutputStream(tempFile).use { fos ->
-//                                    fos.write(absensiJson.toByteArray())
-//                                }
-//
-//                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                            } catch (e: Exception) {
-//                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                e.printStackTrace()
-//                            }
+                            try {
+                                val tempDir =
+                                    File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
 
+                                val filename =
+                                    "absensi_data_${System.currentTimeMillis()}.json"
+                                val tempFile = File(tempDir, filename)
+
+                                FileOutputStream(tempFile).use { fos ->
+                                    fos.write(absensiJson.toByteArray())
+                                }
+
+                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+                            } catch (e: Exception) {
+                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+                                e.printStackTrace()
+                            }
 
                             unzippedAbsensiData = restructuredData.filter { item ->
                                 // Get the kemandoran_id from the current item
-                                val singleKemandoranId =
-                                    item["kemandoran_id"] as? String ?: ""
+                                val singleKemandoranId = item["kemandoran_id"] as? String ?: ""
 
                                 // Find data items with this kemandoran_id that have dataIsZipped = 0
-                                val notYetZipped =
-                                    absensiList.any { absensiRelation ->
-                                        val kemandoranIds =
-                                            absensiRelation.absensi.kemandoran_id.split(
-                                                ","
-                                            )
-                                        singleKemandoranId in kemandoranIds &&
-                                                absensiRelation.absensi.status_upload == 0 &&
-                                                absensiRelation.absensi.dataIsZipped == 0
-                                    }
+                                val notYetZipped = absensiList.any { absensiRelation ->
+                                    val kemandoranIds = absensiRelation.absensi.kemandoran_id.split(",")
+                                    singleKemandoranId in kemandoranIds &&
+                                            absensiRelation.absensi.status_upload == 0 &&
+                                            absensiRelation.absensi.dataIsZipped == 0
+                                }
 
                                 notYetZipped
                             }
@@ -4140,12 +4176,11 @@ class HomePageActivity : AppCompatActivity() {
                                         absensiRelation.absensi.dataIsZipped == 0
                             }.map { it.absensi.id }
 
-                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] =
-                                mapOf(
-                                    "data" to absensiJson,
-                                    "filename" to "absensi_data.json",
-                                    "ids" to globalAbsensiIds
-                                )
+                            combinedUploadData[AppUtils.DatabaseTables.ABSENSI] = mapOf(
+                                "data" to absensiJson,
+                                "filename" to "absensi_data.json",
+                                "ids" to globalAbsensiIds
+                            )
                         } else {
                             globalAbsensiIds = emptyList()
                             unzippedAbsensiData = emptyList()
@@ -8919,7 +8954,6 @@ class HomePageActivity : AppCompatActivity() {
     }
 
 
-    // Updated checkPermissions method - removed notification permission from here
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
@@ -8932,6 +8966,22 @@ class HomePageActivity : AppCompatActivity() {
             ) {
                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+
+        // Add Bluetooth permissions based on Android version
+        val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ Bluetooth permissions
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE
+            )
+        } else {
+            // Android 11 and below Bluetooth permissions
+            arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN
+            )
         }
 
         // Add other permissions based on Android version
@@ -8953,6 +9003,18 @@ class HomePageActivity : AppCompatActivity() {
             }.toTypedArray()
         }
 
+        // Check Bluetooth permissions
+        bluetoothPermissions.forEach { permission ->
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    permission
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(permission)
+            }
+        }
+
+        // Check other permissions
         otherPermissions.forEach { permission ->
             if (ContextCompat.checkSelfPermission(
                     this,
