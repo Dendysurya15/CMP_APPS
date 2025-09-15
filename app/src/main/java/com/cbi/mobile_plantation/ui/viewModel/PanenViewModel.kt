@@ -231,8 +231,8 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    suspend fun loadPanenCountApproval(): Int {
-        val count = repository.getPanenCountApproval()
+    suspend fun loadPanenCountApprovalByAfdeling(afdelingId: Int): Int {
+        val count = repository.getPanenCountApprovalByAfdeling(afdelingId)
         _panenCount.value = count
         return count
     }

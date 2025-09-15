@@ -1576,8 +1576,8 @@ class AppRepository(context: Context) {
         return panenDao.getCountArchive()
     }
 
-    suspend fun getPanenCountApproval(): Int {
-        return panenDao.getCountApproval()
+    suspend fun getPanenCountApprovalByAfdeling(afdelingId: Int): Int {
+        return panenDao.getCountApprovalByAfdeling(afdelingId)
     }
 
     suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo? = withContext(Dispatchers.IO) {

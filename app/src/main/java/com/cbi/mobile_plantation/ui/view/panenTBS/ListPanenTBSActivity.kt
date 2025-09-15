@@ -3092,23 +3092,30 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.activePanenList.observe(this) { panenList ->
 
+            val filteredPanenList = panenList.filter { panenEntityWithRelations ->
+                val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                val userAfdelingId = prefManager!!.afdelingIdUserLogin
+
+                AppLogger.d("Filtering: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+
+                tphDivisi == userAfdelingId
+            }
+
+            AppLogger.d("Original panen list size: ${panenList.size}")
+            AppLogger.d("Filtered panen list size: ${filteredPanenList.size}")
             if (currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) {
 
                 Handler(Looper.getMainLooper()).postDelayed({
                     loadingDialog.dismiss()
 
                     lifecycleScope.launch {
-
-
-                        AppLogger.d("panenList $panenList")
-
-                        if (panenList.isNotEmpty()) {
+                        if (filteredPanenList.isNotEmpty()) {
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
                             val allWorkerData = mutableListOf<Map<String, Any>>()
 
                             originalMappedData.clear()
-                            panenList.map { panenWithRelations ->
+                            filteredPanenList.map { panenWithRelations ->
 
 
                                 if (panenWithRelations.tph == null) {
@@ -3853,14 +3860,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     }
 
-                    if (panenList.size == 0 && featureName == "Rekap Hasil Panen") {
+                    if (filteredPanenList.size == 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
 
 
-                    } else if (panenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
+                    } else if (filteredPanenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
                         btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.VISIBLE
@@ -3889,7 +3896,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
                     } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
-                        if (panenList.size > 0) {
+                        if (filteredPanenList.size > 0) {
                             btnGenerateQRTPH.visibility = View.VISIBLE
                             tvGenQRFull.visibility = View.VISIBLE
                             btnGenerateQRTPHUnl.visibility = View.GONE
@@ -3925,6 +3932,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.archivedPanenList.observe(this) { panenList ->
+
+            val filteredPanenList = panenList.filter { panenEntityWithRelations ->
+                val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                val userAfdelingId = prefManager!!.afdelingIdUserLogin
+
+                AppLogger.d("Filtering: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+
+                tphDivisi == userAfdelingId
+            }
+
             if (currentState == 1 || currentState == 2) {
                 btnGenerateQRTPH.visibility = View.GONE
                 btnGenerateQRTPHUnl.visibility = View.GONE
@@ -3942,11 +3959,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     loadingDialog.dismiss()
                     lifecycleScope.launch {
 
-                        if (panenList.isNotEmpty()) {
+                        if (filteredPanenList.isNotEmpty()) {
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
 
-                            mappedData = panenList.map { panenWithRelations ->
+                            mappedData = filteredPanenList.map { panenWithRelations ->
 
 
                                 if (panenWithRelations.tph == null) {

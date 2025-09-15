@@ -151,14 +151,16 @@ abstract class PanenDao {
 
     @Query("""
     SELECT COUNT(*) 
-    FROM panen_table 
-    WHERE archive = 0 
-    AND status_transfer_restan = 0 
-    AND date(date_created) = date('now', 'localtime') 
-    AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL')
-    AND scan_status = 1
+    FROM panen_table p
+    INNER JOIN tph t ON p.tph_id = t.id
+    WHERE p.archive = 0 
+    AND p.status_transfer_restan = 0 
+    AND date(p.date_created) = date('now', 'localtime') 
+    AND (p.no_espb IS NULL OR p.no_espb = '' OR p.no_espb = 'NULL')
+    AND p.scan_status = 1
+    AND t.divisi = :afdelingId
 """)
-    abstract suspend fun getCountApproval(): Int
+    abstract suspend fun getCountApprovalByAfdeling(afdelingId: Int): Int
 
 
     @Query("""

@@ -519,7 +519,8 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
                 try {
-                    val countDeferred = async { panenViewModel.loadPanenCountApproval() }
+                    val afdelingId = prefManager!!.afdelingIdUserLogin
+                    val countDeferred = async { panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt()) }
                     countPanenTPHApproval = countDeferred.await()
                     withContext(Dispatchers.Main) {
                         featureAdapter.updateCount(
@@ -8779,7 +8780,8 @@ class HomePageActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 // Create a deferred result for the count operation
-                val countDeferred = async { panenViewModel.loadPanenCountApproval() }
+                val afdelingId = prefManager!!.afdelingIdUserLogin
+                val countDeferred = async { panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt()) }
                 val newCount = countDeferred.await()
 
                 // Update the UI with the new count
