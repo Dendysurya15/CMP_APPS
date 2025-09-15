@@ -61,16 +61,20 @@ class FFBDetector(
 
     private var isInitialized = false
 
+    fun getCurrentFps(): Float {
+        return currentFps
+    }
+
     fun initialize(useGPU: Boolean = false): Boolean {
         return try {
             val compatList = CompatibilityList()
 
             val options = Interpreter.Options().apply {
-                if (useGPU && compatList.isDelegateSupportedOnThisDevice) {
+                if (true && compatList.isDelegateSupportedOnThisDevice) {
                     val delegateOptions = compatList.bestOptionsForThisDevice
                     this.addDelegate(GpuDelegate(delegateOptions))
                 } else {
-                    this.setNumThreads(4)
+                    this.setNumThreads(6)
                 }
             }
 

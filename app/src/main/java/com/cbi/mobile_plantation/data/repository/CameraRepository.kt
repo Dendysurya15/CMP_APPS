@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -19,7 +20,6 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
-import android.media.ExifInterface
 import android.media.ImageReader
 import android.net.Uri
 import android.os.Build
@@ -57,15 +57,14 @@ import com.cbi.mobile_plantation.utils.FFBClassCountsView
 import com.cbi.mobile_plantation.utils.FFBDetector
 import com.cbi.mobile_plantation.utils.FFBOverlayView
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.PerformanceMetrics
+import com.cbi.mobile_plantation.utils.PerformanceOverlayView
 import com.cbi.mobile_plantation.utils.PrefManager
-import com.daimajia.androidanimations.library.Techniques
-import com.daimajia.androidanimations.library.YoYo
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -126,6 +125,11 @@ class CameraRepository(
     private var isCameraOpen = false
     private var isFlashlightOn = false
 
+    private var performanceOverlay: PerformanceOverlayView? = null
+    private var performanceCheckCounter = 0
+    private var totalDetectionCount = 0
+    private var lastInferenceTime = 0L
+
     fun setPhotoCallback(callback: PhotoCallback) {
         this.photoCallback = callback
     }
@@ -179,9 +183,53 @@ class CameraRepository(
     private fun performDetection() {
         try {
             val bitmap = textureViewCam.getBitmap() ?: return
+            val detectionStartTime = System.currentTimeMillis()
+
             ffbDetector?.detect(bitmap)
+
+            // Monitor performance every 30 detections (approximately every 3 seconds at 10 FPS)
+            performanceCheckCounter++
+            if (performanceCheckCounter >= 30) {
+                monitorAndUpdatePerformance()
+                performanceCheckCounter = 0
+            }
         } catch (e: Exception) {
             Log.e("CameraRepository", "Error performing detection", e)
+        }
+    }
+
+    private fun monitorAndUpdatePerformance() {
+        try {
+            val memoryInfo = ActivityManager.MemoryInfo()
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            activityManager.getMemoryInfo(memoryInfo)
+
+            val availableMemoryMB = memoryInfo.availMem / (1024 * 1024)
+            val totalMemoryMB = memoryInfo.totalMem / (1024 * 1024)
+            val usedMemoryMB = totalMemoryMB - availableMemoryMB
+            val memoryUsagePercent = (usedMemoryMB * 100) / totalMemoryMB
+
+            // Get FPS from detector (you'll need to add this method to FFBDetector)
+            val currentFps = ffbDetector?.getCurrentFps() ?: 0f
+
+            val metrics = PerformanceMetrics(
+                fps = currentFps,
+                memoryUsageMB = usedMemoryMB,
+                memoryUsagePercent = memoryUsagePercent,
+                inferenceTime = lastInferenceTime,
+                totalDetections = totalDetectionCount
+            )
+
+            // Update UI on main thread
+            mainHandler.post {
+                performanceOverlay?.updateMetrics(metrics)
+            }
+
+            // Log for debugging
+            Log.d("Performance", "FPS: $currentFps, Memory: ${usedMemoryMB}MB (${memoryUsagePercent}%)")
+
+        } catch (e: Exception) {
+            Log.e("Performance", "Error monitoring performance", e)
         }
     }
 
@@ -214,8 +262,9 @@ class CameraRepository(
         return Pair(lockedDetectionResults, lockedClassCounts)
     }
 
-    // FFBDetector.DetectorListener implementation
     override fun onEmptyDetect(metrics: DetectionMetrics) {
+        lastInferenceTime = metrics.inferenceTime
+
         mainHandler.post {
             if (lockedDetectionResults == null) {
                 overlayView?.clear()
@@ -225,6 +274,9 @@ class CameraRepository(
     }
 
     override fun onDetect(boundingBoxes: List<BoundingBox>, metrics: DetectionMetrics) {
+        totalDetectionCount += boundingBoxes.size
+        lastInferenceTime = metrics.inferenceTime
+
         mainHandler.post {
             if (lockedDetectionResults == null) {
                 overlayView?.setResults(boundingBoxes)
@@ -593,6 +645,19 @@ class CameraRepository(
             }
         }
         rlCamera.addView(classCountsView)
+
+        performanceOverlay = PerformanceOverlayView(context, null).apply {
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                addRule(RelativeLayout.ALIGN_PARENT_LEFT)
+                bottomMargin = 120 // Above capture button
+                leftMargin = 20
+            }
+        }
+        rlCamera.addView(performanceOverlay)
     }
 
     private fun setupFFBControls(view: View) {
@@ -966,6 +1031,12 @@ class CameraRepository(
 
             overlayView?.let { rlCamera.removeView(it) }
             classCountsView?.let { rlCamera.removeView(it) }
+            performanceOverlay?.let { rlCamera.removeView(it) } // Add this line
+
+            // Reset performance counters
+            performanceCheckCounter = 0
+            totalDetectionCount = 0
+            lastInferenceTime = 0L
 
             blockingView?.let {
                 (view.parent as? ViewGroup)?.removeView(it)
