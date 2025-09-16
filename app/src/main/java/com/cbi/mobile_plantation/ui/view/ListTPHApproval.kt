@@ -1166,7 +1166,7 @@ class ListTPHApproval : AppCompatActivity() {
         bluetoothReceiveDialog?.setContentView(dialogView)
 
         // Use the EXACT same pattern as your working code
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.35).toInt()
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.5).toInt()
 
         bluetoothReceiveDialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?.let { bottomSheet ->
@@ -1177,10 +1177,17 @@ class ListTPHApproval : AppCompatActivity() {
                     this.state = BottomSheetBehavior.STATE_EXPANDED
                     this.isFitToContents = true
                     this.isDraggable = false
+                    this.isHideable = false  // ✅ Prevent hiding by swiping
                 }
 
                 bottomSheet.layoutParams?.height = maxHeight
             }
+
+        // ✅ PREVENT OUTSIDE TOUCH DISMISSAL
+        bluetoothReceiveDialog?.setCanceledOnTouchOutside(false)
+
+        // ✅ PREVENT BACK BUTTON DISMISSAL (optional)
+        bluetoothReceiveDialog?.setCancelable(false)
 
         // Get views and set content
         val tvBluetoothStatus = dialogView.findViewById<TextView>(R.id.tvBluetoothStatus)
@@ -1192,7 +1199,6 @@ class ListTPHApproval : AppCompatActivity() {
 
         // Setup RecyclerView
         receivedDataAdapter = ReceiveDataBTHektaranAdapter(receivedDataList)
-
 
         btnCloseReceive.setOnClickListener {
             stopBluetoothServer()
