@@ -409,7 +409,7 @@
         android:id="@+id/tvGenQR60"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Generate\nQR 50"
+        android:text="Generate QR"
         android:visibility="gone"
         android:shadowColor="@color/white"
         android:fontFamily="@font/manrope_bold"
