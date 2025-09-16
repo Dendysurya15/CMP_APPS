@@ -175,14 +175,14 @@ abstract class PanenDao {
     abstract suspend fun loadESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
 
     @Query("""
-    SELECT COUNT(*) FROM panen_table 
+    SELECT * FROM panen_table 
     WHERE archive = :archive 
     AND (no_espb IS NULL OR no_espb = '' OR no_espb = 'NULL') = :hasNoEspb
     AND status_transfer_restan = :statusTransferRestan
     AND scan_status = :scanStatus
     AND (:date IS NULL OR strftime('%Y-%m-%d', date_created) = :date)
 """)
-    abstract suspend fun countESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): Int
+    abstract suspend fun getESPBList(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String?): List<PanenEntityWithRelations>
 
     @Query("""
     UPDATE panen_table

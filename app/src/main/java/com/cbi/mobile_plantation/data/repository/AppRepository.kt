@@ -1437,18 +1437,18 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun countESPB(
+    suspend fun getESPBList(
         archive: Int,
         statusTransferRestan: Int,
         hasNoEspb: Boolean,
         scanStatus: Int,
         date: String? = null
-    ): Int {
+    ): List<PanenEntityWithRelations> {
         return try {
-            panenDao.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
+            panenDao.getESPBList(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
         } catch (e: Exception) {
-            AppLogger.e("Error counting ESPB: ${e.message}")
-            0  // Return 0 if there's an error
+            AppLogger.e("Error getting ESPB list: ${e.message}")
+            emptyList()
         }
     }
 

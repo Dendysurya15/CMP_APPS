@@ -2694,15 +2694,47 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         }
 
-        panenViewModel.panenCountActive.observe(this) { count ->
-            counterTersimpan.text = count.toString()
+        panenViewModel.panenCountActive.observe(this) { panenList ->
+            val userAfdelingId = prefManager!!.afdelingIdUserLogin
+
+            val filteredPanenList = panenList.filter { panenEntityWithRelations ->
+                val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+
+                AppLogger.d("Filtering Active: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+
+                tphDivisi == userAfdelingId
+            }
+
+            counterTersimpan.text = filteredPanenList.size.toString()
         }
-        panenViewModel.panenCountArchived.observe(this) { count ->
-            AppLogger.d(count.toString())
-            counterTerscan.text = count.toString()
+
+        panenViewModel.panenCountArchived.observe(this) { panenList ->
+            val userAfdelingId = prefManager!!.afdelingIdUserLogin
+
+            val filteredPanenList = panenList.filter { panenEntityWithRelations ->
+                val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+
+                AppLogger.d("Filtering Archived: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+
+                tphDivisi == userAfdelingId
+            }
+
+            AppLogger.d("Archived count after filtering: ${filteredPanenList.size}")
+            counterTerscan.text = filteredPanenList.size.toString()
         }
-        panenViewModel.panenCountHasBeenESPB.observe(this) { count ->
-            counterPerPemanen.text = count.toString()
+
+        panenViewModel.panenCountHasBeenESPB.observe(this) { panenList ->
+            val userAfdelingId = prefManager!!.afdelingIdUserLogin
+
+            val filteredPanenList = panenList.filter { panenEntityWithRelations ->
+                val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+
+                AppLogger.d("Filtering ESPB: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+
+                tphDivisi == userAfdelingId
+            }
+
+            counterPerPemanen.text = filteredPanenList.size.toString()
         }
 
         mutuBuahViewModel.countMutuBuahUnuploaded.observe(this) { count ->
@@ -3096,13 +3128,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin
 
-                AppLogger.d("Filtering: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+//                AppLogger.d("Filtering: TH divisi = $tphDivisi, User afdeling = $userAfdelingId")
 
                 tphDivisi == userAfdelingId
             }
 
-            AppLogger.d("Original panen list size: ${panenList.size}")
-            AppLogger.d("Filtered panen list size: ${filteredPanenList.size}")
+//            AppLogger.d("Original panen list size: ${panenList.size}")
+//            AppLogger.d("Filtered panen list size: ${filteredPanenList.size}")
             if (currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) {
 
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -3937,7 +3969,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin
 
-                AppLogger.d("Filtering: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+//                AppLogger.d("Filtering: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
 
                 tphDivisi == userAfdelingId
             }
@@ -3947,8 +3979,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 btnGenerateQRTPHUnl.visibility = View.GONE
                 tvGenQR60.visibility = View.GONE
                 tvGenQRFull.visibility = View.GONE
-
-                AppLogger.d("aklsjdafkljsd flkj")
 
                 val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                     .findViewById<CheckBox>(R.id.headerCheckBoxPanen)

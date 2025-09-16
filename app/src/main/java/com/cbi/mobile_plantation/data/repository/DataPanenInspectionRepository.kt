@@ -34,7 +34,7 @@ class DataPanenInspectionRepository(
         val endDate = formatter.format(calendar.time)
 
         // Start of 7 days ago (00:00:00 seven days ago)
-        calendar.add(Calendar.DAY_OF_YEAR, -6) // Go back 6 more days (total 7 days from today)
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -160,13 +160,14 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        calendar.add(Calendar.WEEK_OF_YEAR, -1)
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val oneWeekAgo = formatter.format(calendar.time)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $oneWeekAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $startDate to $today (inclusive, full datetime)")
 
 
 
@@ -233,7 +234,7 @@ class DataPanenInspectionRepository(
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(oneWeekAgo)
+                        put(startDate)
                         put(today)
                     })
                 })

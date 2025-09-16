@@ -3629,21 +3629,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
-                // Today
+                // Today at end of day
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
                 val todayDisplay = displayFormatter.format(todayDate)
 
-                // 1 week ago
+                // 7 days ago from today (8 days total including today)
                 calendar.add(Calendar.DAY_OF_YEAR, -7)
-                val oneWeekAgoDate = calendar.time
-                val oneWeekAgo = inputFormatter.format(oneWeekAgoDate)
-                val oneWeekAgoDisplay = displayFormatter.format(oneWeekAgoDate)
+                val sevenDaysAgoDate = calendar.time
+                val sevenDaysAgo = inputFormatter.format(sevenDaysAgoDate)
+                val sevenDaysAgoDisplay = displayFormatter.format(sevenDaysAgoDate)
 
                 // Create all dates in range
                 val allDates = mutableListOf<String>()
                 val tempCalendar = Calendar.getInstance()
-                tempCalendar.time = oneWeekAgoDate
+                tempCalendar.time = sevenDaysAgoDate
 
                 while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
@@ -3679,7 +3679,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Inspeksi ($oneWeekAgoDisplay - $todayDisplay)\n")
+                resultBuilder.append("Data Inspeksi ($sevenDaysAgoDisplay - $todayDisplay)\n")
 
                 var hasValidData = false
                 for (date in allDates.sortedDescending()) {
@@ -3706,7 +3706,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-
     fun processPreviewDataPanenInspeksi(jsonResponse: String, estate: Any): String {
         try {
             // Parse the JSON response
@@ -3721,15 +3720,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
-                // Yesterday
-                calendar.set(Calendar.HOUR_OF_DAY, 23)
-                calendar.set(Calendar.MINUTE, 59)
-                calendar.set(Calendar.SECOND, 59)
+                // Today at end of day
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                // 7 days ago
-                calendar.add(Calendar.DAY_OF_YEAR, -6)
+                // 7 days ago from today (8 days total including today)
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -3743,8 +3739,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
 
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
+                val endDateDisplay = displayFormatter.format(todayDate)
+
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Panen dalam 7 hari terakhir\n")
+                resultBuilder.append("Data Panen ($startDateDisplay - $endDateDisplay)\n")
+
 
                 // Check if we need grouping by dept_abbr
                 if (estate is List<*>) {
@@ -3909,27 +3909,26 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter =
-                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
-                // Today (changed from yesterday)
+                // Today
                 val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
 
-                // 6 days ago (to get 7 days including today)
-                calendar.add(Calendar.DAY_OF_YEAR, -6)
-                val sixDaysAgo = inputFormatter.format(calendar.time)
-                val sixDaysAgoDate = calendar.time
+                // 7 days ago from today (8 days total including today)
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                val sevenDaysAgo = inputFormatter.format(calendar.time)
+                val sevenDaysAgoDate = calendar.time
 
                 // Format the date range for display (e.g., "28 April - 5 Mei")
                 val endDateDisplay = displayFormatter.format(todayDate)
-                val startDateDisplay = displayFormatter.format(sixDaysAgoDate)
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
 
                 // Create a list of all dates in the range
                 val allDates = mutableListOf<String>()
                 val tempCalendar = Calendar.getInstance()
-                tempCalendar.time = sixDaysAgoDate
+                tempCalendar.time = sevenDaysAgoDate
 
                 while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
@@ -4081,7 +4080,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Build the final string
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Restan dalam 7 hari terakhir ($startDateDisplay - $endDateDisplay):\n")
+                resultBuilder.append("Data Restan ($startDateDisplay - $endDateDisplay):\n")
 
                 // Add each date's transactions with jjg_kirim count, but only if they have data
                 var hasValidData = false
