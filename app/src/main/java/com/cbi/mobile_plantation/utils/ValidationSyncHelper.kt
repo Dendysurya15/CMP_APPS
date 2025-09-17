@@ -87,9 +87,7 @@ object ValidationSyncHelper {
      */
     fun shouldSkipAfdelingCheck(jabatanUser: String?): Boolean {
         return jabatanUser?.lowercase()?.let { jabatan ->
-            jabatan.contains("askep") ||
-                    jabatan.contains("manager") ||
-                    jabatan.contains("gm")
+                    jabatan.contains(AppUtils.ListFeatureByRoleUser.GM)
         } ?: false
     }
 

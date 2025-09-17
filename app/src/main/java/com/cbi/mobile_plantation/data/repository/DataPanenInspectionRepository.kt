@@ -112,7 +112,6 @@ class DataPanenInspectionRepository(
 
     suspend fun getDataInspeksi(
         estate: Any, // Changed from Int to Any
-        afdeling: String,
         joinTable: Boolean = true,
         parameterDao: ParameterDao
     ): Response<ResponseBody> {

@@ -482,6 +482,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         prefManager = PrefManager(this)
         radiusMinimum = prefManager!!.radiusMinimum
         boundaryAccuracy = prefManager!!.radiusMinimum
+
         initViewModel()
         initUI()
         dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()

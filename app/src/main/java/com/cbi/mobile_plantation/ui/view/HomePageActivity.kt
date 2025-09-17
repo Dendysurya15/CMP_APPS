@@ -518,19 +518,31 @@ class HomePageActivity : AppCompatActivity() {
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
                     }
                 }
-                try {
-                    val afdelingId = prefManager!!.afdelingIdUserLogin
-                    val countDeferred = async { panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt()) }
-                    countPanenTPHApproval = countDeferred.await()
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(
-                            "Rekap panen dan restan",
-                            countPanenTPHApproval.toString()
-                        )
-                        featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                val jabatanUser = prefManager!!.jabatanUserLogin
+                val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
+                val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+
+// Skip panen count loading for askep and manager users since they can have multiple afdelings
+                if (!isAskepUser && !isManagerUser) {
+                    try {
+                        val afdelingId = prefManager!!.afdelingIdUserLogin
+                        val countDeferred = async { panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt()) }
+                        countPanenTPHApproval = countDeferred.await()
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.updateCount(
+                                "Rekap panen dan restan",
+                                countPanenTPHApproval.toString()
+                            )
+                            featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                        }
+                    } catch (e: Exception) {
+                        // Handle any exceptions
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                        }
                     }
-                } catch (e: Exception) {
-                    AppLogger.e("Error fetching data: ${e.message}")
+                } else {
+                    // For askep and manager users, just hide the loading without showing count
                     withContext(Dispatchers.Main) {
                         featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
                     }
@@ -4733,6 +4745,18 @@ class HomePageActivity : AppCompatActivity() {
                                             ""
                                         }
 
+                                    val originalDetailFotoPemulihan = detail.foto_pemulihan ?: ""
+                                    val modifiedDetailFotoPemulihanString =
+                                        if (originalDetailFotoPemulihan.contains(";")) {
+                                            originalDetailFotoPemulihan.split(";")
+                                                .map { photoName -> "$basePath${photoName.trim()}" }
+                                                .joinToString(";")
+                                        } else if (originalDetailFotoPemulihan.isNotEmpty()) {
+                                            "$basePath$originalDetailFotoPemulihan"
+                                        } else {
+                                            ""
+                                        }
+
                                     mapOf<String, Any>(
                                         "no_pokok" to (detail.no_pokok ?: 0),
                                         "pokok_panen" to (detail.pokok_panen ?: 0),
@@ -4746,7 +4770,7 @@ class HomePageActivity : AppCompatActivity() {
                                         "kemandoran_nama" to (kemandoranMap[detail.nik]?.nama
                                             ?: ""),
                                         "foto" to modifiedDetailFotoString,
-                                        "foto_pemulihan" to (detail.foto_pemulihan ?: ""),
+                                        "foto_pemulihan" to modifiedDetailFotoPemulihanString,
                                         "catatan" to (detail.komentar ?: ""),
                                         "catatan_pemulihan" to (detail.komentar_pemulihan ?: ""),
                                         "created_by" to (detail.created_by ?: ""),
@@ -4761,6 +4785,29 @@ class HomePageActivity : AppCompatActivity() {
                                         "lon_pemulihan" to (detail.lonPemulihan ?: 0.0),
                                     )
                                 }
+
+                            val originalFotoUserString = inspeksiWithRelations.inspeksi.foto_user ?: ""
+                            val modifiedFotoUserString = if (originalFotoUserString.contains(";")) {
+                                originalFotoUserString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalFotoUserString.isNotEmpty()) {
+                                "$basePath$originalFotoUserString"
+                            } else {
+                                ""
+                            }
+
+// Process foto_user_pemulihan (selfie pemulihan photos)
+                            val originalFotoUserPemulihanString = inspeksiWithRelations.inspeksi.foto_user_pemulihan ?: ""
+                            val modifiedFotoUserPemulihanString = if (originalFotoUserPemulihanString.contains(";")) {
+                                originalFotoUserPemulihanString.split(";")
+                                    .map { photoName -> "$basePath${photoName.trim()}" }
+                                    .joinToString(";")
+                            } else if (originalFotoUserPemulihanString.isNotEmpty()) {
+                                "$basePath$originalFotoUserPemulihanString"
+                            } else {
+                                ""
+                            }
 
                             try {
                                 mapOf<String, Any>(
@@ -4805,10 +4852,8 @@ class HomePageActivity : AppCompatActivity() {
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
                                         ?: 0),
-                                    "foto_user" to (inspeksiWithRelations.inspeksi.foto_user
-                                        ?: 0),
-                                    "foto_user_pemulihan" to (inspeksiWithRelations.inspeksi.foto_user_pemulihan
-                                        ?: ""),
+                                    "foto_user" to modifiedFotoUserString,
+                                    "foto_user_pemulihan" to modifiedFotoUserPemulihanString,
                                     "created_name" to (inspeksiWithRelations.inspeksi.created_name
                                         ?: ""),
                                     "created_by" to (inspeksiWithRelations.inspeksi.created_by
@@ -4936,24 +4981,24 @@ class HomePageActivity : AppCompatActivity() {
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
                         val inspeksiJson = Gson().toJson(wrappedInspeksiData)
-//                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
-//                        try {
-//                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                if (!exists()) mkdirs()
-//                            }
-//
-//                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
-//                            val tempFile = File(tempDir, filename)
-//
-//                            FileOutputStream(tempFile).use { fos ->
-//                                fos.write(inspeksiJson.toByteArray())
-//                            }
-//
-//                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
-//                        } catch (e: Exception) {
-//                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
-//                            e.printStackTrace()
-//                        }
+                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                        try {
+                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                if (!exists()) mkdirs()
+                            }
+
+                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
+                            val tempFile = File(tempDir, filename)
+
+                            FileOutputStream(tempFile).use { fos ->
+                                fos.write(inspeksiJson.toByteArray())
+                            }
+
+                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
+                        } catch (e: Exception) {
+                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
+                            e.printStackTrace()
+                        }
 
                         val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
                             val statusUpload = inspeksiMap["status_upload"] as? String
@@ -7986,6 +8031,9 @@ class HomePageActivity : AppCompatActivity() {
 
         val jabatanUser = prefManager!!.jabatanUserLogin
         val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
+        val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
+        val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+        val canHaveMultipleAfdelings = isAskepUser || isManagerUser
 
         if (!isGMUser) {
             if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
@@ -8014,6 +8062,33 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
+        if (!canHaveMultipleAfdelings) {
+            if (afdelingIdString.isNullOrEmpty() || afdelingIdString.isBlank()) {
+                showErrorDialog("Afdeling ID is not valid. Current value: '$afdelingIdString'")
+                loadingDialog.dismiss()
+                return
+            }
+
+            if (afdelingIdString.contains(",")) {
+                showErrorDialog("Non-Askep/Manager users should have only one Afdeling ID")
+                loadingDialog.dismiss()
+                return
+            }
+
+            try {
+                val afdelingId = afdelingIdString.toInt()
+                if (afdelingId <= 0) {
+                    showErrorDialog("Afdeling ID must be a positive number")
+                    loadingDialog.dismiss()
+                    return
+                }
+            } catch (e: NumberFormatException) {
+                showErrorDialog("Invalid Afdeling ID format: '$afdelingIdString'")
+                loadingDialog.dismiss()
+                return
+            }
+        }
+
         try {
             // Set the trigger flags in the utility
             downloadDatasetUtility.apply {
@@ -8032,13 +8107,24 @@ class HomePageActivity : AppCompatActivity() {
                 estateIdString!!
             }
 
+
+            val afdelingIds = if (canHaveMultipleAfdelings && afdelingIdString!!.contains(",")) {
+                afdelingIdString.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .map { it.toInt() }
+            } else {
+                afdelingIdString!!
+            }
+
             AppLogger.d("estateIds $estateIds")
+            AppLogger.d("afdelingIds $afdelingIds")
 
 
             val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
                 regionalIdString!!.toInt(),
                 estateIds,
-                afdelingIdString!!,
+                afdelingIdString,
                 lastModifiedDatasetEstate,
                 lastModifiedDatasetTPH,
                 lastModifiedDatasetJenisTPH,
@@ -8781,6 +8867,16 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun refreshPanenCount() {
+        val jabatanUser = prefManager!!.jabatanUserLogin
+        val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
+        val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+
+        // Skip for askep and manager users since they can have multiple afdelings
+        if (isAskepUser || isManagerUser) {
+            AppLogger.d("Skipping panen count refresh for askep/manager user")
+            return
+        }
+
         lifecycleScope.launch {
             try {
                 // Create a deferred result for the count operation

@@ -21,7 +21,7 @@ class DownloadDatasetUtility(
     fun getDatasetsToDownload(
         regionalId: Int,
         estateId: Any,
-        afdelingId: String,
+        afdelingId: Any,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetJenisTPH: String?,
@@ -127,7 +127,7 @@ class DownloadDatasetUtility(
         datasets: MutableList<DatasetRequest>,
         userRole: UserRole,
         estateId: Any,
-        afdelingId: String
+        afdelingId: Any
     ): Boolean {
 
         // Only add other datasets if NOT follow-up trigger
@@ -252,7 +252,7 @@ class DownloadDatasetUtility(
         userRole: UserRole,
         regionalId: Int,
         estateId: Any,
-        afdelingId: String,
+        afdelingId: Any,
         regionalUser: Int,
         lastModifiedDatasetKemandoran:String?,
         lastModifiedDatasetEstate: String?,
@@ -467,7 +467,7 @@ class DownloadDatasetUtility(
         userRole: UserRole,
         regionalId: Int,
         estateId: Any,
-        afdelingId: String,
+        afdelingId: Any,
         lastModifiedDatasetJenisTPH: String?,
         lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,

@@ -1213,13 +1213,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
-                        response =
-                            restanRepository.getDataRestan(
+                    }else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                        // Skip restan data for askep and manager users since they can have multiple afdelings
+                        if (
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager) {
+
+                            response = restanRepository.getDataRestan(
                                 request.estate.toString().toInt(),
-                                request.afdeling!!
+                                request.afdeling.toString()
                             )
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
+                        } else {
+                            progressMap[itemId] = 100
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+                            errorMap[itemId] = "Skipped for multiple afdeling users"
+
+                            _itemProgressMap.postValue(progressMap.toMap())
+                            _itemStatusMap.postValue(statusMap.toMap())
+                            _itemErrorMap.postValue(errorMap.toMap())
+
+                            incrementCompletedCount()
+                            continue // Skip to next item
+                        }
+                    }else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
                         response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
@@ -1245,7 +1261,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             estateId!!,
-                            request.afdeling!!,
                             true,
                             parameterDao
                         )
@@ -1964,7 +1979,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     // ✅ Pass parameterDao to the repository method
                     dataPanenInspectionRepository.getDataInspeksi(
                         estate = estate,
-                        afdeling = afdeling,
                         joinTable = false, // ✅ Set to true to include inspeksi_detail join
                         parameterDao = parameterDao // You'll need to inject this
                     )
@@ -4318,11 +4332,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadListEstate(request.regional ?: 0)
                     }
                     else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
-                        response =
-                            restanRepository.getDataRestan(
+                        // Skip restan data for askep and manager users since they can have multiple afdelings
+                        if (request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager) {
+                            response = restanRepository.getDataRestan(
                                 request.estate as Int,
-                                request.afdeling!!
+                                request.afdeling.toString()
                             )
+                        } else {
+                            // Skip processing for askep/manager users - mark as success
+//                            results[request.dataset] = Resource.Success(response,
+//                                "Sinkronisasi Restan Error") // or create a dummy successful response
+//                            _downloadStatuses.postValue(results.toMap())
+                            return@forEach // Skip to next request in the forEach loop
+                        }
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
@@ -4338,7 +4361,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.d("sinkronisasi inspeksi")
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             request.estate!!,
-                            request.afdeling!!,
                             true,
                             parameterDao
                         )
