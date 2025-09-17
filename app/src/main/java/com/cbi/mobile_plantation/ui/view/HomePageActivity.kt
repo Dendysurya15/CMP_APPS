@@ -1465,13 +1465,15 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.d("jabatan user $jabatanUser")
                             AppLogger.d("shouledSKip $shouldSkipAfdelingCheck")
 
-                            // Validate afdeling if needed
-                            ValidationSyncHelper.validateAfdeling(
+                            val afdeling = ValidationSyncHelper.validateAfdeling(
                                 this@HomePageActivity,
                                 prefManager!!,
                                 datasetViewModel,
                                 shouldSkipAfdelingCheck
-                            ) ?: return@launch
+                            )
+
+                            // If afdeling validation failed and we're not skipping, return
+                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
 
                             // Validate sync date
                             val lastSyncDateTime = prefManager?.lastSyncDataPanenInspeksi
@@ -1516,13 +1518,15 @@ class HomePageActivity : AppCompatActivity() {
 
                             AppLogger.d("jabatan user $jabatanUser")
 
-                            // Validate afdeling if needed
-                            ValidationSyncHelper.validateAfdeling(
+                            val afdeling = ValidationSyncHelper.validateAfdeling(
                                 this@HomePageActivity,
                                 prefManager!!,
                                 datasetViewModel,
                                 shouldSkipAfdelingCheck
-                            ) ?: return@launch
+                            )
+
+                            // If afdeling validation failed and we're not skipping, return
+                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
 
                             // Validate sync date
                             val lastSyncDateTime = prefManager?.lastSyncFollowUpInspeksi
