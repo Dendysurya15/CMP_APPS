@@ -158,7 +158,7 @@ abstract class PanenDao {
     AND date(p.date_created) = date('now', 'localtime') 
     AND (p.no_espb IS NULL OR p.no_espb = '' OR p.no_espb = 'NULL')
     AND p.scan_status = 1
-    AND t.divisi = :afdelingId
+    AND (t.divisi = :afdelingId OR p.asistensi = 2)
 """)
     abstract suspend fun getCountApprovalByAfdeling(afdelingId: Int): Int
 

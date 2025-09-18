@@ -639,20 +639,20 @@ class ListTPHApproval : AppCompatActivity() {
                 val jsonObject = JSONObject(jsonString)
                 AppLogger.d("jsonObject $jsonObject")
                 val tph0String = jsonObject.getString("tph_0")
-                val usernameString = try {
+
+                val usernameString = if (jsonObject.has("username")) {
                     jsonObject.getString("username")
-                } catch (e: Exception) {
-                    AppLogger.d("Username tidak ditemukan: $e")
-                    "NULL"
-                }
-                val kemandoranId = try {
-                    jsonObject.getString("kemandoran_id")
-                } catch (e: Exception) {
-                    AppLogger.d("kemandoran_id tidak ditemukan: $e")
+                } else {
+                    AppLogger.d("Username key not found in JSON")
                     "NULL"
                 }
 
-                AppLogger.d("klfas jdlfkjalskfjlkas")
+                val kemandoranId = if (jsonObject.has("kemandoran_id")) {
+                    jsonObject.getString("kemandoran_id")
+                } else {
+                    AppLogger.d("kemandoran_id key not found in JSON")
+                    "NULL"
+                }
 
                 // Parse the date mapping object
                 val tglObject = try {
@@ -702,6 +702,7 @@ class ListTPHApproval : AppCompatActivity() {
                         var time = "NULL"
                         var jjg = 0
                         var nomor_pemanen = 0
+                        var asistensi = 1
 
                         var displayData = TphRvData(
                             "NULL",
@@ -722,7 +723,8 @@ class ListTPHApproval : AppCompatActivity() {
                             "NULL",
                             "NULL",
                             "NULL",
-                            0
+                            0,
+                            asistensi = 1
                         )
 
                         if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
@@ -740,8 +742,9 @@ class ListTPHApproval : AppCompatActivity() {
                             time = parts[2]
                             jjg = parts[3].toInt()
                             nomor_pemanen = parts[4].toInt()
+                            asistensi = parts[5].toInt()
 
-
+                            AppLogger.d("asistensi $asistensi")
                             AppLogger.d("nomorPemanen $nomor_pemanen")
                             // Get the full date from the date map
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"
@@ -785,7 +788,8 @@ class ListTPHApproval : AppCompatActivity() {
                                 kemandoran_id = "",
                                 tipePanen = "NULL",
                                 ancak = "NULL",
-                                nomor_pemanen = nomor_pemanen
+                                nomor_pemanen = nomor_pemanen,
+                                asistensi  =asistensi,
                             )
                         }
                         else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
@@ -886,7 +890,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 jjg_json = "{\"TO\":$jjg,\"UN\":${parts[4]},\"OV\":${parts[5]},\"EM\":${parts[6]},\"AB\":${parts[7]},\"RI\":${parts[8]},\"KP\":$kP,\"PA\":$pA}",
                                 foto = "NULL",
                                 komentar = "NULL",
-                                asistensi = 0,
+                                asistensi = asistensi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = 0,

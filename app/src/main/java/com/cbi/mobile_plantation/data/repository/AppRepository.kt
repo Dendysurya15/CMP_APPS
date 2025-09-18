@@ -1187,6 +1187,7 @@ class AppRepository(context: Context) {
                         AppLogger.d("   namaBlok: '${tphData.namaBlok}' vs '${existingRecord.tph?.id}' → ${tphData.namaBlok == existingRecord.tph?.id.toString()}")
                         AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
                         AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
+                        AppLogger.d("   asistensi: '${tphData.asistensi}' vs '${existingRecord.panen.asistensi}' → ${tphData.asistensi == existingRecord.panen.asistensi}")
 
                         // Helper function to check if a value should be ignored
                         fun shouldIgnoreValue(value: String?): Boolean {
@@ -1229,6 +1230,7 @@ class AppRepository(context: Context) {
                                 tphData.namaBlok == existingRecord.tph?.id.toString() &&
                                         tphData.time == existingRecord.panen.date_created &&
                                         tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen &&
+                                        tphData.asistensi == existingRecord.panen.asistensi &&
                                         usernameMatches &&
                                         jjgMatches &&
                                         tipePanenMatches &&
@@ -1246,6 +1248,7 @@ class AppRepository(context: Context) {
                                 panen = existingRecord.panen.copy(
                                     nomor_pemanen = if (tphData.nomor_pemanen != 0)
                                         tphData.nomor_pemanen else existingRecord.panen.nomor_pemanen,
+                                        asistensi = tphData.asistensi,
                                     username = if (!shouldIgnoreValue(tphData.username))
                                         tphData.username else existingRecord.panen.username,
                                     jjg_json = if (!shouldIgnoreValue(tphData.jjg))
@@ -1265,7 +1268,7 @@ class AppRepository(context: Context) {
                             updatedIds.add(existingRecord.panen.id.toLong())
                             AppLogger.d("✅ Successfully updated: TPH=${tphData.namaBlok}")
                         }
-                    }else {
+                    } else {
                         AppLogger.d("Creating new record for TPH=${tphData.namaBlok}, Date=${tphData.time}")
 
                         // Save non-duplicate
@@ -1281,7 +1284,7 @@ class AppRepository(context: Context) {
                                 jjg_json = "{\"KP\": ${tphData.jjg}}",
                                 foto = "",
                                 komentar = "",
-                                asistensi = 0,
+                                asistensi = tphData.asistensi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = 0,

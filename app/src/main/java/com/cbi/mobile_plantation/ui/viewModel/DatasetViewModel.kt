@@ -2878,6 +2878,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val createdDate = item.optString("created_date", "")
                             val createdBy = item.optInt("created_by", 0)
                             val ancak = item.optInt("ancak", 0)
+                            val asistensi = item.optInt("asistensi", 0)
                             val jenis_panen = item.optInt("tipe", 0)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val jjgJson = "{\"KP\": $jjgKirim}"
@@ -2976,7 +2977,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 jjg_json = jjgJson,
                                 foto = "",
                                 komentar = "",
-                                asistensi = 0,
+                                asistensi = asistensi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = jenis_panen,
@@ -3055,13 +3056,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     } else {
                                                         existingRecord.jenis_panen
                                                     },
-
+                                                    asistensi = if (existingRecord.asistensi == 0 && panen.asistensi != 0) {
+                                                        panen.asistensi
+                                                    } else {
+                                                        existingRecord.asistensi
+                                                    },
                                                     ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
                                                         panen.ancak
                                                     } else {
                                                         existingRecord.ancak
                                                     },
-
                                                     jjg_json = if ((existingRecord.jjg_json.isNullOrEmpty() ||
                                                                 existingRecord.jjg_json == "NULL" ||
                                                                 existingRecord.jjg_json == "{}" ||
@@ -5035,6 +5039,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val tphId = item.optString("tph", "")
                                                 val createdDate = item.optString("created_date", "")
                                                 val createdBy = item.optInt("created_by", 0)
+                                                val asistensi = item.optInt("asistensi", 0)
                                                 val ancak = item.optInt("ancak", 0)
                                                 val jenis_panen = item.optInt("tipe", 0)
                                                 val jjgKirim = item.optInt("jjg_kirim", 0)
@@ -5124,7 +5129,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     jjg_json = jjgJson,
                                                     foto = "",
                                                     komentar = "",
-                                                    asistensi = 0,
+                                                    asistensi = asistensi,
                                                     lat = 0.0,
                                                     lon = 0.0,
                                                     jenis_panen = jenis_panen,

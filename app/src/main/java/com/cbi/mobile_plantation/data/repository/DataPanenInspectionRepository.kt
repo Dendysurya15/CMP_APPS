@@ -51,6 +51,7 @@ class DataPanenInspectionRepository(
                 put("id")
                 put("tph")
                 put("tph_nomor")
+                put("asistensi")
                 put("ancak")
                 put("tipe")
                 put("dept_abbr")

@@ -1247,6 +1247,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             ?: throw IllegalArgumentException("Missing date_created.")
                         val nomorPemanen = data["nomor_pemanen"]?.toString()
                             ?: throw IllegalArgumentException("Missing nomor_pemanen.")
+                        val asistensi = data["asistensi"]?.toString()
+                            ?: throw IllegalArgumentException("Missing asistensi.")
                         val jjgJsonString = data["jjg_json"]?.toString()
                             ?: throw IllegalArgumentException("Missing jjg_json.")
                         val jjgJson = try {
@@ -1273,8 +1275,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val time = dateParts[1]  // 13:15:18
 
                         // Use dateIndexMap.size as the index for new dates
-                        // Format: tphId,dateIndex,time,toValue,nomorPemanen;
-                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue,$nomorPemanen;")
+                        // Format: tphId,dateIndex,time,toValue,nomorPemanen,asistensi;
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue,$nomorPemanen,$asistensi;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
@@ -2696,27 +2698,42 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.panenCountActive.observe(this) { panenList ->
             val userAfdelingId = prefManager!!.afdelingIdUserLogin
+            AppLogger.d("=== FILTERING ACTIVE COUNT ===")
+            AppLogger.d("Total records before filtering: ${panenList.size}")
 
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                val panenAsistensi = panenEntityWithRelations.panen.asistensi
 
-                AppLogger.d("Filtering Active: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                val afdelingMatch = tphDivisi == userAfdelingId
+                val asistensiMatch = panenAsistensi == 2
+                val included = afdelingMatch || asistensiMatch
 
-                tphDivisi == userAfdelingId
+                AppLogger.d("Active TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+
+                included
             }
 
+            AppLogger.d("Active count after filtering: ${filteredPanenList.size}")
             counterTersimpan.text = filteredPanenList.size.toString()
         }
 
         panenViewModel.panenCountArchived.observe(this) { panenList ->
             val userAfdelingId = prefManager!!.afdelingIdUserLogin
+            AppLogger.d("=== FILTERING ARCHIVED COUNT ===")
+            AppLogger.d("Total records before filtering: ${panenList.size}")
 
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                val panenAsistensi = panenEntityWithRelations.panen.asistensi
 
-                AppLogger.d("Filtering Archived: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                val afdelingMatch = tphDivisi == userAfdelingId
+                val asistensiMatch = panenAsistensi == 2
+                val included = afdelingMatch || asistensiMatch
 
-                tphDivisi == userAfdelingId
+                AppLogger.d("Archived TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+
+                included
             }
 
             AppLogger.d("Archived count after filtering: ${filteredPanenList.size}")
@@ -2725,15 +2742,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.panenCountHasBeenESPB.observe(this) { panenList ->
             val userAfdelingId = prefManager!!.afdelingIdUserLogin
+            AppLogger.d("=== FILTERING ESPB COUNT ===")
+            AppLogger.d("Total records before filtering: ${panenList.size}")
 
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                val panenAsistensi = panenEntityWithRelations.panen.asistensi
 
-                AppLogger.d("Filtering ESPB: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                val afdelingMatch = tphDivisi == userAfdelingId
+                val asistensiMatch = panenAsistensi == 2
+                val included = afdelingMatch || asistensiMatch
 
-                tphDivisi == userAfdelingId
+                AppLogger.d("ESPB TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+
+                included
             }
 
+            AppLogger.d("ESPB count after filtering: ${filteredPanenList.size}")
             counterPerPemanen.text = filteredPanenList.size.toString()
         }
 
@@ -3123,18 +3148,37 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         panenViewModel.activePanenList.observe(this) { panenList ->
+            AppLogger.d("=== FILTERING ACTIVE PANEN LIST ===")
+            AppLogger.d("Total records before filtering: ${panenList.size}")
 
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin
+                val panenAsistensi = panenEntityWithRelations.panen.asistensi
 
-//                AppLogger.d("Filtering: TH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                AppLogger.d("Checking record: TPH ID = ${panenEntityWithRelations.panen.tph_id}")
+                AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                AppLogger.d("  Panen asistensi = $panenAsistensi")
 
-                tphDivisi == userAfdelingId
+                // First check: if afdeling matches, include it
+                if (tphDivisi == userAfdelingId) {
+                    AppLogger.d("  ✓ INCLUDED: Afdeling matches")
+                    true
+                } else {
+                    // If afdeling doesn't match, check if asistensi is 2
+                    val asistensiMatch = panenAsistensi == 2
+                    if (asistensiMatch) {
+                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2")
+                    } else {
+                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and asistensi ≠ 2")
+                    }
+                    asistensiMatch
+                }
             }
 
-//            AppLogger.d("Original panen list size: ${panenList.size}")
-//            AppLogger.d("Filtered panen list size: ${filteredPanenList.size}")
+            AppLogger.d("Total records after filtering: ${filteredPanenList.size}")
+            AppLogger.d("=== FILTERING COMPLETE ===")
+
             if (currentState == 0 || currentState == 1 || currentState == 2 || currentState == 3) {
 
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -3965,13 +4009,32 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         panenViewModel.archivedPanenList.observe(this) { panenList ->
 
+            AppLogger.d("=== FILTERING ACTIVE PANEN LIST ===")
+            AppLogger.d("Total records before filtering: ${panenList.size}")
+
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin
+                val panenAsistensi = panenEntityWithRelations.panen.asistensi
 
-//                AppLogger.d("Filtering: TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                AppLogger.d("Checking record: TPH ID = ${panenEntityWithRelations.panen.tph_id}")
+                AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                AppLogger.d("  Panen asistensi = $panenAsistensi")
 
-                tphDivisi == userAfdelingId
+                // First check: if afdeling matches, include it
+                if (tphDivisi == userAfdelingId) {
+                    AppLogger.d("  ✓ INCLUDED: Afdeling matches")
+                    true
+                } else {
+                    // If afdeling doesn't match, check if asistensi is 2
+                    val asistensiMatch = panenAsistensi == 2
+                    if (asistensiMatch) {
+                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2")
+                    } else {
+                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and asistensi ≠ 2")
+                    }
+                    asistensiMatch
+                }
             }
 
             if (currentState == 1 || currentState == 2) {

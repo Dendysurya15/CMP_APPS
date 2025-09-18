@@ -231,7 +231,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
     private var ancakInput: String = ""
     private var nomorPemanenInput: String = ""
-    private var asistensi: Int = 0
+    private var asistensi: Int = 1
     private var blokBanjir: Int = 0
     private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
@@ -352,8 +352,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 200F
+        boundaryAccuracy = 200F
 
         initViewModel()
         initUI()
@@ -724,14 +724,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                             val allKemandoran = allKemandoranDeferred.await()
 
-// Filter kemandoran based on user's afdeling/divisi
                             val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
 
                             if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
                                 kemandoranList = allKemandoran
                             } else {
-                                // For other features: Only set kemandoranLainList (kemandoranList already set elsewhere)
-
                                 // Lain kemandoran: Different divisi from user
                                 kemandoranLainList = allKemandoran.filter { kemandoran ->
                                     kemandoran.divisi != userAfdelingId
@@ -741,7 +738,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 AppLogger.d("Other divisi kemandoran count: ${kemandoranLainList.size}")
                             }
 
-// Setup the kemandoran spinners on main thread
                             withContext(Dispatchers.Main) {
                                 try {
                                     // Setup main kemandoran spinner
@@ -1159,6 +1155,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             foto_selfie = photoFilesSelfieString,
                                             createdName = userName!!)
                                     }else{
+
+                                        AppLogger.d("test $asistensi")
+                                        AppLogger.d("asistensi $asistensi")
                                         panenViewModel.saveDataPanen(
                                             tph_id = tph_id,
                                             date_created = date_created,
@@ -1390,7 +1389,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
         var divisiNames = emptyList<String>()
-        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
             divisiNames =
                 afdelingList.sortedBy { it.abbr }.mapNotNull { it.abbr }
         } else {
@@ -3809,10 +3808,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 layoutKemandoranLain.visibility = View.VISIBLE
                 layoutPemanenLain.visibility = View.VISIBLE
 
-                asistensi = 1
+                asistensi = 2
             } else {
                 // Hide layouts when switch is OFF
-                asistensi = 0
+                asistensi = 1
                 selectedPemanenLainAdapter.clearAllWorkers()
                 layoutKemandoranLain.visibility = View.GONE
                 layoutPemanenLain.visibility = View.GONE
