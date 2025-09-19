@@ -7,6 +7,8 @@ import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Dao
 abstract class PanenDao {
@@ -237,6 +239,9 @@ abstract class PanenDao {
 
     @Query("UPDATE panen_table SET archive = 1 WHERE id IN (:id)")
     abstract fun archiveByListID(id: List<Int>): Int
+
+    @Query("UPDATE ${AppUtils.DatabaseTables.PANEN} SET archive_mpanen = :archiveStatus WHERE id IN (:recordIds)")
+    abstract suspend fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int)
 
     @Query("UPDATE panen_table SET status_upload = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadPanen(ids: List<Int>, status: Int)

@@ -232,6 +232,20 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) = viewModelScope.launch(Dispatchers.IO) {
+        try {
+            repository.updateArchiveMpanenStatusByIds(recordIds, archiveStatus)
+            AppLogger.d("ViewModel: Updated archive status for ${recordIds.size} records")
+
+            // Refresh data after update
+            val currentDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            getAllScanMPanenByDate(0, currentDate)
+
+        } catch (e: Exception) {
+            AppLogger.e("ViewModel error updating archive status: ${e.message}")
+        }
+    }
+
 
     suspend fun loadPanenCountApprovalByAfdeling(afdelingId: Int): Int {
         val count = repository.getPanenCountApprovalByAfdeling(afdelingId)

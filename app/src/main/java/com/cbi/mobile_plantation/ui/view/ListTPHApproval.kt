@@ -43,6 +43,7 @@ import com.cbi.mobile_plantation.ui.adapter.TPHRvAdapter
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
 import com.cbi.mobile_plantation.utils.playSound
@@ -50,6 +51,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.gson.Gson
 import com.google.gson.JsonObject
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
@@ -84,7 +86,9 @@ class ListTPHApproval : AppCompatActivity() {
     private var bluetoothServerSocket: BluetoothServerSocket? = null
     private var receivedDataList = mutableListOf<BluetoothDataItem>()
     private lateinit var receivedDataAdapter: ReceiveDataBTHektaranAdapter
+
     // Add this to your companion object
+    private lateinit var loadingDialog: LoadingDialog
 
     // Data class for received Bluetooth data
     data class BluetoothDataItem(
@@ -92,6 +96,7 @@ class ListTPHApproval : AppCompatActivity() {
         val jsonData: String,
         val timestamp: String
     )
+
     private var featureName: String? = null
     private val saveDataTransferInspeksiList = mutableListOf<PanenEntity>()
 
@@ -183,6 +188,7 @@ class ListTPHApproval : AppCompatActivity() {
                 )
             }
         })
+        loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
@@ -369,7 +375,7 @@ class ListTPHApproval : AppCompatActivity() {
 
                                         is SaveTPHResult.AllDuplicate -> {
                                             _saveDataPanenState.value =
-                                                SaveDataPanenState.Error("All data is duplicate")
+                                                SaveDataPanenState.Error("Semua data duplikat:")
 
                                             // Format duplicate info for user display
                                             val duplicateDetails =
@@ -503,11 +509,13 @@ class ListTPHApproval : AppCompatActivity() {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
 
                     AppLogger.d(jsonStr.toString())
+                    AppLogger.d("laksdjflkjafdl kj $jsonStr")
                     jsonStr?.let {
                         data = parseTphData(it)
                         withContext(Dispatchers.Main) {
                             if (data.isNotEmpty()) {
-                                val isTransferBluetooth = intent.getBooleanExtra("IS_TRANSFER_BLUETOOTH", false)
+                                val isTransferBluetooth =
+                                    intent.getBooleanExtra("IS_TRANSFER_BLUETOOTH", false)
 
                                 if (!isTransferBluetooth) {
                                     playSound(R.raw.berhasil_scan)
@@ -638,6 +646,8 @@ class ListTPHApproval : AppCompatActivity() {
                 AppLogger.d(jsonString.toString())
                 val jsonObject = JSONObject(jsonString)
                 AppLogger.d("jsonObject $jsonObject")
+
+                AppUtils.writeJsonToFile(this@ListTPHApproval, jsonObject, "tph_parsed_data")
                 val tph0String = jsonObject.getString("tph_0")
 
                 val usernameString = if (jsonObject.has("username")) {
@@ -694,7 +704,7 @@ class ListTPHApproval : AppCompatActivity() {
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
 
-                    AppLogger.d("Processing entry: $entry")
+//                    AppLogger.d("Processing entry: $entry")
 
                     try {
                         var idtph = 0
@@ -789,10 +799,9 @@ class ListTPHApproval : AppCompatActivity() {
                                 tipePanen = "NULL",
                                 ancak = "NULL",
                                 nomor_pemanen = nomor_pemanen,
-                                asistensi  =asistensi,
+                                asistensi = asistensi,
                             )
-                        }
-                        else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
+                        } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
                             val parts = entry.split(",")
                             if (parts.size != 9) {
                                 Log.e(
@@ -814,7 +823,7 @@ class ListTPHApproval : AppCompatActivity() {
 
                             val tbsDibayar = ov + ab + ri
 
-                            val jjg = ov + ab + ri +un + em
+                            val jjg = ov + ab + ri + un + em
 
                             // Get the full date from the date map
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"
@@ -907,7 +916,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 status_scan_mpanen = 1
                             )
 
-                            AppLogger.d("panenEntity $panenEntity")
+//                            AppLogger.d("panenEntity $panenEntity")
                             saveDataMPanenList.add(panenEntity)
                         } else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
                             // Parse ScanTransferInspeksiPanen with JSON handling
@@ -1138,8 +1147,10 @@ class ListTPHApproval : AppCompatActivity() {
 
         when {
             bluetoothAdapter == null -> {
-                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT)
+                    .show()
             }
+
             !bluetoothAdapter!!.isEnabled -> {
                 AlertDialogUtility.withTwoActions(
                     this,
@@ -1157,6 +1168,7 @@ class ListTPHApproval : AppCompatActivity() {
                     }
                 )
             }
+
             else -> {
                 // Bluetooth is enabled, show receive dialog
                 showBluetoothReceiveDialog()
@@ -1170,7 +1182,7 @@ class ListTPHApproval : AppCompatActivity() {
         bluetoothReceiveDialog?.setContentView(dialogView)
 
         // Use the EXACT same pattern as your working code
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.5).toInt()
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.55).toInt()
 
         bluetoothReceiveDialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?.let { bottomSheet ->
@@ -1207,6 +1219,8 @@ class ListTPHApproval : AppCompatActivity() {
         btnCloseReceive.setOnClickListener {
             stopBluetoothServer()
             bluetoothReceiveDialog?.dismiss()
+            startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
+            finishAffinity()
         }
 
         bluetoothReceiveDialog?.setOnDismissListener {
@@ -1216,6 +1230,7 @@ class ListTPHApproval : AppCompatActivity() {
         bluetoothReceiveDialog?.show()
         startBluetoothServer(dialogView)
     }
+
     @SuppressLint("MissingPermission")
     private fun startBluetoothServer(dialogView: View) {
         val tvReceiveStatus = dialogView.findViewById<TextView>(R.id.tvReceiveStatus)
@@ -1228,7 +1243,8 @@ class ListTPHApproval : AppCompatActivity() {
 
         Thread {
             try {
-                val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard SPP UUID
+                val uuid =
+                    UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard SPP UUID
                 bluetoothServerSocket = bluetoothAdapter?.listenUsingRfcommWithServiceRecord(
                     "TPHTransferService", uuid
                 )
@@ -1258,6 +1274,499 @@ class ListTPHApproval : AppCompatActivity() {
         }.start()
     }
 
+    // Updated auto-save function that returns the saved data for feedback
+    // Enhanced SaveResult to include duplicate count
+    data class SaveResult(
+        val success: Boolean,
+        val savedCount: Int = 0,
+        val duplicateCount: Int = 0, // Add duplicate count
+        val errorMessage: String = "",
+        val savedData: List<Map<String, Any>> = emptyList(),
+        val duplicateData: List<Map<String, Any>> = emptyList()
+    )
+
+    // Updated autoSaveBluetoothData to return duplicate count
+    private suspend fun autoSaveBluetoothData(): SaveResult = withContext(Dispatchers.IO) {
+        try {
+            // Check if we have saveData populated from processQRResult -> parseTphData
+            if (saveData.isEmpty() && saveDataMPanenList.isEmpty() && saveDataTransferInspeksiList.isEmpty()) {
+                return@withContext SaveResult(
+                    false,
+                    0,
+                    0,
+                    "No data to save - saveData lists are empty"
+                )
+            }
+
+            AppLogger.d("Starting auto-save with:")
+            AppLogger.d("- saveData size: ${saveData.size}")
+            AppLogger.d("- saveDataMPanenList size: ${saveDataMPanenList.size}")
+            AppLogger.d("- saveDataTransferInspeksiList size: ${saveDataTransferInspeksiList.size}")
+            AppLogger.d("- featureName: $featureName")
+
+            // Get device info (same as manual save)
+            val appVersion: String = try {
+                this@ListTPHApproval.packageManager.getPackageInfo(
+                    this@ListTPHApproval.packageName, 0
+                ).versionName
+            } catch (e: Exception) {
+                AppLogger.e("Failed to get app version: ${e.message}")
+                "Unknown"
+            }
+
+            val osVersion: String = try {
+                Build.VERSION.RELEASE
+            } catch (e: Exception) {
+                AppLogger.e("Failed to get OS version: ${e.message}")
+                "Unknown"
+            }
+
+            val phoneModel: String = try {
+                "${Build.MANUFACTURER} ${Build.MODEL}"
+            } catch (e: Exception) {
+                AppLogger.e("Failed to get phone model: ${e.message}")
+                "Unknown"
+            }
+
+            // Create creator info JSON (same as manual save)
+            val creatorInfo = createCreatorInfo(appVersion, osVersion, phoneModel).toString()
+            val createdBy = prefManager!!.idUserLogin.toString()
+
+            val result = when (featureName) {
+                AppUtils.ListFeatureNames.ScanHasilPanen -> {
+                    AppLogger.d("Saving ScanHasilPanen data...")
+                    repository.saveTPHDataList(saveData)
+                }
+
+                AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                    AppLogger.d("Saving ScanTransferInspeksiPanen data...")
+                    repository.saveTransferInspeksi(
+                        saveDataTransferInspeksiList,
+                        createdBy,
+                        creatorInfo,
+                        this@ListTPHApproval
+                    )
+                }
+
+                else -> { // ScanPanenMPanen
+                    AppLogger.d("Saving ScanPanenMPanen data...")
+                    repository.saveScanMPanen(
+                        saveDataMPanenList,
+                        createdBy,
+                        creatorInfo,
+                        this@ListTPHApproval
+                    )
+                }
+            }
+
+            AppLogger.d("Repository save result: $result")
+
+            // Handle the result and create feedback data
+            return@withContext result.fold(
+                onSuccess = { saveResult ->
+                    when (saveResult) {
+                        is SaveTPHResult.AllSuccess -> {
+                            AppLogger.d("All data saved successfully: ${saveResult.savedIds.size} items")
+                            val savedDataList = createSavedDataList(featureName!!)
+                            SaveResult(
+                                success = true,
+                                savedCount = saveResult.savedIds.size,
+                                duplicateCount = 0, // No duplicates
+                                errorMessage = "All data saved successfully",
+                                savedData = savedDataList,
+                                duplicateData = emptyList()
+                            )
+                        }
+
+                        is SaveTPHResult.PartialSuccess -> {
+                            AppLogger.d("Partial success: ${saveResult.savedIds.size} saved, ${saveResult.duplicateCount} duplicates")
+
+                            val savedEntities =
+                                getSavedEntitiesFromIds(saveResult.savedIds, featureName!!)
+                            val savedDataList = createSavedDataList(featureName!!, savedEntities)
+                            val duplicateEntities =
+                                getDuplicateEntities(savedEntities, featureName!!)
+                            val duplicateDataList =
+                                createSavedDataList(featureName!!, duplicateEntities)
+
+                            SaveResult(
+                                success = true,
+                                savedCount = saveResult.savedIds.size,
+                                duplicateCount = saveResult.duplicateCount, // Include duplicate count
+                                errorMessage = "${saveResult.savedIds.size} data disimpan, ${saveResult.duplicateCount} data duplikat dilewati",
+                                savedData = savedDataList,
+                                duplicateData = duplicateDataList
+                            )
+                        }
+
+                        is SaveTPHResult.AllDuplicate -> {
+                            val duplicateDataList = createSavedDataList(featureName!!)
+                            SaveResult(
+                                success = false, // Set to false for all duplicates
+                                savedCount = 0,
+                                duplicateCount = saveResult.duplicateCount, // Include duplicate count
+                                errorMessage = "Semua ${saveResult.duplicateCount} data sudah ada di database (duplikat)",
+                                savedData = emptyList(),
+                                duplicateData = duplicateDataList
+                            )
+                        }
+                    }
+                },
+                onFailure = { exception ->
+                    AppLogger.e("Save failed with exception: ${exception.message}")
+                    SaveResult(false, 0, 0, exception.message ?: "Unknown error occurred")
+                }
+            )
+
+        } catch (e: Exception) {
+            AppLogger.e("Fatal error in auto-save process: ${e.message}")
+            SaveResult(false, 0, 0, e.message ?: "Unknown error")
+        }
+    }
+
+    private fun createStatusMessage(saveResult: SaveResult): String {
+        return when {
+            saveResult.savedCount > 0 && saveResult.duplicateCount > 0 -> {
+                // Partial success: some saved, some duplicates
+                "Data berhasil disimpan! (${saveResult.savedCount} tersimpan, ${saveResult.duplicateCount} duplikat)"
+            }
+
+            saveResult.savedCount > 0 && saveResult.duplicateCount == 0 -> {
+                // All success: all saved, no duplicates
+                "Data berhasil disimpan! (${saveResult.savedCount} item)"
+            }
+
+            saveResult.savedCount == 0 && saveResult.duplicateCount > 0 -> {
+                // All duplicates: nothing saved, all duplicates
+                "Semua data duplikat! (${saveResult.duplicateCount} duplikat)"
+            }
+
+            else -> {
+                // Fallback
+                saveResult.errorMessage
+            }
+        }
+    }
+
+    private fun getSavedEntitiesFromIds(
+        savedIds: List<Long>,
+        featureName: String
+    ): List<PanenEntity> {
+        return when (featureName) {
+            AppUtils.ListFeatureNames.ScanPanenMPanen -> {
+                // Filter saveDataMPanenList to get only the entities that were successfully saved
+                // This is a simple approach - you might need to adjust based on your actual data structure
+                saveDataMPanenList.take(savedIds.size) // Simplified - assumes saved IDs correspond to first N entities
+            }
+
+            else -> emptyList()
+        }
+    }
+
+    // Helper function to get duplicate entities
+    private fun getDuplicateEntities(
+        savedEntities: List<PanenEntity>,
+        featureName: String
+    ): List<PanenEntity> {
+        return when (featureName) {
+            AppUtils.ListFeatureNames.ScanPanenMPanen -> {
+                // Get entities that were not saved (duplicates)
+                saveDataMPanenList.drop(savedEntities.size) // Simplified approach
+            }
+
+            else -> emptyList()
+        }
+    }
+
+    // Helper function to create saved data list for feedback
+    private fun createSavedDataList(
+        featureName: String,
+        savedEntities: List<PanenEntity> = emptyList()
+    ): List<Map<String, Any>> {
+        return when (featureName) {
+            AppUtils.ListFeatureNames.ScanPanenMPanen -> {
+                // Use savedEntities if provided, otherwise fall back to original list
+                val entitiesToProcess =
+                    if (savedEntities.isNotEmpty()) savedEntities else saveDataMPanenList
+
+                // For MPanen, extract only the required fields: tph_id, date_created, jjg_json, nik
+                entitiesToProcess.map { panenEntity ->
+                    mapOf(
+                        "tph_id" to panenEntity.tph_id,
+                        "date_created" to panenEntity.date_created,
+                        "jjg_json" to panenEntity.jjg_json,
+                        "karyawan_nik" to panenEntity.karyawan_nik,
+                    )
+                }
+            }
+
+            else -> emptyList()
+        }
+    }
+
+
+    // Updated success feedback to include saved data and duplicates
+    private fun createSuccessFeedback(
+        savedCount: Int,
+        duplicateCount: Int = 0,
+        savedData: List<Map<String, Any>> = emptyList(),
+        duplicateData: List<Map<String, Any>> = emptyList()
+    ): String {
+        val feedbackData = mapOf(
+            "status" to "success",
+            "message" to "Data berhasil diproses",
+            "savedCount" to savedCount,
+            "duplicateCount" to duplicateCount, // Add duplicate count to feedback
+            "timestamp" to System.currentTimeMillis(),
+            "savedData" to savedData,
+            "duplicateData" to duplicateData
+        )
+
+        val feedbackJson = Gson().toJson(feedbackData)
+        AppLogger.d("Creating success feedback:")
+        AppLogger.d("  savedCount: $savedCount")
+        AppLogger.d("  duplicateCount: $duplicateCount")
+        AppLogger.d("  savedData size: ${savedData.size}")
+        AppLogger.d("  duplicateData size: ${duplicateData.size}")
+        AppLogger.d("  Full feedback JSON: $feedbackJson")
+
+        return feedbackJson
+    }
+
+    // Error feedback remains the same
+    private fun createErrorFeedback(errorMessage: String): String {
+        val feedbackData = mapOf(
+            "status" to "error",
+            "message" to "Gagal menyimpan data",
+            "error" to errorMessage,
+            "timestamp" to System.currentTimeMillis()
+        )
+
+        val feedbackJson = Gson().toJson(feedbackData)
+        AppLogger.d("Creating error feedback:")
+        AppLogger.d("  errorMessage: $errorMessage")
+        AppLogger.d("  Full feedback JSON: $feedbackJson")
+
+        return feedbackJson
+    }
+
+
+    // Updated startCountdownAndProcess to pass saved data to feedback
+    private fun startCountdownAndProcess(
+        tvReceiveStatus: TextView,
+        senderName: String,
+        btnCloseReceive: Button,
+        socket: BluetoothSocket? = null
+    ) {
+        saveDataMPanenList.clear()
+        saveDataTransferInspeksiList.clear()
+
+        tvReceiveStatus.setTextColor(
+            ContextCompat.getColor(
+                this@ListTPHApproval,
+                R.color.greenDarker
+            )
+        )
+        btnCloseReceive.isEnabled = false
+        btnCloseReceive.alpha = 0.5f
+
+        lifecycleScope.launch {
+            for (i in 2 downTo 1) {
+                tvReceiveStatus.text = "Konversi data JSON dalam $i detik..."
+                delay(1000)
+            }
+
+            tvReceiveStatus.text = "Memproses data..."
+
+            try {
+                processReceivedBluetoothData()
+                AppLogger.d("Data processing completed:")
+                AppLogger.d("- data size: ${data.size}")
+                AppLogger.d("- saveData size: ${saveData.size}")
+                AppLogger.d("- saveDataMPanenList size: ${saveDataMPanenList.size}")
+                AppLogger.d("- saveDataTransferInspeksiList size: ${saveDataTransferInspeksiList.size}")
+
+            } catch (e: Exception) {
+                AppLogger.e("Error processing Bluetooth data: ${e.message}")
+                tvReceiveStatus.text = "Error memproses data: ${e.message}"
+                tvReceiveStatus.setTextColor(
+                    ContextCompat.getColor(
+                        this@ListTPHApproval,
+                        R.color.colorRedDark
+                    )
+                )
+                btnCloseReceive.isEnabled = true
+                btnCloseReceive.alpha = 1.0f
+                return@launch
+            }
+
+            tvReceiveStatus.text = "Data berhasil diproses dari $senderName"
+            delay(1000)
+
+            tvReceiveStatus.text = "Sedang simpan data..."
+            loadingDialog.show()
+            loadingDialog.setMessage("Menyimpan data...", true)
+            delay(2000)
+
+            try {
+                val saveResult = autoSaveBluetoothData()
+                loadingDialog.dismiss()
+
+                // Handle different save scenarios
+                when {
+                    saveResult.success -> {
+                        // Success or partial success
+                        val statusMessage = createStatusMessage(saveResult)
+                        tvReceiveStatus.text = statusMessage
+                        tvReceiveStatus.setTextColor(
+                            ContextCompat.getColor(
+                                this@ListTPHApproval,
+                                R.color.greenDarker
+                            )
+                        )
+                        playSound(R.raw.berhasil_simpan)
+
+                        // Send success feedback
+                        sendFeedbackToSender(
+                            socket,
+                            createSuccessFeedback(
+                                saveResult.savedCount,
+                                saveResult.duplicateCount,
+                                saveResult.savedData,
+                                saveResult.duplicateData
+                            )
+                        )
+
+                        btnCloseReceive.isEnabled = true
+                        btnCloseReceive.alpha = 1.0f
+                        btnCloseReceive.text = "Tutup"
+
+                        delay(3000)
+                        bluetoothReceiveDialog?.dismiss()
+
+                        // Create final dialog message
+                        val finalMessage = if (saveResult.duplicateCount > 0) {
+                            "Data berhasil diproses:\n• ${saveResult.savedCount} data baru tersimpan\n• ${saveResult.duplicateCount} data duplikat dilewati"
+                        } else {
+                            "Data hektaran berhasil disimpan (${saveResult.savedCount} item)"
+                        }
+
+                        // ADD THIS NEW CODE HERE:
+                        val dialogColor = if (saveResult.duplicateCount > 0) {
+                            R.color.orange // Orange for partial success with duplicates
+                        } else {
+                            R.color.greenDarker // Green for all success
+                        }
+
+
+                        AlertDialogUtility.withSingleAction(
+                            this@ListTPHApproval,
+                            "OK",
+                            "Transfer Data Selesai",
+                            finalMessage,
+                            "warning.json",
+                            dialogColor
+                        ) {
+                            startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))
+                            finish()
+                        }
+
+                    }
+
+                    else -> {
+                        // All duplicates or error
+                        val statusMessage = createStatusMessage(saveResult)
+                        tvReceiveStatus.text = statusMessage
+
+                        // Use orange color for all duplicates, red for errors
+                        val textColor = if (saveResult.duplicateCount > 0) {
+                            R.color.orange // You might need to define this color
+                        } else {
+                            R.color.colorRedDark
+                        }
+                        tvReceiveStatus.setTextColor(
+                            ContextCompat.getColor(
+                                this@ListTPHApproval,
+                                textColor
+                            )
+                        )
+
+                        // Send appropriate feedback
+                        if (saveResult.duplicateCount > 0) {
+                            // All duplicates - still "successful" transfer but no new data
+                            sendFeedbackToSender(
+                                socket,
+                                createSuccessFeedback(
+                                    saveResult.savedCount,
+                                    saveResult.duplicateCount,
+                                    saveResult.savedData,
+                                    saveResult.duplicateData
+                                )
+                            )
+                        } else {
+                            // Actual error
+                            sendFeedbackToSender(
+                                socket,
+                                createErrorFeedback(saveResult.errorMessage)
+                            )
+                        }
+
+                        btnCloseReceive.isEnabled = true
+                        btnCloseReceive.alpha = 1.0f
+                    }
+                }
+
+            } catch (e: Exception) {
+                loadingDialog.dismiss()
+                AppLogger.e("Error auto-saving data: ${e.message}")
+                tvReceiveStatus.text = "Error menyimpan data: ${e.message}"
+                tvReceiveStatus.setTextColor(
+                    ContextCompat.getColor(
+                        this@ListTPHApproval,
+                        R.color.colorRedDark
+                    )
+                )
+
+                sendFeedbackToSender(socket, createErrorFeedback(e.message ?: "Unknown error"))
+
+                btnCloseReceive.isEnabled = true
+                btnCloseReceive.alpha = 1.0f
+            }
+        }
+    }
+
+    // Send feedback to sender
+    @SuppressLint("MissingPermission")
+    private fun sendFeedbackToSender(socket: BluetoothSocket?, feedbackJson: String) {
+        socket?.let { bluetoothSocket ->
+            Thread {
+                try {
+                    val outputStream = bluetoothSocket.outputStream
+                    val feedbackData = "FEEDBACK_START\n$feedbackJson\nFEEDBACK_END"
+                    val feedbackBytes = feedbackData.toByteArray(Charsets.UTF_8)
+
+                    outputStream.write(feedbackBytes)
+                    outputStream.flush()
+
+                    AppLogger.d("Feedback sent to sender: $feedbackJson")
+
+                    // Close the socket after sending feedback
+//                    delay(1000)
+                    bluetoothSocket.close()
+
+                } catch (e: Exception) {
+                    AppLogger.e("Error sending feedback: ${e.message}")
+                    try {
+                        bluetoothSocket.close()
+                    } catch (closeError: Exception) {
+                        AppLogger.e("Error closing socket: ${closeError.message}")
+                    }
+                }
+            }.start()
+        }
+    }
+
+    // Updated handleBluetoothConnection to pass socket to startCountdownAndProcess
     @SuppressLint("MissingPermission")
     private fun handleBluetoothConnection(socket: BluetoothSocket, dialogView: View) {
         val tvReceiveStatus = dialogView.findViewById<TextView>(R.id.tvReceiveStatus)
@@ -1265,12 +1774,19 @@ class ListTPHApproval : AppCompatActivity() {
         Thread {
             try {
                 val inputStream = socket.inputStream
-                val buffer = ByteArray(2048) // Larger buffer
+                val buffer = ByteArray(2048)
                 val stringBuilder = StringBuilder()
                 var totalBytesReceived = 0
 
                 runOnUiThread {
-                    tvReceiveStatus.text = "Terhubung! Menerima data dari ${socket.remoteDevice.name ?: "Unknown Device"}..."
+                    tvReceiveStatus.setTextColor(
+                        ContextCompat.getColor(
+                            this@ListTPHApproval,
+                            R.color.greenDarker
+                        )
+                    )
+                    tvReceiveStatus.text =
+                        "Terhubung! Menerima data dari ${socket.remoteDevice.name ?: "Unknown Device"}..."
                     btnCloseReceive.isEnabled = false
                     btnCloseReceive.alpha = 0.5f
                 }
@@ -1291,7 +1807,8 @@ class ListTPHApproval : AppCompatActivity() {
                             val currentData = stringBuilder.toString()
 
                             runOnUiThread {
-                                tvReceiveStatus.text = "Menerima data... ${totalBytesReceived} bytes"
+                                tvReceiveStatus.text =
+                                    "Menerima data... ${totalBytesReceived} bytes"
                             }
 
                             // Check for start marker
@@ -1305,27 +1822,38 @@ class ListTPHApproval : AppCompatActivity() {
                                 AppLogger.d("Data transmission completed")
 
                                 // Extract base64 data between markers
-                                val startIndex = currentData.indexOf("START_DATA") + "START_DATA".length
+                                val startIndex =
+                                    currentData.indexOf("START_DATA") + "START_DATA".length
                                 val endIndex = currentData.indexOf("END_DATA")
 
                                 if (startIndex > 0 && endIndex > startIndex) {
-                                    val base64Data = currentData.substring(startIndex, endIndex).trim()
+                                    val base64Data =
+                                        currentData.substring(startIndex, endIndex).trim()
 
-
-                                    // Just validate it's not empty - no JSON validation needed
                                     if (base64Data.isNotBlank()) {
-                                        val senderName = socket.remoteDevice.name ?: "Unknown Device"
-                                        val timestamp = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault())
+                                        val senderName =
+                                            socket.remoteDevice.name ?: "Unknown Device"
+                                        val timestamp = java.text.SimpleDateFormat(
+                                            "dd/MM/yyyy HH:mm:ss",
+                                            java.util.Locale.getDefault()
+                                        )
                                             .format(java.util.Date())
 
-                                        val dataItem = BluetoothDataItem(senderName, base64Data, timestamp)
+                                        val dataItem =
+                                            BluetoothDataItem(senderName, base64Data, timestamp)
 
                                         runOnUiThread {
                                             receivedDataList.add(dataItem)
-                                            tvReceiveStatus.text = "Data berhasil diterima dari $senderName (${totalBytesReceived} bytes)"
+                                            tvReceiveStatus.text =
+                                                "Data berhasil diterima dari $senderName (${totalBytesReceived} bytes)"
 
-                                            // Start countdown and auto-process
-                                            startCountdownAndProcess(tvReceiveStatus, senderName, btnCloseReceive)
+                                            // Start countdown and auto-process (pass socket for feedback)
+                                            startCountdownAndProcess(
+                                                tvReceiveStatus,
+                                                senderName,
+                                                btnCloseReceive,
+                                                socket
+                                            )
                                         }
 
                                         AppLogger.d("Successfully received base64 data: ${base64Data.length} characters")
@@ -1334,8 +1862,13 @@ class ListTPHApproval : AppCompatActivity() {
                                         AppLogger.e("Received empty data")
                                         runOnUiThread {
                                             tvReceiveStatus.text = "Error: Data kosong"
-                                            tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
-                                            // RE-ENABLE BUTTON ON ERROR
+                                            tvReceiveStatus.setTextColor(
+                                                ContextCompat.getColor(
+                                                    this@ListTPHApproval,
+                                                    R.color.colorRedDark
+                                                )
+                                            )
+                                            // FIXED: Re-enable button on empty data error
                                             btnCloseReceive.isEnabled = true
                                             btnCloseReceive.alpha = 1.0f
                                         }
@@ -1346,13 +1879,21 @@ class ListTPHApproval : AppCompatActivity() {
 
                         } else {
                             consecutiveEmptyReads++
-                            Thread.sleep(100) // Wait a bit before next read
+                            Thread.sleep(100)
                         }
                     } catch (e: Exception) {
                         AppLogger.e("Error reading data: ${e.message}")
                         runOnUiThread {
                             tvReceiveStatus.text = "Error membaca data: ${e.message}"
-                            tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                            tvReceiveStatus.setTextColor(
+                                ContextCompat.getColor(
+                                    this@ListTPHApproval,
+                                    R.color.colorRedDark
+                                )
+                            )
+                            // FIXED: Re-enable button on reading error (like Bluetooth turned off)
+                            btnCloseReceive.isEnabled = true
+                            btnCloseReceive.alpha = 1.0f
                         }
                         break
                     }
@@ -1361,61 +1902,43 @@ class ListTPHApproval : AppCompatActivity() {
                 if (consecutiveEmptyReads >= maxEmptyReads) {
                     runOnUiThread {
                         tvReceiveStatus.text = "Koneksi timeout - tidak ada data lebih lanjut"
-                        tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                        tvReceiveStatus.setTextColor(
+                            ContextCompat.getColor(
+                                this@ListTPHApproval,
+                                R.color.colorRedDark
+                            )
+                        )
+                        // FIXED: Re-enable button on timeout
+                        btnCloseReceive.isEnabled = true
+                        btnCloseReceive.alpha = 1.0f
                     }
                 }
 
-                socket.close()
+                // Don't close socket here - let sendFeedbackToSender handle it
 
             } catch (e: Exception) {
                 AppLogger.e("Error handling Bluetooth connection: ${e.message}")
                 runOnUiThread {
                     tvReceiveStatus.text = "Error menerima data: ${e.message}"
-                    tvReceiveStatus.setTextColor(ContextCompat.getColor(this@ListTPHApproval, R.color.colorRedDark))
+                    tvReceiveStatus.setTextColor(
+                        ContextCompat.getColor(
+                            this@ListTPHApproval,
+                            R.color.colorRedDark
+                        )
+                    )
+                    // FIXED: Re-enable button on main catch block (connection errors)
+                    btnCloseReceive.isEnabled = true
+                    btnCloseReceive.alpha = 1.0f
+                }
+                try {
+                    socket.close()
+                } catch (closeError: Exception) {
+                    AppLogger.e("Error closing socket: ${closeError.message}")
                 }
             }
         }.start()
     }
 
-    private fun startCountdownAndProcess(tvReceiveStatus: TextView, senderName: String, btnCloseReceive: Button) {
-        // Start countdown on main thread
-        lifecycleScope.launch {
-            for (i in 2 downTo 1) {
-                tvReceiveStatus.text = "Konversi data JSON dalam $i detik..."
-                delay(1000) // Wait 1 second
-            }
-
-            // Process the data after countdown
-            tvReceiveStatus.text = "Memproses data..."
-            processReceivedBluetoothData()
-
-            // Show success message
-            tvReceiveStatus.text = "Data berhasil diproses dari $senderName"
-
-            btnCloseReceive.isEnabled = true
-            btnCloseReceive.alpha = 1.0f
-            // Auto-close dialog after 2 seconds
-            delay(1000)
-            bluetoothReceiveDialog?.dismiss()
-
-        }
-    }
-
-    private fun processReceivedBluetoothData() {
-        if (receivedDataList.isNotEmpty()) {
-            val latestData = receivedDataList.last()
-            try {
-                AppLogger.d("Processing Bluetooth received base64 data...")
-
-                // Call processQRResult with the received base64 data
-                processQRResult(latestData.jsonData)
-
-            } catch (e: Exception) {
-                Toast.makeText(this, "Error memproses data: ${e.message}", Toast.LENGTH_LONG).show()
-                AppLogger.e("Error processing received data: ${e.message}")
-            }
-        }
-    }
 
     @SuppressLint("MissingPermission")
     private fun stopBluetoothServer() {
@@ -1428,6 +1951,92 @@ class ListTPHApproval : AppCompatActivity() {
     }
 
 
+    private suspend fun processReceivedBluetoothData() {
+        if (receivedDataList.isNotEmpty()) {
+            val latestData = receivedDataList.last()
+            try {
+                AppLogger.d("Processing Bluetooth received base64 data...")
+
+                // Call processQRResult synchronously (remove lifecycleScope.launch)
+                withContext(Dispatchers.IO) {
+                    val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(latestData.jsonData)
+
+                    AppLogger.d(jsonStr.toString())
+                    jsonStr?.let {
+                        data = parseTphData(it)
+                        withContext(Dispatchers.Main) {
+                            if (data.isNotEmpty()) {
+                                val isTransferBluetooth =
+                                    intent.getBooleanExtra("IS_TRANSFER_BLUETOOTH", false)
+
+                                if (!isTransferBluetooth) {
+                                    playSound(R.raw.berhasil_scan)
+                                }
+
+
+                                val totalSection: LinearLayout =
+                                    findViewById(R.id.total_section)
+                                val blokSection: LinearLayout =
+                                    findViewById(R.id.blok_section)
+                                val totalJjgTextView: TextView = findViewById(R.id.totalJjg)
+                                val titleTotalJjg: TextView = findViewById(R.id.titleTotalJjg)
+                                val totalTphTextView: TextView = findViewById(R.id.totalTPH)
+                                val listBlokTextView: TextView = findViewById(R.id.listBlok)
+                                val totalJjgSection: LinearLayout =
+                                    findViewById(R.id.totalJjgSection)
+
+                                // Handle different calculations based on feature
+                                when (featureName) {
+                                    AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                                        val blokSummary = calculateBlokSummary(
+                                            data,
+                                            featureName
+                                        ) // Pass featureName
+                                        val totalTransaksi = data.size
+
+                                        totalSection.visibility = View.VISIBLE
+                                        totalJjgSection.visibility = View.GONE
+                                        blokSection.visibility = View.VISIBLE
+                                        totalTphTextView.text = totalTransaksi.toString()
+                                        listBlokTextView.text = blokSummary
+                                    }
+
+                                    else -> {
+                                        // For other features (ScanHasilPanen, ScanPanenMPanen)
+                                        val totalJjg = data.sumOf {
+                                            try {
+                                                it.jjg.toInt()
+                                            } catch (e: NumberFormatException) {
+                                                0 // Return 0 if jjg is "NULL" or invalid
+                                            }
+                                        }
+                                        val totalTphCount = data.size
+                                        val blokSummary = calculateBlokSummary(data, featureName)
+
+                                        totalSection.visibility = View.VISIBLE
+                                        blokSection.visibility = View.VISIBLE
+                                        titleTotalJjg.text =
+                                            if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) "Kirim Pabrik: " else "Jjg Bayar: "
+                                        totalJjgTextView.text = totalJjg.toString()
+                                        totalTphTextView.text = totalTphCount.toString()
+                                        listBlokTextView.text = blokSummary
+                                    }
+                                }
+
+
+                            }
+                            adapter.updateList(data)
+                        }
+                    }
+                }
+
+            } catch (e: Exception) {
+                Toast.makeText(this, "Error memproses data: ${e.message}", Toast.LENGTH_LONG).show()
+                AppLogger.e("Error processing received data: ${e.message}")
+                throw e // Re-throw so caller can handle
+            }
+        }
+    }
 
     // Update your existing onActivityResult method
     @SuppressLint("MissingPermission")
@@ -1437,18 +2046,35 @@ class ListTPHApproval : AppCompatActivity() {
         when (requestCode) {
             REQUEST_ENABLE_BT -> {
                 if (resultCode == Activity.RESULT_OK) {
-                    Toast.makeText(this, "Bluetooth diaktifkan. Menyiapkan data...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Bluetooth diaktifkan. Menyiapkan data...",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     // Your existing generateJsonAndShowBluetoothDialog() call
                 } else {
-                    Toast.makeText(this, "Bluetooth diperlukan untuk transfer data", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Bluetooth diperlukan untuk transfer data",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
+
             REQUEST_ENABLE_BT_RECEIVE -> {
                 if (resultCode == Activity.RESULT_OK) {
-                    Toast.makeText(this, "Bluetooth diaktifkan. Memulai penerima...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Bluetooth diaktifkan. Memulai penerima...",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     showBluetoothReceiveDialog()
                 } else {
-                    Toast.makeText(this, "Bluetooth diperlukan untuk menerima data", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Bluetooth diperlukan untuk menerima data",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }

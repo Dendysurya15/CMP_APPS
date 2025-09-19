@@ -29,6 +29,8 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
@@ -93,53 +95,47 @@ object AppUtils {
         return "${getMonthFormat(month)} $day $year"
     }
 
-    // Add this to AppUtils.kt
-    fun parseDateFromDisplay(displayDate: String): Triple<Int, Int, Int>? {
+    object FileConstants {
+        fun getRootJson(context: Context): String =
+            File(context.getExternalFilesDir(null), "JSON").toString()
+
+        fun getRootJsonInternal(context: Context): String =
+            File(context.filesDir, "JSON").toString()
+    }
+
+    suspend fun writeJsonToFile(
+        context: Context,
+        jsonObject: JSONObject,
+        fileName: String,
+        addTimestamp: Boolean = true,
+        useInternal: Boolean = false
+    ) = withContext(Dispatchers.IO) {
         try {
-            // Assuming format is "Month DD YYYY" (e.g., "April 08 2025")
-            val parts = displayDate.split(" ")
-            if (parts.size != 3) return null
-
-            val monthName = parts[0]
-            val day = parts[1].toInt()
-            val year = parts[2].toInt()
-
-            // Convert month name to month number (1-12)
-            val month = when (monthName.toLowerCase()) {
-                "january" -> 1
-                "february" -> 2
-                "march" -> 3
-                "april" -> 4
-                "may" -> 5
-                "june" -> 6
-                "july" -> 7
-                "august" -> 8
-                "september" -> 9
-                "october" -> 10
-                "november" -> 11
-                "december" -> 12
-                // Add Indonesian month names if needed
-                "januari" -> 1
-                "februari" -> 2
-                "maret" -> 3
-                "april" -> 4
-                "mei" -> 5
-                "juni" -> 6
-                "juli" -> 7
-                "agustus" -> 8
-                "september" -> 9
-                "oktober" -> 10
-                "november" -> 11
-                "desember" -> 12
-                else -> return null
+            val finalFileName = if (addTimestamp) {
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                "${fileName.removeSuffix(".json")}_$timestamp.json"
+            } else {
+                if (!fileName.endsWith(".json")) "$fileName.json" else fileName
             }
 
-            return Triple(day, month, year)
+            val rootPath = if (useInternal) {
+                FileConstants.getRootJsonInternal(context)
+            } else {
+                FileConstants.getRootJson(context)
+            }
+
+            val file = File(rootPath, finalFileName)
+            file.parentFile?.mkdirs()
+
+            file.writeText(jsonObject.toString(4))
+            AppLogger.d("JSON written to: ${file.absolutePath}")
+            file.absolutePath
         } catch (e: Exception) {
-            Log.e("AppUtils", "Error parsing date: ${e.message}")
-            return null
+            AppLogger.e("Error writing JSON to file", e.toString())
+            null
         }
     }
+
 
     fun getMonthFormat(month: Int): String {
         return when (month) {
@@ -1309,6 +1305,8 @@ object AppUtils {
             null // Return null if file.json was not found
         } catch (e: Exception) {
             e.printStackTrace()
+
+            AppLogger.d("e $e")
             null
         }
     }

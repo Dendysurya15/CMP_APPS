@@ -968,7 +968,8 @@ class AppRepository(context: Context) {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
                         }
-                        Result.failure(Exception("All data is duplicate:\n$duplicateInfo"))
+
+                        Result.failure(Exception("Semua data duplikat:\n$duplicateInfo"))
                     }
 
                     else -> {
@@ -1025,6 +1026,17 @@ class AppRepository(context: Context) {
 
     suspend fun updateStatusUploadHektarPanen(ids: List<Int>, statusUpload: Int) {
         hektarPanenDao.updateStatusUploadHektarPanen(ids, statusUpload)
+    }
+
+
+    suspend fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) = withContext(Dispatchers.IO) {
+        try {
+            panenDao.updateArchiveMpanenStatusByIds(recordIds, archiveStatus)
+            AppLogger.d("Repository: Updated archive status for ${recordIds.size} records")
+        } catch (e: Exception) {
+            AppLogger.e("Repository error updating archive status: ${e.message}")
+            throw e
+        }
     }
 
     suspend fun saveTransferInspeksi(
@@ -1339,7 +1351,7 @@ class AppRepository(context: Context) {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
-                        AppLogger.w("All data is duplicate - returning as success to show alert")
+
                         AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.AllDuplicate(
