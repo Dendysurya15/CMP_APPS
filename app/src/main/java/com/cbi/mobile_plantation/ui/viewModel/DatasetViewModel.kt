@@ -3312,6 +3312,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val createdBy = item.optInt("created_by", 0)
                                         val trackingPath = item.optString("tracking_path", "")
 
+                                        // NEW: Parse the 4 pemuat fields
+                                        val kemandoranPproPemuat = item.optString("kemandoran_ppro_pemuat", "")
+                                        val kemandoranNamaPemuat = item.optString("kemandoran_nama_pemuat", "")
+                                        val nikPemuat = item.optString("nik_pemuat", "")
+                                        val namaPemuat = item.optString("nama_pemuat", "")
+
                                         // Handle nullable fields
                                         val dept =
                                             if (item.has("dept") && !item.isNull("dept")) item.optInt(
@@ -3370,7 +3376,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 "ancak"
                                             ) else null
 
-                                        // Create InspectionModel
+                                        // Create InspectionModel with new pemuat fields
                                         val inspectionEntity = InspectionModel(
                                             id = 0, // Always 0 for auto-increment
                                             created_date = tglInspeksi,
@@ -3404,7 +3410,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             app_version = app_version,
                                             status_upload = "0",
                                             status_uploaded_image = "0",
-                                            isPushedToServer = 1
+                                            isPushedToServer = 1,
+                                            // NEW: Add the 4 pemuat fields
+                                            kemandoran_ppro_pemuat = kemandoranPproPemuat,
+                                            kemandoran_nama_pemuat = kemandoranNamaPemuat,
+                                            nik_pemuat = nikPemuat,
+                                            nama_pemuat = namaPemuat
                                         )
 
                                         // Check if inspection has details first - if not, skip the entire inspection
@@ -3431,8 +3442,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (existingRecord == null) {
                                             // Record doesn't exist -> INSERT new inspection
-                                            val result =
-                                                inspectionDao.insertWithTransaction(inspectionEntity)
+                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
                                             if (result.isSuccess) {
                                                 // Get the newly inserted ID
                                                 localInspectionId =
@@ -3485,8 +3495,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
 
                                     } catch (e: Exception) {
+                                        AppLogger.e("Error processing inspection item: ${e.message}")
                                         failCount++
-                                        AppLogger.e("Error processing inspection record: ${e.message}")
                                     }
                                 }
 
@@ -4784,104 +4794,57 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         val item = dataArray.getJSONObject(i)
 
                                                         try {
-                                                            val idPanen =
-                                                                item.optString("id_panen", "0")
+                                                            val idPanen = item.optString("id_panen", "0")
                                                             val tphId = item.optInt("tph", 0)
-                                                            val tglInspeksi =
-                                                                item.optString("tgl_inspeksi", "")
-                                                            val tglPanen =
-                                                                item.optString("tgl_panen", "")
-                                                            val jjgPanen =
-                                                                item.optInt("jjg_panen", 0)
-                                                            val jalurMasuk =
-                                                                item.optString("rute_masuk", "")
-                                                            val jenisInspeksi =
-                                                                item.optInt("jenis_inspeksi", 0)
+                                                            val tglInspeksi = item.optString("tgl_inspeksi", "")
+                                                            val tglPanen = item.optString("tgl_panen", "")
+                                                            val jjgPanen = item.optInt("jjg_panen", 0)
+                                                            val jalurMasuk = item.optString("rute_masuk", "")
+                                                            val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
                                                             val baris = item.optString("baris", "")
-                                                            val jmlPokokInspeksi =
-                                                                item.optInt("jml_pokok_inspeksi", 0)
-                                                            val createdName =
-                                                                item.optString("created_name", "")
-                                                            val app_version =
-                                                                item.optString("app_version", "")
-                                                            val createdBy =
-                                                                item.optInt("created_by", 0)
-                                                            val trackingPath =
-                                                                item.optString("tracking_path", "")
+                                                            val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
+                                                            val createdName = item.optString("created_name", "")
+                                                            val app_version = item.optString("app_version", "")
+                                                            val createdBy = item.optInt("created_by", 0)
+                                                            val trackingPath = item.optString("tracking_path", "")
+
+                                                            // NEW: Parse the 4 pemuat fields for follow-up inspection
+                                                            val kemandoranPproPemuat = item.optString("kemandoran_ppro_pemuat", "")
+                                                            val kemandoranNamaPemuat = item.optString("kemandoran_nama_pemuat", "")
+                                                            val nikPemuat = item.optString("nik_pemuat", "")
+                                                            val namaPemuat = item.optString("nama_pemuat", "")
 
                                                             // Handle nullable fields
                                                             val dept =
-                                                                if (item.has("dept") && !item.isNull(
-                                                                        "dept"
-                                                                    )
-                                                                ) item.optInt("dept") else null
+                                                                if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
                                                             val deptPpro =
-                                                                if (item.has("dept_ppro") && !item.isNull(
-                                                                        "dept_ppro"
-                                                                    )
-                                                                ) item.optInt("dept_ppro") else null
+                                                                if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
                                                             val deptAbbr =
-                                                                if (item.has("dept_abbr") && !item.isNull(
-                                                                        "dept_abbr"
-                                                                    )
-                                                                ) item.optString("dept_abbr") else null
+                                                                if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
                                                             val deptNama =
-                                                                if (item.has("dept_nama") && !item.isNull(
-                                                                        "dept_nama"
-                                                                    )
-                                                                ) item.optString("dept_nama") else null
+                                                                if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
                                                             val divisi =
-                                                                if (item.has("divisi") && !item.isNull(
-                                                                        "divisi"
-                                                                    )
-                                                                ) item.optInt("divisi") else null
+                                                                if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
                                                             val divisiPpro =
-                                                                if (item.has("divisi_ppro") && !item.isNull(
-                                                                        "divisi_ppro"
-                                                                    )
-                                                                ) item.optInt("divisi_ppro") else null
+                                                                if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
                                                             val divisiAbbr =
-                                                                if (item.has("divisi_abbr") && !item.isNull(
-                                                                        "divisi_abbr"
-                                                                    )
-                                                                ) item.optString("divisi_abbr") else null
+                                                                if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
                                                             val divisiNama =
-                                                                if (item.has("divisi_nama") && !item.isNull(
-                                                                        "divisi_nama"
-                                                                    )
-                                                                ) item.optString("divisi_nama") else null
+                                                                if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
                                                             val blok =
-                                                                if (item.has("blok") && !item.isNull(
-                                                                        "blok"
-                                                                    )
-                                                                ) item.optInt("blok") else null
+                                                                if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
                                                             val blokPpro =
-                                                                if (item.has("blok_ppro") && !item.isNull(
-                                                                        "blok_ppro"
-                                                                    )
-                                                                ) item.optInt("blok_ppro") else null
+                                                                if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
                                                             val blokKode =
-                                                                if (item.has("blok_kode") && !item.isNull(
-                                                                        "blok_kode"
-                                                                    )
-                                                                ) item.optString("blok_kode") else null
+                                                                if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
                                                             val blokNama =
-                                                                if (item.has("blok_nama") && !item.isNull(
-                                                                        "blok_nama"
-                                                                    )
-                                                                ) item.optString("blok_nama") else null
+                                                                if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
                                                             val tphNomor =
-                                                                if (item.has("tph_nomor") && !item.isNull(
-                                                                        "tph_nomor"
-                                                                    )
-                                                                ) item.optInt("tph_nomor") else null
+                                                                if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
                                                             val ancak =
-                                                                if (item.has("ancak") && !item.isNull(
-                                                                        "ancak"
-                                                                    )
-                                                                ) item.optString("ancak") else null
+                                                                if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
 
-                                                            // Create InspectionModel
+                                                            // Create InspectionModel with new pemuat fields
                                                             val inspectionEntity = InspectionModel(
                                                                 id = 0, // Always 0 for auto-increment
                                                                 created_date = tglInspeksi,
@@ -4915,12 +4878,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 app_version = app_version,
                                                                 status_upload = "0",
                                                                 status_uploaded_image = "0",
-                                                                isPushedToServer = 1
+                                                                isPushedToServer = 1,
+                                                                // NEW: Add the 4 pemuat fields for follow-up inspection
+                                                                kemandoran_ppro_pemuat = kemandoranPproPemuat,
+                                                                kemandoran_nama_pemuat = kemandoranNamaPemuat,
+                                                                nik_pemuat = nikPemuat,
+                                                                nama_pemuat = namaPemuat
                                                             )
 
                                                             // Check if inspection has details - if not, skip the entire inspection
-                                                            val inspectionDetails =
-                                                                item.optJSONArray("InspeksiDetails")
+                                                            val inspectionDetails = item.optJSONArray("InspeksiDetails")
 
                                                             if (inspectionDetails == null || inspectionDetails.length() == 0) {
                                                                 AppLogger.d("Skipping inspection TPH=${inspectionEntity.tph_id} - no details found")
@@ -4929,21 +4896,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
 
                                                             // Direct insert without checking if record exists
-                                                            val result =
-                                                                inspectionDao.insertWithTransaction(
-                                                                    inspectionEntity
-                                                                )
+                                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
                                                             if (result.isSuccess) {
                                                                 // Get the newly inserted ID
-                                                                val localInspectionId =
-                                                                    inspectionDao.getInspectionByBusinessKey(
-                                                                        inspectionEntity.tph_id,
-                                                                        inspectionEntity.created_date,
-                                                                        inspectionEntity.dept ?: 0,
-                                                                        inspectionEntity.divisi
-                                                                            ?: 0,
-                                                                        1
-                                                                    )?.id ?: 0
+                                                                val localInspectionId = inspectionDao.getInspectionByBusinessKey(
+                                                                    inspectionEntity.tph_id,
+                                                                    inspectionEntity.created_date,
+                                                                    inspectionEntity.dept ?: 0,
+                                                                    inspectionEntity.divisi ?: 0,
+                                                                    1
+                                                                )?.id ?: 0
 
                                                                 successCount++
 
@@ -4960,14 +4922,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
 
                                                         } catch (e: Exception) {
+                                                            AppLogger.e("Error processing follow-up inspection item: ${e.message}")
                                                             failCount++
                                                         }
                                                     }
 
                                                     if (dataArray.length() == 0) {
-//                                                        AppLogger.d("Masuk terus geesss kesinii ")
-//                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
-
                                                         results[request.dataset] = Resource.Success(
                                                             response,
                                                             "Partial success: $successCount processed, $failCount failed, $skippedCount skipped"

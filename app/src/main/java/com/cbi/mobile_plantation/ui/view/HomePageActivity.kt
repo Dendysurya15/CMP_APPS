@@ -4152,25 +4152,25 @@ class HomePageActivity : AppCompatActivity() {
 
                             AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
-                            try {
-                                val tempDir =
-                                    File(getExternalFilesDir(null), "TEMP").apply {
-                                        if (!exists()) mkdirs()
-                                    }
-
-                                val filename =
-                                    "absensi_data_${System.currentTimeMillis()}.json"
-                                val tempFile = File(tempDir, filename)
-
-                                FileOutputStream(tempFile).use { fos ->
-                                    fos.write(absensiJson.toByteArray())
-                                }
-
-                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-                            } catch (e: Exception) {
-                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-                                e.printStackTrace()
-                            }
+//                            try {
+//                                val tempDir =
+//                                    File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
+//
+//                                val filename =
+//                                    "absensi_data_${System.currentTimeMillis()}.json"
+//                                val tempFile = File(tempDir, filename)
+//
+//                                FileOutputStream(tempFile).use { fos ->
+//                                    fos.write(absensiJson.toByteArray())
+//                                }
+//
+//                                AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+//                            } catch (e: Exception) {
+//                                AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+//                                e.printStackTrace()
+//                            }
 
                             unzippedAbsensiData = restructuredData.filter { item ->
                                 // Get the kemandoran_id from the current item
@@ -4852,6 +4852,10 @@ class HomePageActivity : AppCompatActivity() {
                                     "baris" to (inspeksiWithRelations.inspeksi.baris ?: ""),
                                     "jml_pokok_inspeksi" to (inspeksiWithRelations.inspeksi.jml_pkk_inspeksi
                                         ?: 0),
+                                    "kemandoran_ppro_pemuat" to (inspeksiWithRelations.inspeksi.kemandoran_ppro_pemuat  ?: ""),
+                                    "kemandoran_nama_pemuat" to (inspeksiWithRelations.inspeksi.kemandoran_nama_pemuat  ?: ""),
+                                    "nik_pemuat" to (inspeksiWithRelations.inspeksi.nik_pemuat  ?: ""),
+                                    "nama_pemuat" to (inspeksiWithRelations.inspeksi.nama_pemuat  ?: ""),
                                     "foto_user" to modifiedFotoUserString,
                                     "foto_user_pemulihan" to modifiedFotoUserPemulihanString,
                                     "created_name" to (inspeksiWithRelations.inspeksi.created_name

@@ -263,6 +263,12 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun getKemandoranByIdDeptDivisi(idKemandoran: List<String>, dept: Int, divisi: Int): List<KemandoranModel> {
+        return withContext(Dispatchers.IO) {
+            repository.getKemandoranByIdDeptDivisi(idKemandoran, dept, divisi)
+        }
+    }
+
     fun updateStatusUploadPanen(ids: List<Int>, status: Int) {
         viewModelScope.launch {
             try {

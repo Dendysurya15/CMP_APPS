@@ -1015,6 +1015,11 @@ class AppRepository(context: Context) {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
 
+    suspend fun getKemandoranByIdDeptDivisi(idKemandoran: List<String>, dept: Int, divisi: Int): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranById(idKemandoran, dept, divisi)
+    }
+
+
     suspend fun getAllKaryawan(): Result<List<KaryawanModel>> = withContext(Dispatchers.IO) {
         try {
             val data = karyawanDao.getAllKaryawan()

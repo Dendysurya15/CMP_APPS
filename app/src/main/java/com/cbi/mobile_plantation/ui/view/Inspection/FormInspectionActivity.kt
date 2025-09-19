@@ -128,6 +128,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.firebase.inject.Deferred
 import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
@@ -483,8 +484,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 200F
+        boundaryAccuracy = 200F
 
         initViewModel()
         initUI()
@@ -996,6 +997,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         // Observe location updates
+
+        AppLogger.d("-------")
+        AppLogger.d("lat $lat")
+        AppLogger.d("lon $lon")
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
@@ -1053,7 +1058,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val status_location = findViewById<ImageView>(R.id.statusLocation)
         locationViewModel = ViewModelProvider(
             this,
-            LocationViewModel.Factory(application, status_location, this)
+            LocationViewModel.Factory(application, status_location, this, boundaryAccuracy)
         )[LocationViewModel::class.java]
 
         val factoryInspection = InspectionViewModel.InspectionViewModelFactory(application)
@@ -1906,121 +1911,130 @@ open class FormInspectionActivity : AppCompatActivity(),
                 getString(R.string.confirmation_dialog_description),
                 "warning.json",
                 function = {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        try {
-                            loadingDialog.show()
-                            loadingDialog.setMessage(
-                                if (isFollowUp) "Mengupdate data..." else "Menyimpan data...",
-                                true
-                            )
+                    // Show loading dialog immediately
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Mengumpulkan data pemuat...", true)
 
-                            if (!isTenthTrees) {
-                                trackingLocation["end"] = Location(lat ?: 0.0, lon ?: 0.0)
-                            }
+                    // First collect pemuat information, then proceed with save
+                    collectPemuatInformation { pemuatInfo ->
+                        // This callback runs on main thread after all data is collected
+                        AppLogger.d("📋 Pemuat data collection completed, proceeding with save...")
+                        AppLogger.d("📋 Collected PemuatInfo: $pemuatInfo")
 
-                            val trackingJson = JSONObject().apply {
-                                trackingLocation.forEach { (key, location) ->
-                                    put(key, JSONObject().apply {
-                                        put("lat", location.lat)
-                                        put("lon", location.lon)
-                                    })
-                                }
-                            }
-
-                            val dateEndInspection = SimpleDateFormat(
-                                "yyyy-MM-dd HH:mm:ss",
-                                Locale.getDefault()
-                            ).format(Date())
-
-
-                            val result = if (isFollowUp) {
-                                inspectionViewModel.saveDataInspection(
-                                    created_date_start = currentInspectionData?.inspeksi?.created_date
-                                        ?: "",
-                                    created_by = currentInspectionData?.inspeksi?.created_by ?: "",
-                                    created_name = currentInspectionData?.inspeksi?.created_name
-                                        ?: "",
-                                    tph_id = currentInspectionData?.inspeksi?.tph_id ?: 0,
-                                    id_panen = currentInspectionData?.inspeksi?.id_panen ?: "0",
-                                    date_panen = currentInspectionData?.inspeksi?.date_panen ?: "",
-                                    jalur_masuk = currentInspectionData?.inspeksi?.jalur_masuk
-                                        ?: "",
-                                    jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi
-                                        ?: 1,
-                                    baris = currentInspectionData?.inspeksi?.baris ?: "",
-                                    jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi
-                                        ?: 0,
-                                    tracking_path = currentInspectionData?.inspeksi?.tracking_path
-                                        ?: "",
-                                    foto_user = "",
-                                    jjg_panen = currentInspectionData?.inspeksi?.jjg_panen ?: 0,
-                                    foto_user_pemulihan = photoSelfie,
-                                    app_version = currentInspectionData?.inspeksi?.app_version
-                                        ?: "",
-                                    app_version_pemulihan = infoApp,
-                                    status_upload = "0",
-                                    status_uploaded_image = "0",
-                                    // Follow-up specific parameters
-                                    isFollowUp = true,
-                                    existingInspectionId = currentInspectionData?.inspeksi?.id,
-                                    tracking_path_pemulihan = trackingJson.toString(),
-                                    updated_date_start = dateStartInspection,
-                                    updated_date_end = dateEndInspection,
-                                    updated_by = userId.toString(),
-                                    updated_name = prefManager!!.nameUserLogin
+                        // Continue with the save process using collected data
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            try {
+                                loadingDialog.setMessage(
+                                    if (isFollowUp) "Mengupdate data..." else "Menyimpan data...",
+                                    true
                                 )
-                            } else {
 
-                                if (selectedTPHIdByScan == null) {
-                                    throw Exception("TPH ID tidak boleh kosong")
+                                if (!isTenthTrees) {
+                                    trackingLocation["end"] = Location(lat ?: 0.0, lon ?: 0.0)
                                 }
 
-                                val entriesWithEmptyTree1 =
-                                    formData.values.filter { it.emptyTree == 1 }
-
-                                val allEntriesComplete = entriesWithEmptyTree1.all { pageData ->
-                                    val isComplete =
-                                        !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
-                                    isComplete
+                                val trackingJson = JSONObject().apply {
+                                    trackingLocation.forEach { (key, location) ->
+                                        put(key, JSONObject().apply {
+                                            put("lat", location.lat)
+                                            put("lon", location.lon)
+                                        })
+                                    }
                                 }
 
-                                val allConditionsMet =
-                                    allEntriesComplete && photoTPHFollowUp != null
+                                val dateEndInspection = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                ).format(Date())
 
-                                val inspeksiPutaran = if (allConditionsMet) 2 else 1
+                                val result = if (isFollowUp) {
+                                    // Follow-up logic remains the same...
+                                    inspectionViewModel.saveDataInspection(
+                                        created_date_start = currentInspectionData?.inspeksi?.created_date ?: "",
+                                        created_by = currentInspectionData?.inspeksi?.created_by ?: "",
+                                        created_name = currentInspectionData?.inspeksi?.created_name ?: "",
+                                        tph_id = currentInspectionData?.inspeksi?.tph_id ?: 0,
+                                        id_panen = currentInspectionData?.inspeksi?.id_panen ?: "0",
+                                        date_panen = currentInspectionData?.inspeksi?.date_panen ?: "",
+                                        jalur_masuk = currentInspectionData?.inspeksi?.jalur_masuk ?: "",
+                                        jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi ?: 1,
+                                        baris = currentInspectionData?.inspeksi?.baris ?: "",
+                                        jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi ?: 0,
+                                        tracking_path = currentInspectionData?.inspeksi?.tracking_path ?: "",
+                                        foto_user = "",
+                                        jjg_panen = currentInspectionData?.inspeksi?.jjg_panen ?: 0,
+                                        foto_user_pemulihan = photoSelfie,
+                                        app_version = currentInspectionData?.inspeksi?.app_version ?: "",
+                                        app_version_pemulihan = infoApp,
+                                        status_upload = "0",
+                                        status_uploaded_image = "0",
+                                        // Follow-up specific parameters
+                                        isFollowUp = true,
+                                        existingInspectionId = currentInspectionData?.inspeksi?.id,
+                                        tracking_path_pemulihan = trackingJson.toString(),
+                                        updated_date_start = dateStartInspection,
+                                        updated_date_end = dateEndInspection,
+                                        updated_by = userId.toString(),
+                                        updated_name = prefManager!!.nameUserLogin
+                                    )
+                                } else {
+                                    // New inspection with collected pemuat data
+                                    if (selectedTPHIdByScan == null) {
+                                        throw Exception("TPH ID tidak boleh kosong")
+                                    }
 
-                                inspectionViewModel.saveDataInspection(
-                                    created_date_start = dateStartInspection,
-                                    created_by = userId.toString(),
-                                    created_name = prefManager!!.nameUserLogin ?: "",
-                                    tph_id = selectedTPHIdByScan ?: 0,
-                                    id_panen = selectedIdPanenByScan ?: "0",
-                                    date_panen = selectedTanggalPanenByScan!!,
-                                    foto_user = photoSelfie ?: "",
-                                    jjg_panen = totalHarvestTree,
-                                    inspeksi_putaran = inspeksiPutaran,
-                                    jalur_masuk = selectedJalurMasuk,
-                                    jenis_kondisi = selectedKondisiValue.toInt(),
-                                    baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
-                                    jml_pkk_inspeksi = totalPokokInspection,
-                                    tracking_path = trackingJson.toString(),
-                                    app_version = infoApp,
-                                    status_upload = "0",
-                                    status_uploaded_image = "0"
-                                )
-                            }
+                                    val entriesWithEmptyTree1 = formData.values.filter { it.emptyTree == 1 }
+                                    val allEntriesComplete = entriesWithEmptyTree1.all { pageData ->
+                                        val isComplete = !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
+                                        isComplete
+                                    }
+                                    val allConditionsMet = allEntriesComplete && photoTPHFollowUp != null
+                                    val inspeksiPutaran = if (allConditionsMet) 2 else 1
 
-                            when (result) {
-                                is InspectionViewModel.SaveDataInspectionState.Success -> {
-                                    inspectionId = result.inspectionId.toString()
-                                    if (!isFollowUp) {
-                                        val formData =
-                                            formAncakViewModel.formData.value ?: mutableMapOf()
-                                        val selectedPemuatWorkers =
-                                            selectedPemuatAdapter.getSelectedWorkers()
+                                    AppLogger.d("🔍 About to save inspection with pemuat data:")
+                                    AppLogger.d("🔍 kemandoran_ppro_pemuat: '${pemuatInfo.kemandoranPproPemuat}'")
+                                    AppLogger.d("🔍 kemandoran_nama_pemuat: '${pemuatInfo.kemandoranNamaPemuat}'")
+                                    AppLogger.d("🔍 nik_pemuat: '${pemuatInfo.nikPemuat}'")
+                                    AppLogger.d("🔍 nama_pemuat: '${pemuatInfo.namaPemuat}'")
 
-                                        val detailResult =
-                                            inspectionViewModel.saveDataInspectionDetails(
+
+                                    // 🎯 USE THE COLLECTED PEMUAT DATA HERE
+                                    inspectionViewModel.saveDataInspection(
+                                        created_date_start = dateStartInspection,
+                                        created_by = userId.toString(),
+                                        created_name = prefManager!!.nameUserLogin ?: "",
+                                        tph_id = selectedTPHIdByScan ?: 0,
+                                        id_panen = selectedIdPanenByScan ?: "0",
+                                        date_panen = selectedTanggalPanenByScan!!,
+                                        foto_user = photoSelfie ?: "",
+                                        jjg_panen = totalHarvestTree,
+                                        inspeksi_putaran = inspeksiPutaran,
+                                        jalur_masuk = selectedJalurMasuk,
+                                        jenis_kondisi = selectedKondisiValue.toInt(),
+                                        baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
+                                        jml_pkk_inspeksi = totalPokokInspection,
+                                        tracking_path = trackingJson.toString(),
+                                        app_version = infoApp,
+                                        status_upload = "0",
+                                        status_uploaded_image = "0",
+                                        // 🎯 ADD THE COLLECTED PEMUAT FIELDS
+                                        kemandoran_ppro_pemuat = pemuatInfo.kemandoranPproPemuat,
+                                        kemandoran_nama_pemuat = pemuatInfo.kemandoranNamaPemuat,
+                                        nik_pemuat = pemuatInfo.nikPemuat,
+                                        nama_pemuat = pemuatInfo.namaPemuat
+                                    )
+                                }
+
+                                // Handle the result...
+                                when (result) {
+                                    is InspectionViewModel.SaveDataInspectionState.Success -> {
+                                        inspectionId = result.inspectionId.toString()
+                                        // Continue with detail saving...
+
+                                        if (!isFollowUp) {
+                                            val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
+
+                                            val detailResult = inspectionViewModel.saveDataInspectionDetails(
                                                 inspectionId = result.inspectionId.toString(),
                                                 formData = formData,
                                                 jumBrdTglPath = jumBrdTglPath,
@@ -2038,23 +2052,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 pemuatWorkers = selectedPemuatWorkers
                                             )
 
-                                        when (detailResult) {
-                                            is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
-                                                showSuccessDialog()
+                                            when (detailResult) {
+                                                is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
+                                                    showSuccessDialog()
+                                                }
+                                                is InspectionViewModel.SaveDataInspectionDetailsState.Error -> {
+                                                    showErrorDialog(detailResult.message)
+                                                }
                                             }
-
-                                            is InspectionViewModel.SaveDataInspectionDetailsState.Error -> {
-                                                showErrorDialog(detailResult.message)
-                                            }
-                                        }
-                                    } else {
-                                        val formData =
-                                            formAncakViewModel.formData.value ?: mutableMapOf()
-
-                                        val detailResult =
-                                            inspectionViewModel.updateDataInspectionDetailsForFollowUp(
-                                                detailInspeksiList = currentInspectionData?.detailInspeksi
-                                                    ?: emptyList(),
+                                        } else {
+                                            // Handle follow-up detail update...
+                                            val detailResult = inspectionViewModel.updateDataInspectionDetailsForFollowUp(
+                                                detailInspeksiList = currentInspectionData?.detailInspeksi ?: emptyList(),
                                                 formData = formData,
                                                 latTPH = lat ?: 0.0,
                                                 lonTPH = lon ?: 0.0,
@@ -2065,32 +2074,179 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 createdBy = userId.toString()
                                             )
 
-                                        when (detailResult) {
-                                            is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
-                                                showSuccessDialog()
-                                            }
-
-                                            is InspectionViewModel.SaveDataInspectionDetailsState.Error -> {
-                                                showErrorDialog(detailResult.message)
+                                            when (detailResult) {
+                                                is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
+                                                    showSuccessDialog()
+                                                }
+                                                is InspectionViewModel.SaveDataInspectionDetailsState.Error -> {
+                                                    showErrorDialog(detailResult.message)
+                                                }
                                             }
                                         }
+                                        loadingDialog.dismiss()
                                     }
-                                    loadingDialog.dismiss()
+
+                                    is InspectionViewModel.SaveDataInspectionState.Error -> {
+                                        loadingDialog.dismiss()
+                                        showErrorDialog(result.message)
+                                    }
                                 }
 
-                                is InspectionViewModel.SaveDataInspectionState.Error -> {
-                                    loadingDialog.dismiss()
-                                    showErrorDialog(result.message)
-                                }
+                            } catch (e: Exception) {
+                                loadingDialog.dismiss()
+                                showErrorDialog(e.message ?: "Unknown error")
                             }
-
-                        } catch (e: Exception) {
-                            loadingDialog.dismiss()
-                            showErrorDialog(e.message ?: "Unknown error")
                         }
                     }
                 }
             )
+        }
+    }
+
+    data class PemuatInfo(
+        val kemandoranPproPemuat: String,
+        val kemandoranNamaPemuat: String,
+        val nikPemuat: String,
+        val namaPemuat: String
+    )
+
+    fun extractPemuatData(workers: List<Worker>): Triple<List<String>, List<String>, List<String>> {
+        val ids = mutableListOf<String>()
+        val niks = mutableListOf<String>()
+        val names = mutableListOf<String>()
+
+        workers.forEach { worker ->
+            ids.add(worker.id)
+
+            val firstDashIndex = worker.name.indexOf(" - ")
+            if (firstDashIndex != -1) {
+                val nik = worker.name.substring(0, firstDashIndex).trim()
+                val name = worker.name.substring(firstDashIndex + 3).trim()
+                niks.add(nik)
+                names.add(name)
+            }
+        }
+
+        return Triple(ids, niks, names)
+    }
+
+    private fun collectPemuatInformation(callback: (PemuatInfo) -> Unit) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Get selected pemuat workers
+                val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
+
+                if (selectedPemuatWorkers.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        callback(PemuatInfo("", "", "", ""))
+                    }
+                    return@launch
+                }
+
+                // Extract IDs, NIKs, and names
+                val (workerIds, nikList, nameList) = extractPemuatData(selectedPemuatWorkers)
+
+                AppLogger.d("Extracted worker IDs: $workerIds")
+                AppLogger.d("Extracted NIKs: $nikList")
+                AppLogger.d("Extracted names: $nameList")
+
+                // Get karyawan information by NIK - WAIT for completion
+                val karyawanList = inspectionViewModel.getKemandoranByNik(nikList)
+                AppLogger.d("Found karyawan: ${karyawanList.size}")
+
+                if (karyawanList.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        callback(PemuatInfo("", "", "", ""))
+                    }
+                    return@launch
+                }
+
+                // Extract kemandoran IDs, dept, and divisi from karyawan data
+                val kemandoranIds = karyawanList.mapNotNull { it.kemandoran_id?.toString() }.distinct()
+                val deptIds = karyawanList.mapNotNull { it.dept }.distinct()
+                val divisiIds = karyawanList.mapNotNull { it.divisi }.distinct()
+
+                AppLogger.d("Kemandoran IDs: $kemandoranIds")
+                AppLogger.d("Dept IDs: $deptIds")
+                AppLogger.d("Divisi IDs: $divisiIds")
+
+                // CRITICAL: Wait for ALL kemandoran data before proceeding
+                val allKemandoranData = mutableListOf<KemandoranModel>()
+
+                // Use async to fetch all combinations in parallel, then await all results
+                val deferredResults = mutableListOf<kotlinx.coroutines.Deferred<List<KemandoranModel>>>()
+
+                for (deptId in deptIds) {
+                    for (divisiId in divisiIds) {
+                        val deferred = async {
+                            panenViewModel.getKemandoranByIdDeptDivisi(kemandoranIds, deptId, divisiId)
+                        }
+                        deferredResults.add(deferred)
+                    }
+                }
+
+                // WAIT for all results before proceeding
+                deferredResults.forEach { deferred ->
+                    val kemandoranData = deferred.await()
+                    allKemandoranData.addAll(kemandoranData)
+                    AppLogger.d("Fetched kemandoran batch: ${kemandoranData.size} items")
+                }
+
+                AppLogger.d("Found total kemandoran data: ${allKemandoranData.size}")
+
+                // Build the result by matching karyawan with their kemandoran
+                val kemandoranPproList = mutableListOf<String>()
+                val kemandoranNamaList = mutableListOf<String>()
+                val finalNikList = mutableListOf<String>()
+                val finalNamaList = mutableListOf<String>()
+
+                // Process each karyawan to find matching kemandoran
+                karyawanList.forEach { karyawan ->
+                    // Find matching kemandoran for this karyawan
+                    val matchingKemandoran = allKemandoranData.find { kemandoran ->
+                        kemandoran.id == karyawan.kemandoran_id &&
+                                kemandoran.dept == karyawan.dept &&
+                                kemandoran.divisi == karyawan.divisi
+                    }
+
+                    if (matchingKemandoran != null) {
+                        kemandoranPproList.add(matchingKemandoran.kemandoran_ppro ?: "")
+                        kemandoranNamaList.add(matchingKemandoran.nama ?: "")
+                        finalNikList.add(karyawan.nik ?: "")
+                        finalNamaList.add(karyawan.nama ?: "")
+
+                        AppLogger.d("Matched: NIK=${karyawan.nik}, Name=${karyawan.nama}, KemandoranPpro=${matchingKemandoran.kemandoran_ppro}, KemandoranNama=${matchingKemandoran.nama}")
+                    } else {
+                        AppLogger.w("No matching kemandoran found for karyawan: ${karyawan.nik}")
+                        // Still add the karyawan data even if kemandoran is not found
+                        kemandoranPproList.add("")
+                        kemandoranNamaList.add("")
+                        finalNikList.add(karyawan.nik ?: "")
+                        finalNamaList.add(karyawan.nama ?: "")
+                    }
+                }
+
+                // Join all data with commas
+                val result = PemuatInfo(
+                    kemandoranPproPemuat = kemandoranPproList.joinToString(","),
+                    kemandoranNamaPemuat = kemandoranNamaList.joinToString(","),
+                    nikPemuat = finalNikList.joinToString(","),
+                    namaPemuat = finalNamaList.joinToString(",")
+                )
+
+                AppLogger.d("Final PemuatInfo: $result")
+
+                // Return to main thread with result
+                withContext(Dispatchers.Main) {
+                    callback(result)
+                }
+
+            } catch (e: Exception) {
+                AppLogger.e("Error collecting pemuat information: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    callback(PemuatInfo("", "", "", ""))
+                }
+            }
         }
     }
 
