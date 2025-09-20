@@ -484,8 +484,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 200F
+        boundaryAccuracy = 200F
 
         initViewModel()
         initUI()
@@ -3362,7 +3362,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             ),
             Triple(
                 findViewById(R.id.lyKemandoran),
-                "Kemandoran",
+                "Kemandoran Pemuat",
                 InputType.SPINNER
             ),
             Triple(
@@ -3415,6 +3415,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 updateLabelTextView(layoutView, key)
+
                 when (inputType) {
                     InputType.SPINNER -> {
                         when (layoutView.id) {
@@ -3516,16 +3517,20 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun updateLabelTextView(linearLayout: LinearLayout, text: String) {
         val textView = linearLayout.findViewById<TextView>(R.id.tvTitleFormPanenTBS)
 
-        val spannable = SpannableString("$text *")
-        spannable.setSpan(
-            ForegroundColorSpan(ContextCompat.getColor(this, R.color.colorRed)),
-            text.length, spannable.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-
-        textView.text = spannable
+        if (linearLayout.id != R.id.lyKemandoran && linearLayout.id != R.id.lyPemuat) {
+            // Add red asterisk for other fields
+            val spannable = SpannableString("$text *")
+            spannable.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.colorRed)),
+                text.length, spannable.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            textView.text = spannable
+        } else {
+            // Just set the text without asterisk for Kemandoran and Pemuat
+            textView.text = text
+        }
     }
-
     private fun updatePhotoBadgeVisibility() {
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
@@ -7729,23 +7734,23 @@ open class FormInspectionActivity : AppCompatActivity(),
                 hideValidationError(layoutPemanenOtomatis)
             }
 
-            // PEMUAT VALIDATION
-            val pemuats = selectedPemuatAdapter.getSelectedWorkers()
-            val totalPemuat = pemuats.size
-
-            AppLogger.d("totalPemuat $totalPemuat")
-
-            if (totalPemuat == 0) {
-                AppLogger.d("No pemuat selected!")
-                errorMessages.add("Minimal 1 pemuat yang dipilih!")
-                missingFields.add("Pilih Pemuat")
-
-                showValidationError(lyPemuat, "Minimal 1 pemuat yang dipilih!")
-                isValid = false
-            } else {
-                AppLogger.d("Pemuat workers selected! Total: $totalPemuat")
-                hideValidationError(lyPemuat)
-            }
+//            // PEMUAT VALIDATION
+//            val pemuats = selectedPemuatAdapter.getSelectedWorkers()
+//            val totalPemuat = pemuats.size
+//
+//            AppLogger.d("totalPemuat $totalPemuat")
+//
+//            if (totalPemuat == 0) {
+//                AppLogger.d("No pemuat selected!")
+//                errorMessages.add("Minimal 1 pemuat yang dipilih!")
+//                missingFields.add("Pilih Pemuat")
+//
+//                showValidationError(lyPemuat, "Minimal 1 pemuat yang dipilih!")
+//                isValid = false
+//            } else {
+//                AppLogger.d("Pemuat workers selected! Total: $totalPemuat")
+//                hideValidationError(lyPemuat)
+//            }
 
             // LOCATION VALIDATION
             if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {

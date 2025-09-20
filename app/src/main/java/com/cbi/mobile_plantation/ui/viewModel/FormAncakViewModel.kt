@@ -27,7 +27,7 @@ class FormAncakViewModel : ViewModel() {
         val pokokNumber: Int = 0,
         val emptyTree: Int = 0,
         val harvestTree: Int = 0,
-        val harvestJjg: Int = 0,
+        val harvestJjg: Int = 1,
         val neatPelepah: Int = 0, // 7
         val pelepahSengkleh: Int = 0, // 8
         val kondisiPruning: Int = 0,
@@ -306,7 +306,7 @@ class FormAncakViewModel : ViewModel() {
             }
 
             // NEW VALIDATION: If harvestTree == 1, then harvestJjg must not be 0
-            if (data?.harvestTree == 1 && data?.harvestJjg == 0) {
+            if (data?.harvestTree == 1 && data?.harvestJjg == 1) {
                 errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi!"
                 AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg == 0")
             }

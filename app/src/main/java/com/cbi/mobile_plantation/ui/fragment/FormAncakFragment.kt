@@ -81,8 +81,8 @@ class FormAncakFragment : Fragment() {
             "2" to "Tidak Standar"
         ),
         "PelepahType" to mapOf(
-            "1" to "Ada",
-            "2" to "Tidak ada"
+            "1" to "Tidak ada",
+            "2" to "Ada"
         ),
         "PruningType" to mapOf(
             "1" to "Normal",
@@ -347,7 +347,7 @@ class FormAncakFragment : Fragment() {
             ),
             InputMapping(
                 R.id.lyHarvestTreeNumber,
-                "", // You can change this title or leave empty ""
+                "Jumlah Janjang Panen", // You can change this title or leave empty ""
                 InputType.EDITTEXT,
                 { currentData, value -> currentData.copy(harvestJjg = value) }, // Assuming you have this field
                 { it.harvestJjg } // Assuming you have this field
