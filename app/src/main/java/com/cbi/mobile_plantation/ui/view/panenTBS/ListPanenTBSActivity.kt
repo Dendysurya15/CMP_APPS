@@ -3423,6 +3423,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                             "nama_karyawans" to (singleKaryawanNama as Any),
                                             "nama_kemandorans" to (singleKemandoranNama as Any),
+                                            "nomor_pemanen" to (panenWithRelations.panen.nomor_pemanen as Any),
                                             "username" to (panenWithRelations.panen.username as Any)
                                         )
 
@@ -4134,6 +4135,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "blok_banjir" to (panenWithRelations.panen.status_banjir as Any),
                                     "tahun_tanam" to (panenWithRelations.tph.tahun as Any),
                                     "nama_karyawans" to karyawanNamas as Any,
+                                    "nomor_pemanen" to (panenWithRelations.panen.nomor_pemanen as Any),
                                     "nama_kemandorans" to kemandoranNamas as Any,
                                     "username" to (panenWithRelations.panen.username as Any)
                                 )
@@ -4187,7 +4189,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         "MENTAH": ${mutuBuah.jjgMentah},
         "LEWAT_MASAK": ${mutuBuah.jjgLewatMasak},
         "KOSONG": ${mutuBuah.jjgKosong},
-        "ABNORMAL": ${mutuBuah.jjgAbnormal},
+        "ABNORMAL": ${mutuBuah.jjgAbnormal},sdf
         "SERANGAN_TIKUS": ${mutuBuah.jjgSeranganTikus},
         "PANJANG": ${mutuBuah.jjgPanjang},
         "TIDAK_VCUT": ${mutuBuah.jjgTidakVcut},
@@ -5151,58 +5153,82 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 // Fetch all available TPH data
                 panenViewModel.getAllPanenDataDetailESPB(0, 0, true, 1, null)
 
-
                 delay(200)
-                // Observe the data (this needs to be back on main thread context)
+
                 panenViewModel.detailNonESPBTPH.observeOnce(this@ListPanenTBSActivity) { panenWithRelationsList ->
 
-                    AppLogger.d("panenWithRelationsList ${panenWithRelationsList.size}")
+                    AppLogger.d("=== FILTERING PANEN WITH RELATIONS LIST ===")
+                    AppLogger.d("Total records before filtering: ${panenWithRelationsList?.size ?: 0}")
 
                     if (panenWithRelationsList != null) {
-                        AppLogger.d("Fetched ${panenWithRelationsList.size} available TPH items")
 
+                        val filteredPanenList = panenWithRelationsList.filter { panenWithRelations ->
+                            val tphDivisi = panenWithRelations.tph?.divisi.toString()
+                            val userAfdelingId = prefManager!!.afdelingIdUserLogin
+                            val panenAsistensi = panenWithRelations.panen.asistensi
 
-                        // Convert available TPH data to TPHItem list
-                        val availableTphList =
-                            panenWithRelationsList.map { panenWithRelations ->
+                            AppLogger.d("Checking record: TPH ID = ${panenWithRelations.panen.tph_id}")
+                            AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                            AppLogger.d("  Panen asistensi = $panenAsistensi")
 
-                                val kpNumber = try {
-                                    val jjgJson = panenWithRelations.panen.jjg_json ?: ""
-                                    if (jjgJson.startsWith("{") && jjgJson.contains("KP")) {
-                                        val gson = Gson()
-                                        val jsonObject =
-                                            gson.fromJson(jjgJson, JsonObject::class.java)
-                                        jsonObject.get("KP")?.asString ?: jjgJson
-                                    } else {
-                                        // If it's not JSON, use as is
-                                        jjgJson
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error parsing JJG JSON for TPH ${panenWithRelations.panen.tph_id}: ${e.message}")
-                                    panenWithRelations.panen.jjg_json
-                                        ?: "" // Fallback to original value
+                            // First check: if afdeling matches, include it
+                            if (tphDivisi == userAfdelingId) {
+                                AppLogger.d("  ✓ INCLUDED: Afdeling matches")
+                                true
+                            } else {
+                                // If afdeling doesn't match, check if asistensi is 2
+                                val asistensiMatch = panenAsistensi == 2
+                                if (asistensiMatch) {
+                                    AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2")
+                                } else {
+                                    AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and asistensi ≠ 2")
                                 }
+                                asistensiMatch
+                            }
+                        }
 
-                                TPHItem(
-                                    tphId = panenWithRelations.panen.tph_id.toString(),
-                                    dateCreated = panenWithRelations.panen.date_created ?: "",
-                                    jjgJson = kpNumber,
-                                    tphNomor = panenWithRelations.tph!!.nomor.toString(),
-                                    isChecked = false,
-                                    blokKode = panenWithRelations.tph!!.blok_kode.toString(),
-                                    nomorPemanen = panenWithRelations.panen!!.nomor_pemanen.toString(),
-                                )
+                        AppLogger.d("Total records after filtering: ${filteredPanenList.size}")
+                        AppLogger.d("=== FILTERING COMPLETE ===")
+
+                        AppLogger.d("Fetched ${filteredPanenList.size} available TPH items after filtering")
+
+                        // Convert filtered TPH data to TPHItem list
+                        val availableTphList = filteredPanenList.map { panenWithRelations ->
+
+                            val kpNumber = try {
+                                val jjgJson = panenWithRelations.panen.jjg_json ?: ""
+                                if (jjgJson.startsWith("{") && jjgJson.contains("KP")) {
+                                    val gson = Gson()
+                                    val jsonObject = gson.fromJson(jjgJson, JsonObject::class.java)
+                                    jsonObject.get("KP")?.asString ?: jjgJson
+                                } else {
+                                    // If it's not JSON, use as is
+                                    jjgJson
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error parsing JJG JSON for TPH ${panenWithRelations.panen.tph_id}: ${e.message}")
+                                panenWithRelations.panen.jjg_json ?: "" // Fallback to original value
                             }
 
+                            TPHItem(
+                                tphId = panenWithRelations.panen.tph_id.toString(),
+                                dateCreated = panenWithRelations.panen.date_created ?: "",
+                                jjgJson = kpNumber,
+                                tphNomor = panenWithRelations.tph!!.nomor.toString(),
+                                isChecked = false,
+                                blokKode = panenWithRelations.tph!!.blok_kode.toString(),
+                                nomorPemanen = panenWithRelations.panen!!.nomor_pemanen.toString(),
+                            )
+                        }
 
-                        AppLogger.d("availableTphList $availableTphList")
+                        AppLogger.d("availableTphList after filtering: $availableTphList")
+
                         // Create a set of TPH IDs from ESPB for quick lookup
                         val espbTphIds = espbTphList.map { it.tphId }.toSet()
                         AppLogger.d("ESPB TPH IDs to be checked: $espbTphIds")
 
                         // Merge the lists: combine available TPH with ESPB TPH
-                        val mergedTphList =
-                            mergeTPHLists(availableTphList, espbTphList, espbTphIds)
+                        val mergedTphList = mergeTPHLists(availableTphList, espbTphList, espbTphIds)
 
                         AppLogger.d("Final merged list: ${mergedTphList.size} items")
                         mergedTphList.forEachIndexed { index, item ->

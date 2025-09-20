@@ -1213,11 +1213,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    }else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         // Skip restan data for askep and manager users since they can have multiple afdelings
                         if (
                             request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
-                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager) {
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager
+                        ) {
 
                             response = restanRepository.getDataRestan(
                                 request.estate.toString().toInt(),
@@ -1235,7 +1236,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             incrementCompletedCount()
                             continue // Skip to next item
                         }
-                    }else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
                         response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
@@ -1373,8 +1374,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         incrementCompletedCount()
                         continue // Skip the normal response processing since we handled everything here
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         AppLogger.d("Starting TPH regional download for ${request.estateAbbr}")
 
                         // Get all estates first
@@ -1855,8 +1855,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tempFile.delete()
                                 extractDir.deleteRecursively()
                             }
-                        }
-                        else if (contentType?.contains("application/json") == true) {
+                        } else if (contentType?.contains("application/json") == true) {
 
                             AppLogger.d("tipe json bro ")
                             handleJsonResponse(
@@ -3056,11 +3055,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     } else {
                                                         existingRecord.jenis_panen
                                                     },
-                                                    asistensi = if (existingRecord.asistensi == 0 && panen.asistensi != 0) {
-                                                        panen.asistensi
-                                                    } else {
-                                                        existingRecord.asistensi
-                                                    },
+                                                    asistensi = panen.asistensi,
                                                     ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
                                                         panen.ancak
                                                     } else {
@@ -3313,8 +3308,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val trackingPath = item.optString("tracking_path", "")
 
                                         // NEW: Parse the 4 pemuat fields
-                                        val kemandoranPproPemuat = item.optString("kemandoran_ppro_pemuat", "")
-                                        val kemandoranNamaPemuat = item.optString("kemandoran_nama_pemuat", "")
+                                        val kemandoranPproPemuat =
+                                            item.optString("kemandoran_ppro_pemuat", "")
+                                        val kemandoranNamaPemuat =
+                                            item.optString("kemandoran_nama_pemuat", "")
                                         val nikPemuat = item.optString("nik_pemuat", "")
                                         val namaPemuat = item.optString("nama_pemuat", "")
 
@@ -3442,7 +3439,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                         if (existingRecord == null) {
                                             // Record doesn't exist -> INSERT new inspection
-                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
+                                            val result =
+                                                inspectionDao.insertWithTransaction(inspectionEntity)
                                             if (result.isSuccess) {
                                                 // Get the newly inserted ID
                                                 localInspectionId =
@@ -4344,11 +4342,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         // Skip restan data for askep and manager users since they can have multiple afdelings
                         if (request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
-                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager) {
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager
+                        ) {
                             response = restanRepository.getDataRestan(
                                 request.estate as Int,
                                 request.afdeling.toString()
@@ -4378,8 +4376,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             true,
                             parameterDao
                         )
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
                         AppLogger.d("masuk sini gess")
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
@@ -4439,8 +4436,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         _downloadStatuses.postValue(results.toMap())
                         return@forEach
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
 
                         val estatesResult = repository.getAllEstates()
 
@@ -4744,8 +4740,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     results[request.dataset] =
                                         Resource.Error("ZIP response body is null")
                                 }
-                            }
-                            else if (contentType?.contains("application/json") == true) {
+                            } else if (contentType?.contains("application/json") == true) {
                                 Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =
                                     response.body()?.string() ?: "Empty Response"
@@ -4794,55 +4789,118 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         val item = dataArray.getJSONObject(i)
 
                                                         try {
-                                                            val idPanen = item.optString("id_panen", "0")
+                                                            val idPanen =
+                                                                item.optString("id_panen", "0")
                                                             val tphId = item.optInt("tph", 0)
-                                                            val tglInspeksi = item.optString("tgl_inspeksi", "")
-                                                            val tglPanen = item.optString("tgl_panen", "")
-                                                            val jjgPanen = item.optInt("jjg_panen", 0)
-                                                            val jalurMasuk = item.optString("rute_masuk", "")
-                                                            val jenisInspeksi = item.optInt("jenis_inspeksi", 0)
+                                                            val tglInspeksi =
+                                                                item.optString("tgl_inspeksi", "")
+                                                            val tglPanen =
+                                                                item.optString("tgl_panen", "")
+                                                            val jjgPanen =
+                                                                item.optInt("jjg_panen", 0)
+                                                            val jalurMasuk =
+                                                                item.optString("rute_masuk", "")
+                                                            val jenisInspeksi =
+                                                                item.optInt("jenis_inspeksi", 0)
                                                             val baris = item.optString("baris", "")
-                                                            val jmlPokokInspeksi = item.optInt("jml_pokok_inspeksi", 0)
-                                                            val createdName = item.optString("created_name", "")
-                                                            val app_version = item.optString("app_version", "")
-                                                            val createdBy = item.optInt("created_by", 0)
-                                                            val trackingPath = item.optString("tracking_path", "")
+                                                            val jmlPokokInspeksi =
+                                                                item.optInt("jml_pokok_inspeksi", 0)
+                                                            val createdName =
+                                                                item.optString("created_name", "")
+                                                            val app_version =
+                                                                item.optString("app_version", "")
+                                                            val createdBy =
+                                                                item.optInt("created_by", 0)
+                                                            val trackingPath =
+                                                                item.optString("tracking_path", "")
 
                                                             // NEW: Parse the 4 pemuat fields for follow-up inspection
-                                                            val kemandoranPproPemuat = item.optString("kemandoran_ppro_pemuat", "")
-                                                            val kemandoranNamaPemuat = item.optString("kemandoran_nama_pemuat", "")
-                                                            val nikPemuat = item.optString("nik_pemuat", "")
-                                                            val namaPemuat = item.optString("nama_pemuat", "")
+                                                            val kemandoranPproPemuat =
+                                                                item.optString(
+                                                                    "kemandoran_ppro_pemuat",
+                                                                    ""
+                                                                )
+                                                            val kemandoranNamaPemuat =
+                                                                item.optString(
+                                                                    "kemandoran_nama_pemuat",
+                                                                    ""
+                                                                )
+                                                            val nikPemuat =
+                                                                item.optString("nik_pemuat", "")
+                                                            val namaPemuat =
+                                                                item.optString("nama_pemuat", "")
 
                                                             // Handle nullable fields
                                                             val dept =
-                                                                if (item.has("dept") && !item.isNull("dept")) item.optInt("dept") else null
+                                                                if (item.has("dept") && !item.isNull(
+                                                                        "dept"
+                                                                    )
+                                                                ) item.optInt("dept") else null
                                                             val deptPpro =
-                                                                if (item.has("dept_ppro") && !item.isNull("dept_ppro")) item.optInt("dept_ppro") else null
+                                                                if (item.has("dept_ppro") && !item.isNull(
+                                                                        "dept_ppro"
+                                                                    )
+                                                                ) item.optInt("dept_ppro") else null
                                                             val deptAbbr =
-                                                                if (item.has("dept_abbr") && !item.isNull("dept_abbr")) item.optString("dept_abbr") else null
+                                                                if (item.has("dept_abbr") && !item.isNull(
+                                                                        "dept_abbr"
+                                                                    )
+                                                                ) item.optString("dept_abbr") else null
                                                             val deptNama =
-                                                                if (item.has("dept_nama") && !item.isNull("dept_nama")) item.optString("dept_nama") else null
+                                                                if (item.has("dept_nama") && !item.isNull(
+                                                                        "dept_nama"
+                                                                    )
+                                                                ) item.optString("dept_nama") else null
                                                             val divisi =
-                                                                if (item.has("divisi") && !item.isNull("divisi")) item.optInt("divisi") else null
+                                                                if (item.has("divisi") && !item.isNull(
+                                                                        "divisi"
+                                                                    )
+                                                                ) item.optInt("divisi") else null
                                                             val divisiPpro =
-                                                                if (item.has("divisi_ppro") && !item.isNull("divisi_ppro")) item.optInt("divisi_ppro") else null
+                                                                if (item.has("divisi_ppro") && !item.isNull(
+                                                                        "divisi_ppro"
+                                                                    )
+                                                                ) item.optInt("divisi_ppro") else null
                                                             val divisiAbbr =
-                                                                if (item.has("divisi_abbr") && !item.isNull("divisi_abbr")) item.optString("divisi_abbr") else null
+                                                                if (item.has("divisi_abbr") && !item.isNull(
+                                                                        "divisi_abbr"
+                                                                    )
+                                                                ) item.optString("divisi_abbr") else null
                                                             val divisiNama =
-                                                                if (item.has("divisi_nama") && !item.isNull("divisi_nama")) item.optString("divisi_nama") else null
+                                                                if (item.has("divisi_nama") && !item.isNull(
+                                                                        "divisi_nama"
+                                                                    )
+                                                                ) item.optString("divisi_nama") else null
                                                             val blok =
-                                                                if (item.has("blok") && !item.isNull("blok")) item.optInt("blok") else null
+                                                                if (item.has("blok") && !item.isNull(
+                                                                        "blok"
+                                                                    )
+                                                                ) item.optInt("blok") else null
                                                             val blokPpro =
-                                                                if (item.has("blok_ppro") && !item.isNull("blok_ppro")) item.optInt("blok_ppro") else null
+                                                                if (item.has("blok_ppro") && !item.isNull(
+                                                                        "blok_ppro"
+                                                                    )
+                                                                ) item.optInt("blok_ppro") else null
                                                             val blokKode =
-                                                                if (item.has("blok_kode") && !item.isNull("blok_kode")) item.optString("blok_kode") else null
+                                                                if (item.has("blok_kode") && !item.isNull(
+                                                                        "blok_kode"
+                                                                    )
+                                                                ) item.optString("blok_kode") else null
                                                             val blokNama =
-                                                                if (item.has("blok_nama") && !item.isNull("blok_nama")) item.optString("blok_nama") else null
+                                                                if (item.has("blok_nama") && !item.isNull(
+                                                                        "blok_nama"
+                                                                    )
+                                                                ) item.optString("blok_nama") else null
                                                             val tphNomor =
-                                                                if (item.has("tph_nomor") && !item.isNull("tph_nomor")) item.optInt("tph_nomor") else null
+                                                                if (item.has("tph_nomor") && !item.isNull(
+                                                                        "tph_nomor"
+                                                                    )
+                                                                ) item.optInt("tph_nomor") else null
                                                             val ancak =
-                                                                if (item.has("ancak") && !item.isNull("ancak")) item.optString("ancak") else null
+                                                                if (item.has("ancak") && !item.isNull(
+                                                                        "ancak"
+                                                                    )
+                                                                ) item.optString("ancak") else null
 
                                                             // Create InspectionModel with new pemuat fields
                                                             val inspectionEntity = InspectionModel(
@@ -4887,7 +4945,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             )
 
                                                             // Check if inspection has details - if not, skip the entire inspection
-                                                            val inspectionDetails = item.optJSONArray("InspeksiDetails")
+                                                            val inspectionDetails =
+                                                                item.optJSONArray("InspeksiDetails")
 
                                                             if (inspectionDetails == null || inspectionDetails.length() == 0) {
                                                                 AppLogger.d("Skipping inspection TPH=${inspectionEntity.tph_id} - no details found")
@@ -4896,16 +4955,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
 
                                                             // Direct insert without checking if record exists
-                                                            val result = inspectionDao.insertWithTransaction(inspectionEntity)
+                                                            val result =
+                                                                inspectionDao.insertWithTransaction(
+                                                                    inspectionEntity
+                                                                )
                                                             if (result.isSuccess) {
                                                                 // Get the newly inserted ID
-                                                                val localInspectionId = inspectionDao.getInspectionByBusinessKey(
-                                                                    inspectionEntity.tph_id,
-                                                                    inspectionEntity.created_date,
-                                                                    inspectionEntity.dept ?: 0,
-                                                                    inspectionEntity.divisi ?: 0,
-                                                                    1
-                                                                )?.id ?: 0
+                                                                val localInspectionId =
+                                                                    inspectionDao.getInspectionByBusinessKey(
+                                                                        inspectionEntity.tph_id,
+                                                                        inspectionEntity.created_date,
+                                                                        inspectionEntity.dept ?: 0,
+                                                                        inspectionEntity.divisi
+                                                                            ?: 0,
+                                                                        1
+                                                                    )?.id ?: 0
 
                                                                 successCount++
 
@@ -4969,8 +5033,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                                } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())
@@ -5004,7 +5067,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val jenis_panen = item.optInt("tipe", 0)
                                                 val jjgKirim = item.optInt("jjg_kirim", 0)
                                                 val spb_kode = item.optString("spb_kode", "").let {
-                                                    if (it.equals("null", ignoreCase = true)) "" else it
+                                                    if (it.equals(
+                                                            "null",
+                                                            ignoreCase = true
+                                                        )
+                                                    ) "" else it
                                                 }
                                                 val status_espb = item.optInt("status_espb", 0)
                                                 val jjgJson = "{\"KP\": $jjgKirim}"
@@ -5201,8 +5268,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing panen data: ${e.message}")
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                                     AppLogger.d("Processing settingJSON dataset")
 
                                     if (responseBodyString.isBlank()) {
@@ -5282,8 +5348,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
 
                                     AppLogger.d("Finished processing settingJSON dataset")
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
+                                } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                                     if (responseBodyString.isBlank()) {
                                         AppLogger.e("Received empty JSON response for app version")
                                         results[request.dataset] =
@@ -5336,8 +5401,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             Resource.Error("Error parsing JSON: ${e.message}")
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                                } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                                     try {
                                         // Use your existing parseParameter function
                                         val parameterList = parseParameter(responseBodyString)
@@ -5383,8 +5447,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.mill) {
+                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
                                         fun <T> parseMillJsonToList(
@@ -5439,8 +5502,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.estate) {
+                                } else if (request.dataset == AppUtils.DatasetNames.estate) {
                                     try {
                                         // Define the lists outside the function
                                         val estateList = mutableListOf<EstateModel>()
