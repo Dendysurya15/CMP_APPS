@@ -484,8 +484,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 200F
-        boundaryAccuracy = 200F
+        radiusMinimum = prefManager!!.radiusMinimum
+        boundaryAccuracy = prefManager!!.radiusMinimum
 
         initViewModel()
         initUI()

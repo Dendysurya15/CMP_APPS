@@ -2709,7 +2709,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val asistensiMatch = panenAsistensi == 2
                 val included = afdelingMatch || asistensiMatch
 
-                AppLogger.d("Active TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+//                AppLogger.d("Active TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
 
                 included
             }
@@ -2731,7 +2731,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val asistensiMatch = panenAsistensi == 2
                 val included = afdelingMatch || asistensiMatch
 
-                AppLogger.d("Archived TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+//                AppLogger.d("Archived TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
 
                 included
             }
@@ -2753,7 +2753,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val asistensiMatch = panenAsistensi == 2
                 val included = afdelingMatch || asistensiMatch
 
-                AppLogger.d("ESPB TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+//                AppLogger.d("ESPB TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
 
                 included
             }

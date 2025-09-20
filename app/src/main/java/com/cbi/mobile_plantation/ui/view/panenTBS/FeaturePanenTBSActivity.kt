@@ -1156,8 +1156,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             createdName = userName!!)
                                     }else{
 
-                                        AppLogger.d("test $asistensi")
-                                        AppLogger.d("asistensi $asistensi")
                                         panenViewModel.saveDataPanen(
                                             tph_id = tph_id,
                                             date_created = date_created,
@@ -3809,15 +3807,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 layoutPemanenLain.visibility = View.VISIBLE
 
                 asistensi = 2
+                AppLogger.d("di hidupkan asistensi $asistensi")
             } else {
                 // Hide layouts when switch is OFF
                 asistensi = 1
                 selectedPemanenLainAdapter.clearAllWorkers()
                 layoutKemandoranLain.visibility = View.GONE
                 layoutPemanenLain.visibility = View.GONE
-
+                AppLogger.d("di matikan asistensi $asistensi")
             }
         }
+
+        AppLogger.d("asistensi $asistensi")
     }
 
     private fun validateAndShowErrors(): Boolean {

@@ -2984,7 +2984,7 @@ class HomePageActivity : AppCompatActivity() {
                                 "nomor_pemanen" to (panenWithRelations.panen?.nomor_pemanen
                                     ?: ""),
                                 "ancak" to panenWithRelations.panen.ancak,
-                                "asistensi" to if ((panenWithRelations.panen.asistensi as? Int) == 0) 1 else 2,
+                                "asistensi" to panenWithRelations.panen.asistensi,
                                 "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
                                 "karyawan_id" to panenWithRelations.panen.karyawan_id,
                                 "karyawan_nik" to panenWithRelations.panen.karyawan_nik,
@@ -3042,24 +3042,24 @@ class HomePageActivity : AppCompatActivity() {
                                 } else {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
-//                                AppUtils.clearTempJsonFiles(this@HomePageActivity)
-//                                try {
-//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                        if (!exists()) mkdirs()
-//                                    }
-//
-//                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
-//                                    val tempFile = File(tempDir, filename)
-//
-//                                    FileOutputStream(tempFile).use { fos ->
-//                                        fos.write(batchJson.toByteArray())
-//                                    }
-//
-//                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                                } catch (e: Exception) {
-//                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                    e.printStackTrace()
-//                                }
+                                AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                                try {
+                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
+
+                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
+                                    val tempFile = File(tempDir, filename)
+
+                                    FileOutputStream(tempFile).use { fos ->
+                                        fos.write(batchJson.toByteArray())
+                                    }
+
+                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+                                    e.printStackTrace()
+                                }
 
 
                                 panenBatchMap[batchKey] = mapOf(

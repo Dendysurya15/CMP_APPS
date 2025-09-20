@@ -5074,8 +5074,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 allKaryawanNikLists.add(karyawanNikList.toList())
 
 
-                                                AppLogger.d("fj d")
-                                                AppLogger.d("spb_kode $spb_kode")
                                                 // Create entity with empty karyawan_id (will be filled after bulk lookup)
                                                 val panenEntity = PanenEntity(
                                                     id = idPanen,
