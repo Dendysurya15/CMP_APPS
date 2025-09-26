@@ -305,10 +305,11 @@ class FormAncakViewModel : ViewModel() {
                 AppLogger.d("VALIDATION FAILED: harvestTree == 0")
             }
 
-            // NEW VALIDATION: If harvestTree == 1, then harvestJjg must not be 0
-            if (data?.harvestTree == 1 && data?.harvestJjg == 1) {
-                errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg == 0")
+            if (data?.harvestTree == 1) {
+                if (data?.harvestJjg == null || data?.harvestJjg <= 0) {
+                    errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi dan tidak boleh 0!"
+                    AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg is invalid: ${data?.harvestJjg}")
+                }
             }
 
             if (data?.neatPelepah == 0) {

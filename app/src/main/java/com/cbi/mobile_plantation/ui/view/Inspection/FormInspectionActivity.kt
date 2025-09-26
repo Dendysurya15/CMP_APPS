@@ -484,8 +484,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = prefManager!!.radiusMinimum
-        boundaryAccuracy = prefManager!!.radiusMinimum
+        radiusMinimum = 5000F
+        boundaryAccuracy = 5000F
 
         initViewModel()
         initUI()
@@ -2295,6 +2295,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         isForSelfie: Boolean? = null,
         isForFollowUp: Boolean? = null
     ) {
+        headerFormInspection.visibility = View.VISIBLE
         isBottomSheetOpen = true
         val currentPage = formAncakViewModel.currentPage.value ?: 1
         val currentData =
@@ -2442,6 +2443,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         ibDeletePhotoInspect.visibility = View.GONE
 
         val performDeleteAction = {
+            // Show loading dialog while deleting
+            loadingDialog.show()
+            loadingDialog.setMessage("Menghapus foto...")
+
             ibDeletePhotoInspect.visibility = View.GONE
             ivAddPhoto.setImageResource(R.drawable.baseline_add_a_photo_24)
             etPhotoComment.setText("")
@@ -2489,10 +2494,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             showWithAnimation(fabPrevFormAncak)
             showWithAnimation(fabNextFormAncak)
             bottomSheetDialog.dismiss()
+
+            // Wait a bit for delete operations, then dismiss loading and reopen bottom sheet
             Handler(Looper.getMainLooper()).postDelayed({
+                loadingDialog.dismiss()
                 showViewPhotoBottomSheet(null, isInTPH, isForSelfie, isForFollowUp)
-            }, 100)
+            }, 800)
         }
+
 
         when {
             isInTPH == true && isForFollowUp == true -> {
@@ -5971,7 +5980,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                 descPemanenInspeksi.text =
                     Html.fromHtml(descriptionText, Html.FROM_HTML_MODE_COMPACT)
 
-                // NOW POPULATE THE SPINNER with all available workers
                 populatePemanenSpinner(allAvailableWorkers)
                 setupManualPemanenSpinner()
 
@@ -6100,31 +6108,83 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun populatePemanenSpinner(availableWorkers: List<Worker>) {
-        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+        val lyPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
 
-        // Always show spinner once TPH is selected, regardless of worker count
-        lyPemanen.visibility = View.VISIBLE
+        // Always show spinner if there are workers available
+        if (availableWorkers.isNotEmpty()) {
+            lyPemanenOtomatis.visibility = View.VISIBLE
 
-        // Sort workers by name alphabetically (extract name part after first " - ")
-        val sortedWorkers = availableWorkers.sortedBy { worker ->
-            val dashIndex = worker.name.indexOf(" - ")
-            if (dashIndex != -1) {
-                worker.name.substring(dashIndex + 3).trim() // Sort by name part
-            } else {
-                worker.name // Fallback to full string
+            // Sort workers by name alphabetically (extract name part after first " - ")
+            val sortedWorkers = availableWorkers.sortedBy { worker ->
+                val dashIndex = worker.name.indexOf(" - ")
+                if (dashIndex != -1) {
+                    worker.name.substring(dashIndex + 3).trim() // Sort by name part
+                } else {
+                    worker.name // Fallback to full string
+                }
             }
-        }
 
-        // Create list of worker names for spinner
-        val workerNames = sortedWorkers.map { it.name }
+            // Create list of worker names for spinner
+            val workerNames = sortedWorkers.map { it.name }
 
-        // Setup spinner with available workers (even if empty)
-        setupSpinnerView(lyPemanen, workerNames)
+            // Setup spinner with available workers
+            setupSpinnerView(lyPemanenOtomatis, workerNames)
 
-        if (availableWorkers.isEmpty()) {
-            AppLogger.d("All workers have been selected - spinner shows empty")
+            // AUTO-SELECT ALL WORKERS (NEW FUNCTIONALITY)
+            AppLogger.d("Auto-selecting all ${sortedWorkers.size} workers for automatic pemanen")
+
+            sortedWorkers.forEach { worker ->
+                val selectedItem = worker.name
+
+                AppLogger.d("Auto-selecting worker: $selectedItem")
+
+                // Find the selected worker from automatic available list
+                val selectedWorker = allAvailableKaryawanList.find { karyawan ->
+                    val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                    formattedName == selectedItem
+                }
+
+                AppLogger.d("Found auto-selected worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
+
+                if (selectedWorker != null) {
+                    // Check if worker already exists in selectedKaryawanList
+                    val isDuplicate = selectedKaryawanList.any { existing ->
+                        existing.nik == selectedWorker.nik && existing.nama == selectedWorker.nama
+                    }
+
+                    if (isDuplicate) {
+                        AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
+                        return@forEach // Skip this worker and continue with next
+                    }
+
+                    // Add to AUTOMATIC RecyclerView
+                    val workerForAdapter = Worker(selectedWorker.individualId, selectedItem)
+                    selectedPemanenAdapter.addWorker(workerForAdapter)
+
+                    // Add to selectedKaryawanList
+                    val originalSize = selectedKaryawanList.size
+                    selectedKaryawanList = selectedKaryawanList + selectedWorker
+
+                    AppLogger.d("Auto-added worker to selectedKaryawanList. Size changed from $originalSize to ${selectedKaryawanList.size}")
+                    AppLogger.d("Auto-added worker to RecyclerView: ${selectedWorker.nama} (NIK: ${selectedWorker.nik})")
+                } else {
+                    AppLogger.e("Could not find auto-selected worker: $selectedItem")
+                }
+            }
+
+            // Show automatic RecyclerView since we've added workers
+            val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+            rvSelectedPemanenOtomatis.visibility = View.VISIBLE
+
+            // Update automatic spinner after adding all workers
+            AppLogger.d("Calling updatePemanenSpinnerAfterRemoval after auto-selecting all workers...")
+            updatePemanenSpinnerAfterRemoval()
+
+            AppLogger.d("Auto-selection completed. Total workers in RecyclerView: ${selectedKaryawanList.size}")
+
         } else {
-            AppLogger.d("Spinner populated with ${workerNames.size} workers (sorted alphabetically)")
+            lyPemanenOtomatis.visibility = View.GONE
+            AppLogger.d("No automatic workers available for spinner")
         }
     }
 
@@ -6454,7 +6514,16 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             AppLogger.d("Processing ${coordinates.size} TPH coordinates")
 
+            var itemCount = 0
+            val maxItems = 10 // Limit to 10 items
+
             for ((id, location) in coordinates) {
+                // Break if we've already processed 10 items
+                if (itemCount >= maxItems) {
+                    AppLogger.d("Reached maximum items limit ($maxItems), stopping processing")
+                    break
+                }
+
                 try {
                     AppLogger.d("Processing TPH ID: $id")
 
@@ -6480,7 +6549,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     AppLogger.d("TPH $id - jenisTPHId: $jenisTPHId, lat: ${location.lat}, lon: ${location.lon}")
 
-                    // Calculate distance
+                    // COMMENTED OUT: Calculate distance
+                    /*
                     val results = FloatArray(1)
                     try {
                         android.location.Location.distanceBetween(
@@ -6503,6 +6573,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                         AppLogger.w("Invalid distance calculated for TPH $id: $distance")
                         continue
                     }
+                    */
+
+                    // Use a mock distance value for testing
+                    val distance = 100.0f // Mock distance value
+                    AppLogger.d("TPH $id - using mock distance: $distance")
 
                     // Get clean block code
                     val cleanBlockCode = try {
@@ -6512,44 +6587,45 @@ open class FormInspectionActivity : AppCompatActivity(),
                         ""
                     }
 
-                    // Check if TPH is within radius
-                    if (distance <= radiusMinimum) {
-                        try {
-                            // Validate jmlPokokHa
-                            val jmlPokokHa = try {
-                                location.jmlPokokHa ?: 0
-                            } catch (e: Exception) {
-                                AppLogger.e("Error getting jmlPokokHa for TPH $id: ${e.message}")
-                                0
-                            }
-
-                            val tphItem = ScannedTPHSelectionItem(
-                                id = id,
-                                number = location.nomor ?: "",
-                                blockCode = cleanBlockCode,
-                                divisiCode = location.divisiKode ?: "",
-                                deptCode = location.deptKode ?: "",
-                                distance = distance,
-                                jml_pokok_ha = jmlPokokHa,
-                                isAlreadySelected = false,
-                                selectionCount = 0,
-                                canBeSelectedAgain = true,
-                                isWithinRange = distance <= radiusMinimum,
-                                jenisTPHId = jenisTPHId.toString(),
-                                customLimit = "0"
-                            )
-
-                            regularTPHs.add(tphItem)
-                            AppLogger.d("Successfully added regular TPH: $id with distance: $distance")
-
+                    // COMMENTED OUT: Check if TPH is within radius (now we just add all items up to the limit)
+                    // if (distance <= radiusMinimum) {
+                    try {
+                        // Validate jmlPokokHa
+                        val jmlPokokHa = try {
+                            location.jmlPokokHa ?: 0
                         } catch (e: Exception) {
-                            AppLogger.e("Error creating ScannedTPHSelectionItem for TPH $id: ${e.message}")
-                            AppLogger.e("Location data - nomor: ${location.nomor}, divisiKode: ${location.divisiKode}, deptKode: ${location.deptKode}")
-                            continue
+                            AppLogger.e("Error getting jmlPokokHa for TPH $id: ${e.message}")
+                            0
                         }
-                    } else {
-                        AppLogger.d("TPH $id outside radius - distance: $distance > $radiusMinimum")
+
+                        val tphItem = ScannedTPHSelectionItem(
+                            id = id,
+                            number = location.nomor ?: "",
+                            blockCode = cleanBlockCode,
+                            divisiCode = location.divisiKode ?: "",
+                            deptCode = location.deptKode ?: "",
+                            distance = distance,
+                            jml_pokok_ha = jmlPokokHa,
+                            isAlreadySelected = false,
+                            selectionCount = 0,
+                            canBeSelectedAgain = true,
+                            isWithinRange = true, // Always true since we're not checking radius
+                            jenisTPHId = jenisTPHId.toString(),
+                            customLimit = "0"
+                        )
+
+                        regularTPHs.add(tphItem)
+                        itemCount++
+                        AppLogger.d("Successfully added regular TPH: $id with mock distance: $distance (item $itemCount/$maxItems)")
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating ScannedTPHSelectionItem for TPH $id: ${e.message}")
+                        AppLogger.e("Location data - nomor: ${location.nomor}, divisiKode: ${location.divisiKode}, deptKode: ${location.deptKode}")
+                        continue
                     }
+                    // } else {
+                    //     AppLogger.d("TPH $id outside radius - distance: $distance > $radiusMinimum")
+                    // }
 
                 } catch (e: Exception) {
                     AppLogger.e("Error processing TPH $id: ${e.message}")
@@ -6558,15 +6634,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
-            AppLogger.d("Processed all TPHs. Regular TPHs found: ${regularTPHs.size}")
+            AppLogger.d("Processed TPHs. Regular TPHs found: ${regularTPHs.size} (limited to $maxItems)")
 
-            // Sort regular TPHs by distance
+            // COMMENTED OUT: Sort regular TPHs by distance (since we're using mock distances)
+            /*
             try {
                 regularTPHs.sortBy { it.distance }
                 AppLogger.d("Successfully sorted TPHs by distance")
             } catch (e: Exception) {
                 AppLogger.e("Error sorting TPHs: ${e.message}")
             }
+            */
 
             // Add regular TPHs (only if scan button was triggered)
             if (isTriggeredBtnScanned) {
@@ -7972,6 +8050,13 @@ open class FormInspectionActivity : AppCompatActivity(),
             shouldReopenBottomSheet = false
             isCameraViewOpen = false  // Reset camera state
 
+            // Show loading dialog while processing photo
+            loadingDialog.show()
+            loadingDialog.setMessage("Memproses foto...")
+
+            // Ensure header is visible after photo taken
+            headerFormInspection.visibility = View.VISIBLE
+
             // Only show bottom nav if keyboard is not currently open
             if (!keyboardOpenedWhileBottomSheetVisible) {
                 showWithAnimation(bottomNavInspect)
@@ -7983,27 +8068,26 @@ open class FormInspectionActivity : AppCompatActivity(),
             val currentData =
                 formAncakViewModel.getPageData(currentPage) ?: FormAncakViewModel.PageData()
 
+            AppLogger.d("Photo taken: $fname, File exists: ${photoFile.exists()}, File size: ${photoFile.length()}")
 
             when {
                 isForSelfie -> {
-                    AppLogger.d("selfie")
+                    AppLogger.d("Saving selfie photo: $fname")
                     photoSelfie = fname
                 }
 
                 isInTPH && isForFollowUp -> {
-                    AppLogger.d("in tph and follow up")
+                    AppLogger.d("Saving TPH follow-up photo: $fname")
                     photoTPHFollowUp = fname
                 }
 
-
                 isInTPH -> {
-                    AppLogger.d("isInTPH ....")
+                    AppLogger.d("Saving TPH photo: $fname")
                     photoInTPH = fname
                 }
 
                 isForFollowUp -> {
-
-                    AppLogger.d("is for follow up ")
+                    AppLogger.d("Saving follow-up photo: $fname")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(
@@ -8014,6 +8098,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
 
                 else -> {
+                    AppLogger.d("Saving regular photo: $fname")
                     formAncakViewModel.savePageData(
                         currentPage,
                         currentData.copy(photo = fname)
@@ -8024,12 +8109,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             updatePhotoBadgeVisibility()
             updateSelfiePhotoBadgeVisibility()
 
+            // Wait longer for file operations to complete, then dismiss loading and show bottom sheet
             Handler(Looper.getMainLooper()).postDelayed({
+                loadingDialog.dismiss()
                 showViewPhotoBottomSheet(fname, isInTPH, isForSelfie, isForFollowUp)
+
+                // Reset flags
                 isForSelfie = false
                 isInTPH = false
                 isForFollowUp = false
-            }, 100)
+            }, 800) // Increased delay to ensure file is fully processed
         }
     }
 }
