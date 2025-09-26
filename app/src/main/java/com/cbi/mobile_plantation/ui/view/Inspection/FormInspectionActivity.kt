@@ -919,7 +919,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 .setIcon(R.drawable.ic_home_black_24dp)
             menu.add(0, R.id.navMenuAncakInspect, 1, "P. Ancak")
                 .setIcon(R.drawable.baseline_grain_24)
-            menu.add(0, R.id.navMenuSummaryInspect, 2, "Summary")
+            menu.add(0, R.id.navMenuSummaryInspect, 2, "Ringkasan")
                 .setIcon(R.drawable.list_solid)
         } else {
             // Pokok mode: P. Ancak -> Info Blok -> Summary
@@ -927,7 +927,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 .setIcon(R.drawable.baseline_grain_24)
             menu.add(0, R.id.navMenuBlokInspect, 1, "Info. Blok")
                 .setIcon(R.drawable.ic_home_black_24dp)
-            menu.add(0, R.id.navMenuSummaryInspect, 2, "Summary")
+            menu.add(0, R.id.navMenuSummaryInspect, 2, "Ringkasan")
                 .setIcon(R.drawable.list_solid)
         }
     }
@@ -3853,9 +3853,17 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         totalHarvestTree = (1..totalPages).sumOf { pageNumber ->
-            formData[pageNumber]?.harvestJjg ?: 0
-        }
+            val pageData = formData[pageNumber]
+            val harvestTree = pageData?.harvestTree ?: 0
+            val harvestJjg = pageData?.harvestJjg ?: 0
 
+            // Only count harvestJjg if harvestTree is 1 (tree was actually harvested)
+            if (harvestTree == 1) {
+                harvestJjg
+            } else {
+                0 // Don't count if tree wasn't harvested
+            }
+        }
         // Get container for dynamic cards
         val containerTemuanCards = findViewById<LinearLayout>(R.id.containerTemuanCards)
         containerTemuanCards.removeAllViews()

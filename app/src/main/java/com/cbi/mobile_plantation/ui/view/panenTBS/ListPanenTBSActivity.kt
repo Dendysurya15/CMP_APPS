@@ -4189,7 +4189,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         "MENTAH": ${mutuBuah.jjgMentah},
         "LEWAT_MASAK": ${mutuBuah.jjgLewatMasak},
         "KOSONG": ${mutuBuah.jjgKosong},
-        "ABNORMAL": ${mutuBuah.jjgAbnormal},sdf
+        "ABNORMAL": ${mutuBuah.jjgAbnormal},
         "SERANGAN_TIKUS": ${mutuBuah.jjgSeranganTikus},
         "PANJANG": ${mutuBuah.jjgPanjang},
         "TIDAK_VCUT": ${mutuBuah.jjgTidakVcut},
