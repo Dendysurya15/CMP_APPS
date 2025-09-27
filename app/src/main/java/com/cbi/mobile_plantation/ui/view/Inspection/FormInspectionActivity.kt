@@ -42,6 +42,7 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
@@ -3990,24 +3991,25 @@ open class FormInspectionActivity : AppCompatActivity(),
     // Updated Bottom sheet function with height control and disabled drag-to-dismiss
     private fun showDetailBottomSheet(temuanType: String) {
         val bottomSheetDialog = BottomSheetDialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.layout_detail_inspeksi, null)
+        val view = LayoutInflater.from(this).inflate(R.layout.layout_bottom_sheet_detail_mutu_buah, null)
 
-        val tvTitle = view.findViewById<TextView>(R.id.tvDetailTitle)
-        val ivImage = view.findViewById<ImageView>(R.id.ivDetailImage)
-        val llContainer = view.findViewById<LinearLayout>(R.id.llDetailContainer)
-        val btnClose = view.findViewById<MaterialButton>(R.id.btnCloseDetail)
+        val titleDialog = view.findViewById<TextView>(R.id.titleDialogDetailTable)
+        val contentContainer = view.findViewById<LinearLayout>(R.id.contentContainer)
+        val btnClose = view.findViewById<Button>(R.id.btnCloseDetailTable)
 
         // Set title
-        tvTitle.text = "Detail $temuanType"
+        titleDialog.text = "Detail $temuanType"
+
+        // Clear existing content
+        contentContainer.removeAllViews()
 
         // Handle content based on temuan type
         when (temuanType) {
             "Temuan di TPH" -> {
-                setupTPHDetail(ivImage, llContainer, bottomSheetDialog)
+                setupTPHDetailContent(contentContainer, bottomSheetDialog)
             }
-
             "Path / Pokok" -> {
-                setupPathDetail(ivImage, llContainer, bottomSheetDialog)
+                setupPathDetailContent(contentContainer, bottomSheetDialog)
             }
         }
 
@@ -4018,25 +4020,21 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         bottomSheetDialog.setContentView(view)
 
-        // Set bottom sheet height to 80% of screen height and disable drag-to-dismiss
+        // Set bottom sheet height and behavior
         bottomSheetDialog.setOnShowListener { dialog ->
-            val bottomSheet =
-                (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             if (bottomSheet != null) {
                 val screenHeight = resources.displayMetrics.heightPixels
-                var desiredHeight = 0
-                if (temuanType == "Temuan di TPH") {
-                    desiredHeight = (screenHeight * 0.5).toInt()
-                } else {
-                    desiredHeight = (screenHeight * 0.8).toInt()
+                val desiredHeight = when (temuanType) {
+                    "Temuan di TPH" -> (screenHeight * 0.6).toInt()
+                    "Path / Pokok" -> (screenHeight * 0.8).toInt()
+                    else -> (screenHeight * 0.8).toInt()
                 }
-                // 80% of screen height
 
                 val layoutParams = bottomSheet.layoutParams
                 layoutParams.height = desiredHeight
                 bottomSheet.layoutParams = layoutParams
 
-                // Set the view height as well
                 val viewLayoutParams = view.layoutParams ?: ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     desiredHeight
@@ -4044,12 +4042,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                 viewLayoutParams.height = desiredHeight
                 view.layoutParams = viewLayoutParams
 
-                // Disable dragging to prevent accidental dismiss
                 val behavior = BottomSheetBehavior.from(bottomSheet)
-                behavior.isDraggable = false // Disable drag to dismiss
+                behavior.isDraggable = false
                 behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                behavior.isHideable = false // Prevent hiding
+                behavior.skipCollapsed = true // Skip collapsed state
 
-                // Disable swipe to dismiss
+                // IMPORTANT: Set peek height to prevent scrolling issues
+                behavior.peekHeight = desiredHeight
+
                 bottomSheetDialog.setCancelable(false)
                 bottomSheetDialog.setCanceledOnTouchOutside(false)
             }
@@ -4059,68 +4060,232 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
 
-    // Updated setupTPHDetail - DON'T dismiss bottom sheet, just hide it temporarily
-    private fun setupTPHDetail(
-        imageView: ImageView,
-        container: LinearLayout,
-        bottomSheetDialog: BottomSheetDialog? = null
-    ) {
-        // Show image for TPH
-        if (!photoInTPH.isNullOrEmpty()) {
-            imageView.visibility = View.VISIBLE
+    private fun createPhotoCardForTPH(bottomSheetDialog: BottomSheetDialog): View {
+        val cardView = LayoutInflater.from(this).inflate(R.layout.layout_photo_card_tph, null)
 
-            // Build the correct file path
-            val rootApp = File(
-                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH}"
-            ).toString()
+        val imageView = cardView.findViewById<ImageView>(R.id.ivTPHPhoto)
+        val photoTitle = cardView.findViewById<TextView>(R.id.tvPhotoTitle)
+        val commentTitle = cardView.findViewById<TextView>(R.id.tvCommentTitle)
+        val commentText = cardView.findViewById<TextView>(R.id.tvCommentText)
 
-            val fullImagePath = File(rootApp, photoInTPH).absolutePath
+        photoTitle.text = "Foto Temuan di TPH"
 
-            AppLogger.d("TPH Photo Details:")
-            AppLogger.d("photoInTPH: $photoInTPH")
-            AppLogger.d("rootApp: $rootApp")
-            AppLogger.d("fullImagePath: $fullImagePath")
+        // Load photo
+        val rootApp = File(
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH}"
+        ).toString()
 
-            val file = File(fullImagePath)
-            AppLogger.d("File exists: ${file.exists()}")
+        val fullImagePath = File(rootApp, photoInTPH).absolutePath
+        val file = File(fullImagePath)
 
-            if (file.exists()) {
-                try {
-                    val bitmap = BitmapFactory.decodeFile(fullImagePath)
-                    if (bitmap != null) {
-                        imageView.setImageBitmap(bitmap)
-                        AppLogger.d("Image loaded successfully")
-
-                        // Add click listener to IMAGE for full screen view
-                        imageView.setOnClickListener {
-                            // Hide bottom sheet temporarily instead of dismissing
-//                            bottomSheetDialog?.hide()
-                            showFullScreenPhoto(
-                                fullImagePath,
-                                "Detail Temuan di TPH",
-                                bottomSheetDialog
-                            )
-                        }
-                    } else {
-                        AppLogger.e("Failed to decode bitmap from file")
-                        imageView.visibility = View.GONE
+        if (file.exists()) {
+            try {
+                val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                if (bitmap != null) {
+                    imageView.setImageBitmap(bitmap)
+                    imageView.setOnClickListener {
+                        showFullScreenPhoto(fullImagePath, "Detail Temuan di TPH", bottomSheetDialog)
                     }
-                } catch (e: Exception) {
-                    AppLogger.e("Error loading image: ${e.message}")
-                    imageView.visibility = View.GONE
                 }
-            } else {
-                AppLogger.e("Image file not found at: $fullImagePath")
-                imageView.visibility = View.GONE
+            } catch (e: Exception) {
+                AppLogger.e("Error loading TPH image: ${e.message}")
+                imageView.setImageResource(R.drawable.baseline_image_not_supported_24)
             }
         } else {
-            AppLogger.d("photoInTPH is null or empty")
-            imageView.visibility = View.GONE
+            imageView.setImageResource(R.drawable.baseline_image_not_supported_24)
         }
 
-        // Hide container for TPH (no additional content needed)
-        container.visibility = View.GONE
+        // Show comment if exists
+        if (!komentarInTPH.isNullOrEmpty()) {
+            commentTitle.visibility = View.VISIBLE
+            commentText.visibility = View.VISIBLE
+            commentTitle.text = "Komentar Temuan TPH"
+            commentText.text = komentarInTPH
+        }
+
+        return cardView
+    }
+
+    private fun createPhotoCardForTPHFollowUp(bottomSheetDialog: BottomSheetDialog): View {
+        val cardView = LayoutInflater.from(this).inflate(R.layout.layout_photo_card_tph, null)
+
+        val imageView = cardView.findViewById<ImageView>(R.id.ivTPHPhoto)
+        val photoTitle = cardView.findViewById<TextView>(R.id.tvPhotoTitle)
+        val commentTitle = cardView.findViewById<TextView>(R.id.tvCommentTitle)
+        val commentText = cardView.findViewById<TextView>(R.id.tvCommentText)
+
+        photoTitle.text = "Foto Pemulihan di TPH"
+
+        // Load follow-up photo
+        val rootApp = File(
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "CMP-${AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH}"
+        ).toString()
+
+        val fullImagePath = File(rootApp, photoTPHFollowUp).absolutePath
+        val file = File(fullImagePath)
+
+        if (file.exists()) {
+            try {
+                val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                if (bitmap != null) {
+                    imageView.setImageBitmap(bitmap)
+                    imageView.setOnClickListener {
+                        showFullScreenPhoto(fullImagePath, "Foto Pemulihan di TPH", bottomSheetDialog)
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("Error loading TPH follow-up image: ${e.message}")
+                imageView.setImageResource(R.drawable.baseline_image_not_supported_24)
+            }
+        } else {
+            imageView.setImageResource(R.drawable.baseline_image_not_supported_24)
+        }
+
+        // Show comment if exists
+        if (!komentarTPHFollowUp.isNullOrEmpty()) {
+            commentTitle.visibility = View.VISIBLE
+            commentText.visibility = View.VISIBLE
+            commentTitle.text = "Komentar Pemulihan TPH"
+            commentText.text = komentarTPHFollowUp
+        }
+
+        return cardView
+    }
+
+    private fun createSummaryRow(title: String, value: String): View {
+        val rowLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 4, 0, 4)
+            }
+            setPadding(16, 8, 16, 8)
+//            background = ContextCompat.getDrawable(this@FormInspectionActivity, R.drawable.summary_row_background)
+        }
+
+        val titleView = TextView(this).apply {
+            text = title
+            textSize = 14f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_medium)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.black))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)
+            gravity = Gravity.START
+        }
+
+        val valueView = TextView(this).apply {
+            text = value
+            textSize = 14f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_semibold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            gravity = Gravity.CENTER
+        }
+
+        rowLayout.addView(titleView)
+        rowLayout.addView(valueView)
+
+        return rowLayout
+    }
+
+
+    private fun setupTPHDetailContent(container: LinearLayout, bottomSheetDialog: BottomSheetDialog) {
+        // Add summary data for TPH first
+        val summaryTitle = TextView(this).apply {
+            text = "Ringkasan Temuan di TPH"
+            textSize = 18f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
+            setPadding(0, 16, 0, 8)
+        }
+        container.addView(summaryTitle)
+
+        // Add TPH summary items
+        val tphSummaryItems = listOf(
+            SummaryItem(AppUtils.kodeInspeksi.brondolanTinggalTPH, jumBrdTglPath.toString()),
+            SummaryItem(AppUtils.kodeInspeksi.buahTinggalTPH, jumBuahTglPath.toString())
+        )
+
+        for (item in tphSummaryItems) {
+            val summaryRow = createSummaryRow(item.title, item.value)
+            container.addView(summaryRow)
+        }
+
+        // Add original TPH photo section (includes comment if exists)
+        if (!photoInTPH.isNullOrEmpty()) {
+            val photoCard = createPhotoCardForTPH(bottomSheetDialog)
+            container.addView(photoCard)
+        }
+
+        // Add dashed line separator if follow-up photo exists
+        if (!photoTPHFollowUp.isNullOrEmpty()) {
+            val dashedLine = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    (10 * resources.displayMetrics.density).toInt()
+                ).apply {
+                    setMargins(0, 16, 0, 16)
+                }
+                background = ContextCompat.getDrawable(this@FormInspectionActivity, R.drawable.dashed_straight_line)
+            }
+            container.addView(dashedLine)
+
+            // Add follow-up photo section (includes comment if exists)
+            val followUpPhotoCard = createPhotoCardForTPHFollowUp(bottomSheetDialog)
+            container.addView(followUpPhotoCard)
+        }
+    }
+
+    private fun setupPathDetailContent(container: LinearLayout, bottomSheetDialog: BottomSheetDialog) {
+        // Add summary section
+        val summaryTitle = TextView(this).apply {
+            text = "Ringkasan Path / Pokok"
+            textSize = 18f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
+            setPadding(0, 16, 0, 8)
+        }
+        container.addView(summaryTitle)
+
+        // Add Path summary items
+        val pathSummaryItems = listOf(
+            SummaryItem("Jumlah Janjang Panen", totalHarvestTree.toString()),
+            SummaryItem("Total Pokok Inspeksi", totalPokokInspection.toString()),
+            // Add other summary items as needed
+        )
+
+        for (item in pathSummaryItems) {
+            val summaryRow = createSummaryRow(item.title, item.value)
+            container.addView(summaryRow)
+        }
+
+        // Add detailed cards for each pokok
+        val detailTitle = TextView(this).apply {
+            text = "Detail Per Pokok"
+            textSize = 18f
+            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
+            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
+            setPadding(0, 24, 0, 8)
+        }
+        container.addView(detailTitle)
+
+        // Get form data and create cards for each page
+        val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+
+        // Filter and sort the form data to show only pages with actual data
+        formData.entries
+            .filter { (pageNumber, pageData) ->
+                // Only show pages that have been visited (emptyTree != 0)
+                pageNumber != 0 && pageData.emptyTree != 0
+            }
+            .sortedBy { it.key } // Sort by page number
+            .forEach { (pageNumber, pageData) ->
+                val pageCard = createPathDetailCard(pageNumber, pageData, bottomSheetDialog)
+                container.addView(pageCard)
+            }
     }
 
     // Updated showFullScreenPhoto - accept bottomSheetDialog to show it back when closing
