@@ -2802,7 +2802,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val baris = currentInspectionData?.inspeksi?.baris ?: ""
                 if (jenisKondisi == 1) "Terasan Baris No:$baris" else "Baris No:$baris"
             } else {
-                if (selectedKondisiValue.toInt() == 1) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+                // Handle empty or null selectedKondisiValue
+                if (selectedKondisiValue.isNullOrEmpty()) {
+                    "Pokok" // Simple fallback when no condition is selected
+                } else {
+                    try {
+                        if (selectedKondisiValue.toInt() == 1) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+                    } catch (e: NumberFormatException) {
+                        AppLogger.e("Invalid selectedKondisiValue: $selectedKondisiValue")
+                        "Pokok" // Fallback if conversion fails
+                    }
+                }
             }
 
             val limitedComment = if ((data.comment?.length ?: 0) > 250) {
@@ -3103,20 +3113,20 @@ open class FormInspectionActivity : AppCompatActivity(),
                 (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)
             ) {
                 AppLogger.d("Validating Blok section before navigation...")
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnItemSelectedListener false
-                }
+//                if (!validateAndShowErrors()) {
+//                    vibrate(500)
+//                    return@setOnItemSelectedListener false
+//                }
             }
 
             if (activeBottomNavId == R.id.navMenuAncakInspect &&
                 (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
             ) {
                 AppLogger.d("Validating Form Ancak before navigation...")
-                if (!validateAndShowErrors()) {
-                    vibrate(500)
-                    return@setOnItemSelectedListener false
-                }
+//                if (!validateAndShowErrors()) {
+//                    vibrate(500)
+//                    return@setOnItemSelectedListener false
+//                }
             }
 
             if (activeBottomNavId == R.id.navMenuAncakInspect) {

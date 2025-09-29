@@ -9077,22 +9077,6 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        // Add Bluetooth permissions based on Android version
-        val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+ Bluetooth permissions
-            arrayOf(
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_ADVERTISE
-            )
-        } else {
-            // Android 11 and below Bluetooth permissions
-            arrayOf(
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.BLUETOOTH_ADMIN
-            )
-        }
-
         // Add other permissions based on Android version
         val otherPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
@@ -9112,18 +9096,6 @@ class HomePageActivity : AppCompatActivity() {
             }.toTypedArray()
         }
 
-        // Check Bluetooth permissions
-        bluetoothPermissions.forEach { permission ->
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    permission
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(permission)
-            }
-        }
-
-        // Check other permissions
         otherPermissions.forEach { permission ->
             if (ContextCompat.checkSelfPermission(
                     this,
