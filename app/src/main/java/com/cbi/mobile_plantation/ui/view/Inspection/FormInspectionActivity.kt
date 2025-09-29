@@ -3113,20 +3113,20 @@ open class FormInspectionActivity : AppCompatActivity(),
                 (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)
             ) {
                 AppLogger.d("Validating Blok section before navigation...")
-//                if (!validateAndShowErrors()) {
-//                    vibrate(500)
-//                    return@setOnItemSelectedListener false
-//                }
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
+                }
             }
 
             if (activeBottomNavId == R.id.navMenuAncakInspect &&
                 (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
             ) {
                 AppLogger.d("Validating Form Ancak before navigation...")
-//                if (!validateAndShowErrors()) {
-//                    vibrate(500)
-//                    return@setOnItemSelectedListener false
-//                }
+                if (!validateAndShowErrors()) {
+                    vibrate(500)
+                    return@setOnItemSelectedListener false
+                }
             }
 
             if (activeBottomNavId == R.id.navMenuAncakInspect) {
@@ -7930,8 +7930,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 br1Value.trim().isEmpty()
                             }
                             R.id.lyBaris2Inspect -> {
-                                AppLogger.d("Checking lyBaris2Inspect - selectedKondisiValue: $selectedKondisiValue, br2Value: '$br2Value'")
-                                if (selectedKondisiValue.toInt() == 0) br2Value.trim().isEmpty() else false
+                                AppLogger.d("Checking lyBaris2Inspect - selectedKondisiValue: '$selectedKondisiValue', br2Value: '$br2Value'")
+                                if (selectedKondisiValue.isNotEmpty() && selectedKondisiValue.toInt() == 0) {
+                                    br2Value.trim().isEmpty()
+                                } else {
+                                    false
+                                }
                             }
                             else -> {
                                 val text = editText.text.toString().trim()
@@ -8000,7 +8004,12 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             // BARIS VALIDATION
             AppLogger.d("Baris validation - selectedKondisiValue: $selectedKondisiValue, br1Value: '$br1Value', br2Value: '$br2Value'")
-            if (selectedKondisiValue.toInt() == 0 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
+            // BARIS VALIDATION
+            AppLogger.d("Baris validation - selectedKondisiValue: '$selectedKondisiValue', br1Value: '$br1Value', br2Value: '$br2Value'")
+
+            val kondisiInt = selectedKondisiValue.toIntOrNull() ?: -1
+
+            if (kondisiInt == 0 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
                 val br1Int = br1Value.trim().toIntOrNull() ?: 0
                 val br2Int = br2Value.trim().toIntOrNull() ?: 0
                 AppLogger.d("Comparing br1: $br1Int, br2: $br2Int")

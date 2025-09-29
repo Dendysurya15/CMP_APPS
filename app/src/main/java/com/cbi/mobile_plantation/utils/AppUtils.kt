@@ -57,7 +57,7 @@ import java.util.zip.ZipInputStream
 object AppUtils {
 
     const val TOTAL_MAX_TREES_INSPECTION: Int = 100
-    const val MINIMAL_TAKE_SELFIE_INSPECTION: Int = 1
+    const val MINIMAL_TAKE_SELFIE_INSPECTION: Int = 10
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
     const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
         UPDATE_INTERVAL_IN_MILLISECONDS / 2

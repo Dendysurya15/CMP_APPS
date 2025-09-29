@@ -805,12 +805,36 @@ class FormAncakFragment : Fragment() {
     private fun updateDependentLayoutVisibility(selectedValue: Int) {
         val detailFormLayout = view?.findViewById<View>(R.id.lyDetailFormInspect)
         val jjgPanenLayout = view?.findViewById<View>(R.id.lyJjgPanenAKPInspect)
+        val harvestTreeInspectLayout = view?.findViewById<View>(R.id.lyHarvestTreeInspect)
+        val harvestTreeNumberLayout = view?.findViewById<View>(R.id.lyHarvestTreeNumber)
 
         val isInspection = viewModel.isInspection.value ?: true
         if (isInspection) {
-            detailFormLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
+            when (selectedValue) {
+                1 -> { // Ya - Show all elements
+                    harvestTreeInspectLayout?.visibility = View.VISIBLE
+                    detailFormLayout?.visibility = View.VISIBLE
+                }
+                2 -> { // Tidak - Show only harvest tree elements
+                    harvestTreeInspectLayout?.visibility = View.VISIBLE
+
+                    detailFormLayout?.visibility = View.GONE // Hide other elements
+                }
+                3 -> { // Titik Kosong - Hide everything
+                    harvestTreeInspectLayout?.visibility = View.GONE
+                    harvestTreeNumberLayout?.visibility = View.GONE
+                    detailFormLayout?.visibility = View.GONE
+                }
+                else -> { // Default case (including 0) - Hide everything initially
+                    harvestTreeInspectLayout?.visibility = View.GONE
+                    harvestTreeNumberLayout?.visibility = View.GONE
+                    detailFormLayout?.visibility = View.GONE
+                }
+            }
             jjgPanenLayout?.visibility = View.GONE
         } else {
+            harvestTreeInspectLayout?.visibility = View.GONE
+            harvestTreeNumberLayout?.visibility = View.GONE
             detailFormLayout?.visibility = View.GONE
             jjgPanenLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
         }

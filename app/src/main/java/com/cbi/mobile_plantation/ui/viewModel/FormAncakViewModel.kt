@@ -296,39 +296,70 @@ class FormAncakViewModel : ViewModel() {
             return ValidationResult(false, R.id.lyExistsTreeInspect, "$nameMessage wajib diisi!")
         }
 
-        // STEP 2: Only validate other fields if emptyTree == 1 (Ya/Ada Pohon)
-        if (data?.emptyTree == 1) {
-            AppLogger.d("emptyTree == 1, validating other fields...")
+        // STEP 2: Validate based on emptyTree value
+        when (data?.emptyTree) {
+            1 -> { // Ya - Validate all fields including harvest tree
+                AppLogger.d("emptyTree == 1 (Ya), validating all fields...")
 
-            if (data?.harvestTree == 0) {
-                errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: harvestTree == 0")
-            }
+                // Validate harvest tree
+                if (data?.harvestTree == 0) {
+                    errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+                }
 
-            if (data?.harvestTree == 1) {
-                if (data?.harvestJjg == null || data?.harvestJjg <= 0) {
-                    errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi dan tidak boleh 0!"
-                    AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg is invalid: ${data?.harvestJjg}")
+                // If harvest tree is Ya, validate harvest number
+                if (data?.harvestTree == 1) {
+                    if (data?.harvestJjg == null || data?.harvestJjg <= 0) {
+                        errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi dan tidak boleh 0!"
+                        AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg is invalid: ${data?.harvestJjg}")
+                    }
+                }
+
+                // Validate other detail fields
+                if (data?.neatPelepah == 0) {
+                    errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: neatPelepah == 0")
+                }
+
+                if (data?.pelepahSengkleh == 0) {
+                    errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
+                }
+
+                if (data?.kondisiPruning == 0) {
+                    errors[R.id.lyKondisiPruningInspect] = "Kondisi OverPruning wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: pruning == 0")
                 }
             }
 
-            if (data?.neatPelepah == 0) {
-                errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: neatPelepah == 0")
+            2 -> { // Tidak - Only validate harvest tree fields
+                AppLogger.d("emptyTree == 2 (Tidak), validating only harvest tree fields...")
+
+                // Validate harvest tree question
+                if (data?.harvestTree == 0) {
+                    errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+                }
+
+                // If harvest tree is Ya, validate harvest number
+                if (data?.harvestTree == 1) {
+                    if (data?.harvestJjg == null || data?.harvestJjg <= 0) {
+                        errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi dan tidak boleh 0!"
+                        AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg is invalid: ${data?.harvestJjg}")
+                    }
+                }
+
+                // Skip validation for other fields (neatPelepah, pelepahSengkleh, kondisiPruning)
+                AppLogger.d("Skipping other field validations for 'Tidak' case")
             }
 
-            if (data?.pelepahSengkleh == 0) {
-                errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
+            3 -> { // Titik Kosong - No additional validation needed
+                AppLogger.d("emptyTree == 3 (Titik Kosong), no additional validation needed")
             }
 
-            if (data?.kondisiPruning == 0) {
-                errors[R.id.lyKondisiPruningInspect] = "Kondisi OverPruning wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: pruning == 0")
+            else -> {
+                AppLogger.d("emptyTree == ${data?.emptyTree} (Unknown value), skipping field validation")
             }
-
-        } else {
-            AppLogger.d("emptyTree == ${data?.emptyTree} (Tidak/Titik Kosong), skipping field validation")
         }
 
         AppLogger.d("Total errors found: ${errors.size}")
