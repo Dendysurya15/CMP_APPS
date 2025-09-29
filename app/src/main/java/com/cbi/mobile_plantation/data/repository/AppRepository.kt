@@ -21,6 +21,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
+import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
@@ -1666,6 +1667,16 @@ class AppRepository(context: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val data = panenDao.getAllTPHHasBeenSelected()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAllTPHHasBeenSelectedMB(): Result<List<MutuBuahWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = mutuBuahDao.getAllTPHHasBeenSelectedMB()
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)

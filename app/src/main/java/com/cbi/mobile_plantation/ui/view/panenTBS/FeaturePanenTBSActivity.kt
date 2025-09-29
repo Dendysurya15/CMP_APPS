@@ -73,6 +73,7 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
@@ -408,11 +409,32 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
                     }
 
-                    if (featureName != AppUtils.ListFeatureNames.MutuBuah){
-                        val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
+                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+
+                    panenViewModel.getAllJenisTPH()
+                    delay(100)
+
+                    withContext(Dispatchers.Main) {
+                        panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
+                            jenisTPHListGlobal = list ?: emptyList()
+                            jenisTPHDeferred.complete(list ?: emptyList())
+                        }
+                    }
+
+                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+                    val mutuBuahDeferred = CompletableDeferred<List<MutuBuahWithRelations>>()
+
+                    if (featureName == AppUtils.ListFeatureNames.MutuBuah){
+                        mutuBuahViewModel.getAllTPHHasBeenSelected()
+                    }else{
                         panenViewModel.getAllTPHHasBeenSelected()
-                        delay(100)
+                    }
+
+                    delay(100)
+
+                    if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+                        val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                         withContext(Dispatchers.Main) {
                             panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
@@ -461,21 +483,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
 
-                        val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
-
-                        panenViewModel.getAllJenisTPH()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
-                                jenisTPHListGlobal = list ?: emptyList()
-                                jenisTPHDeferred.complete(list ?: emptyList())
-                            }
-                        }
-
-
-
-                        val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                         absensiViewModel.loadActiveAbsensi()
                         delay(100)
@@ -623,6 +630,49 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             }
                         }
                     }
+                    else{
+                        withContext(Dispatchers.Main) {
+                            mutuBuahViewModel.activeMBList.observe(this@FeaturePanenTBSActivity) { list ->
+                                val tphDataMap = mutableMapOf<Int, TPHData>()
+
+                                list?.forEach { panen ->
+                                    val tphId = panen.tph?.id
+                                    val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+                                    val limitTPH = panen.tph?.limit_tph
+
+                                    val blokKode = panen.tph!!.blok_kode
+                                    val nomor = panen.tph.nomor
+
+                                    if (tphId != null && jenisTPHId != null) {
+                                        val existingData = tphDataMap[tphId]
+                                        if (existingData != null) {
+                                            // Merge worker NIKs and increment count
+
+                                            tphDataMap[tphId] = existingData.copy(
+                                                count = existingData.count + 1,
+                                                blokKode = blokKode,
+                                                nomor = nomor
+                                            )
+                                        } else {
+                                            // Create new entry for this TPH
+                                            tphDataMap[tphId] = TPHData(
+                                                count = 1,
+                                                jenisTPHId = jenisTPHId,
+                                                limitTPH = limitTPH!!,
+                                                blokKode = blokKode,
+                                                nomor = nomor
+                                            )
+                                        }
+                                    }
+                                }
+
+                                panenStoredLocal.clear()
+                                panenStoredLocal.putAll(tphDataMap)
+
+                                mutuBuahDeferred.complete(list ?: emptyList())
+                            }
+                        }
+                    }
 
                     val tphOtomatisDeferred = async {
                         try {
@@ -635,8 +685,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
 
                     tph_otomatis_estate = tphOtomatisDeferred.await()
-
-
 
                     datasetViewModel.getAllEstates()
                     delay(100)
@@ -3160,6 +3208,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 } else {
                     defaultLimit
                 }
+
+            AppLogger.d("locationnomor ${location.nomor}")
+            AppLogger.d("location.blokKode ${location.blokKode}")
+            AppLogger.d("limit ${limit}")
+            AppLogger.d("------")
 
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {

@@ -8,5 +8,6 @@ data class ScannedTPHLocation(
     val divisiKode: String?=null,
     val deptKode: String?=null,
     val jmlPokokHa: Int? = null,  // Add this field
-    val jenisTPHId: String = "1"
+    val jenisTPHId: String = "1",
+    val tipeArea : Int?=0,
 )

@@ -220,6 +220,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var lyAfdInspect: LinearLayout
     private lateinit var lyKemandoran: LinearLayout
     private lateinit var lyPemuat: LinearLayout
+
+    private lateinit var lyBaris2Inspect: LinearLayout
     private var shouldReopenBottomSheet = false
     private var isTriggeredBtnScanned = false
     private lateinit var switchAutoScan: SwitchMaterial
@@ -391,6 +393,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         lyAfdInspect = findViewById(R.id.lyAfdInspect)
         lyKemandoran = findViewById(R.id.lyKemandoran)
         lyPemuat = findViewById(R.id.lyPemuat)
+        lyBaris2Inspect = findViewById(R.id.lyBaris2Inspect)
 
         labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
         fabNextToFormAncak = findViewById(R.id.fabNextToFormAncak)
@@ -1997,7 +2000,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     AppLogger.d("🔍 kemandoran_nama_pemuat: '${pemuatInfo.kemandoranNamaPemuat}'")
                                     AppLogger.d("🔍 nik_pemuat: '${pemuatInfo.nikPemuat}'")
                                     AppLogger.d("🔍 nama_pemuat: '${pemuatInfo.namaPemuat}'")
-
+                                    AppLogger.d("jenis kondisi, $selectedKondisiValue")
 
                                     // 🎯 USE THE COLLECTED PEMUAT DATA HERE
                                     inspectionViewModel.saveDataInspection(
@@ -2012,7 +2015,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         inspeksi_putaran = inspeksiPutaran,
                                         jalur_masuk = selectedJalurMasuk,
                                         jenis_kondisi = selectedKondisiValue.toInt(),
-                                        baris = if (br2Value.isNotEmpty()) "$br1Value,$br2Value" else br1Value,
+                                        baris = if (selectedKondisiValue.toInt() == 1) br1Value else "$br1Value,$br2Value",
                                         jml_pkk_inspeksi = totalPokokInspection,
                                         tracking_path = trackingJson.toString(),
                                         app_version = infoApp,
@@ -2026,11 +2029,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     )
                                 }
 
-                                // Handle the result...
+
                                 when (result) {
                                     is InspectionViewModel.SaveDataInspectionState.Success -> {
                                         inspectionId = result.inspectionId.toString()
-                                        // Continue with detail saving...
+
 
                                         if (!isFollowUp) {
                                             val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
@@ -2797,9 +2800,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                 // Use data from currentInspectionData for follow-up
                 val jenisKondisi = currentInspectionData?.inspeksi?.jenis_kondisi ?: 0
                 val baris = currentInspectionData?.inspeksi?.baris ?: ""
-                if (jenisKondisi == 2) "Terasan Baris No:$baris" else "Baris No:$baris"
+                if (jenisKondisi == 1) "Terasan Baris No:$baris" else "Baris No:$baris"
             } else {
-                if (selectedKondisiValue.toInt() == 2) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
+                if (selectedKondisiValue.toInt() == 1) "Terasan Baris No:$br1Value" else "br1:${br1Value} br2:$br2Value"
             }
 
             val limitedComment = if ((data.comment?.length ?: 0) > 250) {
@@ -3380,11 +3383,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "Pemuat",
                 InputType.SPINNER
             ),
-            Triple(
-                findViewById(R.id.lyConditionType),
-                "Jenis Kondisi",
-                InputType.RADIO
-            ),
+//            Triple(
+//                findViewById(R.id.lyConditionType),
+//                "Jenis Kondisi",
+//                InputType.RADIO
+//            ),
             Triple(
                 findViewById(R.id.lyBaris1Inspect),
                 "Baris Pertama",
@@ -3476,14 +3479,15 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     InputType.RADIO -> {
                         when (layoutView.id) {
-                            R.id.lyConditionType -> setupRadioView(
-                                layoutView,
-                                listRadioItems["ConditionType"] ?: emptyMap(),
-                                ::selectedKondisiValue
-                            ) { id ->
-                                findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
-                                    if (id.toInt() == 2) View.GONE else View.VISIBLE
-                            }
+//                            R.id.lyConditionType -> setupRadioView(
+//                                layoutView,
+//                                listRadioItems["ConditionType"] ?: emptyMap(),
+//                                ::selectedKondisiValue
+//                            ) { id ->
+//                                findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
+//                                    if (id.toInt() == 2) View.GONE else View.VISIBLE
+//                            }
+
                         }
                     }
                 }
@@ -3821,8 +3825,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         } else {
             when (selectedKondisiValue) {
-                "1" -> "Datar"
-                "2" -> "Teras"
+                "0" -> "Datar"
+                "1" -> "Teras"
                 else -> "Tidak Diketahui"
             }
         }
@@ -3836,7 +3840,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             val baris = currentInspectionData?.inspeksi?.baris ?: ""
             "Baris: $baris"
         } else {
-            if (selectedKondisiValue.toInt() == 2) {
+            if (selectedKondisiValue.toInt() == 1) {
                 "Baris: $br1Value"
             } else {
                 "Baris: $br1Value, $br2Value"
@@ -3987,7 +3991,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    // Bottom sheet function
+    private fun setConditionTypeBasedOnTipeArea(tipeArea: Int?) {
+        if (tipeArea == null) return
+
+        lyBaris2Inspect.visibility = if (tipeArea == 1) View.GONE else View.VISIBLE
+        selectedKondisiValue = tipeArea.toString()
+    }
+
     // Updated Bottom sheet function with height control and disabled drag-to-dismiss
     private fun showDetailBottomSheet(temuanType: String) {
         val bottomSheetDialog = BottomSheetDialog(this)
@@ -4241,14 +4251,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupPathDetailContent(container: LinearLayout, bottomSheetDialog: BottomSheetDialog) {
         // Add summary section
-        val summaryTitle = TextView(this).apply {
-            text = "Ringkasan Path / Pokok"
-            textSize = 18f
-            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
-            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
-            setPadding(0, 16, 0, 8)
-        }
-        container.addView(summaryTitle)
+//        val summaryTitle = TextView(this).apply {
+//            text = "Ringkasan Path / Pokok"
+//            textSize = 18f
+//            typeface = ResourcesCompat.getFont(this@FormInspectionActivity, R.font.manrope_bold)
+//            setTextColor(ContextCompat.getColor(this@FormInspectionActivity, R.color.greenDarker))
+//            setPadding(0, 16, 0, 8)
+//        }
+//        container.addView(summaryTitle)
 
         // Add Path summary items
         val pathSummaryItems = listOf(
@@ -4388,8 +4398,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Find views
         val tvPokokNumber = cardView.findViewById<TextView>(R.id.tvPokokNumber)
         val cardFoto = cardView.findViewById<MaterialCardView>(R.id.cardFoto)
-        val cardTelusuri = cardView.findViewById<MaterialCardView>(R.id.cardEdit)
+        val cardFotoPemulihan = cardView.findViewById<MaterialCardView>(R.id.cardFotoPemulihan)
         val ivPokokPhoto = cardView.findViewById<ImageView>(R.id.ivPokokPhoto)
+        val ivFotoPemulihan = cardView.findViewById<ImageView>(R.id.ivFotoPemulihan)
         val llDetailsList = cardView.findViewById<LinearLayout>(R.id.llDetailsList)
 
         // Set pokok number
@@ -4433,7 +4444,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             ivPokokPhoto.setImageBitmap(bitmap)
                             ivPokokPhoto.scaleType = ImageView.ScaleType.CENTER_CROP
 
-                            // 🚀 REMOVE THE WHITE TINT FOR ACTUAL PHOTOS
+                            // Remove the white tint for actual photos
                             ivPokokPhoto.imageTintList = null
 
                             cardFoto.visibility = View.VISIBLE
@@ -4477,27 +4488,49 @@ open class FormInspectionActivity : AppCompatActivity(),
             AppLogger.d("FOTO card hidden - no significant findings for pokok $pageNumber")
         }
 
-        // Add click listener to Telusuri card (for future detail functionality)
-        cardTelusuri.setOnClickListener {
-            AppLogger.d("Edit clicked for pokok $pageNumber")
+        // Handle Foto Pemulihan card - ONLY show if photo actually exists
+        if (!pageData.foto_pemulihan.isNullOrEmpty()) {
+            val rootApp = File(
+                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                "CMP-${AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok}" // You might need this constant
+            ).toString()
 
-            // Close the bottom sheet first
-            bottomSheetDialog?.dismiss()
+            val fullImagePath = File(rootApp, pageData.foto_pemulihan).absolutePath
+            val file = File(fullImagePath)
 
-            // 🚀 TRIGGER THE NAVIGATION PROGRAMMATICALLY
-            // This will trigger bottomNavInspect.setOnItemSelectedListener automatically
-            bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
+            if (file.exists()) {
+                try {
+                    val bitmap = BitmapFactory.decodeFile(fullImagePath)
+                    if (bitmap != null) {
+                        ivFotoPemulihan.setImageBitmap(bitmap)
+                        ivFotoPemulihan.scaleType = ImageView.ScaleType.CENTER_CROP
+                        ivFotoPemulihan.imageTintList = null
+                        cardFotoPemulihan.visibility = View.VISIBLE
 
-            // Wait a bit for navigation to complete, then navigate to specific pokok
-            Handler(Looper.getMainLooper()).postDelayed({
-                // Set current page to the clicked pokok number
-                formAncakViewModel.setCurrentPage(pageNumber)
+                        cardFotoPemulihan.setOnClickListener {
+                            showFullScreenPhoto(fullImagePath, "Pemulihan Pokok $pageNumber")
+                        }
 
-                // Update ViewPager to show the correct page
-                vpFormAncak.setCurrentItem(pageNumber - 1, true)
-
-                AppLogger.d("Navigated to pokok $pageNumber in form")
-            }, 500) // Increased delay to let navigation finish first
+                        AppLogger.d("Foto Pemulihan loaded successfully for pokok $pageNumber")
+                    } else {
+                        // Failed to decode, hide the card
+                        cardFotoPemulihan.visibility = View.GONE
+                        AppLogger.e("Failed to decode pemulihan bitmap for pokok $pageNumber")
+                    }
+                } catch (e: Exception) {
+                    // Error loading, hide the card
+                    cardFotoPemulihan.visibility = View.GONE
+                    AppLogger.e("Error loading pemulihan image for pokok $pageNumber: ${e.message}")
+                }
+            } else {
+                // File doesn't exist, hide the card
+                cardFotoPemulihan.visibility = View.GONE
+                AppLogger.d("Pemulihan photo file doesn't exist for pokok $pageNumber")
+            }
+        } else {
+            // No pemulihan photo at all - hide the card completely
+            cardFotoPemulihan.visibility = View.GONE
+            AppLogger.d("No pemulihan photo data for pokok $pageNumber")
         }
 
         // Add detail rows dynamically (only show non-zero values)
@@ -4551,7 +4584,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             return result
         }
 
-
         if (pageData.harvestTree > 0) {
             llDetailsList.addView(
                 createDetailRow(
@@ -4592,17 +4624,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             hasData = true
         }
 
-//        if (pageData.underPruning > 0) {
-//            llDetailsList.addView(
-//                createDetailRow(
-//                    "Under Pruning",
-//                    ": ${getRadioText("underPruning", pageData.underPruning)}"
-//                )
-//            )
-//            hasData = true
-//        }
-
-// Check if any numeric field has data > 0
+        // Check if any numeric field has data > 0
         val hasNumericData = (pageData.buahMasakTdkDipotong > 0) ||
                 (pageData.btPiringanGawangan > 0) ||
                 (pageData.brdKtpGawangan > 0) ||
@@ -4640,7 +4662,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             hasData = true
         }
-
 
         if (!hasData) {
             val emptyText = TextView(this).apply {
@@ -5655,6 +5676,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         )
                                         val matchingBlok = blokLookupMap[blokKey]
 
+                                        val tipeArea = matchingBlok?.tipe_area
                                         val jmlPokokHa = matchingBlok?.jml_pokok_ha
 
                                         if (tphId != null && lat != null && lon != null) {
@@ -5678,7 +5700,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                     divisiKode.toString(),
                                                     deptKode.toString(),
                                                     jmlPokokHa,
-                                                    jenisTPHId
+                                                    jenisTPHId,
+                                                    tipeArea
                                                 )
                                             }
                                         }
@@ -5932,7 +5955,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         tvErrorScannedNotSelected.visibility = View.GONE
 
         //sph * 0.55 = total pages
-        val calculatedPages = ceil((selectedTPHInLIst.jml_pokok_ha ?: 0) * 0.55).toInt()
+        // Dynamic calculation based on tipeArea
+        val multiplier = if (selectedTPHInLIst.tipeArea == 1) 0.65 else 0.55
+        val calculatedPages = ceil((selectedTPHInLIst.jml_pokok_ha ?: 0) * multiplier).toInt()
+        setConditionTypeBasedOnTipeArea(selectedTPHInLIst.tipeArea)
         formAncakViewModel.updateTotalPages(calculatedPages)
 
         // Make title and description visible
@@ -6687,16 +6713,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             AppLogger.d("Processing ${coordinates.size} TPH coordinates")
 
-            var itemCount = 0
-            val maxItems = 10 // Limit to 10 items
-
             for ((id, location) in coordinates) {
-                // Break if we've already processed 10 items
-                if (itemCount >= maxItems) {
-                    AppLogger.d("Reached maximum items limit ($maxItems), stopping processing")
-                    break
-                }
-
                 try {
                     AppLogger.d("Processing TPH ID: $id")
 
@@ -6722,8 +6739,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     AppLogger.d("TPH $id - jenisTPHId: $jenisTPHId, lat: ${location.lat}, lon: ${location.lon}")
 
-                    // COMMENTED OUT: Calculate distance
-                    /*
+                    // Calculate distance
                     val results = FloatArray(1)
                     try {
                         android.location.Location.distanceBetween(
@@ -6746,11 +6762,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                         AppLogger.w("Invalid distance calculated for TPH $id: $distance")
                         continue
                     }
-                    */
-
-                    // Use a mock distance value for testing
-                    val distance = 100.0f // Mock distance value
-                    AppLogger.d("TPH $id - using mock distance: $distance")
 
                     // Get clean block code
                     val cleanBlockCode = try {
@@ -6760,45 +6771,52 @@ open class FormInspectionActivity : AppCompatActivity(),
                         ""
                     }
 
-                    // COMMENTED OUT: Check if TPH is within radius (now we just add all items up to the limit)
-                    // if (distance <= radiusMinimum) {
-                    try {
-                        // Validate jmlPokokHa
-                        val jmlPokokHa = try {
-                            location.jmlPokokHa ?: 0
+                    // Check if TPH is within radius
+                    if (distance <= radiusMinimum) {
+                        try {
+                            // Validate jmlPokokHa
+                            val jmlPokokHa = try {
+                                location.jmlPokokHa ?: 0
+                            } catch (e: Exception) {
+                                AppLogger.e("Error getting jmlPokokHa for TPH $id: ${e.message}")
+                                0
+                            }
+
+                            val tipeArea = try {
+                                location.tipeArea ?: 0
+                            } catch (e: Exception) {
+                                AppLogger.e("Error getting tipeArea for TPH $id: ${e.message}")
+                                0
+                            }
+
+                            val tphItem = ScannedTPHSelectionItem(
+                                id = id,
+                                number = location.nomor ?: "",
+                                blockCode = cleanBlockCode,
+                                divisiCode = location.divisiKode ?: "",
+                                deptCode = location.deptKode ?: "",
+                                distance = distance,
+                                jml_pokok_ha = jmlPokokHa,
+                                tipeArea = tipeArea,
+                                isAlreadySelected = false,
+                                selectionCount = 0,
+                                canBeSelectedAgain = true,
+                                isWithinRange = distance <= radiusMinimum,
+                                jenisTPHId = jenisTPHId.toString(),
+                                customLimit = "0"
+                            )
+
+                            regularTPHs.add(tphItem)
+                            AppLogger.d("Successfully added regular TPH: $id with distance: $distance")
+
                         } catch (e: Exception) {
-                            AppLogger.e("Error getting jmlPokokHa for TPH $id: ${e.message}")
-                            0
+                            AppLogger.e("Error creating ScannedTPHSelectionItem for TPH $id: ${e.message}")
+                            AppLogger.e("Location data - nomor: ${location.nomor}, divisiKode: ${location.divisiKode}, deptKode: ${location.deptKode}")
+                            continue
                         }
-
-                        val tphItem = ScannedTPHSelectionItem(
-                            id = id,
-                            number = location.nomor ?: "",
-                            blockCode = cleanBlockCode,
-                            divisiCode = location.divisiKode ?: "",
-                            deptCode = location.deptKode ?: "",
-                            distance = distance,
-                            jml_pokok_ha = jmlPokokHa,
-                            isAlreadySelected = false,
-                            selectionCount = 0,
-                            canBeSelectedAgain = true,
-                            isWithinRange = true, // Always true since we're not checking radius
-                            jenisTPHId = jenisTPHId.toString(),
-                            customLimit = "0"
-                        )
-
-                        regularTPHs.add(tphItem)
-                        itemCount++
-                        AppLogger.d("Successfully added regular TPH: $id with mock distance: $distance (item $itemCount/$maxItems)")
-
-                    } catch (e: Exception) {
-                        AppLogger.e("Error creating ScannedTPHSelectionItem for TPH $id: ${e.message}")
-                        AppLogger.e("Location data - nomor: ${location.nomor}, divisiKode: ${location.divisiKode}, deptKode: ${location.deptKode}")
-                        continue
+                    } else {
+                        AppLogger.d("TPH $id outside radius - distance: $distance > $radiusMinimum")
                     }
-                    // } else {
-                    //     AppLogger.d("TPH $id outside radius - distance: $distance > $radiusMinimum")
-                    // }
 
                 } catch (e: Exception) {
                     AppLogger.e("Error processing TPH $id: ${e.message}")
@@ -6807,17 +6825,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
-            AppLogger.d("Processed TPHs. Regular TPHs found: ${regularTPHs.size} (limited to $maxItems)")
+            AppLogger.d("Processed all TPHs. Regular TPHs found: ${regularTPHs.size}")
 
-            // COMMENTED OUT: Sort regular TPHs by distance (since we're using mock distances)
-            /*
+            // Sort regular TPHs by distance
             try {
                 regularTPHs.sortBy { it.distance }
                 AppLogger.d("Successfully sorted TPHs by distance")
             } catch (e: Exception) {
                 AppLogger.e("Error sorting TPHs: ${e.message}")
             }
-            */
 
             // Add regular TPHs (only if scan button was triggered)
             if (isTriggeredBtnScanned) {
@@ -7565,94 +7581,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.d("Added connecting line with ${points.size} points")
     }
 
-
-    // First, add this function to handle radio selection
-    private fun selectedKondisiValue(selectedId: Int) {
-        val kondisiLayout = findViewById<LinearLayout>(R.id.lyConditionType)
-        val fblRadioComponents = kondisiLayout?.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
-        val kondisiMap = listRadioItems["ConditionType"] ?: emptyMap()
-        val targetValue = kondisiMap[selectedId.toString()]
-
-        AppLogger.d("Looking for radio button with value: $targetValue")
-
-        fblRadioComponents?.let { flexLayout ->
-            // Uncheck all radio buttons first
-            for (i in 0 until flexLayout.childCount) {
-                val radioButton = flexLayout.getChildAt(i) as? RadioButton
-                radioButton?.isChecked = false
-            }
-
-            // Find and select the correct radio button
-            for (i in 0 until flexLayout.childCount) {
-                val radioButton = flexLayout.getChildAt(i) as? RadioButton
-                radioButton?.let { rb ->
-                    if (rb.text.toString() == targetValue) {
-                        rb.performClick() // This will trigger all the click logic
-                        AppLogger.d("Successfully selected radio button: ${rb.text}")
-                        return // Exit the function once we found and selected the right button
-                    }
-                }
-            }
-            AppLogger.d("Radio button not found for value: $targetValue")
-        }
-    }
-
-    private fun preselectRadioValues(inspection: InspectionWithDetailRelations) {
-        inspection.inspeksi.jenis_kondisi?.let { jenisKondisi ->
-            AppLogger.d("jenis_kondisi: $jenisKondisi")
-
-            val kondisiLayout = findViewById<LinearLayout>(R.id.lyConditionType)
-            kondisiLayout?.let { layout ->
-                val kondisiMap = listRadioItems["ConditionType"] ?: emptyMap()
-                val kondisiValue = kondisiMap[jenisKondisi.toString()]
-
-                if (kondisiValue != null) {
-                    // Simply call the selection function
-                    selectedKondisiValue(jenisKondisi)
-
-                    // Set visibility logic for Baris2
-                    findViewById<LinearLayout>(R.id.lyBaris2Inspect).visibility =
-                        if (jenisKondisi == 2) View.GONE else View.VISIBLE
-
-                    AppLogger.d("Pre-selected Jenis Kondisi: $kondisiValue (ID: $jenisKondisi)")
-                    AppLogger.d("Baris 2 visibility: ${if (jenisKondisi == 2) "GONE" else "VISIBLE"}")
-                } else {
-                    AppLogger.d("Jenis Kondisi not found in list: $jenisKondisi")
-                    AppLogger.d("Available kondisi items: $kondisiMap")
-                }
-            }
-        }
-    }
-
-    private fun preselectEditTextValues(inspection: InspectionWithDetailRelations) {
-        inspection.inspeksi.baris?.let { baris ->
-            val barisValues = baris.split(",").map { it.trim() }
-
-            if (barisValues.isNotEmpty() && barisValues[0].isNotEmpty()) {
-                val baris1Layout = findViewById<LinearLayout>(R.id.lyBaris1Inspect)
-                val baris1EditText = baris1Layout?.findViewById<EditText>(R.id.etHomeMarkerTPH)
-
-                baris1EditText?.let { editText ->
-                    editText.setText(barisValues[0])
-                    br1Value = barisValues[0]
-                }
-            }
-
-            if (barisValues.size > 1 && barisValues[1].isNotEmpty()) {
-                val baris2Layout = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
-                val baris2EditText = baris2Layout?.findViewById<EditText>(R.id.etHomeMarkerTPH)
-
-                baris2EditText?.let { editText ->
-                    editText.setText(barisValues[1])
-                    // Also update the global variable
-                    br2Value = barisValues[1]
-                }
-            } else {
-                AppLogger.d("No Baris 2 value found or empty")
-            }
-        }
-    }
-
     // Update clearMarkers to also remove polylines
     private fun clearMarkers() {
         AppLogger.d("Clearing all markers and lines")
@@ -7716,57 +7644,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         map.overlays.add(marker)
         AppLogger.d("Added detail marker: $title at $latitude, $longitude")
-    }
-
-    private fun preselectSpinnerValues(inspection: InspectionWithDetailRelations) {
-        inspection.tph?.let { tph ->
-            AppLogger.d("tph ${tph.divisi_abbr}")
-            tph.divisi_abbr?.let { divisiAbbr ->
-                // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
-                val afdLayout = findViewById<LinearLayout>(R.id.lyAfdInspect)
-                val afdSpinner = afdLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-                afdSpinner?.let { spinner ->
-                    val divisiNames = divisiList.mapNotNull { it.divisi_abbr }
-                    val position = divisiNames.indexOf(divisiAbbr)
-                    if (position >= 0) {
-                        spinner.selectedIndex = position
-                        afdLayout?.let { layout ->
-                            handleItemSelection(layout, position, divisiAbbr)
-                        }
-                    } else {
-                        AppLogger.d("Divisi not found in list: $divisiAbbr")
-                    }
-                }
-            }
-        }
-
-        inspection.inspeksi.jalur_masuk?.let { jalurMasuk ->
-            AppLogger.d("jalur_masuk ${jalurMasuk}")
-
-            // Correct way: First get the LinearLayout, then find the MaterialSpinner inside it
-            val jalurLayout = findViewById<LinearLayout>(R.id.lyJalurInspect)
-            val jalurSpinner = jalurLayout?.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-            jalurSpinner?.let { spinner ->
-                val jalurItems = (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
-                val position = jalurItems.indexOf(jalurMasuk)
-                if (position >= 0) {
-                    // Set the selected index
-                    spinner.selectedIndex = position
-                    AppLogger.d("Selected jalur at position: $position, value: $jalurMasuk")
-
-                    // Manually trigger the selection handler to execute the logic
-                    jalurLayout?.let { layout ->
-                        handleItemSelection(layout, position, jalurMasuk)
-                    }
-                } else {
-                    AppLogger.d("Jalur Masuk not found in list: $jalurMasuk")
-                    AppLogger.d("Available jalur items: $jalurItems")
-                }
-            }
-        }
-
     }
 
     private fun processInspectionDetails(
@@ -7942,8 +7819,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
+        AppLogger.d("=== VALIDATION START ===")
+        AppLogger.d("featureName: $featureName")
+
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+            AppLogger.d("Checking Follow-up photo validation...")
             if (photoTPHFollowUp == null) {
+                AppLogger.d("❌ VALIDATION FAILED: photoTPHFollowUp is null")
                 isValid = false
                 isInTPH = true
                 isForSelfie = false
@@ -7951,67 +7833,61 @@ open class FormInspectionActivity : AppCompatActivity(),
                 showViewPhotoBottomSheet(null, true, false, true)
                 errorMessages.add("Foto Pemuliahan di TPH wajib")
                 missingFields.add("Foto Pemulihan TPH")
+            } else {
+                AppLogger.d("✅ Follow-up photo validation passed")
             }
         } else {
+            AppLogger.d("Checking normal inspection validations...")
+
+            // PHOTO VALIDATION
+            AppLogger.d("Checking photoInTPH: $photoInTPH")
             if (photoInTPH == null) {
+                AppLogger.d("❌ VALIDATION FAILED: photoInTPH is null")
                 isValid = false
                 showViewPhotoBottomSheet(null, isInTPH, false, false)
                 errorMessages.add("Foto di TPH wajib")
                 missingFields.add("Foto TPH")
+            } else {
+                AppLogger.d("✅ Photo validation passed")
             }
 
-            // PEMANEN VALIDATION (consolidated)
+            // PEMANEN VALIDATION
             val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
             val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
             val totalSelectedWorkers = automaticWorkers.size + manualWorkers.size
 
+            AppLogger.d("Worker validation - Auto: ${automaticWorkers.size}, Manual: ${manualWorkers.size}, Total: $totalSelectedWorkers")
+            AppLogger.d("selectedKaryawanList size: ${selectedKaryawanList.size}")
+
             if (totalSelectedWorkers == 0 || selectedKaryawanList.isEmpty()) {
-                AppLogger.d("No workers selected! Total: $totalSelectedWorkers, List: ${selectedKaryawanList.size}")
+                AppLogger.d("❌ VALIDATION FAILED: No workers selected")
                 errorMessages.add("Minimal 1 pemanen yang dipilih!")
                 missingFields.add("Pilih Pemanen")
-
-                // Show error on automatic spinner (use global variable if available)
                 val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-                showValidationError(
-                    layoutPemanenOtomatis,
-                    "Minimal 1 pemanen yang dipilih!"
-                )
+                showValidationError(layoutPemanenOtomatis, "Minimal 1 pemanen yang dipilih!")
                 isValid = false
             } else {
-                AppLogger.d("Workers selected! Automatic: ${automaticWorkers.size}, Manual: ${manualWorkers.size}")
-
-                // Hide error from pemanen spinner
+                AppLogger.d("✅ Worker validation passed")
                 val layoutPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
                 hideValidationError(layoutPemanenOtomatis)
             }
 
-//            // PEMUAT VALIDATION
-//            val pemuats = selectedPemuatAdapter.getSelectedWorkers()
-//            val totalPemuat = pemuats.size
-//
-//            AppLogger.d("totalPemuat $totalPemuat")
-//
-//            if (totalPemuat == 0) {
-//                AppLogger.d("No pemuat selected!")
-//                errorMessages.add("Minimal 1 pemuat yang dipilih!")
-//                missingFields.add("Pilih Pemuat")
-//
-//                showValidationError(lyPemuat, "Minimal 1 pemuat yang dipilih!")
-//                isValid = false
-//            } else {
-//                AppLogger.d("Pemuat workers selected! Total: $totalPemuat")
-//                hideValidationError(lyPemuat)
-//            }
-
             // LOCATION VALIDATION
+            AppLogger.d("Location validation - Enable: $locationEnable, Lat: $lat, Lon: $lon")
             if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
+                AppLogger.d("❌ VALIDATION FAILED: Location invalid")
                 isValid = false
                 errorMessages.add(stringXML(R.string.al_location_description_failed))
                 missingFields.add("Location")
+            } else {
+                AppLogger.d("✅ Location validation passed")
             }
 
-            // INPUT MAPPINGS VALIDATION (with consistent stroke width)
-            inputMappings.forEach { (layout, key, inputType) ->
+            // INPUT MAPPINGS VALIDATION
+            AppLogger.d("Checking input mappings validation...")
+            inputMappings.forEachIndexed { index, (layout, key, inputType) ->
+                AppLogger.d("--- Checking mapping $index: $key (${layout.id}) ---")
+
                 val tvError = layout.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
                 val mcvSpinner = layout.findViewById<MaterialCardView>(R.id.MCVSpinner)
                 val spinner = layout.findViewById<MaterialSpinner>(R.id.spPanenTBS)
@@ -8019,90 +7895,124 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 val isEmpty = when (inputType) {
                     InputType.SPINNER -> {
-                        when (layout.id) {
-                            R.id.lyAfdInspect -> selectedAfdeling.isEmpty()
-                            R.id.lyJalurInspect -> selectedJalurMasuk.isEmpty()
-                            else -> spinner.selectedIndex == -1
+                        val result = when (layout.id) {
+                            R.id.lyAfdInspect -> {
+                                AppLogger.d("Checking lyAfdInspect - selectedAfdeling: '$selectedAfdeling'")
+                                selectedAfdeling.isEmpty()
+                            }
+                            R.id.lyJalurInspect -> {
+                                AppLogger.d("Checking lyJalurInspect - selectedJalurMasuk: '$selectedJalurMasuk'")
+                                selectedJalurMasuk.isEmpty()
+                            }
+                            else -> {
+                                AppLogger.d("Checking other spinner - selectedIndex: ${spinner.selectedIndex}")
+                                spinner.selectedIndex == -1
+                            }
                         }
+                        AppLogger.d("Spinner isEmpty result: $result")
+                        result
                     }
 
                     InputType.EDITTEXT -> {
-                        when (layout.id) {
-                            R.id.lyBaris1Inspect -> br1Value.trim().isEmpty()
-                            R.id.lyBaris2Inspect -> if (selectedKondisiValue.toInt() != 2) br2Value.trim()
-                                .isEmpty() else false
-
-                            else -> editText.text.toString().trim().isEmpty()
+                        val result = when (layout.id) {
+                            R.id.lyBaris1Inspect -> {
+                                AppLogger.d("Checking lyBaris1Inspect - br1Value: '$br1Value'")
+                                br1Value.trim().isEmpty()
+                            }
+                            R.id.lyBaris2Inspect -> {
+                                AppLogger.d("Checking lyBaris2Inspect - selectedKondisiValue: $selectedKondisiValue, br2Value: '$br2Value'")
+                                if (selectedKondisiValue.toInt() == 0) br2Value.trim().isEmpty() else false
+                            }
+                            else -> {
+                                val text = editText.text.toString().trim()
+                                AppLogger.d("Checking other edittext - text: '$text'")
+                                text.isEmpty()
+                            }
                         }
+                        AppLogger.d("EditText isEmpty result: $result")
+                        result
                     }
 
                     InputType.RADIO -> {
-                        when (layout.id) {
-                            R.id.lyConditionType -> selectedKondisiValue.isEmpty()
+                        val result = when (layout.id) {
                             else -> false
                         }
+                        AppLogger.d("Radio isEmpty result: $result")
+                        result
                     }
                 }
 
                 if (isEmpty) {
-                    // FIXED: Set both color AND width for consistent appearance
+                    AppLogger.d("❌ VALIDATION FAILED for $key")
                     tvError.visibility = View.VISIBLE
                     mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
-                    mcvSpinner.strokeWidth = 4 // Ensure stroke is visible
+                    mcvSpinner.strokeWidth = 4
                     missingFields.add(key)
                     isValid = false
                 } else {
+                    AppLogger.d("✅ VALIDATION PASSED for $key")
                     tvError.visibility = View.GONE
                     mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.graytextdark)
-                    mcvSpinner.strokeWidth = 2 // Reset to normal width
+                    mcvSpinner.strokeWidth = 2
                 }
             }
 
             // TPH SCAN VALIDATION
+            AppLogger.d("TPH scan validation - selectedTPHIdByScan: $selectedTPHIdByScan, selectedAfdeling: '$selectedAfdeling'")
+            AppLogger.d("isTriggeredBtnScanned: $isTriggeredBtnScanned, isEmptyScannedTPH: $isEmptyScannedTPH")
+
             if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
                 if (isTriggeredBtnScanned) {
                     if (isEmptyScannedTPH) {
-                        tvErrorScannedNotSelected.text =
-                            stringXML(R.string.al_no_tph_detected_trigger_submit)
+                        AppLogger.d("❌ VALIDATION FAILED: No TPH detected")
+                        tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
                         isValid = false
                     } else {
-                        tvErrorScannedNotSelected.text =
-                            "Silakan untuk memilih TPH yang ingin diperiksa!"
+                        AppLogger.d("❌ VALIDATION FAILED: TPH not selected")
+                        tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
                         isValid = false
                     }
                 } else {
+                    AppLogger.d("❌ VALIDATION FAILED: Scan button not pressed")
                     tvErrorScannedNotSelected.text = "Silakan tekan tombol scan untuk mencari TPH"
                     tvErrorScannedNotSelected.visibility = View.VISIBLE
                     errorMessages.add("Silakan tekan tombol scan untuk mencari TPH")
                     isValid = false
                 }
             } else {
+                AppLogger.d("✅ TPH scan validation passed")
                 tvErrorScannedNotSelected.visibility = View.GONE
             }
 
-            // BARIS VALIDATION (br1 and br2 cannot be the same)
-            if (selectedKondisiValue.toInt() == 1 && br1Value.trim().isNotEmpty() && br2Value.trim()
-                    .isNotEmpty()
-            ) {
+            // BARIS VALIDATION
+            AppLogger.d("Baris validation - selectedKondisiValue: $selectedKondisiValue, br1Value: '$br1Value', br2Value: '$br2Value'")
+            if (selectedKondisiValue.toInt() == 0 && br1Value.trim().isNotEmpty() && br2Value.trim().isNotEmpty()) {
                 val br1Int = br1Value.trim().toIntOrNull() ?: 0
                 val br2Int = br2Value.trim().toIntOrNull() ?: 0
+                AppLogger.d("Comparing br1: $br1Int, br2: $br2Int")
 
-                AppLogger.d("br1: $br1Int, br2: $br2Int")
                 if (br1Int == br2Int) {
+                    AppLogger.d("❌ VALIDATION FAILED: br1 and br2 are the same")
                     val layoutBaris2 = findViewById<LinearLayout>(R.id.lyBaris2Inspect)
-                    showValidationError(
-                        layoutBaris2,
-                        "Baris pertama dan Baris kedua tidak boleh sama"
-                    )
+                    showValidationError(layoutBaris2, "Baris pertama dan Baris kedua tidak boleh sama")
                     errorMessages.add("Baris pertama dan Baris kedua tidak boleh sama")
                     isValid = false
+                } else {
+                    AppLogger.d("✅ Baris validation passed")
                 }
+            } else {
+                AppLogger.d("✅ Baris validation skipped (condition not met)")
             }
         }
+
+        AppLogger.d("=== VALIDATION SUMMARY ===")
+        AppLogger.d("isValid: $isValid")
+        AppLogger.d("missingFields: $missingFields")
+        AppLogger.d("errorMessages: $errorMessages")
 
         // SHOW ERROR DIALOG IF VALIDATION FAILED
         if (!isValid) {
@@ -8110,7 +8020,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             val combinedErrorMessage = buildString {
                 val allMessages = mutableListOf<String>()
                 if (missingFields.isNotEmpty()) {
-                    allMessages.add(stringXML(R.string.al_pls_complete_data))
+                    AppLogger.d("Adding 'mohon di lengkapi data' message because missingFields is not empty")
+                    allMessages.add(stringXML(R.string.al_pls_complete_data)) // This is where "mohon di lengkapi data" comes from!
                 }
                 allMessages.addAll(errorMessages)
                 allMessages.forEachIndexed { index, message ->
@@ -8118,6 +8029,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     if (index < allMessages.size - 1) append("\n")
                 }
             }
+
+            AppLogger.d("Final error message: $combinedErrorMessage")
 
             AlertDialogUtility.withSingleAction(
                 this,

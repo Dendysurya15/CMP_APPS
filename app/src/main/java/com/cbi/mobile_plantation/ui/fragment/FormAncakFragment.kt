@@ -762,26 +762,34 @@ class FormAncakFragment : Fragment() {
                         return
                     }
 
-                    if (!s.isNullOrBlank()) {
-                        try {
-                            val enteredValue = s.toString().toInt()
+                    // Handle empty or blank text (user deleted everything)
+                    if (s.isNullOrBlank()) {
+                        editText.setText(minValue.toString())
+                        editText.setSelection(editText.text.length)
+                        saveNumericValue(minValue, dataField)
+                        return
+                    }
 
-                            val validatedValue = when {
-                                enteredValue < minValue -> minValue
-                                maxValue != null && enteredValue > maxValue -> maxValue
-                                else -> enteredValue
-                            }
+                    // Handle non-empty text
+                    try {
+                        val enteredValue = s.toString().toInt()
 
-                            if (enteredValue != validatedValue) {
-                                editText.setText(validatedValue.toString())
-                                editText.setSelection(editText.text.length)
-                            }
-
-                            saveNumericValue(validatedValue, dataField)
-                        } catch (e: NumberFormatException) {
-                            editText.setText(minValue.toString())
-                            saveNumericValue(minValue, dataField)
+                        val validatedValue = when {
+                            enteredValue < minValue -> minValue
+                            maxValue != null && enteredValue > maxValue -> maxValue
+                            else -> enteredValue
                         }
+
+                        if (enteredValue != validatedValue) {
+                            editText.setText(validatedValue.toString())
+                            editText.setSelection(editText.text.length)
+                        }
+
+                        saveNumericValue(validatedValue, dataField)
+                    } catch (e: NumberFormatException) {
+                        editText.setText(minValue.toString())
+                        editText.setSelection(editText.text.length)
+                        saveNumericValue(minValue, dataField)
                     }
                 }
             })

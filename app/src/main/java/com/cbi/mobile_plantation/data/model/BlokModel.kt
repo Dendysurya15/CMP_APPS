@@ -29,5 +29,6 @@ data class BlokModel(
     val tahun:Int?,
     val jumlah_pokok:Int?,
     val update_date:String?,
+    val tipe_area:Int?,
     val status:Int?
 )

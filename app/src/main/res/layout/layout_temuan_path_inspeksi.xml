@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?><!-- layout_path_detail_card.xml -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app1="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="16dp"
@@ -65,9 +66,10 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_marginEnd="6dp"
+                            android:tint="@color/white"
                             android:contentDescription="Detail Icon"
                             android:src="@drawable/baseline_image_not_supported_24"
-                             />
+                            tools:ignore="UseAppTint" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -81,15 +83,15 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Second Card: Telusuri -->
+                <!-- Second Card: Foto Pemulihan -->
                 <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardEdit"
+                    android:id="@+id/cardFotoPemulihan"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:visibility="gone"
                     app1:cardBackgroundColor="@color/greenDarker"
                     app1:cardCornerRadius="12dp"
                     app1:cardElevation="2dp"
-
                     app1:strokeWidth="1dp">
 
                     <LinearLayout
@@ -100,18 +102,20 @@
                         android:padding="8dp">
 
                         <ImageView
+                            android:id="@+id/ivFotoPemulihan"
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_marginEnd="6dp"
-                            android:contentDescription="Detail Icon"
-                            android:src="@drawable/baseline_arrow_outward_24"
-                            android:tint="@color/white" />
+                            android:contentDescription="Foto Pemulihan Icon"
+                            android:src="@drawable/baseline_image_not_supported_24"
+                            android:tint="@color/white"
+                            tools:ignore="UseAppTint" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/manrope_medium"
-                            android:text="Edit Data"
+                            android:text="Foto Pemulihan"
                             android:textColor="@color/white"
                             android:textSize="@dimen/s" />
 

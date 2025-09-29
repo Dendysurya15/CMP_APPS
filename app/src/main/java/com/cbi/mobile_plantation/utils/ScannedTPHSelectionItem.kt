@@ -8,6 +8,7 @@ data class ScannedTPHSelectionItem(
     val divisiCode: String?=null,
     val deptCode: String?=null,
     val jml_pokok_ha: Int?=0,
+    val tipeArea: Int?=0,
     val distance: Float,
     val isAlreadySelected: Boolean,
     val selectionCount: Int,
