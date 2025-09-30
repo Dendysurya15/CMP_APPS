@@ -4153,7 +4153,7 @@ class HomePageActivity : AppCompatActivity() {
                             // Convert to JSON
                             absensiJson = Gson().toJson(finalData)
 
-                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                            AppUtils.clearTempJsonFiles(this@HomePageActivity)
                             // Save JSON to a temporary file for inspection
 //                            try {
 //                                val tempDir =
@@ -4988,7 +4988,7 @@ class HomePageActivity : AppCompatActivity() {
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
                         val inspeksiJson = Gson().toJson(wrappedInspeksiData)
-                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
+//                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
                         try {
                             val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
                                 if (!exists()) mkdirs()

@@ -538,7 +538,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
             } else if (featureName == "Rekap panen dan restan") {
 
-                AppLogger.d("masuk sini gess")
                 findViewById<SpeedDialView>(R.id.dial_tph_list).visibility = View.GONE
                 findViewById<TextView>(R.id.tv_card_tersimpan).text = "Rekap TPH"
                 findViewById<TextView>(R.id.tv_card_terscan).text = "Sudah Transfer"

@@ -139,6 +139,12 @@ class FormAncakFragment : Fragment() {
         val tvNoPokok = view.findViewById<TextView>(R.id.tvNoPokokInspect)
         tvNoPokok.text = pageNumber.toString()
 
+//        val tvTotalPokok = view.findViewById<TextView>(R.id.tvTotalPokokInspect)
+//        viewModel.totalPages.observe(viewLifecycleOwner) { totalPages ->
+//            tvTotalPokok.text = totalPages.toString()
+//        }
+
+
         // Setup title observers
         setupTitleObservers(view)
 

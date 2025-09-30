@@ -143,10 +143,33 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:fontFamily="@font/manrope_extrabold"
-
+android:text="1"
                     android:textColor="@color/black"
                     android:textSize="40dp"
                     tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+<!--                <TextView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="match_parent"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:fontFamily="@font/manrope_bold"-->
+<!--                    android:text="/"-->
+<!--                    android:gravity="center"-->
+<!--                    android:textColor="@color/graydarker"-->
+<!--                    android:textSize="25dp"-->
+<!--                    tools:ignore="HardcodedText,SpUsage" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvTotalPokokInspect"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="match_parent"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:fontFamily="@font/manrope_bold"-->
+<!--                    android:text="100"-->
+<!--                    android:gravity="center"-->
+<!--                    android:textColor="@color/graydarker"-->
+<!--                    android:textSize="25dp"-->
+<!--                    tools:ignore="HardcodedText,SpUsage" />-->
 
             </LinearLayout>
 
