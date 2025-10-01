@@ -190,6 +190,8 @@ class ListInspectionAdapter(
                     }
                     else -> {
                         td1.text = "${item.tph?.blok_kode ?: ""}-${item.tph?.nomor ?: ""}"
+
+                        AppLogger.d("item $item")
                         td2.text = item.inspeksi.jml_pkk_inspeksi.toString()
                         val startTime = formatTime(item.inspeksi.created_date)
                         td3.text = "$startTime"

@@ -162,12 +162,13 @@ class DatasetRepository(
     suspend fun getLatLonDivisiByTPHIds(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>
+        tphIds: List<Int>,
+        blokKode: String
     ): List<TPHNewModel> {
-        return if (tphIds.isEmpty()) {
+        return if (tphIds.isEmpty() || blokKode.isEmpty()) {
             emptyList()
         } else {
-            tphDao.getLatLonByDivisiAndTPHIds(idEstate, idDivisi, tphIds)
+            tphDao.getLatLonByDivisiAndTPHIds(idEstate, idDivisi, tphIds, blokKode)
         }
     }
 

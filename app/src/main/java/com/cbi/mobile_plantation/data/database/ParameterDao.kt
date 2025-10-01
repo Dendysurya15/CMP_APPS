@@ -23,7 +23,7 @@ abstract class ParameterDao {
         insertParameter(parameter)
     }
 
-    @Query("SELECT param_val FROM parameter LIMIT 1")
+    @Query("SELECT param_val FROM parameter WHERE id LIKE '%kode_inspeksi%'")
     abstract suspend fun getParameterInspeksiJson(): String?
 
     @Query("DELETE FROM parameter")

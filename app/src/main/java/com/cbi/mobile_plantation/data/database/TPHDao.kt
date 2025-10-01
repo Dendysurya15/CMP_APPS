@@ -130,12 +130,14 @@ SELECT * FROM tph
 WHERE dept = :idEstate 
 AND divisi = :idDivisi
 AND id IN (:tphIds)
+AND blok_kode = :blokKode
 """
     )
     abstract fun getLatLonByDivisiAndTPHIds(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>
+        tphIds: List<Int>,
+        blokKode: String
     ): List<TPHNewModel>
 
     // If you need the values separately, keep these queries as well

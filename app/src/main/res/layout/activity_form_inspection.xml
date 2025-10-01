@@ -57,7 +57,7 @@
             android:backgroundTint="@color/orange"
             android:fontFamily="@font/manrope_bold"
             android:paddingVertical="12dp"
-            android:text="Mulai dari Baris / Pasar Tengah"
+            android:text="Mulai dari Path"
             android:textColor="@color/white"
             android:textSize="18sp"
             app:cornerRadius="12dp"
