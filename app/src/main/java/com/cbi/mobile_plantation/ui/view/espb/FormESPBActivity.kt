@@ -178,8 +178,7 @@ class FormESPBActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun updateWarningText() {
-        warningText.text = "Peringatan, pastikan semua form sudah terisi dengan benar!\n" +
-                "Jika QR Code sudah tampil, maka anda harus melakukan Scan QR Code dan konfirmasi scan dengan menekan tombol!"
+        warningText.text = "Pastikan semua form terisi dengan benar. Jika QR Code sudah tampil, lakukan scan dan konfirmasi dengan menekan tombol yang tersedia."
         warningText.setTextColor(ContextCompat.getColor(this, R.color.black))
     }
 

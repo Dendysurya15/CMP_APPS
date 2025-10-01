@@ -31,6 +31,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/titleDialogDetailTable" />
 
+    <include
+        android:id="@+id/warning_card"
+        layout="@layout/warning_layout_card_asistensi"
+        android:layout_width="match_parent"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/dashedLine"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
     <!-- Scrollable content area -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollContent"
@@ -41,7 +50,7 @@
         app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/dashedLine">
+        app:layout_constraintTop_toBottomOf="@+id/warning_card">
 
         <LinearLayout
             android:id="@+id/contentContainer"

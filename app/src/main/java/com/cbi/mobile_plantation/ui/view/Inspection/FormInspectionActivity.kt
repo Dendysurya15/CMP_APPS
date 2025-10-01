@@ -573,9 +573,17 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     withContext(Dispatchers.Main) {
                         panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-                            AppLogger.d("panenTPH $panenTPH")
-                            panenTPH = list ?: emptyList()
-                            panenDeferred.complete(list ?: emptyList())
+                            AppLogger.d("panenTPH raw size: ${list?.size}")
+
+                            // Filter by isPushedToServer == 1 OR status_scan_inspeksi == 1
+                            val filteredList = list?.filter { panenWithRelations ->
+                                val panen = panenWithRelations.panen
+                                panen.isPushedToServer == 1 || panen.status_scan_inspeksi == 1
+                            } ?: emptyList()
+
+                            AppLogger.d("panenTPH filtered size: ${filteredList.size}")
+                            panenTPH = filteredList
+                            panenDeferred.complete(filteredList)
                         }
                     }
                     panenDeferred.await()
@@ -616,16 +624,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                     }
 
-
-                    val divisiDeferred = async {
-                        try {
-                            datasetViewModel.getDivisiList(estateIdInt)
-                        } catch (e: Exception) {
-                            emptyList() // Return an empty list to prevent crash
-                        }
-                    }
-
-                    divisiList = divisiDeferred.await()
+                    // Extract distinct TPH objects based on divisi_abbr and sort by divisi_nama
+                    divisiList = panenTPH
+                        .mapNotNull { it.tph }
+                        .distinctBy { it.divisi_abbr }
+                        .sortedBy { it.divisi_nama }
 
                     if (divisiList.isEmpty()) {
                         throw Exception("Divisi tidak ditemukan, Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
@@ -870,127 +873,94 @@ open class FormInspectionActivity : AppCompatActivity(),
             bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
         } else {
             isInTPH = false
-//            if (!isStartFromTPH) {
-//                AppLogger.d("Starting from Pokok mode - auto-populating workers from panenTPH")
-//
-//                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-//                val currentDate = Date()
-//
-//                // Get start of current week (Monday at 00:00:00)
-//                val calendar = Calendar.getInstance()
-//                calendar.time = currentDate
-//                calendar.firstDayOfWeek = Calendar.MONDAY
-//                calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-//                calendar.set(Calendar.HOUR_OF_DAY, 0)
-//                calendar.set(Calendar.MINUTE, 0)
-//                calendar.set(Calendar.SECOND, 0)
-//                calendar.set(Calendar.MILLISECOND, 0)
-//                val startOfWeek = calendar.timeInMillis
-//
-//                // Get end of current week (Sunday at 23:59:59)
-//                calendar.add(Calendar.DAY_OF_WEEK, 6)
-//                calendar.set(Calendar.HOUR_OF_DAY, 23)
-//                calendar.set(Calendar.MINUTE, 59)
-//                calendar.set(Calendar.SECOND, 59)
-//                calendar.set(Calendar.MILLISECOND, 999)
-//                val endOfWeek = calendar.timeInMillis
-//
-//                AppLogger.d("Filtering panenTPH for current week:")
-//                AppLogger.d("  Start: ${dateFormat.format(Date(startOfWeek))}")
-//                AppLogger.d("  End: ${dateFormat.format(Date(endOfWeek))}")
-//
-//                // Filter panenTPH for current week AND (isPushedToServer == 1 OR status_scan_inspeksi == 1)
-//                val panenThisWeek = panenTPH.filter { panenWithRelations ->
-//                    val panen = panenWithRelations.panen
-//                    if (panen?.date_created != null) {
-//                        try {
-//                            val panenDate = dateFormat.parse(panen.date_created)
-//                            if (panenDate != null) {
-//                                val panenTimeMillis = panenDate.time
-//                                val isInWeek = panenTimeMillis >= startOfWeek && panenTimeMillis <= endOfWeek
-//
-//                                // Additional filters: isPushedToServer == 1 OR status_scan_inspeksi == 1
-//                                val isPushed = panen.isPushedToServer == 1
-//                                val isScanned = panen.status_scan_inspeksi == 1
-//
-//                                val result = isInWeek && (isPushed || isScanned)
-//
-////                                if (result) {
-////                                    AppLogger.d("  Matched: ${panen.date_created} - pushed:$isPushed, scanned:$isScanned")
-////                                }
-//
-//                                result
-//                            } else {
-//                                false
-//                            }
-//                        } catch (e: Exception) {
-//                            AppLogger.e("Error parsing date: ${panen.date_created} - ${e.message}")
-//                            false
-//                        }
-//                    } else {
-//                        false
-//                    }
-//                }
-//
-////                AppLogger.d("Found ${panenThisWeek.size} panen records in current week (with isPushedToServer=1 or status_scan_inspeksi=1) out of ${panenTPH.size} total")
-//
-//                // Collect unique workers from this week's panen
-//                val uniqueWorkers = mutableSetOf<Pair<String, String>>() // Pair of (nik, nama)
-//                val workerIdMap = mutableMapOf<String, String>() // Map formatted name to individual ID
-//
-//                panenThisWeek.forEach { panenWithRelations ->
-//                    val panen = panenWithRelations.panen ?: return@forEach
-//                    val karyawanNik = panen.karyawan_nik
-//                    val karyawanNama = panen.karyawan_nama
-//                    val karyawanId = panen.karyawan_id
-//
-//                    if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
-//                        val niks = karyawanNik.split(",").map { it.trim() }
-//                        val names = karyawanNama.split(",").map { it.trim() }
-//                        val ids = karyawanId.split(",").map { it.trim() }
-//
-//                        // Add each worker to the unique set
-//                        niks.forEachIndexed { index, nik ->
-//                            if (index < names.size && index < ids.size) {
-//                                val nama = names[index]
-//                                val id = ids[index]
-//                                uniqueWorkers.add(Pair(nik, nama))
-//                                workerIdMap["$nik - $nama"] = id
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                AppLogger.d("Found ${uniqueWorkers.size} unique workers in current week's panen")
-//
-//                // Sort workers by name alphabetically
-//                val sortedWorkers = uniqueWorkers.sortedBy { it.second }
-//
-//                // Add workers to selectedPemanenAdapter
-//                sortedWorkers.forEach { (nik, nama) ->
-//                    val formattedWorker = "$nik - $nama"
-//                    val workerId = workerIdMap[formattedWorker] ?: "0"
-//
-//                    AppLogger.d("Auto-adding worker from panenTPH: $formattedWorker (ID: $workerId)")
-//
-//                    val worker = Worker(workerId, formattedWorker)
-//                    selectedPemanenAdapter.addWorker(worker)
-//                }
-//
-//                // Show RecyclerView if workers were added
-//                if (sortedWorkers.isNotEmpty()) {
-//                    val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
-//                    rvSelectedPemanenOtomatis?.visibility = View.VISIBLE
-//                    AppLogger.d("Auto-populated ${sortedWorkers.size} workers for Pokok mode")
-//                }
-//
-//                // Update ViewModel with the workers
-//                updateWorkerDataInViewModel()
-//            }
             showFormBlokAfdeling()
-//            showFormInspectionScreen()
-//            bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
         }
+    }
+
+    // Add this new function
+    private fun handleInspectionStart(
+        selectedBlokValue: String,
+        tipeArea: Int,
+        jmlPokokHa: Int
+    ) {
+        // Clear temp values on success
+        tempSelectedAfdeling = ""
+        tempSelectedBlok = ""
+
+        // Calculate total pages based on tipe_area
+        val multiplier = if (tipeArea == 1) 0.65 else 0.55
+        val calculatedPages = ceil(jmlPokokHa * multiplier).toInt()
+
+        formAncakViewModel.setIsStartFromTPH(false)
+
+        AppLogger.d("Blok calculation - tipeArea: $tipeArea, jmlPokokHa: $jmlPokokHa, multiplier: $multiplier, calculatedPages: $calculatedPages")
+        formAncakViewModel.updateTotalPages(calculatedPages)
+
+        // Filter panenTPH by selected blok and pass to populateWorkersForBlok
+        val panenForBlok = panenTPH.filter { it.tph?.blok_kode == selectedBlokValue }
+//        AppLogger.d("Filtered ${panenForBlok.size} panen records for blok: $selectedBlokValue")
+
+        populateWorkersForBlok(selectedBlokValue, panenForBlok)
+
+        selectionScreen.visibility = View.GONE
+        mainContentWrapper.visibility = View.VISIBLE
+        headerFormInspection.visibility = View.VISIBLE
+
+        showFormInspectionScreen()
+        bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
+    }
+
+    private fun populateWorkersForBlok(
+        blokKode: String,
+        panenForBlok: List<PanenEntityWithRelations>
+    ) {
+//        AppLogger.d("Starting worker population for blok: $blokKode with ${panenForBlok.size} panen records")
+
+        // Collect unique workers directly from the filtered list
+        val uniqueWorkers = mutableSetOf<Pair<String, String>>()
+        val workerIdMap = mutableMapOf<String, String>()
+
+        panenForBlok.forEach { panenWithRelations ->
+            val panen = panenWithRelations.panen ?: return@forEach
+            val karyawanNik = panen.karyawan_nik
+            val karyawanNama = panen.karyawan_nama
+            val karyawanId = panen.karyawan_id
+
+            if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank() && !karyawanId.isNullOrBlank()) {
+                val niks = karyawanNik.split(",").map { it.trim() }
+                val names = karyawanNama.split(",").map { it.trim() }
+                val ids = karyawanId.split(",").map { it.trim() }
+
+                niks.forEachIndexed { index, nik ->
+                    if (index < names.size && index < ids.size) {
+                        val nama = names[index]
+                        val id = ids[index]
+                        uniqueWorkers.add(Pair(nik, nama))
+                        workerIdMap["$nik - $nama"] = id
+                    }
+                }
+            }
+        }
+
+        AppLogger.d("Found ${uniqueWorkers.size} unique workers for blok $blokKode")
+
+        // Sort and add workers
+        val sortedWorkers = uniqueWorkers.sortedBy { it.second }
+
+        sortedWorkers.forEach { (nik, nama) ->
+            val formattedWorker = "$nik - $nama"
+            val workerId = workerIdMap[formattedWorker] ?: "0"
+            val worker = Worker(workerId, formattedWorker)
+            selectedPemanenAdapter.addWorker(worker)
+        }
+
+        if (sortedWorkers.isNotEmpty()) {
+            val rvSelectedPemanenOtomatis = findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+            rvSelectedPemanenOtomatis?.visibility = View.VISIBLE
+//            AppLogger.d("Auto-populated ${sortedWorkers.size} workers for blok $blokKode")
+        }
+
+        updateWorkerDataInViewModel()
     }
 
 
@@ -1003,9 +973,21 @@ open class FormInspectionActivity : AppCompatActivity(),
         val view = LayoutInflater.from(this)
             .inflate(R.layout.layout_bottom_sheet_edit_nama_pemanen, null)
 
+        val warningCard = view.findViewById<View>(R.id.warning_card)
+        val warningText = warningCard.findViewById<TextView>(R.id.warningText)
+        val btnCloseWarning = warningCard.findViewById<ImageButton>(R.id.btnCloseWarning)
+
+        warningCard.visibility = View.VISIBLE
+        warningText.text = "Informasi: Pilihan Afdeling dan blok yang ditampilkan merupakan data panen dalam rentang waktu satu minggu terakhir (H+0 hingga H+7)"
+
+        // Optional: Handle close button
+        btnCloseWarning.setOnClickListener {
+            warningCard.visibility = View.GONE
+        }
+
         // Set height to 40% of screen
         val displayMetrics = resources.displayMetrics
-        val height = (displayMetrics.heightPixels * 0.5).toInt()
+        val height = (displayMetrics.heightPixels * 0.6).toInt()
         view.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             height
@@ -1065,27 +1047,27 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (afdelingIndex >= 0) {
                 spinnerAfdeling.selectedIndex = afdelingIndex
 
-                // Also reload blok list for the selected afdeling
                 val selectedDivisiId = divisiList.find {
                     it.divisi_abbr == tempSelectedAfdeling
                 }?.divisi
                 selectedDivisiValue = selectedDivisiId?.toInt()
 
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val bloks = datasetViewModel.getListOfBlok(estateId!!.toInt(), selectedDivisiId ?: 0)
-                    withContext(Dispatchers.Main) {
-                        blokList = bloks
-                        val blokNames = bloks.sortedBy { it.kode }.mapNotNull { it.kode }
-                        spinnerBlok.setItems(blokNames)
-                        spinnerBlok.setHint("Pilih kategori yang sesuai")
+                // Get blok names from panenTPH filtered by selected afdeling
+                val blokNames = panenTPH
+                    .mapNotNull { it.tph }
+                    .filter { it.divisi_abbr == tempSelectedAfdeling }
+                    .mapNotNull { it.blok_kode }
+                    .distinct()
+                    .sorted()
 
-                        // Restore blok selection if exists
-                        if (tempSelectedBlok.isNotEmpty()) {
-                            val blokIndex = blokNames.indexOf(tempSelectedBlok)
-                            if (blokIndex >= 0) {
-                                spinnerBlok.selectedIndex = blokIndex
-                            }
-                        }
+                spinnerBlok.setItems(blokNames)
+                spinnerBlok.setHint("Pilih kategori yang sesuai")
+
+                // Restore blok selection if exists
+                if (tempSelectedBlok.isNotEmpty()) {
+                    val blokIndex = blokNames.indexOf(tempSelectedBlok)
+                    if (blokIndex >= 0) {
+                        spinnerBlok.selectedIndex = blokIndex
                     }
                 }
             }
@@ -1110,16 +1092,16 @@ open class FormInspectionActivity : AppCompatActivity(),
             selectedBlokValue = ""
             tempSelectedBlok = ""
 
-            // Load bloks
-            lifecycleScope.launch(Dispatchers.IO) {
-                val bloks = datasetViewModel.getListOfBlok(estateId!!.toInt(), selectedDivisiId ?: 0)
-                withContext(Dispatchers.Main) {
-                    blokList = bloks
-                    val blokNames = bloks.sortedBy { it.kode }.mapNotNull { it.kode }
-                    spinnerBlok.setItems(blokNames)
-                    spinnerBlok.setHint("Pilih kategori yang sesuai")
-                }
-            }
+            // Get blok names from panenTPH filtered by selected afdeling
+            val blokNames = panenTPH
+                .mapNotNull { it.tph }
+                .filter { it.divisi_abbr == selectedAfdelingValue }
+                .mapNotNull { it.blok_kode }
+                .distinct()
+                .sorted()
+
+            spinnerBlok.setItems(blokNames)
+            spinnerBlok.setHint("Pilih kategori yang sesuai")
         }
 
         // Blok selection
@@ -1131,7 +1113,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             tvErrorBlok.visibility = View.GONE
         }
 
-        // Start button
         // Start button
         startButton.setOnClickListener {
             var hasError = false
@@ -1151,43 +1132,49 @@ open class FormInspectionActivity : AppCompatActivity(),
             if (!hasError) {
                 bottomSheetDialog.dismiss()
 
-                // Get selected blok details
-                val selectedBlok = blokList.find { it.kode == selectedBlokValue }
-                val tipeArea = selectedBlok?.tipe_area ?: 1
-                val jmlPokokHa = selectedBlok?.jml_pokok_ha ?: 0
+                // We need to fetch blokList to get tipe_area since TPHNewModel doesn't have it
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        val bloks = datasetViewModel.getListOfBlok(
+                            estateId!!.toInt(),
+                            selectedDivisiValue ?: 0
+                        )
 
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "Mulai",
-                    "Konfirmasi Data",
-                    "Mulai inspeksi dengan Afdeling: $selectedAfdelingValue dan Blok: $selectedBlokValue?",
-                    "warning.json",
-                    ContextCompat.getColor(this, R.color.bluedarklight),
-                    function = {
-                        // Clear temp values on success
-                        tempSelectedAfdeling = ""
-                        tempSelectedBlok = ""
+                        val selectedBlok = bloks.find { it.kode == selectedBlokValue }
+                        val tipeArea = selectedBlok?.tipe_area ?: 1
+                        val jmlPokokHa = selectedBlok?.jml_pokok_ha ?: 0
 
-                        // Calculate total pages based on tipe_area
-                        val multiplier = if (tipeArea == 1) 0.65 else 0.55
-                        val calculatedPages = ceil(jmlPokokHa * multiplier).toInt()
-
-                        AppLogger.d("Blok calculation - tipeArea: $tipeArea, jmlPokokHa: $jmlPokokHa, multiplier: $multiplier, calculatedPages: $calculatedPages")
-
-                        formAncakViewModel.updateTotalPages(calculatedPages)
-
-                        selectionScreen.visibility = View.GONE
-                        mainContentWrapper.visibility = View.VISIBLE
-                        headerFormInspection.visibility = View.VISIBLE
-
-                        showFormInspectionScreen()
-                        bottomNavInspect.selectedItemId = R.id.navMenuAncakInspect
-                    },
-                    cancelFunction = {
-                        // Keep temp values and reopen
-                        showFormBlokAfdeling()
+                        withContext(Dispatchers.Main) {
+                            AlertDialogUtility.withTwoActions(
+                                this@FormInspectionActivity,
+                                "Mulai",
+                                "Konfirmasi Data",
+                                "Mulai inspeksi dengan Afdeling: $selectedAfdelingValue dan Blok: $selectedBlokValue?",
+                                "warning.json",
+                                ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight),
+                                function = {
+                                    handleInspectionStart(
+                                        selectedBlokValue,
+                                        tipeArea,
+                                        jmlPokokHa
+                                    )
+                                },
+                                cancelFunction = {
+                                    showFormBlokAfdeling()
+                                }
+                            )
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching blok details: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Error: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
-                )
+                }
             }
         }
 
@@ -3305,7 +3292,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val radiusText = "${boundaryAccuracy.toInt()} m"
         val fullText =
-            "Berikut adalah daftar lokasi TPH yang berada dalam radius $radiusText dari lokasi anda:"
+            "Berikut adalah daftar lokasi Transaksi Panen yang berada dalam radius $radiusText dari lokasi anda:"
         val spannableString = SpannableString(fullText)
         val startIndex = fullText.indexOf(radiusText)
         val endIndex = startIndex + radiusText.length
@@ -5929,14 +5916,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                             delay(300) // 1 second delay
                         }
 
+                        // Remove this entire block:
                         val blokDeferred = async {
                             try {
-                                val estateIdToUse = if (isGM) {
-                                    estateId!!.toInt()
-                                } else {
-                                    estateId!!.toInt()
-                                }
-                                datasetViewModel.getListOfBlok(estateIdToUse, selectedDivisiId ?: 0)
+                                datasetViewModel.getListOfBlok(estateId!!.toInt(), selectedDivisiId ?: 0)
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching blokList: ${e.message}")
                                 emptyList()

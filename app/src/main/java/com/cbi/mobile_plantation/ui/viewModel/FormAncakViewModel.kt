@@ -69,6 +69,9 @@ class FormAncakViewModel : ViewModel() {
     private val _afdName = MutableLiveData<String>("-")
     val afdName: LiveData<String> = _afdName
 
+    private val _isStartFromTPH = MutableLiveData<Boolean>(true)
+    val isStartFromTPH: LiveData<Boolean> = _isStartFromTPH
+
     private val _blokName = MutableLiveData<String>("-")
     val blokName: LiveData<String> = _blokName
 
@@ -87,6 +90,11 @@ class FormAncakViewModel : ViewModel() {
 
     fun previousPage() {
         _currentPage.value = (_currentPage.value ?: 1) - 1
+    }
+
+    fun setIsStartFromTPH(isStartFromTPH: Boolean) {
+        _isStartFromTPH.value = isStartFromTPH
+        AppLogger.d("isStartFromTPH set to: $isStartFromTPH")
     }
 
     fun updateTotalPages(totalPages: Int) {
@@ -136,35 +144,33 @@ class FormAncakViewModel : ViewModel() {
     private fun setDefaultPemanenForAllPages(workers: List<String>) {
         val currentData = _formData.value ?: mutableMapOf()
         val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+        val shouldSetDefault = _isStartFromTPH.value ?: true
 
-        AppLogger.d("workers $workers")
-        AppLogger.d("totalPages $totalPages")
-
-        // Convert worker names to Map<String, String> format
-        val defaultPemanenMap = workers.associate { workerName ->
-            val dashIndex = workerName.indexOf(" - ")
-            if (dashIndex != -1) {
-                val nik = workerName.substring(0, dashIndex).trim()
-                val name = workerName.substring(dashIndex + 3).trim() // +3 to skip " - "
-                AppLogger.d("Parsed worker - NIK: '$nik', Name: '$name'")
-                nik to name
-            } else {
-                AppLogger.w("Worker format unexpected, using as-is: '$workerName'")
-                workerName to workerName // fallback if format is different
+        if (shouldSetDefault) {
+            // TPH mode: populate all workers
+            val defaultPemanenMap = workers.associate { workerName ->
+                val dashIndex = workerName.indexOf(" - ")
+                if (dashIndex != -1) {
+                    val nik = workerName.substring(0, dashIndex).trim()
+                    val name = workerName.substring(dashIndex + 3).trim()
+                    nik to name
+                } else {
+                    workerName to workerName
+                }
             }
-        }
 
-        AppLogger.d("Created defaultPemanenMap with ${defaultPemanenMap.size} entries:")
-        defaultPemanenMap.forEach { (nik, name) ->
-            AppLogger.d("  $nik -> $name")
-        }
-
-        // Update pemanen for all pages (1 to totalPages)
-        for (pageNumber in 1..totalPages) {
-            val existingPageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
-            val updatedPageData = existingPageData.copy(pemanen = defaultPemanenMap)
-            currentData[pageNumber] = updatedPageData
-            AppLogger.d("Set default pemanen for page $pageNumber: ${defaultPemanenMap.size} workers")
+            for (pageNumber in 1..totalPages) {
+                val existingPageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
+                val updatedPageData = existingPageData.copy(pemanen = defaultPemanenMap)
+                currentData[pageNumber] = updatedPageData
+            }
+        } else {
+            // Blok mode: leave pemanen EMPTY
+            for (pageNumber in 1..totalPages) {
+                if (!currentData.containsKey(pageNumber)) {
+                    currentData[pageNumber] = PageData(pokokNumber = pageNumber)
+                }
+            }
         }
 
         _formData.value = currentData
