@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.VibrationEffect
@@ -25,6 +26,7 @@ import androidx.core.content.ContextCompat
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
+import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
@@ -112,7 +114,8 @@ object AppUtils {
     ) = withContext(Dispatchers.IO) {
         try {
             val finalFileName = if (addTimestamp) {
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val timestamp =
+                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 "${fileName.removeSuffix(".json")}_$timestamp.json"
             } else {
                 if (!fileName.endsWith(".json")) "$fileName.json" else fileName
@@ -155,8 +158,33 @@ object AppUtils {
         }
     }
 
+    fun showSnackbarWithSettings(
+        activity: Activity,
+        message: String,
+        actionText: String = "Settings"
+    ) {
+        Snackbar.make(
+            activity.findViewById(android.R.id.content),
+            message,
+            Snackbar.LENGTH_INDEFINITE
+        )
+            .setAction(actionText) {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", activity.packageName, null)
+                )
+                activity.startActivity(intent)
+            }
+            .show()
+    }
+
     fun formatDateForBackend(day: Int, month: Int, year: Int): String {
         return String.format("%04d-%02d-%02d", year, month, day)
+    }
+
+    fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
+//        return prefManager?.radiusMinimum ?:15F
+        return 5000F
     }
 
     object DatabaseTables {
@@ -164,7 +192,7 @@ object AppUtils {
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
-        const val INSPEKSI_DETAIL= "inspeksi_detail"
+        const val INSPEKSI_DETAIL = "inspeksi_detail"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
         const val AFDELING = "afdeling"
@@ -182,7 +210,7 @@ object AppUtils {
         const val HEKTAR_PANEN = "hektar_panen"
 
         //for upload hektaran and hektaran_detail
-        const val HEKTARAN= "hektaran"
+        const val HEKTARAN = "hektaran"
         const val HEKTARAN_DETAIL = "hektaran_detail"
 
         const val ABSENSI_DETAIL = "absensi_detail"
@@ -199,7 +227,6 @@ object AppUtils {
         const val KeraniPanen = "Kerani Panen"
         const val IT = "IT"
     }
-
 
 
     object ListFeatureNames {
@@ -303,9 +330,11 @@ object AppUtils {
 
     object kodeInspeksi {
         const val brondolanDigawangan = "Brondolan dibuang ke gawangan"
-        const val brondolanTidakDikutip = "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok"
+        const val brondolanTidakDikutip =
+            "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok"
         const val buahMasakTidakDipotong = "Buah masak tidak dipotong"
-        const val buahTertinggalPiringan = "Buah tertinggal di piringan dan buah diperam digawangan mati"
+        const val buahTertinggalPiringan =
+            "Buah tertinggal di piringan dan buah diperam digawangan mati"
         const val buahTinggalTPH = "Buah tinggal di TPH"
         const val brondolanTinggalTPH = "Brondolan tinggal di TPH"
         const val susunanPelepahTidakSesuai = "Susunan pelepah tidak sesuai"
@@ -342,7 +371,6 @@ object AppUtils {
         // Remove dots
         return numericVersion.replace(".", "")
     }
-
 
 
     fun clearTempJsonFiles(context: Context) {
@@ -590,13 +618,22 @@ object AppUtils {
                     // Handle inspeksi photos with proper folder organization
                     processInspeksiPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
+
                 featureKey.lowercase().contains("mutu_buah") -> {
                     // Handle MutuBuah photos with both foto and foto_selfie
                     processMutuBuahPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
+
                 else -> {
                     // Handle other features normally (PANEN, ESPB, etc.)
-                    processRegularPhotos(data, featureKey, allCmpDirectories, zip, zipParams, context)
+                    processRegularPhotos(
+                        data,
+                        featureKey,
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
                 }
             }
         }
@@ -1105,10 +1142,12 @@ object AppUtils {
                     AppLogger.w("App version is outdated. Current: $currentAppVersion, Required: $requiredVersion")
                     return true // Update required
                 }
+
                 comparison == 0 -> {
                     AppLogger.d("App version is up to date")
                     return false
                 }
+
                 comparison > 0 -> {
                     AppLogger.d("App version is newer than required")
                     return false
@@ -1217,7 +1256,8 @@ object AppUtils {
 
     fun formatToCamelCase(text: String?): String {
         return text?.split(" ")?.joinToString(" ") { word ->
-            if (word.length <= 3) word.uppercase() else word.lowercase().replaceFirstChar { it.uppercase() }
+            if (word.length <= 3) word.uppercase() else word.lowercase()
+                .replaceFirstChar { it.uppercase() }
         } ?: ""
     }
 
@@ -1452,7 +1492,8 @@ object AppUtils {
             featureName == ListFeatureNames.RekapPanenDanRestan ||
             featureName == ListFeatureNames.DetailESPB ||
             featureName == ListFeatureNames.TransferHektarPanen ||
-            featureName == ListFeatureNames.TransferInspeksiPanen) {
+            featureName == ListFeatureNames.TransferInspeksiPanen
+        ) {
 
             if (featureName == ListFeatureNames.TransferInspeksiPanen) {
                 // For TransferInspeksiPanen, just show blok names without sum/count
@@ -1464,7 +1505,8 @@ object AppUtils {
                     .joinToString(", ")
             } else {
                 // For other features, show with sum and count
-                val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
+                val fieldToExtract =
+                    if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
                 mappedData
                     .filter { it["blok_name"].toString() != "-" }
@@ -1529,7 +1571,10 @@ object AppUtils {
     /**
      * Get a map of all calculated data for easy access
      */
-    fun getPanenProcessedData(mappedData: List<Map<String, Any?>>, featureName: String?): Map<String, Any> {
+    fun getPanenProcessedData(
+        mappedData: List<Map<String, Any?>>,
+        featureName: String?
+    ): Map<String, Any> {
         val totalJjgCount = if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
             // For Mutu Buah, use jjg_panen instead of jjg_kirim
             mappedData.sumOf { data ->

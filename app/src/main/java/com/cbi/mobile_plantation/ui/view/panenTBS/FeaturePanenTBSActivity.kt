@@ -73,6 +73,7 @@ import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.LocationManager
 import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
@@ -353,8 +354,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 5000F
-        boundaryAccuracy = 5000F
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
 
         initViewModel()
         initUI()
@@ -2099,11 +2100,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             CameraViewModel.Factory(cameraRepository)
         )[CameraViewModel::class.java]
 
-        val status_location = findViewById<ImageView>(R.id.statusLocation)
-        locationViewModel = ViewModelProvider(
-            this,
-            LocationViewModel.Factory(application, status_location, this, boundaryAccuracy)  // Pass boundaryAccuracy
-        )[LocationViewModel::class.java]
+        locationViewModel = LocationManager.sharedLocationViewModel!!
 
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
@@ -6219,36 +6216,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     override fun onResume() {
         super.onResume()
 
-        // Manually check location permission
-        val isLocationGranted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (isLocationGranted) {
-            locationViewModel.startLocationUpdates()
-            isSnackbarShown = false // Reset snackbar flag
-        } else if (!isSnackbarShown) {
-            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
-            isSnackbarShown = true // Prevent duplicate snackbars
-        }
-
-
-        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
-            if (isAirplaneMode) {
-                locationViewModel.stopLocationUpdates()
-            } else {
-                // Only restart if we have permission
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    locationViewModel.startLocationUpdates()
-                }
-            }
-        }
-
-        // Observe location updates
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
@@ -6256,8 +6223,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
+            findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
+
+            // Update status location icon based on accuracy
+            val statusLocation = findViewById<ImageView>(R.id.statusLocation)
+            val isLocationGood = accuracy <= boundaryAccuracy
+
+            statusLocation?.setImageResource(
+                if (isLocationGood) R.drawable.baseline_location_on_24
+                else R.drawable.baseline_wrong_location_24
+            )
+            statusLocation?.imageTintList = ColorStateList.valueOf(
+                resources.getColor(
+                    if (isLocationGood) R.color.greenbutton else R.color.colorRedDark
+                )
+            )
         }
 
         checkDateTimeSettings()
@@ -6307,8 +6288,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         autoScanEnabled = false
         autoScanHandler.removeCallbacks(autoScanRunnable)
 
-        // Your existing onPause code...
-        locationViewModel.stopLocationUpdates()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
@@ -6319,7 +6298,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
     override fun onDestroy() {
         super.onDestroy()
-        locationViewModel.stopLocationUpdates()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         SoundPlayer.releaseMediaPlayer()

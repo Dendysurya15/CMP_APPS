@@ -37,6 +37,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupWindow
@@ -66,6 +67,7 @@ import com.cbi.mobile_plantation.data.model.HektarPanenEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.LocationManager
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
@@ -97,6 +99,7 @@ import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel
+import com.cbi.mobile_plantation.ui.viewModel.LocationViewModel
 import com.cbi.mobile_plantation.ui.viewModel.MutuBuahViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 import com.cbi.mobile_plantation.ui.viewModel.UploadCMPViewModel
@@ -155,6 +158,9 @@ class HomePageActivity : AppCompatActivity() {
     companion object {
         private const val ALL_PERMISSIONS_REQUEST_CODE = 1001
     }
+
+    private var isSnackbarShown = false
+    private var locationEnable: Boolean = false
 
     private lateinit var featureAdapter: FeatureCardAdapter
     private lateinit var binding: ActivityHomePageBinding
@@ -238,7 +244,13 @@ class HomePageActivity : AppCompatActivity() {
         val tanggal_upload: String,
         val type: String,
     )
+    private var radiusMinimum = 0F
+    private var boundaryAccuracy = 0F
 
+    private var lat: Double? = null
+    private var lon: Double? = null
+    private var currentAccuracy: Float = 0F
+    private lateinit var locationViewModel: LocationViewModel
     private var estateList: List<EstateModel> = emptyList()
     private val globalResponseJsonUploadList = mutableListOf<ResponseJsonUpload>()
     private lateinit var downloadDatasetUtility: DownloadDatasetUtility
@@ -1127,17 +1139,61 @@ class HomePageActivity : AppCompatActivity() {
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
             startPeriodicDateTimeChecking()
         }
+
+        val isLocationGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (isLocationGranted) {
+            locationViewModel.startLocationUpdates()
+            isSnackbarShown = false // Reset snackbar flag
+        } else if (!isSnackbarShown) {
+            AppUtils.showSnackbarWithSettings(this, "Location permission is required for this app. Enable it in Settings.")
+            isSnackbarShown = true
+        }
+
+        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
+            if (isAirplaneMode) {
+                locationViewModel.stopLocationUpdates()
+            } else {
+                // Only restart if we have permission
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    locationViewModel.startLocationUpdates()
+                }
+            }
+        }
+
+        locationViewModel.locationData.observe(this) { location ->
+            locationEnable = true
+            lat = location.latitude
+            lon = location.longitude
+
+            AppLogger.d("----")
+            AppLogger.d("$lat")
+            AppLogger.d("$lon")
+        }
+
+        locationViewModel.locationAccuracy.observe(this) { accuracy ->
+            // Safe call - works whether the view exists or not
+            findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
+            currentAccuracy = accuracy
+        }
+
     }
 
     override fun onPause() {
         super.onPause()
-
+        locationViewModel.stopLocationUpdates()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-
+        locationViewModel.stopLocationUpdates()
         // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
@@ -1152,8 +1208,9 @@ class HomePageActivity : AppCompatActivity() {
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
+        radiusMinimum = 5000F
+        boundaryAccuracy = 5000F
 
-        AppLogger.d("prefmanager ${prefManager!!.latestAppVersionSystem}")
         initViewModel()
         downloadDatasetUtility = DownloadDatasetUtility(prefManager!!, datasetViewModel)
 
@@ -9060,6 +9117,15 @@ class HomePageActivity : AppCompatActivity() {
         val factoryMBVM = MutuBuahViewModel.MutuBuahViewModelFactory(application)
         mutuBuahViewModel =
             ViewModelProvider(this, factoryMBVM)[MutuBuahViewModel::class.java]
+
+        if (LocationManager.sharedLocationViewModel == null) {
+            LocationManager.sharedLocationViewModel = ViewModelProvider(
+                this,
+                LocationViewModel.Factory(application, null, this, boundaryAccuracy)
+            )[LocationViewModel::class.java]
+        }
+
+        locationViewModel = LocationManager.sharedLocationViewModel!!
     }
 
 

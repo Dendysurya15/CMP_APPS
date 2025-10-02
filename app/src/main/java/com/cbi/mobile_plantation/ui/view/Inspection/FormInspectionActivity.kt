@@ -88,6 +88,7 @@ import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.LocationManager
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.CameraRepository
@@ -498,8 +499,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 5000F
-        boundaryAccuracy = 5000F
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
 
         initViewModel()
         initUI()
@@ -1353,39 +1354,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("DefaultLocale")
     override fun onResume() {
-        val isLocationGranted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (isLocationGranted) {
-            locationViewModel.startLocationUpdates()
-            isSnackbarShown = false // Reset snackbar flag
-        } else if (!isSnackbarShown) {
-            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
-            isSnackbarShown = true // Prevent duplicate snackbars
-        }
-
-
-        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
-            if (isAirplaneMode) {
-                locationViewModel.stopLocationUpdates()
-            } else {
-                // Only restart if we have permission
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    locationViewModel.startLocationUpdates()
-                }
-            }
-        }
-
-        // Observe location updates
-
-        AppLogger.d("-------")
-        AppLogger.d("lat $lat")
-        AppLogger.d("lon $lon")
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
@@ -1393,8 +1361,22 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
+            findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
+
+            // Update status location icon based on accuracy
+            val statusLocation = findViewById<ImageView>(R.id.statusLocation)
+            val isLocationGood = accuracy <= boundaryAccuracy
+
+            statusLocation?.setImageResource(
+                if (isLocationGood) R.drawable.baseline_location_on_24
+                else R.drawable.baseline_wrong_location_24
+            )
+            statusLocation?.imageTintList = ColorStateList.valueOf(
+                resources.getColor(
+                    if (isLocationGood) R.color.greenbutton else R.color.colorRedDark
+                )
+            )
         }
 
         super.onResume()
@@ -1410,13 +1392,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         autoScanEnabled = false
         autoScanHandler.removeCallbacks(autoScanRunnable)
 
-        locationViewModel.stopLocationUpdates()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onPause()
     }
 
     override fun onDestroy() {
-        locationViewModel.stopLocationUpdates()
         keyboardWatcher.unregister()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onDestroy()
@@ -1440,11 +1420,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             CameraViewModel.Factory(cameraRepository)
         )[CameraViewModel::class.java]
 
-        val status_location = findViewById<ImageView>(R.id.statusLocation)
-        locationViewModel = ViewModelProvider(
-            this,
-            LocationViewModel.Factory(application, status_location, this, boundaryAccuracy)
-        )[LocationViewModel::class.java]
+        locationViewModel = LocationManager.sharedLocationViewModel!!
 
         val factoryInspection = InspectionViewModel.InspectionViewModelFactory(application)
         inspectionViewModel =

@@ -48,7 +48,7 @@ class AuthRepository {
         } catch (e: IOException) {
             AppLogger.e("Login Error: Network issue - ${e.message}")
             Response.error(500, ResponseBody.create("application/json".toMediaType(),
-                "{\"message\":\"Network error\"}"))
+                "{\"message\":\"Network error : $e\"}"))
         } catch (e: Exception) {
             AppLogger.e("Login Error: Unexpected issue - ${e.message}")
             Response.error(500, ResponseBody.create("application/json".toMediaType(),

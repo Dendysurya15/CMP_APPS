@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -44,6 +45,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 //import com.cbi.mobile_plantation.data.model.KemandoranDetailModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.LocationManager
 import com.cbi.mobile_plantation.data.repository.CameraRepository
 import com.cbi.mobile_plantation.ui.adapter.AbsensiAdapter
 import com.cbi.mobile_plantation.ui.adapter.AbsensiDataList
@@ -104,6 +106,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
     private var lat: Double? = null
     private var lon: Double? = null
     private var finalLat: Double? = null
+
+    private var radiusMinimum = 0F
+    private var boundaryAccuracy = 0F
     private var finalLon: Double? = null
     var currentAccuracy: Float = 0F
     private var prefManager: PrefManager? = null
@@ -190,8 +195,9 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
 
     private fun setupUI(){
         loadingDialog = LoadingDialog(this)
-
         prefManager = PrefManager(this)
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
         initViewModel()
         initUI()
         regionalId = prefManager!!.regionalIdUserLogin
@@ -516,11 +522,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
             CameraViewModel.Factory(cameraRepository)
         )[CameraViewModel::class.java]
 
-        val status_location = findViewById<ImageView>(R.id.statusLocation)
-        locationViewModel = ViewModelProvider(
-            this,
-            LocationViewModel.Factory(application, status_location, this)
-        )[LocationViewModel::class.java]
+        locationViewModel = LocationManager.sharedLocationViewModel!!
 
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
@@ -1464,25 +1466,29 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
     @SuppressLint("DefaultLocale")
     override fun onResume() {
         super.onResume()
-        locationViewModel.locationPermissions.observe(this) { isLocationEnabled ->
-            if (!isLocationEnabled) {
-                requestLocationPermission()
-            } else {
-                locationViewModel.startLocationUpdates()
-            }
-        }
-
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
-
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
-
+            findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
+
+            // Update status location icon based on accuracy
+            val statusLocation = findViewById<ImageView>(R.id.statusLocation)
+            val isLocationGood = accuracy <= boundaryAccuracy
+
+            statusLocation?.setImageResource(
+                if (isLocationGood) R.drawable.baseline_location_on_24
+                else R.drawable.baseline_wrong_location_24
+            )
+            statusLocation?.imageTintList = ColorStateList.valueOf(
+                resources.getColor(
+                    if (isLocationGood) R.color.greenbutton else R.color.colorRedDark
+                )
+            )
         }
 
         checkDateTimeSettings()
@@ -1518,14 +1524,12 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
 
     override fun onPause() {
         super.onPause()
-        locationViewModel.stopLocationUpdates()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        locationViewModel.stopLocationUpdates()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
