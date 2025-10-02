@@ -58,6 +58,8 @@ import java.util.zip.ZipInputStream
 
 object AppUtils {
 
+
+    private var currentSnackbar: Snackbar? = null
     const val TOTAL_MAX_TREES_INSPECTION: Int = 100
     const val MINIMAL_TAKE_SELFIE_INSPECTION: Int = 10
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
@@ -163,7 +165,10 @@ object AppUtils {
         message: String,
         actionText: String = "Settings"
     ) {
-        Snackbar.make(
+        // Dismiss any existing snackbar first
+        currentSnackbar?.dismiss()
+
+        currentSnackbar = Snackbar.make(
             activity.findViewById(android.R.id.content),
             message,
             Snackbar.LENGTH_INDEFINITE
@@ -175,7 +180,13 @@ object AppUtils {
                 )
                 activity.startActivity(intent)
             }
-            .show()
+
+        currentSnackbar?.show()
+    }
+
+    fun dismissSnackbar() {
+        currentSnackbar?.dismiss()
+        currentSnackbar = null
     }
 
     fun formatDateForBackend(day: Int, month: Int, year: Int): String {

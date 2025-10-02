@@ -73,6 +73,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.data.model.InspectionModel
@@ -1301,7 +1302,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 //    private fun initializeMapView() {
 //        // Configure OSMDroid
-//        Configuration.getInstance().apply {
+//        SupportSQLiteOpenHelper.Configuration.getInsance().apply {
 //            userAgentValue = packageName
 //            osmdroidBasePath = File(cacheDir, "osmdroid")
 //            osmdroidTileCache = File(osmdroidBasePath, "tiles")
@@ -1309,7 +1310,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 //
 //        cardMapPanenBlok = findViewById(R.id.cardMapPanenBlok)
 //        mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
-//        btnDetailPokok = findViewById(R.id.btnDetailPokok)
+//        btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
 //
 //        mapViewPanenBlok?.apply {
 //            setTileSource(TileSourceFactory.MAPNIK)
@@ -3586,6 +3587,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                 (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
             ) {
                 AppLogger.d("Validating Form Ancak before navigation...")
+
+                if (!isStartFromTPH && item.itemId == R.id.navMenuSummaryInspect) {
+                    vibrate(500)
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        "Tidak dapat ke menu ringkasan, harus melakukan pengisian blok terlebih dahulu melalui menu ditengah",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnItemSelectedListener false
+                }
 
                 val currentPokok = formAncakViewModel.currentPage.value ?: 1
                 val formData = formAncakViewModel.formData.value ?: mutableMapOf()

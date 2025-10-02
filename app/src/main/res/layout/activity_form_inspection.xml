@@ -450,7 +450,7 @@
 <!--                                    android:layout_width="24dp"-->
 <!--                                    android:layout_height="24dp"-->
 <!--                                    android:layout_gravity="center"-->
-<!--                                    android:src="@drawable/ic_my_location"-->
+<!--                                    android:src="@drawable/baseline_location_on_24"-->
 <!--                                    android:visibility="gone" />-->
 
 <!--                            </FrameLayout>-->

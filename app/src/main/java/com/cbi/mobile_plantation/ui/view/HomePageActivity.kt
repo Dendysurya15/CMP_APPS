@@ -1146,9 +1146,13 @@ class HomePageActivity : AppCompatActivity() {
 
         if (isLocationGranted) {
             locationViewModel.startLocationUpdates()
-            isSnackbarShown = false // Reset snackbar flag
+            isSnackbarShown = false
+            AppUtils.dismissSnackbar()
         } else if (!isSnackbarShown) {
-            AppUtils.showSnackbarWithSettings(this, "Location permission is required for this app. Enable it in Settings.")
+            AppUtils.showSnackbarWithSettings(
+                this,
+                "Location permission is required for this app. Enable it in Settings."
+            )
             isSnackbarShown = true
         }
 
