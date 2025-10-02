@@ -615,6 +615,7 @@ class FormAncakFragment : Fragment() {
         val rvSelectedPemanenTemuan = view?.findViewById<RecyclerView>(R.id.rvSelectedPemanenTemuan)
         val selectedWorkers = selectedPemanenTemuanAdapter.getSelectedWorkers()
 
+
         rvSelectedPemanenTemuan?.visibility = if (selectedWorkers.isNotEmpty()) {
             View.VISIBLE
         } else {

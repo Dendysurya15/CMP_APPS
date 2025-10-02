@@ -135,6 +135,7 @@ import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -319,6 +320,14 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private lateinit var formAncakPagerAdapter: FormAncakPagerAdapter
     private lateinit var keyboardWatcher: SoftKeyboardStateWatcher
+
+    private var mapViewPanenBlok: MapView? = null
+    private var cardMapPanenBlok: MaterialCardView? = null
+    private var btnDetailMapPanen: MaterialButton? = null
+    private var currentLocationMarker: Marker? = null
+    private val tphMarkersList = mutableListOf<Marker>()
+    private var locationUpdateJob: Job? = null
+    private var lastKnownLocation: Location? = null
     private var allAvailableKaryawanList: List<KaryawanInfo> = emptyList()
     private var allManualKaryawanList: List<KaryawanInfo> = emptyList()
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter // For automatic
@@ -433,16 +442,13 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun setupScanTPHTrigger() {
-        val alertCardScanRadius =
-            findViewById<MaterialCardView>(R.id.alertCardScanRadius)
+        val alertCardScanRadius = findViewById<MaterialCardView>(R.id.alertCardScanRadius)
         alertCardScanRadius.visibility = View.VISIBLE
 
-        val alertTvScannedRadius =
-            findViewById<TextView>(R.id.alertTvScannedRadius)
+        val alertTvScannedRadius = findViewById<TextView>(R.id.alertTvScannedRadius)
         alertTvScannedRadius.visibility = View.VISIBLE
 
-        val btnScanTPHRadius =
-            findViewById<MaterialButton>(R.id.btnScanTPHRadius)
+        val btnScanTPHRadius = findViewById<MaterialButton>(R.id.btnScanTPHRadius)
 
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
@@ -461,37 +467,43 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         layoutAutoScan.visibility = View.VISIBLE
 
+//        // Show map card
+//        cardMapPanenBlok?.visibility = View.VISIBLE
+//
+//        // Initialize map if not already done
+//        if (mapViewPanenBlok?.overlays?.isEmpty() == true) {
+//            initializeMapView()
+//        }
+
         val radiusText = "${boundaryAccuracy.toInt()} m"
-        val text =
-            "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
+        val text = "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
         val asterisk = "*"
 
-        val spannableScanTPHTitle =
-            SpannableString("$text $asterisk").apply {
-                val startIndex = text.indexOf(radiusText)
-                val endIndex = startIndex + radiusText.length
+        val spannableScanTPHTitle = SpannableString("$text $asterisk").apply {
+            val startIndex = text.indexOf(radiusText)
+            val endIndex = startIndex + radiusText.length
 
-                setSpan(
-                    StyleSpan(Typeface.BOLD), // Make text bold
-                    startIndex,
-                    endIndex,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+            setSpan(
+                StyleSpan(Typeface.BOLD),
+                startIndex,
+                endIndex,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
 
-                setSpan(
-                    StyleSpan(Typeface.ITALIC), // Make text bold
-                    startIndex,
-                    endIndex,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+            setSpan(
+                StyleSpan(Typeface.ITALIC),
+                startIndex,
+                endIndex,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
 
-                setSpan(
-                    ForegroundColorSpan(Color.RED), // Make asterisk red
-                    text.length,
-                    length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
+            setSpan(
+                ForegroundColorSpan(Color.RED),
+                text.length,
+                length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
 
         alertTvScannedRadius.text = spannableScanTPHTitle
     }
@@ -760,7 +772,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
         })
-
+        
 
     }
 
@@ -797,58 +809,93 @@ open class FormInspectionActivity : AppCompatActivity(),
         tvErrorScannedNotSelected.visibility = View.GONE
     }
 
-    private fun showSelectionScreen() {
-        selectionScreen.visibility = View.VISIBLE
-        mainContentWrapper.visibility = View.GONE
-        hasInspectionStarted = false
-        hideResultScan()
-        dateStartInspection = ""
-        trackingLocation.clear()
-        selectedJalurMasuk = ""
-
-        setupSpinnerView(
-            findViewById(R.id.lyJalurInspect),
-            (listRadioItems["EntryPath"] ?: emptyMap()).values.toList()
-        )
-
-        jumBrdTglPath = 0
-        jumBuahTglPath = 0
-        // Reset any selected data
-        selectedTPHIdByScan = null
-        selectedIdPanenByScan = null
-        selectedEstateByScan = null
-        selectedAfdelingByScan = null
-        selectedBlokByScan = null
-        selectedTPHNomorByScan = null
-        selectedAncakByScan = null
-        selectedTanggalPanenByScan = null
-        selectedTPHValue = null
-        photoInTPH = null
-        komentarInTPH = null
-
-        formAncakViewModel.clearAllData()
-
-        val counterMappings = listOf(
-            Triple(
-                R.id.lyBrdTglInspect,
-                AppUtils.kodeInspeksi.brondolanTinggalTPH,
-                ::jumBrdTglPath
-            ),
-            Triple(R.id.lyBuahTglInspect, AppUtils.kodeInspeksi.buahTinggalTPH, ::jumBuahTglPath),
-        )
-        counterMappings.forEach { (layoutId, labelText, counterVar) ->
-            setupPanenWithButtons(layoutId, labelText, counterVar)
-        }
-
-        br1Value = ""
-        br2Value = ""
-
-        // Clear the actual EditText views
-        val editTextLayouts = listOf(R.id.lyBaris1Inspect, R.id.lyBaris2Inspect)
-        editTextLayouts.forEach { layoutId ->
-            findViewById<View>(layoutId)?.findViewById<EditText>(R.id.etHomeMarkerTPH)?.setText("")
-        }
-    }
+//    private fun mapPanenInsideBlok() {
+//        AppLogger.d("mapPanenInsideBlok started")
+//
+//        lifecycleScope.launch(Dispatchers.Main) {
+//            try {
+//                // Clear existing markers
+//                clearMapMarkers()
+//
+//                if (latLonMap.isEmpty()) {
+//                    AppLogger.w("latLonMap is empty, cannot populate map")
+//                    Toast.makeText(
+//                        this@FormInspectionActivity,
+//                        "Tidak ada data TPH untuk ditampilkan",
+//                        Toast.LENGTH_SHORT
+//                    ).show()
+//                    return@launch
+//                }
+//
+//                AppLogger.d("Populating map with ${latLonMap.size} TPH locations")
+//
+//                // Add TPH markers to map
+//                withContext(Dispatchers.IO) {
+//                    val markers = mutableListOf<Marker>()
+//
+//                    latLonMap.forEach { (tphId, location) ->
+//                        try {
+//                            val marker = Marker(mapViewPanenBlok).apply {
+//                                position = GeoPoint(location.lat, location.lon)
+//                                title = "TPH ${location.nomor}"
+//                                snippet = """
+//                                Blok: ${location.blokKode}
+//                                Divisi: ${location.divisiKode}
+//                                Dept: ${location.deptKode}
+//                                Jml Pokok/Ha: ${location.jmlPokokHa ?: 0}
+//                            """.trimIndent()
+//
+//                                // Set marker icon based on jenis TPH
+//                                icon = when (location.jenisTPHId) {
+//                                    "1" -> resources.getDrawable(R.drawable.ic_tph_regular, null)
+//                                    "2" -> resources.getDrawable(R.drawable.ic_tph_special, null)
+//                                    else -> resources.getDrawable(R.drawable.ic_tph_default, null)
+//                                }
+//
+//                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+//                            }
+//
+//                            markers.add(marker)
+//                        } catch (e: Exception) {
+//                            AppLogger.e("Error creating marker for TPH $tphId: ${e.message}")
+//                        }
+//                    }
+//
+//                    withContext(Dispatchers.Main) {
+//                        markers.forEach { marker ->
+//                            mapViewPanenBlok?.overlays?.add(marker)
+//                            tphMarkersList.add(marker)
+//                        }
+//
+//                        mapViewPanenBlok?.invalidate()
+//
+//                        // Center map on TPH locations
+//                        if (markers.isNotEmpty()) {
+//                            val boundingBox = BoundingBox.fromGeoPoints(
+//                                markers.map { it.position }
+//                            )
+//                            mapViewPanenBlok?.zoomToBoundingBox(boundingBox, true, 100)
+//                        }
+//
+//                        AppLogger.d("Successfully added ${markers.size} markers to map")
+//                    }
+//                }
+//
+//                // Start live location tracking
+//                startLiveLocationTracking()
+//
+//            } catch (e: Exception) {
+//                AppLogger.e("Error in mapPanenInsideBlok: ${e.message}")
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(
+//                        this@FormInspectionActivity,
+//                        "Error menampilkan peta: ${e.message}",
+//                        Toast.LENGTH_SHORT
+//                    ).show()
+//                }
+//            }
+//        }
+//    }
 
     private fun setupSelectionButtons() {
         btnMulaiDariTPH.setOnClickListener {
@@ -1252,6 +1299,33 @@ open class FormInspectionActivity : AppCompatActivity(),
         bottomSheetDialog.show()
     }
 
+//    private fun initializeMapView() {
+//        // Configure OSMDroid
+//        Configuration.getInstance().apply {
+//            userAgentValue = packageName
+//            osmdroidBasePath = File(cacheDir, "osmdroid")
+//            osmdroidTileCache = File(osmdroidBasePath, "tiles")
+//        }
+//
+//        cardMapPanenBlok = findViewById(R.id.cardMapPanenBlok)
+//        mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
+//        btnDetailPokok = findViewById(R.id.btnDetailPokok)
+//
+//        mapViewPanenBlok?.apply {
+//            setTileSource(TileSourceFactory.MAPNIK)
+//            setMultiTouchControls(true)
+//            minZoomLevel = 10.0
+//            maxZoomLevel = 20.0
+//
+//            // Set initial view
+//            controller.setZoom(15.0)
+//        }
+//
+//        btnDetailPokok?.setOnClickListener {
+//            showDetailPokokDialog()
+//        }
+//    }
+
     private fun showFormInspectionScreen() {
         if (!hasInspectionStarted) {
             if (!trackingLocation.containsKey("start")) {
@@ -1311,7 +1385,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Pokok mode: P. Ancak -> Info Blok -> Summary
             menu.add(0, R.id.navMenuAncakInspect, 0, "P. Ancak")
                 .setIcon(R.drawable.baseline_grain_24)
-            menu.add(0, R.id.navMenuBlokInspect, 1, "Info. Blok")
+            menu.add(0, R.id.navMenuBlokInspect, 1, "Pemeriksaan Ancak")
                 .setIcon(R.drawable.ic_home_black_24dp)
             menu.add(0, R.id.navMenuSummaryInspect, 2, "Ringkasan")
                 .setIcon(R.drawable.list_solid)

@@ -331,10 +331,6 @@ class FormAncakViewModel : ViewModel() {
         val data = getPageData(pageNumber)
         val errors = mutableMapOf<Int, String>()
 
-        AppLogger.d("inspectionType: $inspectionType")
-        AppLogger.d("pageNumber: $pageNumber")
-        AppLogger.d("data: $data")
-        AppLogger.d("emptyTree: ${data?.emptyTree}")
 
         // STEP 1: Check if emptyTree is selected
         if (data?.emptyTree == 0) {
@@ -350,6 +346,29 @@ class FormAncakViewModel : ViewModel() {
         when (data?.emptyTree) {
             1 -> { // Ya - Validate all fields including harvest tree
                 AppLogger.d("emptyTree == 1 (Ya), validating all fields...")
+
+                // Validate pemanen if isStartFromTPH is false
+                if (_isStartFromTPH.value == false) {
+                    AppLogger.d("--- Pemanen Validation Check (emptyTree == 1) ---")
+                    AppLogger.d("isStartFromTPH value: ${_isStartFromTPH.value}")
+                    AppLogger.d("pemanen value: ${data?.pemanen}")
+                    AppLogger.d("pemanen isEmpty: ${data?.pemanen?.isEmpty()}")
+                    AppLogger.d("pemanen isNullOrEmpty: ${data?.pemanen.isNullOrEmpty()}")
+
+                    if (data?.pemanen.isNullOrEmpty()) {
+                        errors[R.id.lyPemanenTemuan] = "Pemanen wajib diisi!"
+                        AppLogger.d("VALIDATION FAILED: pemanen is empty when isStartFromTPH is false")
+                        AppLogger.d("pemanen details - isNull: ${data?.pemanen == null}, isEmpty: ${data?.pemanen?.isEmpty()}")
+                    } else {
+                        AppLogger.d("Pemanen validation passed!")
+                        AppLogger.d("Pemanen data: ${data?.pemanen}")
+                        AppLogger.d("Pemanen size: ${data?.pemanen?.size}")
+                        AppLogger.d("Pemanen entries: ${data?.pemanen?.entries}")
+                    }
+                    AppLogger.d("--- End Pemanen Validation Check ---")
+                } else {
+                    AppLogger.d("Skipping pemanen validation - isStartFromTPH is true")
+                }
 
                 // Validate harvest tree
                 if (data?.harvestTree == 0) {
