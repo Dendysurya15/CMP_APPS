@@ -498,8 +498,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 100F
-        boundaryAccuracy = 100F
+        radiusMinimum = 5000F
+        boundaryAccuracy = 5000F
 
         initViewModel()
         initUI()
@@ -980,7 +980,8 @@ open class FormInspectionActivity : AppCompatActivity(),
         val btnCloseWarning = warningCard.findViewById<ImageButton>(R.id.btnCloseWarning)
 
         warningCard.visibility = View.VISIBLE
-        warningText.text = "Informasi: Pilihan Afdeling dan blok yang ditampilkan merupakan data panen dalam rentang waktu satu minggu terakhir (H+0 hingga H+7)"
+        warningText.text =
+            "Informasi: Pilihan Afdeling dan blok yang ditampilkan merupakan data panen dalam rentang waktu satu minggu terakhir (H+0 hingga H+7)"
 
         // Optional: Handle close button
         btnCloseWarning.setOnClickListener {
@@ -1216,7 +1217,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 "Konfirmasi Data",
                                 "Mulai inspeksi dengan Afdeling: $selectedAfdelingValue dan Blok: $selectedBlokValue?",
                                 "warning.json",
-                                ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight),
+                                ContextCompat.getColor(
+                                    this@FormInspectionActivity,
+                                    R.color.bluedarklight
+                                ),
                                 function = {
                                     handleInspectionStart(
                                         selectedBlokValue,
@@ -3671,7 +3675,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                             if (!trackingLocation.containsKey("start")) {
                                 trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
                             }
-                            updateWorkerDataInViewModel()
+                            if (isStartFromTPH) {
+                                updateWorkerDataInViewModel()
+                            }
+                            val currentPokok = formAncakViewModel.currentPage.value ?: 1
+                            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+                            val pokokData = formData[currentPokok]
+                            AppLogger.d("pokokData $pokokData")
                             if (!hasInspectionStarted) {
                                 if (!trackingLocation.containsKey("start")) {
                                     trackingLocation["start"] = Location(lat ?: 0.0, lon ?: 0.0)
@@ -5135,7 +5145,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
 
-
     @SuppressLint("ClickableViewAccessibility")
     private fun setupSpinnerView(
         linearLayout: LinearLayout,
@@ -5152,6 +5161,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (!isGM) {
             if (linearLayout.id == R.id.lyEstInspect) {
                 spinner.isEnabled = false
+            }
+        }
+
+        if (!isStartFromTPH) {
+            if (linearLayout.id == R.id.lyAfdInspect || linearLayout.id == R.id.lyBlokInspect) {
+                spinner.isEnabled = false
+                AppLogger.d("Enabled spinner for ${linearLayout.id}")
             }
         }
 
@@ -5787,12 +5803,6 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     if (isDuplicate) {
                         AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
-//                        Toast.makeText(
-//                            this,
-//                            "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!",
-//                            Toast.LENGTH_SHORT
-//                        ).show()
-
                         Toasty.error(
                             this,
                             "${selectedWorker.nama} (NIK: ${selectedWorker.nik}) sudah dipilih sebelumnya!",
@@ -5812,6 +5822,13 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     AppLogger.d("selectedPemanenAdapter $selectedPemanenAdapter")
                     AppLogger.d("selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+                    // ✅ Add to all pages in ViewModel (Blok mode only)
+                    if (!isStartFromTPH) {
+                        val workerToAdd = mapOf(selectedWorker.nik to selectedWorker.nama)
+                        AppLogger.d("Adding worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) to ALL pages in ViewModel")
+                        formAncakViewModel.addWorkersToAllPages(workerToAdd)
+                    }
 
                     // Show automatic RecyclerView if it's hidden
                     val rvSelectedPemanenOtomatis =
@@ -5868,6 +5885,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                     val originalSize = selectedKaryawanList.size
                     selectedKaryawanList = selectedKaryawanList + selectedWorker
                     AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+                    // ✅ Add to all pages in ViewModel (Blok mode only)
+                    if (!isStartFromTPH) {
+                        val workerToAdd = mapOf(selectedWorker.nik to selectedWorker.nama)
+                        AppLogger.d("Adding worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) to ALL pages in ViewModel")
+                        formAncakViewModel.addWorkersToAllPages(workerToAdd)
+                    }
 
                     // Show manual RecyclerView if it's hidden
                     val rvSelectedPemanenManual =
@@ -5964,7 +5988,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                 }
             }
-            R.id.lyBlokInspect ->{
+
+            R.id.lyBlokInspect -> {
                 hideResultScan()
                 selectedBlok = selectedItem
                 selectedBlokIdSpinner = position
@@ -6055,7 +6080,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                         // Remove this entire block:
                         val blokDeferred = async {
                             try {
-                                datasetViewModel.getListOfBlok(estateId!!.toInt(), selectedDivisiId ?: 0)
+                                datasetViewModel.getListOfBlok(
+                                    estateId!!.toInt(),
+                                    selectedDivisiId ?: 0
+                                )
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching blokList: ${e.message}")
                                 emptyList()
@@ -6105,12 +6133,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         selectedTPHIds.chunked(batchSize)
                                             .forEachIndexed { index, batch ->
                                                 AppLogger.d("Processing TPH batch ${index + 1}/${(selectedTPHIds.size + batchSize - 1) / batchSize}")
-                                                val batchResults = datasetViewModel.getLatLonDivisiByTPHIds(
-                                                    estateIdToUse,
-                                                    selectedDivisiId,
-                                                    batch,
-                                                    selectedBlok
-                                                )
+                                                val batchResults =
+                                                    datasetViewModel.getLatLonDivisiByTPHIds(
+                                                        estateIdToUse,
+                                                        selectedDivisiId,
+                                                        batch,
+                                                        selectedBlok
+                                                    )
                                                 allResults.addAll(batchResults)
                                             }
                                         allResults
@@ -6805,7 +6834,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             // Show manual RecyclerView if workers were added
-            val rvSelectedPemanenManual = findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+            val rvSelectedPemanenManual =
+                findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
             if (selectedPemanenManualAdapter.itemCount > 0) {
                 rvSelectedPemanenManual.visibility = View.VISIBLE
                 AppLogger.d("Manual RecyclerView now has ${selectedPemanenManualAdapter.itemCount} workers")
@@ -6844,58 +6874,62 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Setup spinner with available workers
             setupSpinnerView(lyPemanenOtomatis, workerNames)
 
-            // AUTO-SELECT ALL WORKERS (NEW FUNCTIONALITY)
-            AppLogger.d("Auto-selecting all ${sortedWorkers.size} workers for automatic pemanen")
+            if (isStartFromTPH) {
+//                 AUTO-SELECT ALL WORKERS (NEW FUNCTIONALITY)
+                AppLogger.d("Auto-selecting all ${sortedWorkers.size} workers for automatic pemanen")
 
-            sortedWorkers.forEach { worker ->
-                val selectedItem = worker.name
+                sortedWorkers.forEach { worker ->
+                    val selectedItem = worker.name
 
-                AppLogger.d("Auto-selecting worker: $selectedItem")
+                    AppLogger.d("Auto-selecting worker: $selectedItem")
 
-                // Find the selected worker from automatic available list
-                val selectedWorker = allAvailableKaryawanList.find { karyawan ->
-                    val formattedName = "${karyawan.nik} - ${karyawan.nama}"
-                    formattedName == selectedItem
-                }
-
-                AppLogger.d("Found auto-selected worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
-
-                if (selectedWorker != null) {
-                    // Check if worker already exists in selectedKaryawanList
-                    val isDuplicate = selectedKaryawanList.any { existing ->
-                        existing.nik == selectedWorker.nik && existing.nama == selectedWorker.nama
+                    // Find the selected worker from automatic available list
+                    val selectedWorker = allAvailableKaryawanList.find { karyawan ->
+                        val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                        formattedName == selectedItem
                     }
 
-                    if (isDuplicate) {
-                        AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
-                        return@forEach // Skip this worker and continue with next
+                    AppLogger.d("Found auto-selected worker: ${selectedWorker?.nama} (NIK: ${selectedWorker?.nik})")
+
+                    if (selectedWorker != null) {
+                        // Check if worker already exists in selectedKaryawanList
+                        val isDuplicate = selectedKaryawanList.any { existing ->
+                            existing.nik == selectedWorker.nik && existing.nama == selectedWorker.nama
+                        }
+
+                        if (isDuplicate) {
+                            AppLogger.w("Worker ${selectedWorker.nama} (NIK: ${selectedWorker.nik}) already selected! Skipping duplicate.")
+                            return@forEach // Skip this worker and continue with next
+                        }
+
+                        // Add to AUTOMATIC RecyclerView
+                        val workerForAdapter = Worker(selectedWorker.individualId, selectedItem)
+                        selectedPemanenAdapter.addWorker(workerForAdapter)
+
+                        // Add to selectedKaryawanList
+                        val originalSize = selectedKaryawanList.size
+                        selectedKaryawanList = selectedKaryawanList + selectedWorker
+
+                        AppLogger.d("Auto-added worker to selectedKaryawanList. Size changed from $originalSize to ${selectedKaryawanList.size}")
+                        AppLogger.d("Auto-added worker to RecyclerView: ${selectedWorker.nama} (NIK: ${selectedWorker.nik})")
+
+                    } else {
+                        AppLogger.e("Could not find auto-selected worker: $selectedItem")
                     }
-
-                    // Add to AUTOMATIC RecyclerView
-                    val workerForAdapter = Worker(selectedWorker.individualId, selectedItem)
-                    selectedPemanenAdapter.addWorker(workerForAdapter)
-
-                    // Add to selectedKaryawanList
-                    val originalSize = selectedKaryawanList.size
-                    selectedKaryawanList = selectedKaryawanList + selectedWorker
-
-                    AppLogger.d("Auto-added worker to selectedKaryawanList. Size changed from $originalSize to ${selectedKaryawanList.size}")
-                    AppLogger.d("Auto-added worker to RecyclerView: ${selectedWorker.nama} (NIK: ${selectedWorker.nik})")
-                } else {
-                    AppLogger.e("Could not find auto-selected worker: $selectedItem")
                 }
+
+                // Show automatic RecyclerView since we've added workers
+                val rvSelectedPemanenOtomatis =
+                    findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
+                rvSelectedPemanenOtomatis.visibility = View.VISIBLE
+
+                // Update automatic spinner after adding all workers
+                AppLogger.d("Calling updatePemanenSpinnerAfterRemoval after auto-selecting all workers...")
+                updatePemanenSpinnerAfterRemoval()
+
+                AppLogger.d("Auto-selection completed. Total workers in RecyclerView: ${selectedKaryawanList.size}")
             }
-
-            // Show automatic RecyclerView since we've added workers
-            val rvSelectedPemanenOtomatis =
-                findViewById<RecyclerView>(R.id.rvSelectedPemanenOtomatisInspection)
-            rvSelectedPemanenOtomatis.visibility = View.VISIBLE
-
-            // Update automatic spinner after adding all workers
-            AppLogger.d("Calling updatePemanenSpinnerAfterRemoval after auto-selecting all workers...")
-            updatePemanenSpinnerAfterRemoval()
-
-            AppLogger.d("Auto-selection completed. Total workers in RecyclerView: ${selectedKaryawanList.size}")
+//
 
         } else {
             lyPemanenOtomatis.visibility = View.GONE
@@ -6914,11 +6948,28 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.d("Currently selected automatic worker IDs: $selectedWorkerIds")
         AppLogger.d("All available automatic workers count: ${allAvailableKaryawanList.size}")
 
+        // ✅ CHECK if NOT in TPH mode - then update ViewModel
+        if (!isStartFromTPH) {
+            AppLogger.d("Not in TPH mode - checking for removed workers to update ViewModel")
+
+            // Get all workers that were removed (exist in allAvailableKaryawanList but not in selectedWorkers)
+            val removedWorkers = allAvailableKaryawanList.filter { karyawan ->
+                !selectedWorkerIds.contains(karyawan.individualId)
+            }
+
+            removedWorkers.forEach { removedWorker ->
+                AppLogger.d("Removing worker ${removedWorker.nama} (NIK: ${removedWorker.nik}) from all pages in ViewModel")
+                formAncakViewModel.removeWorkerFromAllPages(removedWorker.nik)
+            }
+        } else {
+            AppLogger.d("In TPH mode - skipping ViewModel update (original behavior)")
+        }
+
         // Filter available workers to exclude already selected ones
         val availableWorkers = allAvailableKaryawanList
             .filter { karyawan ->
                 val isSelected = selectedWorkerIds.contains(karyawan.individualId)
-                AppLogger.d("Automatic  Worker ${karyawan.nama} (ID: ${karyawan.individualId}) - Selected: $isSelected")
+                AppLogger.d("Worker ${karyawan.nama} (ID: ${karyawan.individualId}) - Selected: $isSelected")
                 !isSelected
             }
             .map { karyawan ->
@@ -6926,22 +6977,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                 Worker(karyawan.individualId, formattedName)
             }
 
-        AppLogger.d("Available automatic workers for spinner: ${availableWorkers.size}")
+        AppLogger.d("Available workers for spinner: ${availableWorkers.size}")
 
-        // Always keep spinner visible and populate it
-        val lyPemanen = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-        lyPemanen.visibility = View.VISIBLE
+        val lyPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
+        lyPemanenOtomatis.visibility = View.VISIBLE
 
         val workerNames = availableWorkers.map { it.name }
+        setupSpinnerView(lyPemanenOtomatis, workerNames)
 
-        // Setup spinner with available workers
-        setupSpinnerView(lyPemanen, workerNames)
-
-        // If empty, set the spinner to show hint and disable selection
-        val spinner = lyPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
+        val spinner = lyPemanenOtomatis.findViewById<MaterialSpinner>(R.id.spPanenTBS)
         spinner.setHint("Pilih Pemanen")
-//        spinner.setSelectedIndex(-1) // Clear any selected item
 
         AppLogger.d("Automatic spinner updated with ${workerNames.size} available workers")
     }
@@ -6977,15 +7022,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Create list of worker names for spinner
         val workerNames = availableWorkers.map { it.name }
 
-
         // Setup spinner with available workers (could be empty list)
         setupSpinnerView(lyPemanenManual, workerNames)
 
         val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-
-
         spinner.setHint("Pilih Pemanen")
-
 
         AppLogger.d("Manual spinner updated with ${workerNames.size} available workers")
     }
@@ -7548,6 +7589,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             karyawanIdMap.remove(removedName)
             kemandoranIdMap.remove(removedName)
 
+            if (!isStartFromTPH) {
+                AppLogger.d("Removing worker ${removedName} (NIK: ${removedNik}) from ALL pages in ViewModel")
+                formAncakViewModel.removeWorkerFromAllPages(removedNik)
+            }
+
             // Update automatic spinner to show the removed worker again
             AppLogger.d("Calling updatePemanenSpinnerAfterRemoval...")
             updatePemanenSpinnerAfterRemoval()
@@ -7618,6 +7664,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             kemandoranIdMap.remove(removedNik)
             karyawanIdMap.remove(removedName)
             kemandoranIdMap.remove(removedName)
+
+            if (!isStartFromTPH) {
+                AppLogger.d("Removing worker ${removedName} (NIK: ${removedNik}) from ALL pages in ViewModel")
+                formAncakViewModel.removeWorkerFromAllPages(removedNik)
+            }
 
             // Update manual spinner to show the removed worker again
             AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval...")

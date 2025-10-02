@@ -176,6 +176,50 @@ class FormAncakViewModel : ViewModel() {
         _formData.value = currentData
     }
 
+    // Add this function to FormAncakViewModel
+    fun removeWorkerFromAllPages(workerNik: String) {
+        val currentData = _formData.value ?: mutableMapOf()
+        val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+        var removedCount = 0
+
+        for (pageNumber in 1..totalPages) {
+            val pageData = currentData[pageNumber]
+            if (pageData != null && pageData.pemanen.containsKey(workerNik)) {
+                val updatedPemanen = pageData.pemanen.toMutableMap()
+                updatedPemanen.remove(workerNik)
+                val updatedPageData = pageData.copy(pemanen = updatedPemanen)
+                currentData[pageNumber] = updatedPageData
+                removedCount++
+            }
+        }
+
+        _formData.value = currentData
+        AppLogger.d("Removed worker NIK $workerNik from $removedCount pages")
+    }
+
+    // Add worker to all pages
+    // Add multiple workers to all pages at once
+    fun addWorkersToAllPages(workersMap: Map<String, String>) {
+        val currentData = _formData.value ?: mutableMapOf()
+        val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+        for (pageNumber in 1..totalPages) {
+            val pageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
+
+            // Add all workers to pemanen map
+            val updatedPemanen = pageData.pemanen.toMutableMap()
+            updatedPemanen.putAll(workersMap) // Add all workers at once
+            val updatedPageData = pageData.copy(pemanen = updatedPemanen)
+            currentData[pageNumber] = updatedPageData
+
+            AppLogger.d("${currentData[pageNumber]}")
+        }
+
+        _formData.value = currentData
+        AppLogger.d("Added ${workersMap.size} workers to all $totalPages pages: ${workersMap.keys}")
+    }
+
     // Update the existing updatePageData function
     fun updatePageData(pageNumber: Int, data: PageData) {
         val currentData = _formData.value ?: mutableMapOf()

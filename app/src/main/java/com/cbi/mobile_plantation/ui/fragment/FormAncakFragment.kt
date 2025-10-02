@@ -393,8 +393,6 @@ class FormAncakFragment : Fragment() {
         }
 
         if (!isStartFromTPH) {
-            // Simply sync RecyclerView with pemanenMap (which is now per-page)
-            AppLogger.d("isStartFromTPH = false, syncing RecyclerView with ${pemanenMap.size} workers")
 
             selectedPemanenTemuanAdapter.clearAllWorkers()
 
