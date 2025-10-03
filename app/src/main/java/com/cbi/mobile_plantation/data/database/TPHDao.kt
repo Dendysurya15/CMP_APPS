@@ -129,14 +129,12 @@ abstract class TPHDao {
 SELECT * FROM tph 
 WHERE dept = :idEstate 
 AND divisi = :idDivisi
-AND id IN (:tphIds)
 AND blok_kode = :blokKode
 """
     )
-    abstract fun getLatLonByDivisiAndTPHIds(
+    abstract fun getAllTPHInBlock(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>,
         blokKode: String
     ): List<TPHNewModel>
 

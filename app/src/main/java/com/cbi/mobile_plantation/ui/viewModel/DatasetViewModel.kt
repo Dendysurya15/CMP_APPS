@@ -771,13 +771,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getLatLonDivisi(idEstate, idDivisi)
     }
 
-    suspend fun getLatLonDivisiByTPHIds(
+    suspend fun getAllTPHInBlock(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>,
         blokKode: String
     ): List<TPHNewModel> {
-        return repository.getLatLonDivisiByTPHIds(idEstate, idDivisi, tphIds, blokKode)
+        return repository.getAllTPHInBlock(idEstate, idDivisi, blokKode)
     }
 
     private val _isCompleted = MutableLiveData<Boolean>(false)
