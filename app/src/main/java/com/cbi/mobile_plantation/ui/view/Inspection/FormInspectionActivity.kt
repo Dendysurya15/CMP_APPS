@@ -54,6 +54,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -148,6 +149,7 @@ import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -163,6 +165,7 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import org.w3c.dom.Text
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -255,7 +258,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var dateStartInspection: String = ""
     private var inspectionId: String? = null
     private var panenTPH: List<PanenEntityWithRelations> = emptyList()
-
+    private var fullscreenUserOverlay: PulsingUserLocationOverlay? = null
 
     private var tempSelectedAfdeling = ""
     private var tempSelectedBlok = ""
@@ -869,9 +872,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 AppLogger.d("Populating map with ${latLonMap.size} TPH locations")
 
-                // Add TPH markers to map
-                withContext(Dispatchers.IO) {
-                    // Get all TPH IDs that have transactions
+                // Prepare DATA in background thread
+                val markerDataList = withContext(Dispatchers.IO) {
                     val tphIdsWithTransactions = panenTPH
                         .mapNotNull { it.panen.tph_id?.toIntOrNull() }
                         .toSet()
@@ -879,84 +881,133 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("TPH with transactions: ${tphIdsWithTransactions.size}")
                     AppLogger.d("Total TPH in latLonMap: ${latLonMap.size}")
 
-                    val markers = mutableListOf<Marker>()
-
-                    latLonMap.forEach { (tphId, location) ->
-                        try {
-                            // Check if this TPH has transaction
-                            val hasTransaction = tphId in tphIdsWithTransactions
-
-                            // Count transactions for this TPH
-                            val transactionCount = panenTPH.count {
-                                it.panen.tph_id?.toIntOrNull() == tphId
-                            }
-
-                            val marker = Marker(mapViewPanenBlok).apply {
-                                position = GeoPoint(location.lat, location.lon)
-
-                                title = "TPH ${location.nomor} ($transactionCount transaksi)"
-
-                                // Use circle for blue (has transaction), X for red (no transaction)
-                                icon = if (hasTransaction) {
-                                    createColoredMarker(
-                                        ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight)
-                                    )
-                                } else {
-                                    createXMarker(
-                                        ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark)
-                                    )
-                                }
-
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                            }
-
-                            markers.add(marker)
-
-                            AppLogger.d("TPH $tphId (${location.nomor}): ${if (hasTransaction) "BLUE - $transactionCount transactions" else "RED - no transaction"}")
-
-                        } catch (e: Exception) {
-                            AppLogger.e("Error creating marker for TPH $tphId: ${e.message}")
-                        }
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        markers.forEach { marker ->
-                            mapViewPanenBlok?.overlays?.add(marker)
-                            tphMarkersList.add(marker)
+                    latLonMap.map { (tphId, location) ->
+                        val hasTransaction = tphId in tphIdsWithTransactions
+                        val transactionCount = panenTPH.count {
+                            it.panen.tph_id?.toIntOrNull() == tphId
                         }
 
-                        mapViewPanenBlok?.invalidate()
+                        AppLogger.d("TPH $tphId (${location.nomor}): ${if (hasTransaction) "BLUE - $transactionCount transactions" else "RED - no transaction"}")
 
-                        // Center map on TPH locations
-                        if (markers.isNotEmpty()) {
-                            val boundingBox = BoundingBox.fromGeoPoints(
-                                markers.map { it.position }
-                            )
-                            mapViewPanenBlok?.zoomToBoundingBox(boundingBox, true, 100)
-                        }
-
-                        val blueCount = markers.count { (it.icon as? android.graphics.drawable.BitmapDrawable)?.paint?.color == Color.BLUE }
-                        val redCount = markers.size - blueCount
-
-                        AppLogger.d("Successfully added ${markers.size} markers (Blue: $blueCount, Red: $redCount)")
+                        MarkerData(
+                            tphId = tphId,
+                            lat = location.lat,
+                            lon = location.lon,
+                            nomor = location.nomor,
+                            hasTransaction = hasTransaction,
+                            transactionCount = transactionCount
+                        )
                     }
                 }
+
+                AppLogger.d("Finished preparing ${markerDataList.size} marker data")
+
+                // Create markers on MAIN thread
+                val markers = mutableListOf<Marker>()
+                var blueCount = 0
+                var redCount = 0
+
+                markerDataList.forEach { data ->
+                    try {
+                        val marker = Marker(mapViewPanenBlok).apply {
+                            position = GeoPoint(data.lat, data.lon)
+                            title = "TPH ${data.nomor} (${data.transactionCount} transaksi)"
+
+                            icon = if (data.hasTransaction) {
+                                blueCount++
+                                createColoredMarker(
+                                    ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight)
+                                )
+                            } else {
+                                redCount++
+                                createXMarker(
+                                    ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark)
+                                )
+                            }
+
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        }
+
+                        markers.add(marker)
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating marker for TPH ${data.tphId}: ${e.message}")
+                    }
+                }
+
+                AppLogger.d("Created ${markers.size} marker objects")
+
+                // Add markers to map
+                markers.forEach { marker ->
+                    mapViewPanenBlok?.overlays?.add(marker)
+                    tphMarkersList.add(marker)
+                }
+
+                mapViewPanenBlok?.invalidate()
+
+                AppLogger.d("Added markers to map, now attempting to zoom")
+
+                // Center map on TPH locations - POST to avoid blocking
+                if (markers.isNotEmpty()) {
+                    mapViewPanenBlok?.post {
+                        try {
+                            AppLogger.d("Starting zoomToBoundingBox")
+                            val geoPoints = markers.map { it.position }
+                            val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
+
+                            // Use a coroutine with timeout to prevent hanging
+                            lifecycleScope.launch {
+                                withTimeout(3000) { // 3 second timeout
+                                    try {
+                                        mapViewPanenBlok?.zoomToBoundingBox(boundingBox, true, 100)
+                                        AppLogger.d("zoomToBoundingBox completed successfully")
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error in zoomToBoundingBox: ${e.message}")
+                                        // Fallback: just center on first marker
+                                        mapViewPanenBlok?.controller?.setCenter(markers.first().position)
+                                        mapViewPanenBlok?.controller?.setZoom(15.0)
+                                    }
+                                }
+                            }
+                        } catch (e: TimeoutCancellationException) {
+                            AppLogger.e("zoomToBoundingBox timed out, using fallback")
+                            // Fallback: center on first marker
+                            mapViewPanenBlok?.controller?.setCenter(markers.first().position)
+                            mapViewPanenBlok?.controller?.setZoom(15.0)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error setting map bounds: ${e.message}")
+                            // Fallback: center on first marker
+                            mapViewPanenBlok?.controller?.setCenter(markers.first().position)
+                            mapViewPanenBlok?.controller?.setZoom(15.0)
+                        }
+                    }
+                }
+
+                AppLogger.d("Successfully added ${markers.size} markers (Blue: $blueCount, Red: $redCount)")
 
                 // Start live location tracking
                 startLiveLocationTracking()
 
             } catch (e: Exception) {
-                AppLogger.e("Error in mapPanenInsideBlok: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@FormInspectionActivity,
-                        "Error menampilkan peta: ${e.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                AppLogger.e("Error in mapPanenInsideBlok: ${e.message}\n${e.stackTraceToString()}")
+                Toast.makeText(
+                    this@FormInspectionActivity,
+                    "Error menampilkan peta: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
+
+    // Add this data class at class level
+    data class MarkerData(
+        val tphId: Int,
+        val lat: Double,
+        val lon: Double,
+        val nomor: String,
+        val hasTransaction: Boolean,
+        val transactionCount: Int
+    )
 
     private fun createColoredMarker(color: Int): Drawable {
         val size = 40
@@ -1474,7 +1525,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
 
         findViewById<View>(R.id.legendGreenCircle)?.background?.setTint(
-            ContextCompat.getColor(this, R.color.greenDarker)
+            ContextCompat.getColor(this, R.color.orange)
         )
         findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
             ContextCompat.getColor(this, R.color.bluedarklight)
@@ -1542,178 +1593,313 @@ open class FormInspectionActivity : AppCompatActivity(),
             return
         }
 
+        // Pause the main map view to avoid conflicts
+        mapViewPanenBlok?.onPause()
+
+        var bottomSheetDialog: BottomSheetDialog? = null
+        var fullscreenMapView: MapView? = null
+
         lifecycleScope.launch {
-            withContext(Dispatchers.Main) {
-                loadingDialog.show()
-                loadingDialog.setMessage("Memuat peta fullscreen...")
-            }
-
-            delay(200) // Let loading dialog render
-
-            // Prepare data in background
-            val markerData = withContext(Dispatchers.IO) {
-                val tphIdsWithTransactions = panenTPH
-                    .mapNotNull { it.panen.tph_id?.toIntOrNull() }
-                    .toSet()
-
-                latLonMap.map { (tphId, location) ->
-                    val hasTransaction = tphId in tphIdsWithTransactions
-                    val transactionCount = panenTPH.count {
-                        it.panen.tph_id?.toIntOrNull() == tphId
-                    }
-                    Triple(
-                        GeoPoint(location.lat, location.lon),
-                        if (transactionCount > 0) {
-                            "TPH ${location.nomor} ($transactionCount transaksi)"
-                        } else {
-                            "TPH ${location.nomor}"
-                        },
-                        hasTransaction
-                    )
+            try {
+                // Show loading dialog
+                withContext(Dispatchers.Main) {
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Memuat peta fullscreen...")
                 }
-            }
 
-            withContext(Dispatchers.Main) {
-                try {
-                    // IMPORTANT: Re-initialize OSMDroid Configuration
-                    Configuration.getInstance().apply {
-                        userAgentValue = packageName
-                        osmdroidBasePath = File(cacheDir, "osmdroid")
-                        osmdroidTileCache = File(osmdroidBasePath, "tiles")
-                    }
+                // Prepare ALL data in background thread
+                val dialogData = withContext(Dispatchers.IO) {
+                    try {
+                        val tphIdsWithTransactions = panenTPH
+                            .mapNotNull { it.panen.tph_id?.toIntOrNull() }
+                            .toSet()
 
-                    val bottomSheetDialog = BottomSheetDialog(this@FormInspectionActivity)
-                    val view = LayoutInflater.from(this@FormInspectionActivity)
-                        .inflate(R.layout.layout_bottom_sheet_detail_mutu_buah, null)
-
-                    val titleDialog = view.findViewById<TextView>(R.id.titleDialogDetailTable)
-                    val contentContainer = view.findViewById<LinearLayout>(R.id.contentContainer)
-                    val btnClose = view.findViewById<Button>(R.id.btnCloseDetailTable)
-
-                    view.findViewById<Button>(R.id.btnEditPemanen)?.visibility = View.GONE
-                    view.findViewById<Button>(R.id.btnSaveUploadeSPB)?.visibility = View.GONE
-
-                    titleDialog.text = "Peta TPH - $selectedBlok (${latLonMap.size} titik)"
-                    contentContainer.removeAllViews()
-
-                    // Create map view
-                    val fullscreenMapView = MapView(this@FormInspectionActivity).apply {
-                        layoutParams = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.MATCH_PARENT
-                        )
-
-                        val googleSatellite = object : OnlineTileSourceBase(
-                            "GoogleSatellite",
-                            0, 18, 256, ".png",
-                            arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
-                        ) {
-                            override fun getTileURLString(pMapTileIndex: Long): String {
-                                val zoom = MapTileIndex.getZoom(pMapTileIndex)
-                                val x = MapTileIndex.getX(pMapTileIndex)
-                                val y = MapTileIndex.getY(pMapTileIndex)
-                                return baseUrl.replace("{x}", x.toString())
-                                    .replace("{y}", y.toString())
-                                    .replace("{z}", zoom.toString())
+                        val markerData = latLonMap.map { (tphId, location) ->
+                            val hasTransaction = tphId in tphIdsWithTransactions
+                            val transactionCount = panenTPH.count {
+                                it.panen.tph_id?.toIntOrNull() == tphId
                             }
+                            Triple(
+                                GeoPoint(location.lat, location.lon),
+                                if (transactionCount > 0) {
+                                    "TPH ${location.nomor} ($transactionCount transaksi)"
+                                } else {
+                                    "TPH ${location.nomor}"
+                                },
+                                hasTransaction
+                            )
                         }
 
-                        setTileSource(googleSatellite)
-                        setMultiTouchControls(true)
-                        minZoomLevel = 10.0
-                        maxZoomLevel = 20.0
-                        controller.setZoom(15.0)
+                        AppLogger.d("Prepared ${markerData.size} markers for fullscreen map")
+                        markerData
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error preparing map data: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal menyiapkan data peta: ${e.message}", e)
                     }
+                }
 
-                    contentContainer.addView(fullscreenMapView)
+                // Pre-create marker icons in IO thread
+                val (blueIcon, redIcon) = withContext(Dispatchers.IO) {
+                    try {
+                        val blue = createColoredMarker(Color.BLUE)
+                        val red = createColoredMarker(Color.RED)
+                        Pair(blue, red)
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating marker icons: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal membuat ikon marker: ${e.message}", e)
+                    }
+                }
 
-                    // Add markers in smaller batches
-                    val batchSize = 10
-                    markerData.chunked(batchSize).forEach { batch ->
-                        batch.forEach { (position, title, hasTransaction) ->
-                            val marker = Marker(fullscreenMapView).apply {
-                                this.position = position
-                                this.title = title
-                                icon = createColoredMarker(
-                                    if (hasTransaction) Color.BLUE else Color.RED
+                // Now switch to Main thread for UI operations
+                withContext(Dispatchers.Main) {
+                    try {
+                        // Re-initialize OSMDroid Configuration for fullscreen map
+                        Configuration.getInstance().apply {
+                            userAgentValue = packageName
+                            osmdroidBasePath = File(cacheDir, "osmdroid")
+                            osmdroidTileCache = File(osmdroidBasePath, "tiles")
+                        }
+
+                        bottomSheetDialog = BottomSheetDialog(this@FormInspectionActivity)
+                        val view = LayoutInflater.from(this@FormInspectionActivity)
+                            .inflate(R.layout.layout_bottom_sheet_fullscreen_map, null)
+
+                        // USE CORRECT IDs FROM NEW XML
+                        val titleDialog = view.findViewById<TextView>(R.id.titleDialogMap)
+                        val mapContainer = view.findViewById<FrameLayout>(R.id.mapContainer)
+                        val btnClose = view.findViewById<Button>(R.id.btnCloseMap)
+
+                        // Set legend colors
+                        view.findViewById<View>(R.id.legendOrangeCircle)?.background?.setTint(
+                            ContextCompat.getColor(this@FormInspectionActivity, R.color.orange)
+                        )
+                        view.findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
+                            ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight)
+                        )
+                        view.findViewById<View>(R.id.legendRedCircle)?.background?.setTint(
+                            ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark)
+                        )
+
+                        titleDialog.text = "Peta TPH - $selectedBlok (${latLonMap.size} titik)"
+
+                        // Create NEW map view instance for fullscreen
+                        fullscreenMapView = MapView(this@FormInspectionActivity).apply {
+                            id = View.generateViewId()
+
+                            layoutParams = FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                FrameLayout.LayoutParams.MATCH_PARENT
+                            )
+
+                            val googleSatellite = object : OnlineTileSourceBase(
+                                "GoogleSatelliteFullscreen",
+                                0, 18, 256, ".png",
+                                arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+                            ) {
+                                override fun getTileURLString(pMapTileIndex: Long): String {
+                                    val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                                    val x = MapTileIndex.getX(pMapTileIndex)
+                                    val y = MapTileIndex.getY(pMapTileIndex)
+                                    return baseUrl.replace("{x}", x.toString())
+                                        .replace("{y}", y.toString())
+                                        .replace("{z}", zoom.toString())
+                                }
+                            }
+
+                            setTileSource(googleSatellite)
+                            setMultiTouchControls(true)
+                            setBuiltInZoomControls(false)
+                            minZoomLevel = 10.0
+                            maxZoomLevel = 20.0
+
+                            // Prevent parent from intercepting touch events
+                            setOnTouchListener { v, event ->
+                                when (event.action) {
+                                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                    }
+                                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                        v.parent.requestDisallowInterceptTouchEvent(false)
+                                    }
+                                }
+                                false
+                            }
+
+                            // Set initial zoom and center
+                            if (dialogData.isNotEmpty()) {
+                                controller.setCenter(dialogData.first().first)
+                            } else if (lat != null && lon != null) {
+                                controller.setCenter(GeoPoint(lat!!, lon!!))
+                            }
+                            controller.setZoom(15.0)
+                        }
+
+                        // Add map to the FrameLayout container (legend is already in XML as overlay)
+                        mapContainer.addView(fullscreenMapView, 0) // Add at index 0 so legend stays on top
+
+                        val mapView = fullscreenMapView!!
+
+                        AppLogger.d("Adding ${dialogData.size} markers to fullscreen map")
+
+                        // Add all markers
+                        try {
+                            dialogData.forEachIndexed { index, (position, title, hasTransaction) ->
+                                val marker = Marker(mapView).apply {
+                                    this.position = position
+                                    this.title = title
+                                    this.icon = if (hasTransaction) blueIcon else redIcon
+                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                }
+                                mapView.overlays.add(marker)
+
+                                if (index % 50 == 0) {
+                                    AppLogger.d("Added marker ${index + 1}/${dialogData.size}")
+                                }
+                            }
+                            AppLogger.d("Successfully added all ${dialogData.size} markers")
+                        } catch (e: Exception) {
+                            AppLogger.e("Error adding markers to map: ${e.message}\n${e.stackTraceToString()}")
+                            throw Exception("Gagal menambahkan marker ke peta: ${e.message}", e)
+                        }
+
+                        // Add user location with pulsing overlay
+                        try {
+                            if (lat != null && lon != null) {
+                                val userOverlay = PulsingUserLocationOverlay(
+                                    this@FormInspectionActivity,
+                                    mapView
                                 )
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                userOverlay.setUserLocation(GeoPoint(lat!!, lon!!))
+                                userOverlay.setUserBearing(currentBearing) // Set initial bearing
+                                mapView.overlays.add(0, userOverlay)
+
+                                fullscreenUserOverlay = userOverlay // Store reference
+
+                                AppLogger.d("Added user location overlay")
                             }
-                            fullscreenMapView.overlays.add(marker)
+                        } catch (e: Exception) {
+                            AppLogger.e("Error adding user location: ${e.message}\n${e.stackTraceToString()}")
                         }
-                        delay(10) // Small delay between batches
-                    }
 
-                    // Add user location with pulsing overlay
-                    if (lat != null && lon != null) {
-                        val userOverlay = PulsingUserLocationOverlay(
-                            this@FormInspectionActivity,
-                            fullscreenMapView
-                        )
-                        userOverlay.setUserLocation(GeoPoint(lat!!, lon!!))
-                        fullscreenMapView.overlays.add(0, userOverlay)
-                    }
+                        mapView.onResume()
+                        mapView.invalidate()
 
-                    // Center map on all TPH locations
-                    fullscreenMapView.post {
-                        if (markerData.isNotEmpty()) {
-                            val geoPoints = markerData.map { it.first }
-                            val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
-                            fullscreenMapView.zoomToBoundingBox(boundingBox, true, 100)
+                        AppLogger.d("Fullscreen map initialized and resumed")
+
+                        btnClose.setOnClickListener {
+                            try {
+                                AppLogger.d("Closing fullscreen map")
+                                mapView.onPause()
+                                mapView.onDetach()
+                                bottomSheetDialog?.dismiss()
+                                mapViewPanenBlok?.onResume()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error closing map: ${e.message}")
+                                bottomSheetDialog?.dismiss()
+                                mapViewPanenBlok?.onResume()
+                            }
                         }
-                        fullscreenMapView.invalidate()
-                    }
 
-                    fullscreenMapView.onResume()
+                        bottomSheetDialog?.setContentView(view)
+                        bottomSheetDialog?.setCancelable(false)
 
-                    // Close button
-                    btnClose.setOnClickListener {
-                        fullscreenMapView.onPause()
-                        fullscreenMapView.onDetach()
-                        bottomSheetDialog.dismiss()
-                    }
+                        bottomSheetDialog?.setOnShowListener { dialog ->
+                            try {
+                                val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(
+                                    com.google.android.material.R.id.design_bottom_sheet
+                                )
+                                if (bottomSheet != null) {
+                                    val screenHeight = resources.displayMetrics.heightPixels
+                                    val desiredHeight = (screenHeight * 0.9).toInt()
 
-                    // Dismiss loading and show dialog
-                    loadingDialog.dismiss()
+                                    val layoutParams = bottomSheet.layoutParams
+                                    layoutParams.height = desiredHeight
+                                    bottomSheet.layoutParams = layoutParams
 
-                    bottomSheetDialog.setContentView(view)
-
-                    // Set bottom sheet behavior
-                    bottomSheetDialog.setOnShowListener { dialog ->
-                        val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(
-                            com.google.android.material.R.id.design_bottom_sheet
-                        )
-                        if (bottomSheet != null) {
-                            val screenHeight = resources.displayMetrics.heightPixels
-                            val desiredHeight = (screenHeight * 0.9).toInt()
-
-                            val layoutParams = bottomSheet.layoutParams
-                            layoutParams.height = desiredHeight
-                            bottomSheet.layoutParams = layoutParams
-
-                            val behavior = BottomSheetBehavior.from(bottomSheet)
-                            behavior.isDraggable = false
-                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                            behavior.isHideable = false
-                            behavior.skipCollapsed = true
-                            behavior.peekHeight = desiredHeight
+                                    val behavior = BottomSheetBehavior.from(bottomSheet)
+                                    behavior.isDraggable = false
+                                    behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                                    behavior.isHideable = false
+                                    behavior.skipCollapsed = true
+                                    behavior.peekHeight = desiredHeight
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error setting bottom sheet behavior: ${e.message}")
+                            }
                         }
+
+                        bottomSheetDialog?.setOnDismissListener {
+                            try {
+                                AppLogger.d("Bottom sheet dismissed")
+                                mapView.onPause()
+                                mapView.onDetach()
+                                mapViewPanenBlok?.onResume()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error on dismiss: ${e.message}")
+                                mapViewPanenBlok?.onResume()
+                            }
+                        }
+
+                        loadingDialog.dismiss()
+                        bottomSheetDialog?.show()
+
+                        AppLogger.d("Fullscreen map dialog shown successfully")
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating map UI: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal membuat tampilan peta: ${e.message}", e)
+                    }
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    try {
+                        loadingDialog.dismiss()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error dismissing loading dialog: ${ex.message}")
                     }
 
-                    bottomSheetDialog.setOnDismissListener {
-                        fullscreenMapView.onPause()
-                        fullscreenMapView.onDetach()
+                    try {
+                        fullscreenMapView?.onPause()
+                        fullscreenMapView?.onDetach()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error cleaning up map view: ${ex.message}")
                     }
 
-                    bottomSheetDialog.show()
+                    try {
+                        bottomSheetDialog?.dismiss()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error dismissing bottom sheet: ${ex.message}")
+                    }
 
-                } catch (e: Exception) {
-                    loadingDialog.dismiss()
-                    AppLogger.e("Error creating fullscreen map: ${e.message}")
+                    try {
+                        mapViewPanenBlok?.onResume()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error resuming main map: ${ex.message}")
+                    }
+
+                    val errorMessage = e.message ?: "Unknown error"
+                    val stackTrace = e.stackTraceToString()
+                    AppLogger.e("Full error creating fullscreen map: $errorMessage\n$stackTrace")
+
+                    val displayMessage = when {
+                        errorMessage.contains("Gagal menyiapkan data") ->
+                            "Error menyiapkan data peta.\nDetail: ${e.cause?.message ?: errorMessage}"
+                        errorMessage.contains("Gagal membuat ikon") ->
+                            "Error membuat ikon marker.\nDetail: ${e.cause?.message ?: errorMessage}"
+                        errorMessage.contains("Gagal menambahkan marker") ->
+                            "Error menampilkan marker.\nDetail: ${e.cause?.message ?: errorMessage}"
+                        errorMessage.contains("Gagal membuat tampilan") ->
+                            "Error membuat tampilan peta.\nDetail: ${e.cause?.message ?: errorMessage}"
+                        else ->
+                            "Error menampilkan peta fullscreen.\nDetail: $errorMessage"
+                    }
+
                     Toast.makeText(
                         this@FormInspectionActivity,
-                        "Error menampilkan peta: ${e.message}",
-                        Toast.LENGTH_SHORT
+                        displayMessage,
+                        Toast.LENGTH_LONG
                     ).show()
                 }
             }
@@ -1885,9 +2071,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val orientation = FloatArray(3)
                 SensorManager.getOrientation(rotationMatrix, orientation)
 
-                // Convert to degrees
                 currentBearing = Math.toDegrees(orientation[0].toDouble()).toFloat()
-                pulsingUserOverlay?.setUserBearing(currentBearing)
+
+                // Update both overlays
+                pulsingUserOverlay?.setUserBearing(currentBearing) // Main map
+                fullscreenUserOverlay?.setUserBearing(currentBearing) // Fullscreen map
             }
         }
 
@@ -6034,51 +6222,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         })
     }
 
-    private fun setupRadioView(
-        layoutView: LinearLayout,
-        itemList: Map<String, String>,
-        nameVar: KMutableProperty0<String>,
-        onConditionChanged: ((String) -> Unit)? = null
-    ) {
-        val mcvSpinner = layoutView.findViewById<MaterialCardView>(R.id.MCVSpinner)
-        val fblRadioComponents = layoutView.findViewById<FlexboxLayout>(R.id.fblRadioComponents)
-
-        mcvSpinner.visibility = View.GONE
-        fblRadioComponents.visibility = View.VISIBLE
-
-        var lastSelectedRadioButton: RadioButton? = null
-        val isFirstIndex = itemList.entries.firstOrNull()
-        itemList.forEach { (id, label) ->
-            val radioButton = RadioButton(layoutView.context).apply {
-                text = label
-                tag = View.generateViewId()
-                textSize = 18f
-                setTextColor(Color.BLACK)
-                setPadding(10, 0, 30, 0)
-                buttonTintList = getColorStateList(R.color.greenDefault)
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-
-                if (id == isFirstIndex?.key) {
-                    isChecked = true
-                    lastSelectedRadioButton = this
-                    nameVar.set(id)
-                }
-
-                setOnClickListener {
-                    onConditionChanged?.invoke(id)
-                    lastSelectedRadioButton?.isChecked = false
-                    isChecked = true
-                    lastSelectedRadioButton = this
-                    nameVar.set(id)
-                }
-            }
-
-            fblRadioComponents.addView(radioButton)
-        }
-    }
 
     private fun setupPanenWithButtons(
         layoutId: Int,
