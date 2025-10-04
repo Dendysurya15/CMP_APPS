@@ -48,6 +48,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
@@ -86,6 +87,7 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.swiperefreshlayout.widget.CircularProgressDrawable
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.cbi.mobile_plantation.data.model.InspectionModel
@@ -1523,7 +1525,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
         btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
 
-
         findViewById<View>(R.id.legendGreenCircle)?.background?.setTint(
             ContextCompat.getColor(this, R.color.orange)
         )
@@ -1534,11 +1535,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             ContextCompat.getColor(this, R.color.colorRedDark)
         )
 
-
         mapViewPanenBlok?.apply {
-            // Check network and set appropriate tile source
             val tileSource = if (AppUtils.isNetworkAvailable(this@FormInspectionActivity)) {
-                // Online: Use Google Satellite
                 object : OnlineTileSourceBase(
                     "GoogleSatellite",
                     0, 18, 256, ".png",
@@ -1554,7 +1552,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                 }
             } else {
-                // Offline: Use default OSM from cache
                 TileSourceFactory.MAPNIK
             }
 
@@ -1565,7 +1562,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             maxZoomLevel = 20.0
             controller.setZoom(15.0)
 
-            // Prevent parent ScrollView from intercepting touch events
             setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
@@ -1579,12 +1575,36 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             pulsingUserOverlay = PulsingUserLocationOverlay(this@FormInspectionActivity, this)
+            // Set boundary meters here (replace 15f with your global variable)
+            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager)) // or yourBoundaryVariable
             overlays.add(0, pulsingUserOverlay)
+        }
+
+        findViewById<Button>(R.id.btnRefreshLocation)?.setOnClickListener {
+            refreshUserLocation()
         }
 
         btnDetailMapPanen?.setOnClickListener {
             showDetailPokokDialog()
         }
+    }
+
+    private fun refreshUserLocation() {
+        val btnRefresh = findViewById<MaterialButton>(R.id.btnRefreshLocation) ?: return
+
+        showButtonRefreshProgress(btnRefresh, {
+            if (lat != null && lon != null) {
+                val userLocation = GeoPoint(lat!!, lon!!)
+                pulsingUserOverlay?.setUserLocation(userLocation)
+                pulsingUserOverlay?.setUserBearing(currentBearing)
+                mapViewPanenBlok?.controller?.animateTo(userLocation)
+                mapViewPanenBlok?.invalidate()
+                fullscreenUserOverlay?.setUserLocation(userLocation)
+                fullscreenUserOverlay?.setUserBearing(currentBearing)
+            } else {
+                Toast.makeText(this, "Lokasi belum tersedia", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun showDetailPokokDialog() {
@@ -1670,6 +1690,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val mapContainer = view.findViewById<FrameLayout>(R.id.mapContainer)
                         val btnClose = view.findViewById<Button>(R.id.btnCloseMap)
 
+
+
                         // Set legend colors
                         view.findViewById<View>(R.id.legendOrangeCircle)?.background?.setTint(
                             ContextCompat.getColor(this@FormInspectionActivity, R.color.orange)
@@ -1740,6 +1762,20 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         val mapView = fullscreenMapView!!
 
+                        val btnRefreshFullscreen = view.findViewById<Button>(R.id.btnRefreshLocationFullscreen)
+
+                        btnRefreshFullscreen.setOnClickListener {
+                            showButtonRefreshProgress(it as Button, {
+                                if (lat != null && lon != null) {
+                                    val userLocation = GeoPoint(lat!!, lon!!)
+                                    fullscreenUserOverlay?.setUserLocation(userLocation)
+                                    fullscreenUserOverlay?.setUserBearing(currentBearing)
+                                    mapView.controller.animateTo(userLocation)
+                                    mapView.invalidate()
+                                }
+                            })
+                        }
+
                         AppLogger.d("Adding ${dialogData.size} markers to fullscreen map")
 
                         // Add all markers
@@ -1772,6 +1808,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 )
                                 userOverlay.setUserLocation(GeoPoint(lat!!, lon!!))
                                 userOverlay.setUserBearing(currentBearing) // Set initial bearing
+                                userOverlay.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
                                 mapView.overlays.add(0, userOverlay)
 
                                 fullscreenUserOverlay = userOverlay // Store reference
@@ -1904,6 +1941,44 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
         }
+
+
+    }
+
+
+    private fun showButtonRefreshProgress(
+        button: Button,
+        onRefresh: () -> Unit,
+        duration: Long = 600
+    ) {
+        // Save original text color
+        val originalTextColor = button.currentTextColor
+
+        // Create circular progress drawable with proper size
+        val progressDrawable = CircularProgressDrawable(this).apply {
+            strokeWidth = 5f
+            centerRadius = 12f
+            setColorSchemeColors(Color.WHITE)
+            setBounds(0, 0, 24, 24)
+            start()
+        }
+
+        // Show progress next to text
+        button.setCompoundDrawables(progressDrawable, null, null, null)
+        button.compoundDrawablePadding = 12
+        button.setTextColor(originalTextColor)
+        button.isEnabled = false
+
+        // Execute refresh action
+        onRefresh()
+
+        // Remove progress after duration
+        button.postDelayed({
+            progressDrawable.stop()
+            button.setCompoundDrawables(null, null, null, null)
+            button.setTextColor(originalTextColor)
+            button.isEnabled = true
+        }, duration)
     }
 
     private fun showFormInspectionScreen() {

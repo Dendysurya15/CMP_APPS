@@ -456,7 +456,6 @@
                         android:id="@+id/cardMapPanenBlok"
                         android:layout_width="match_parent"
                         android:layout_height="250dp"
-
                         android:layout_marginTop="8dp"
                         android:layout_marginBottom="8dp"
                         android:visibility="gone"
@@ -483,7 +482,7 @@
 
                             </FrameLayout>
 
-                            <!-- Legend and Button Row -->
+                            <!-- Legend and Buttons Row -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -492,12 +491,23 @@
                                 android:orientation="horizontal"
                                 android:padding="8dp">
 
-                                <!-- Legend -->
+                                <!-- Legend (Left Side) -->
                                 <LinearLayout
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
                                     android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="5dp"
+                                        android:fontFamily="@font/manrope_bold"
+
+                                        android:text="Simbol Map:"
+
+                                        android:textColor="@color/black"
+                                        android:textSize="@dimen/m" />
 
                                     <!-- User Location Legend -->
                                     <LinearLayout
@@ -572,19 +582,41 @@
 
                                 </LinearLayout>
 
-                                <!-- Detail Button -->
-                                <com.google.android.material.button.MaterialButton
-                                    android:id="@+id/btnDetailMapPanen"
+                                <!-- Buttons (Right Side) -->
+                                <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:backgroundTint="@color/greenDarker"
-                                    android:fontFamily="@font/manrope_medium"
-                                    android:text="Map Penuh"
-                                    android:textAllCaps="false"
-                                    android:textSize="@dimen/s"
-                                    app:icon="@drawable/baseline_fullscreen_24"
-                                    app:iconGravity="start"
-                                    app:iconSize="25dp" />
+                                    android:orientation="vertical">
+
+                                    <!-- Refresh Location Button -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnRefreshLocation"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="4dp"
+                                        android:minWidth="140dp"
+                                        android:backgroundTint="@color/bluedarklight"
+                                        android:fontFamily="@font/manrope_medium"
+                                        android:text="Refresh Lokasi"
+                                        android:textAllCaps="false"
+                                        android:textSize="@dimen/s" />
+
+                                    <!-- Fullscreen Map Button -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnDetailMapPanen"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:minWidth="140dp"
+                                        android:backgroundTint="@color/greenDarker"
+                                        android:fontFamily="@font/manrope_medium"
+                                        android:text="Map Penuh"
+                                        android:textAllCaps="false"
+                                        android:textSize="@dimen/s"
+                                        app:icon="@drawable/baseline_fullscreen_24"
+                                        app:iconGravity="start"
+                                        app:iconSize="20dp" />
+
+                                </LinearLayout>
 
                             </LinearLayout>
 
