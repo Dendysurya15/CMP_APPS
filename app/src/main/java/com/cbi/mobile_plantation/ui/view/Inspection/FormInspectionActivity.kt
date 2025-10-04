@@ -186,7 +186,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     CameraRepository.PhotoCallback,
     ListTPHInsideRadiusAdapter.OnTPHSelectedListener {
     private var isEmptyScannedTPH = true
-
+    private var skipAncakValidation = false
     data class SummaryItem(val title: String, val value: String)
     data class Location(val lat: Double = 0.0, val lon: Double = 0.0)
 
@@ -947,42 +947,30 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 mapViewPanenBlok?.invalidate()
 
-                AppLogger.d("Added markers to map, now attempting to zoom")
+                AppLogger.d("Added markers to map")
 
-                // Center map on TPH locations - POST to avoid blocking
-                if (markers.isNotEmpty()) {
+                // Only zoom to bounding box if:
+                // 1. Started from TPH (isStartFromTPH == true)
+                // 2. Currently on navMenuBlokInspect tab
+                val currentMenuId = bottomNavInspect.selectedItemId
+                val shouldZoom = isStartFromTPH && currentMenuId == R.id.navMenuBlokInspect
+
+                if (shouldZoom && markers.isNotEmpty()) {
+                    AppLogger.d("Attempting to zoom - isStartFromTPH: $isStartFromTPH, currentMenu: $currentMenuId")
+
                     mapViewPanenBlok?.post {
                         try {
-                            AppLogger.d("Starting zoomToBoundingBox")
                             val geoPoints = markers.map { it.position }
                             val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
-
-                            // Use a coroutine with timeout to prevent hanging
-                            lifecycleScope.launch {
-                                withTimeout(3000) { // 3 second timeout
-                                    try {
-                                        mapViewPanenBlok?.zoomToBoundingBox(boundingBox, true, 100)
-                                        AppLogger.d("zoomToBoundingBox completed successfully")
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error in zoomToBoundingBox: ${e.message}")
-                                        // Fallback: just center on first marker
-                                        mapViewPanenBlok?.controller?.setCenter(markers.first().position)
-                                        mapViewPanenBlok?.controller?.setZoom(15.0)
-                                    }
-                                }
-                            }
-                        } catch (e: TimeoutCancellationException) {
-                            AppLogger.e("zoomToBoundingBox timed out, using fallback")
-                            // Fallback: center on first marker
                             mapViewPanenBlok?.controller?.setCenter(markers.first().position)
                             mapViewPanenBlok?.controller?.setZoom(15.0)
+                            AppLogger.d("Zoom completed - centered on first marker")
                         } catch (e: Exception) {
-                            AppLogger.e("Error setting map bounds: ${e.message}")
-                            // Fallback: center on first marker
-                            mapViewPanenBlok?.controller?.setCenter(markers.first().position)
-                            mapViewPanenBlok?.controller?.setZoom(15.0)
+                            AppLogger.e("Error setting map center: ${e.message}")
                         }
                     }
+                } else {
+                    AppLogger.d("Skipping zoom - isStartFromTPH: $isStartFromTPH, currentMenu: $currentMenuId")
                 }
 
                 AppLogger.d("Successfully added ${markers.size} markers (Blue: $blueCount, Red: $redCount)")
@@ -4261,6 +4249,36 @@ open class FormInspectionActivity : AppCompatActivity(),
             val activeBottomNavId = bottomNavInspect.selectedItemId
             if (activeBottomNavId == item.itemId) return@setOnItemSelectedListener false
 
+            // NEW: Add confirmation when moving from menuAncak to menuBlok (only if NOT started from TPH)
+            if (!isStartFromTPH &&
+                activeBottomNavId == R.id.navMenuAncakInspect &&
+                item.itemId == R.id.navMenuBlokInspect &&
+                !skipAncakValidation) { // Only show dialog if not bypassing
+
+                AlertDialogUtility.withTwoActions(
+                        this@FormInspectionActivity,
+                "Konfirmasi",
+                "Konfirmasi Data",
+                "Apakah benar anda sudah menyelesaikan semua pemeriksaan tiap pokok?",
+                "warning.json",
+                ContextCompat.getColor(
+                    this@FormInspectionActivity,
+                    R.color.bluedarklight
+                ),
+                function = {
+                    // User confirmed - proceed to menuBlok
+
+                    skipAncakValidation = true
+                    bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
+                },
+                cancelFunction = {
+                    // User cancelled - stay on current menu
+                    // Do nothing, stay on menuAncak
+                }
+                )
+                return@setOnItemSelectedListener false
+            }
+
             // Validate Info Blok when leaving it - ALWAYS validate when leaving, regardless of start mode
             if (activeBottomNavId == R.id.navMenuBlokInspect &&
                 (item.itemId == R.id.navMenuAncakInspect || item.itemId == R.id.navMenuSummaryInspect)
@@ -4272,10 +4290,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
-            // Validate Form Ancak when leaving it
+            // Validate Form Ancak when leaving it - SKIP if flag is set
             if (activeBottomNavId == R.id.navMenuAncakInspect &&
-                (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect)
-            ) {
+                (item.itemId == R.id.navMenuBlokInspect || item.itemId == R.id.navMenuSummaryInspect) &&
+                !skipAncakValidation) {
                 AppLogger.d("Validating Form Ancak before navigation...")
 
                 if (!isStartFromTPH && item.itemId == R.id.navMenuSummaryInspect) {
@@ -4304,6 +4322,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val currentPage = formAncakViewModel.currentPage.value ?: 1
 
                 val validationResult = formAncakViewModel.validateCurrentPage(1)
+
 
                 if (!validationResult.isValid) {
                     vibrate(500)
@@ -4400,6 +4419,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                 when (item.itemId) {
                     R.id.navMenuBlokInspect -> {
                         withContext(Dispatchers.Main) {
+
+                            if (skipAncakValidation) {
+                                skipAncakValidation = false
+                                AppLogger.d("Reset skipAncakValidation flag")
+                            }
+
+                            if (!isStartFromTPH) {
+                                refreshUserLocation()
+                            }
                             clFormInspection.visibility = View.GONE
                             clInfoBlokSection.visibility = View.VISIBLE
                             infoBlokView.visibility = View.VISIBLE
