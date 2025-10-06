@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
+import PulsingUserLocationOverlay
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -8,12 +9,20 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.net.Uri
 import android.os.Build
@@ -40,8 +49,10 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -87,6 +98,7 @@ import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity.MarkerData
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
@@ -117,12 +129,25 @@ import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.MapTileIndex
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -140,7 +165,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private val photoFiles = mutableListOf<String>() // Store filenames
     private val photoFilesSelfie = mutableListOf<String>() // Store filenames
     private val komentarFoto = mutableListOf<String>() // Store filenames
-
+    private var currentZoomLevel = 15.0
+    private val ZOOM_THRESHOLD_SHOW_TEXT = 16.0
+    private val markerCache = mutableMapOf<String, Drawable>()
+    private var zoomUpdateJob: Job? = null
+    private var lastShowTextState: Boolean? = null
     private lateinit var layoutSelfiePhoto: View
     private var selfiePhotoFile: File? = null
 
@@ -159,6 +188,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var selectedTPHIdByScan: Int? = null
     private var tph_otomatis_estate: Int? = null
     var currentAccuracy: Float = 0F
+    private lateinit var titleLiveMapPanen: TextView
+    private lateinit var descTitleLiveMapPanen: TextView
+
+    private var locationUpdateJob: Job? = null
+    private var mapViewPanenBlok: MapView? = null
+    private var cardMapPanenBlok: MaterialCardView? = null
+    private var btnDetailMapPanen: MaterialButton? = null
+
+    private var sensorManager: SensorManager? = null
+    private var rotationSensor: Sensor? = null
+    private var currentBearing: Float = 0f
     private var prefManager: PrefManager? = null
     private val _masterEstateChoice = MutableLiveData<Map<String, Boolean>>(mutableMapOf())
     val masterEstateChoice: LiveData<Map<String, Boolean>> = _masterEstateChoice
@@ -169,6 +209,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var featureName: String? = null
     private lateinit var cameraViewModel: CameraViewModel
     private lateinit var locationViewModel: LocationViewModel
+    private var pulsingUserOverlay: PulsingUserLocationOverlay? = null
     private lateinit var panenTBSViewModel: PanenTBSViewModel
     private var locationEnable: Boolean = false
     private lateinit var btnScanTPHRadius: MaterialButton
@@ -205,11 +246,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
     private var masterDeptInfoMap: Map<String, String> = emptyMap()
+    private val tphMarkersList = mutableListOf<Marker>()
     private var estateList: List<EstateModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
     private var absensiList: List<AbsensiKemandoranRelations> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
+
+    private var panenTPH: List<PanenEntityWithRelations> = emptyList()
+    private var fullscreenUserOverlay: PulsingUserLocationOverlay? = null
+    private var currentLocationMarker: Marker? = null
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var afdelingList: List<AfdelingModel> = emptyList()
@@ -230,6 +276,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         EDITTEXT,
         RADIO,
     }
+
+
+    companion object {
+        private const val CAMERA_PERMISSION_REQUEST_CODE = 100
+    }
+
 
     private var ancakInput: String = ""
     private var nomorPemanenInput: String = ""
@@ -374,9 +426,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
         setupTitleEachGroupInput()
         setupHeader()
-        if (featureName==AppUtils.ListFeatureNames.MutuBuah) {
+        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
             val tvDescFoto = findViewById<TextView>(R.id.tvDescFoto)
-            tvDescFoto.text =  "Upload foto sebagai bukti pengisian form Mutu Buah (Minimal 1 Foto Selfie dan 1 foto TPH untuk simpan)"
+            tvDescFoto.text =
+                "Upload foto sebagai bukti pengisian form Mutu Buah (Minimal 1 Foto Selfie dan 1 foto TPH untuk simpan)"
         }
 
         infoApp = AppUtils.getDeviceInfo(this@FeaturePanenTBSActivity).toString()
@@ -426,16 +479,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
                     val mutuBuahDeferred = CompletableDeferred<List<MutuBuahWithRelations>>()
 
-                    if (featureName == AppUtils.ListFeatureNames.MutuBuah){
+                    if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
                         mutuBuahViewModel.getAllTPHHasBeenSelected()
-                    }else{
+                    } else {
                         panenViewModel.getAllTPHHasBeenSelected()
                     }
 
                     delay(100)
 
-                    if (featureName != AppUtils.ListFeatureNames.MutuBuah){
-                        val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
+                    if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
+                        val absensiDeferred =
+                            CompletableDeferred<List<AbsensiKemandoranRelations>>()
 
                         withContext(Dispatchers.Main) {
                             panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
@@ -556,11 +610,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     if (userAfdelingId != null && presentKemandoranDivisi != null) {
 
                                         // Check if present kemandoran divisi exists in divisiList
-                                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
-                                            divisiList.any { it.divisi == presentKemandoranDivisi }
-                                        } else {
-                                            false
-                                        }
+                                        val isPresentDivisiInList =
+                                            if (presentKemandoranDivisi != null) {
+                                                divisiList.any { it.divisi == presentKemandoranDivisi }
+                                            } else {
+                                                false
+                                            }
                                         AppLogger.d("Is present divisi in divisi list: $isPresentDivisiInList")
 
                                         if (isPresentDivisiInList) {
@@ -630,8 +685,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 }
                             }
                         }
-                    }
-                    else{
+                    } else {
                         withContext(Dispatchers.Main) {
                             mutuBuahViewModel.activeMBList.observe(this@FeaturePanenTBSActivity) { list ->
                                 val tphDataMap = mutableMapOf<Int, TPHData>()
@@ -1202,8 +1256,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             created_by = userId!!,
                                             jjgAbnormal = abnormal,
                                             foto_selfie = photoFilesSelfieString,
-                                            createdName = userName!!)
-                                    }else{
+                                            createdName = userName!!
+                                        )
+                                    } else {
 
                                         panenViewModel.saveDataPanen(
                                             tph_id = tph_id,
@@ -1233,7 +1288,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                                 when (result) {
                                     is AppRepository.SaveResultPanen.Success,
-                                    is AppRepository.SaveResultMutuBuah.Success  -> {
+                                    is AppRepository.SaveResultMutuBuah.Success -> {
                                         playSound(R.raw.berhasil_simpan)
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1278,6 +1333,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             resetFormAfterSaveData()
                                         }
                                     }
+
                                     is AppRepository.SaveResultPanen.Error -> {
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1288,6 +1344,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             R.color.colorRedDark
                                         ) {}
                                     }
+
                                     is AppRepository.SaveResultMutuBuah.Error -> {
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1322,6 +1379,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 )
             }
         }
+
+        initializeMapView()
     }
 
     private fun initializeJjgJson() {
@@ -1384,7 +1443,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         progressBarScanTPHManual = findViewById(R.id.progressBarScanTPHManual)
         progressBarScanTPHAuto = findViewById(R.id.progressBarScanTPHAuto)
         mbSaveDataPanenTBS = findViewById(R.id.mbSaveDataPanenTBS)
-
+        titleLiveMapPanen = findViewById(R.id.titleLiveMapPanen)
+        descTitleLiveMapPanen = findViewById(R.id.descTitleLiveMapPanen)
         layoutEstate = findViewById(R.id.layoutEstate)
         layoutAncak = findViewById(R.id.layoutAncak)
         layoutNomorPemanen = findViewById(R.id.layoutNomorPemanen)
@@ -1436,7 +1496,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
         var divisiNames = emptyList<String>()
-            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
             divisiNames =
                 afdelingList.sortedBy { it.abbr }.mapNotNull { it.abbr }
         } else {
@@ -1849,9 +1909,762 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         takeFotoPreviewAdapter?.resetAllSections()
     }
 
-    companion object {
-        private const val CAMERA_PERMISSION_REQUEST_CODE = 100
+    private fun initializeMapView() {
+        Configuration.getInstance().apply {
+            userAgentValue = packageName
+            osmdroidBasePath = File(cacheDir, "osmdroid")
+            osmdroidTileCache = File(osmdroidBasePath, "tiles")
+
+            // Optimize for low-end devices
+            tileFileSystemCacheMaxBytes = 50L * 1024 * 1024
+            tileFileSystemCacheTrimBytes = 40L * 1024 * 1024
+        }
+
+        cardMapPanenBlok = findViewById(R.id.cardMapPanenBlok)
+        mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
+        btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
+
+        // Setup legend
+        setupLegend(
+            findViewById(android.R.id.content),
+            listOf(
+                LegendItem(R.color.orange, "Lokasi Anda"),
+                LegendItem(R.color.bluedarklight, "Titik TPH"),
+                LegendItem(R.color.colorRedDark, "", isVisible = false)
+            )
+        )
+
+        mapViewPanenBlok?.apply {
+            val tileSource = if (AppUtils.isNetworkAvailable(this@FeaturePanenTBSActivity)) {
+                object : OnlineTileSourceBase(
+                    "GoogleSatellite",
+                    0, 18, 256, ".png",
+                    arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+                ) {
+                    override fun getTileURLString(pMapTileIndex: Long): String {
+                        val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                        val x = MapTileIndex.getX(pMapTileIndex)
+                        val y = MapTileIndex.getY(pMapTileIndex)
+                        return baseUrl.replace("{x}", x.toString())
+                            .replace("{y}", y.toString())
+                            .replace("{z}", zoom.toString())
+                    }
+                }
+            } else {
+                TileSourceFactory.MAPNIK
+            }
+
+            setTileSource(tileSource)
+            setMultiTouchControls(true)
+            setBuiltInZoomControls(false)
+            minZoomLevel = 10.0
+            maxZoomLevel = 20.0
+            controller.setZoom(15.0)
+
+            // Add zoom change listener with debouncing
+            addMapListener(object : MapListener {
+                override fun onScroll(event: ScrollEvent?): Boolean = false
+
+                override fun onZoom(event: ZoomEvent?): Boolean {
+                    event?.let {
+                        val newZoom = it.zoomLevel
+                        if (newZoom != currentZoomLevel) {
+                            currentZoomLevel = newZoom
+                            updateMarkerVisibility()
+                        }
+                    }
+                    return false
+                }
+            })
+
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        v.parent.requestDisallowInterceptTouchEvent(true)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        v.parent.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            }
+
+            pulsingUserOverlay = PulsingUserLocationOverlay(this@FeaturePanenTBSActivity, this)
+            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
+            overlays.add(0, pulsingUserOverlay)
+        }
+
+        btnDetailMapPanen?.setOnClickListener {
+            showDetailPokokDialog()
+        }
     }
+
+    private fun updateMarkerVisibility() {
+        zoomUpdateJob?.cancel()
+        zoomUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            delay(300) // Debounce
+
+            try {
+                val showText = currentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                if (lastShowTextState == showText) {
+                    AppLogger.d("Marker visibility unchanged, skipping update")
+                    return@launch
+                }
+                lastShowTextState = showText
+
+                tphMarkersList.forEachIndexed { index, marker ->
+                    val tphData = latLonMap.entries.elementAtOrNull(index)
+                    if (tphData != null) {
+                        val colorInt = ContextCompat.getColor(
+                            this@FeaturePanenTBSActivity,
+                            R.color.bluedarklight
+                        )
+
+                        marker.icon = getCachedMarker(
+                            colorInt,
+                            if (showText) tphData.value.nomor else null,
+                            showText
+                        )
+                    }
+                }
+
+                mapViewPanenBlok?.invalidate()
+
+            } catch (e: Exception) {
+                AppLogger.e("Error updating marker visibility: ${e.message}")
+            }
+        }
+    }
+
+    private fun createColoredMarker(color: Int): Drawable {
+        val size = 40
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val paint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color
+        }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        // Draw white border
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, paint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun showDetailPokokDialog() {
+        if (latLonMap.isEmpty()) {
+            Toast.makeText(this, "Tidak ada data TPH", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Pause the main map view to avoid conflicts
+        mapViewPanenBlok?.onPause()
+
+        var bottomSheetDialog: BottomSheetDialog? = null
+        var fullscreenMapView: MapView? = null
+        var fullscreenCurrentZoomLevel = 15.0
+
+        lifecycleScope.launch {
+            try {
+                // Show loading dialog
+                withContext(Dispatchers.Main) {
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Memuat peta fullscreen...")
+                }
+
+                // Prepare marker data in background thread
+                val markerDataList = withContext(Dispatchers.IO) {
+                    try {
+                        latLonMap.map { (tphId, location) ->
+                            MarkerData(
+                                tphId = tphId,
+                                lat = location.lat,
+                                lon = location.lon,
+                                nomor = location.nomor,
+                                hasTransaction = false,
+                                transactionCount = 0
+                            )
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error preparing map data: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal menyiapkan data peta: ${e.message}", e)
+                    }
+                }
+
+                // Now switch to Main thread for UI operations
+                withContext(Dispatchers.Main) {
+                    try {
+                        // Re-initialize OSMDroid Configuration for fullscreen map
+                        Configuration.getInstance().apply {
+                            userAgentValue = packageName
+                            osmdroidBasePath = File(cacheDir, "osmdroid")
+                            osmdroidTileCache = File(osmdroidBasePath, "tiles")
+                        }
+
+                        bottomSheetDialog = BottomSheetDialog(this@FeaturePanenTBSActivity)
+                        val view = LayoutInflater.from(this@FeaturePanenTBSActivity)
+                            .inflate(R.layout.layout_bottom_sheet_fullscreen_map, null)
+
+                        val titleDialog = view.findViewById<TextView>(R.id.titleDialogMap)
+                        val mapContainer = view.findViewById<FrameLayout>(R.id.mapContainer)
+                        val btnClose = view.findViewById<Button>(R.id.btnCloseMap)
+
+                        setupLegend(
+                            view,
+                            listOf(
+                                LegendItem(R.color.orange, "Lokasi Anda"),
+                                LegendItem(R.color.bluedarklight, "Titik TPH"),
+                                LegendItem(R.color.colorRedDark, "", isVisible = false)
+                            )
+                        )
+
+                        titleDialog.text = "Peta TPH - $selectedBlok (${latLonMap.size} titik)"
+
+                        // Create NEW map view instance for fullscreen
+                        fullscreenMapView = MapView(this@FeaturePanenTBSActivity).apply {
+                            id = View.generateViewId()
+
+                            layoutParams = FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                FrameLayout.LayoutParams.MATCH_PARENT
+                            )
+
+                            val googleSatellite = object : OnlineTileSourceBase(
+                                "GoogleSatelliteFullscreen",
+                                0, 18, 256, ".png",
+                                arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+                            ) {
+                                override fun getTileURLString(pMapTileIndex: Long): String {
+                                    val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                                    val x = MapTileIndex.getX(pMapTileIndex)
+                                    val y = MapTileIndex.getY(pMapTileIndex)
+                                    return baseUrl.replace("{x}", x.toString())
+                                        .replace("{y}", y.toString())
+                                        .replace("{z}", zoom.toString())
+                                }
+                            }
+
+                            setTileSource(googleSatellite)
+                            setMultiTouchControls(true)
+                            setBuiltInZoomControls(false)
+                            minZoomLevel = 10.0
+                            maxZoomLevel = 20.0
+
+                            // Add zoom listener for fullscreen map
+                            addMapListener(object : MapListener {
+                                override fun onScroll(event: ScrollEvent?): Boolean {
+                                    return false
+                                }
+
+                                override fun onZoom(event: ZoomEvent?): Boolean {
+                                    event?.let {
+                                        val newZoom = it.zoomLevel
+                                        if (newZoom != fullscreenCurrentZoomLevel) {
+                                            fullscreenCurrentZoomLevel = newZoom
+                                            // Update fullscreen markers
+                                            updateFullscreenMarkers(this@apply, markerDataList, fullscreenCurrentZoomLevel)
+                                        }
+                                    }
+                                    return false
+                                }
+                            })
+
+                            // Prevent parent from intercepting touch events
+                            setOnTouchListener { v, event ->
+                                when (event.action) {
+                                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                    }
+                                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                        v.parent.requestDisallowInterceptTouchEvent(false)
+                                    }
+                                }
+                                false
+                            }
+
+                            // Set initial zoom and center
+                            if (markerDataList.isNotEmpty()) {
+                                controller.setCenter(GeoPoint(markerDataList.first().lat, markerDataList.first().lon))
+                            } else if (lat != null && lon != null) {
+                                controller.setCenter(GeoPoint(lat!!, lon!!))
+                            }
+                            controller.setZoom(15.0)
+                        }
+
+                        mapContainer.addView(fullscreenMapView, 0)
+                        val mapView = fullscreenMapView!!
+
+                        AppLogger.d("Adding ${markerDataList.size} markers to fullscreen map")
+
+                        // Add all markers using the SAME function as main map
+                        try {
+                            val showText = fullscreenCurrentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                            markerDataList.forEach { data ->
+                                val marker = Marker(mapView).apply {
+                                    position = GeoPoint(data.lat, data.lon)
+                                    title = "TPH ${data.nomor}"
+
+                                    icon = if (showText) {
+                                        createColoredMarkerWithNumber(
+                                            ContextCompat.getColor(
+                                                this@FeaturePanenTBSActivity,
+                                                R.color.bluedarklight
+                                            ),
+                                            data.nomor
+                                        )
+                                    } else {
+                                        createColoredMarkerWithoutNumber(
+                                            ContextCompat.getColor(
+                                                this@FeaturePanenTBSActivity,
+                                                R.color.bluedarklight
+                                            )
+                                        )
+                                    }
+
+                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                }
+                                mapView.overlays.add(marker)
+                            }
+                            AppLogger.d("Successfully added all ${markerDataList.size} markers")
+                        } catch (e: Exception) {
+                            AppLogger.e("Error adding markers to map: ${e.message}\n${e.stackTraceToString()}")
+                            throw Exception("Gagal menambahkan marker ke peta: ${e.message}", e)
+                        }
+
+                        // Add user location with pulsing overlay
+                        try {
+                            if (lat != null && lon != null) {
+                                val userOverlay = PulsingUserLocationOverlay(
+                                    this@FeaturePanenTBSActivity,
+                                    mapView
+                                )
+                                userOverlay.setUserLocation(GeoPoint(lat!!, lon!!))
+                                userOverlay.setUserBearing(currentBearing)
+                                userOverlay.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
+                                mapView.overlays.add(0, userOverlay)
+
+                                fullscreenUserOverlay = userOverlay
+
+                                AppLogger.d("Added user location overlay")
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error adding user location: ${e.message}\n${e.stackTraceToString()}")
+                        }
+
+                        mapView.onResume()
+                        mapView.invalidate()
+
+                        AppLogger.d("Fullscreen map initialized and resumed")
+
+                        btnClose.setOnClickListener {
+                            try {
+                                AppLogger.d("Closing fullscreen map")
+                                mapView.onPause()
+                                mapView.onDetach()
+                                bottomSheetDialog?.dismiss()
+                                mapViewPanenBlok?.onResume()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error closing map: ${e.message}")
+                                bottomSheetDialog?.dismiss()
+                                mapViewPanenBlok?.onResume()
+                            }
+                        }
+
+                        bottomSheetDialog?.setContentView(view)
+                        bottomSheetDialog?.setCancelable(false)
+
+                        bottomSheetDialog?.setOnShowListener { dialog ->
+                            try {
+                                val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(
+                                    com.google.android.material.R.id.design_bottom_sheet
+                                )
+                                if (bottomSheet != null) {
+                                    val screenHeight = resources.displayMetrics.heightPixels
+                                    val desiredHeight = (screenHeight * 0.9).toInt()
+
+                                    val layoutParams = bottomSheet.layoutParams
+                                    layoutParams.height = desiredHeight
+                                    bottomSheet.layoutParams = layoutParams
+
+                                    val behavior = BottomSheetBehavior.from(bottomSheet)
+                                    behavior.isDraggable = false
+                                    behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                                    behavior.isHideable = false
+                                    behavior.skipCollapsed = true
+                                    behavior.peekHeight = desiredHeight
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error setting bottom sheet behavior: ${e.message}")
+                            }
+                        }
+
+                        bottomSheetDialog?.setOnDismissListener {
+                            try {
+                                AppLogger.d("Bottom sheet dismissed")
+                                mapView.onPause()
+                                mapView.onDetach()
+                                mapViewPanenBlok?.onResume()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error on dismiss: ${e.message}")
+                                mapViewPanenBlok?.onResume()
+                            }
+                        }
+
+                        loadingDialog.dismiss()
+                        bottomSheetDialog?.show()
+
+                        AppLogger.d("Fullscreen map dialog shown successfully")
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating map UI: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal membuat tampilan peta: ${e.message}", e)
+                    }
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    try {
+                        loadingDialog.dismiss()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error dismissing loading dialog: ${ex.message}")
+                    }
+
+                    try {
+                        fullscreenMapView?.onPause()
+                        fullscreenMapView?.onDetach()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error cleaning up map view: ${ex.message}")
+                    }
+
+                    try {
+                        bottomSheetDialog?.dismiss()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error dismissing bottom sheet: ${ex.message}")
+                    }
+
+                    try {
+                        mapViewPanenBlok?.onResume()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error resuming main map: ${ex.message}")
+                    }
+
+                    val errorMessage = e.message ?: "Unknown error"
+                    AppLogger.e("Full error creating fullscreen map: $errorMessage\n${e.stackTraceToString()}")
+
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error menampilkan peta fullscreen.\nDetail: $errorMessage",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun setupLegend(rootView: View, legendItems: List<LegendItem>) {
+        legendItems.forEachIndexed { index, item ->
+            when (index) {
+                0 -> {
+                    // Orange circle - Lokasi Anda
+                    rootView.findViewById<View>(R.id.legendOrangeCircle)?.background?.setTint(
+                        ContextCompat.getColor(this, item.color)
+                    )
+                }
+                1 -> {
+                    // Blue circle - Titik TPH
+                    rootView.findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
+                        ContextCompat.getColor(this, item.color)
+                    )
+                    rootView.findViewById<TextView>(R.id.legentTitleBlueCircle)?.apply {
+                        text = item.title
+                        visibility = View.VISIBLE
+                    }
+                }
+                2 -> {
+                    // Red circle - Hide this completely
+                    rootView.findViewById<View>(R.id.legendRedCircle)?.apply {
+                        background?.setTint(ContextCompat.getColor(this@FeaturePanenTBSActivity, item.color))
+                    }
+                    rootView.findViewById<TextView>(R.id.legentTitleRedCircle)?.apply {
+                        text = item.title
+                        visibility = if (item.isVisible) View.VISIBLE else View.GONE
+                    }
+                    // Hide the entire red legend row
+                    (rootView.findViewById<View>(R.id.legendRedCircle)?.parent as? LinearLayout)?.visibility =
+                        if (item.isVisible) View.VISIBLE else View.GONE
+                }
+            }
+        }
+    }
+
+    // Data class for legend items
+    data class LegendItem(
+        val color: Int,
+        val title: String,
+        val isVisible: Boolean = true
+    )
+
+
+    // Helper function to update fullscreen markers
+    private fun updateFullscreenMarkers(mapView: MapView, markerDataList: List<MarkerData>, zoomLevel: Double) {
+        zoomUpdateJob?.cancel()
+        zoomUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            delay(300) // Debounce
+
+            try {
+                val showText = zoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                val overlaysToRemove = mapView.overlays.filterIsInstance<Marker>()
+                overlaysToRemove.forEach { mapView.overlays.remove(it) }
+
+                markerDataList.forEach { data ->
+                    val colorInt = ContextCompat.getColor(
+                        this@FeaturePanenTBSActivity,
+                        R.color.bluedarklight
+                    )
+
+                    val marker = Marker(mapView).apply {
+                        position = GeoPoint(data.lat, data.lon)
+                        title = "TPH ${data.nomor}"
+
+                        icon = getCachedMarker(
+                            colorInt,
+                            if (showText) data.nomor else null,
+                            showText
+                        )
+
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    }
+                    mapView.overlays.add(marker)
+                }
+
+                mapView.invalidate()
+                AppLogger.d("Fullscreen markers updated - zoom: $zoomLevel, showText: $showText")
+            } catch (e: Exception) {
+                AppLogger.e("Error updating fullscreen marker visibility: ${e.message}")
+            }
+        }
+    }
+
+    private fun clearMapMarkers() {
+        tphMarkersList.forEach { marker ->
+            mapViewPanenBlok?.overlays?.remove(marker)
+        }
+        tphMarkersList.clear()
+
+        currentLocationMarker?.let { marker ->
+            mapViewPanenBlok?.overlays?.remove(marker)
+        }
+        currentLocationMarker = null
+
+        mapViewPanenBlok?.invalidate()
+    }
+
+    private fun createColoredMarkerWithNumber(color: Int, number: String): Drawable {
+        val size = 50
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val circlePaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color  // Use 'this.color'
+        }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, circlePaint)
+
+        // Draw white border
+        circlePaint.color = Color.WHITE
+        circlePaint.style = Paint.Style.STROKE
+        circlePaint.strokeWidth = 4f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, circlePaint)
+
+        // Draw TPH number text
+        val textPaint = Paint().apply {
+            isAntiAlias = true
+            this.color = Color.WHITE  // Use 'this.color'
+            textSize = 20f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+
+        val xPos = size / 2f
+        val yPos = (size / 2f) - ((textPaint.descent() + textPaint.ascent()) / 2)
+
+        canvas.drawText(number, xPos, yPos, textPaint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun createColoredMarkerWithoutNumber(color: Int): Drawable {
+        val size = 40
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val paint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color  // Use 'this.color'
+        }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        // Draw white border
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, paint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun mapTPHInsideBlok() {
+        AppLogger.d("mapTPHInsideBlok started")
+
+        lifecycleScope.launch(Dispatchers.Main) {
+            try {
+                // Clear existing markers
+                clearMapMarkers()
+
+                if (latLonMap.isEmpty()) {
+                    AppLogger.w("latLonMap is empty, cannot populate map")
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Tidak ada data TPH untuk ditampilkan",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@launch
+                }
+
+                AppLogger.d("Populating map with ${latLonMap.size} TPH locations")
+
+                // Prepare DATA in background thread
+                val markerDataList = withContext(Dispatchers.IO) {
+                    latLonMap.map { (tphId, location) ->
+                        AppLogger.d("TPH $tphId (${location.nomor}): RED - no transaction")
+
+                        MarkerData(
+                            tphId = tphId,
+                            lat = location.lat,
+                            lon = location.lon,
+                            nomor = location.nomor,
+                            hasTransaction = false,
+                            transactionCount = 0
+                        )
+                    }
+                }
+
+                AppLogger.d("Finished preparing ${markerDataList.size} marker data")
+
+                // Create markers on MAIN thread
+                val markers = mutableListOf<Marker>()
+
+                markerDataList.forEach { data ->
+                    try {
+                        val showText = currentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+                        val colorInt = ContextCompat.getColor(this@FeaturePanenTBSActivity, R.color.bluedarklight)
+
+                        val marker = Marker(mapViewPanenBlok).apply {
+                            position = GeoPoint(data.lat, data.lon)
+                            title = "TPH ${data.nomor}"
+
+                            icon = getCachedMarker(
+                                colorInt,
+                                if (showText) data.nomor else null,
+                                showText
+                            )
+
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        }
+
+                        markers.add(marker)
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating marker for TPH ${data.tphId}: ${e.message}")
+                    }
+                }
+
+                AppLogger.d("Created ${markers.size} marker objects")
+
+                // Add markers to map
+                markers.forEach { marker ->
+                    mapViewPanenBlok?.overlays?.add(marker)
+                    tphMarkersList.add(marker)
+                }
+
+                mapViewPanenBlok?.invalidate()
+
+                AppLogger.d("Added markers to map")
+
+                mapViewPanenBlok?.post {
+                    try {
+                        val geoPoints = markers.map { it.position }
+                        val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
+                        mapViewPanenBlok?.controller?.setCenter(markers.first().position)
+                        mapViewPanenBlok?.controller?.setZoom(15.0)
+                        AppLogger.d("Zoom completed - centered on first marker")
+                    } catch (e: Exception) {
+                        AppLogger.e("Error setting map center: ${e.message}")
+                    }
+                }
+
+                AppLogger.d("Successfully added ${markers.size} markers")
+
+                // Start live location tracking
+                startLiveLocationTracking()
+
+            } catch (e: Exception) {
+                AppLogger.e("Error in mapTPHInsideBlok: ${e.message}\n${e.stackTraceToString()}")
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Error menampilkan peta: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun startLiveLocationTracking() {
+        locationUpdateJob?.cancel()
+
+        locationUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            while (isActive) {
+                try {
+                    if (lat != null && lon != null) {
+                        val userLocation = GeoPoint(lat!!, lon!!)
+
+                        // Update main map
+                        pulsingUserOverlay?.setUserLocation(userLocation)
+                        pulsingUserOverlay?.setUserBearing(currentBearing)
+                        mapViewPanenBlok?.invalidate()
+
+                        // Update fullscreen map if it exists
+                        fullscreenUserOverlay?.setUserLocation(userLocation)
+                        fullscreenUserOverlay?.setUserBearing(currentBearing)
+
+//                        AppLogger.d("Location auto-updated: $lat, $lon, bearing: $currentBearing")
+                    }
+
+                    delay(AppUtils.LOCATION_USER_UPDATE_INTERVAL)
+                } catch (e: Exception) {
+                    AppLogger.e("Error updating live location: ${e.message}")
+                }
+            }
+        }
+    }
+
 
     @SuppressLint("SetTextI18n")
     private fun updateDependentCounters(
@@ -2109,7 +2922,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
 
         val factoryMutuBuahViewModel = MutuBuahViewModel.MutuBuahViewModelFactory(application)
-        mutuBuahViewModel = ViewModelProvider(this, factoryMutuBuahViewModel)[MutuBuahViewModel::class.java]
+        mutuBuahViewModel =
+            ViewModelProvider(this, factoryMutuBuahViewModel)[MutuBuahViewModel::class.java]
 
         val factoryAbsensiViewModel = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel =
@@ -2167,7 +2981,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }, 400)
             } else {
                 // GPS is outside boundary - show error toast
-                Toasty.error(this, "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!", Toast.LENGTH_LONG, true)
+                Toasty.error(
+                    this,
+                    "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!",
+                    Toast.LENGTH_LONG,
+                    true
+                )
                     .show()
             }
 
@@ -2270,7 +3089,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                                 if (isGM) {
                                     // Split the estate names into a list for GM
-                                    val estateList = namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
+                                    val estateList =
+                                        namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
                                     AppLogger.d("GM detected - Estate list: $estateList")
                                     setupSpinnerView(layoutView, estateList)
                                 } else {
@@ -2282,7 +3102,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     }
                                     AppLogger.d("Non-GM user - Single estate: $singleEstateList")
                                     setupSpinnerView(layoutView, singleEstateList)
-                                    findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
+                                    findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(
+                                        0
+                                    )
                                 }
                             }
                         }
@@ -2964,7 +3786,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 isEmptyScannedTPH = true
             }
         } else {
-            Toasty.error(this, "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!", Toast.LENGTH_LONG, true)
+            Toasty.error(
+                this,
+                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
+                Toast.LENGTH_LONG,
+                true
+            )
                 .show()
             isEmptyScannedTPH = true
         }
@@ -3129,8 +3956,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         val otherLayout = findViewById<View>(R.id.layoutTipePanen)
                         otherLayout?.visibility = View.VISIBLE
                     }
-                }
-                else if (layoutView.id == R.id.layoutNomorPemanen) {
+                } else if (layoutView.id == R.id.layoutNomorPemanen) {
                     val inputText = s?.toString()?.trim() ?: ""
                     nomorPemanenInput = inputText
 
@@ -3299,7 +4125,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
 
-
     // New function to reload only main pemanen
     private suspend fun loadMainPemanenOnly(rootView: View) {
         if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
@@ -3360,7 +4185,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             setupSpinnerView(layoutPemanen, karyawanNames)
                         } else {
                             setupSpinnerView(layoutPemanen, emptyList())
-                            val pemanenSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            val pemanenSpinner =
+                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                             pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                         }
                     }
@@ -3424,13 +4250,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                     withContext(Dispatchers.Main) {
-                        val layoutPemanenLain = rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                        val layoutPemanenLain =
+                            rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
                         if (layoutPemanenLain != null) {
                             if (karyawanLainNames.isNotEmpty()) {
                                 setupSpinnerView(layoutPemanenLain, karyawanLainNames)
                             } else {
                                 setupSpinnerView(layoutPemanenLain, emptyList())
-                                val pemanenLainSpinner = layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                val pemanenLainSpinner =
+                                    layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                 pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
                             }
                         }
@@ -3640,7 +4468,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 // Check if jabatan contains "GM" instead of exact match
                 val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
 
-                val shouldDisable = featureName != AppUtils.ListFeatureNames.AsistensiEstateLain && !isGM
+                val shouldDisable =
+                    featureName != AppUtils.ListFeatureNames.AsistensiEstateLain && !isGM
 
                 spinner.isEnabled = !shouldDisable
 
@@ -3672,7 +4501,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
 
         val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
-        layoutBlokBanjir.visibility = View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM } ?: View.GONE
+        layoutBlokBanjir.visibility =
+            View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM } ?: View.GONE
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
@@ -3783,7 +4613,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 //reset all image
                 photoCount = 0
-                photoCountSelfie  = 0
+                photoCountSelfie = 0
                 photoFiles.clear()
                 photoFilesSelfie.clear()
                 komentarFoto.clear()
@@ -3833,7 +4663,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 //reset all image
                 photoCount = 0
-                photoCountSelfie  = 0
+                photoCountSelfie = 0
                 photoFiles.clear()
                 photoFilesSelfie.clear()
                 komentarFoto.clear()
@@ -3918,7 +4748,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 InputType.EDITTEXT -> {
                     when (key) {
                         getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
-                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim().isEmpty()
+                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim()
+                            .isEmpty()
+
                         else -> editText.text.toString().trim().isEmpty()
                     }
                 }
@@ -4188,16 +5020,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
 
-                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
-                    selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key!!
-                }else{
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                    selectedEstate =
+                        masterDeptInfoMap.entries.find { it.value == selectedItem }?.key!!
+                } else {
                     selectedEstate = selectedItem
                 }
 
                 val selectedEstateId = try {
                     // Assuming you have an estate list with IDs corresponding to positions
                     // You might need to adjust this based on your estate data structure
-                    val estateIds = prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
+                    val estateIds =
+                        prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() }
+                            ?: emptyList()
                     if (position < estateIds.size) {
                         estateIds[position]
                     } else {
@@ -4233,7 +5068,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
                         afdelingList = afdelingDeferred.await()
 
-                        val layoutAfdeling = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
+                        val layoutAfdeling =
+                            linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
                         setupSpinnerView(layoutAfdeling, afdelingList.mapNotNull { it.abbr })
 
                     } else {
@@ -4248,7 +5084,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
                         divisiList = divisiDeferred.await()
 
-                        val layoutAfdeling = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
+                        val layoutAfdeling =
+                            linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
                         setupSpinnerView(layoutAfdeling, divisiList.mapNotNull { it.divisi_abbr })
                     }
 
@@ -4305,11 +5142,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             throw IllegalStateException("Estate ID or selectedDivisiId is null!")
                         }
 
-                        // Only get blok list and tahun tanam - kemandoran setup moved to initial load
+                        // Only get blok list and tahun tanam
                         var tahunTanamList: List<String> = emptyList()
 
                         AppLogger.d(estateId.toString())
                         AppLogger.d(selectedDivisiId.toString())
+
                         val blokDeferred = async {
                             try {
                                 val estateIdToUse =
@@ -4326,6 +5164,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
                         blokList = blokDeferred.await()
                         AppLogger.d(blokList.toString())
+
                         tahunTanamList = try {
                             blokList.mapNotNull { it.tahun }.distinct()
                                 .sortedBy { it.toIntOrNull() }
@@ -4334,9 +5173,121 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             emptyList()
                         }
 
-                        if (blokBanjir == 0) {
-                            latLonMap = emptyMap()
-                            latLonMap = async {
+                        withContext(Dispatchers.Main) {
+                            try {
+                                val layoutTahunTanam =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
+                                setupSpinnerView(
+                                    layoutTahunTanam,
+                                    tahunTanamList.ifEmpty { emptyList() })
+                            } catch (e: Exception) {
+                                AppLogger.e("Error updating UI: ${e.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FeaturePanenTBSActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) {
+                            hideLoadingDots(linearLayout)
+                        }
+                    }
+                }
+            }
+
+            R.id.layoutTahunTanam -> {
+                // NO CHANGES - keeping as is
+                val selectedTahunTanam = selectedItem.toString()
+                selectedTahunTanamValue = selectedTahunTanam
+                selectedTahunTanamValueBackup = selectedTahunTanam
+                selectedTahunTanamIdSpinner = position
+
+                val filteredBlokCodes = blokList.filter {
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toInt()
+                        } else {
+                            estateId!!.toInt()
+                        }
+
+                    it.dept == estateIdToUse &&
+                            it.divisi == selectedDivisiValue &&
+                            it.tahun == selectedTahunTanamValue
+                }
+
+                val layoutBlok = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
+                if (filteredBlokCodes.isNotEmpty()) {
+                    val blokNames = filteredBlokCodes.map { it.blok_kode }
+                    setupSpinnerView(layoutBlok, blokNames as List<String>)
+                    layoutBlok.visibility = View.VISIBLE
+                } else {
+                    setupSpinnerView(layoutBlok, emptyList())
+                }
+            }
+
+            R.id.layoutBlok -> {
+                selectedBlok = selectedItem.toString()
+                selectedBlokIdSpinner = position
+
+                val selectedFieldId = try {
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toIntOrNull()
+                        } else {
+                            estateId?.toIntOrNull()
+                        }
+
+                    blokList.find { blok ->
+                        blok.dept == estateIdToUse &&
+                                blok.divisi == selectedDivisiValue &&
+                                blok.tahun == selectedTahunTanamValue &&
+                                blok.blok_kode == selectedBlok
+                    }?.blok
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selected Blok ID: ${e.message}")
+                    null
+                }
+
+                if (selectedFieldId != null) {
+                    selectedBlokValue = selectedFieldId
+                    selectedBlokValueBackup = selectedFieldId
+                    AppLogger.d("Selected Blok ID: $selectedBlokValue")
+                } else {
+                    selectedBlokValue = null
+                    AppLogger.e("Selected Blok ID is null, skipping processing.")
+                    return
+                }
+
+                if (blokBanjir == 1) {
+                    setupSpinnerView(layoutNoTPH, emptyList())
+                    selectedTPH = ""
+                    selectedTPHIdSpinner = 0
+                    selectedTPHJenisId = null
+                    selectedTPHValue = null
+                }
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                        delay(1000)
+                    }
+
+                    try {
+                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
+
+                        if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
+                            throw IllegalStateException("One or more required parameters are null!")
+                        }
+
+                        // Declare latLonResult outside the if block
+                        val latLonResult = if (blokBanjir == 0) {
+                            async {
                                 try {
                                     val estateIdToUse =
                                         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -4344,9 +5295,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         } else {
                                             estateId!!.toInt()
                                         }
-                                    datasetViewModel.getLatLonDivisi(
+
+                                    datasetViewModel.getTPHList(
                                         estateIdToUse,
-                                        selectedDivisiId
+                                        selectedDivisiValue!!,
+                                        selectedTahunTanamValue!!,
+                                        selectedBlokValue!!
                                     )
                                         .mapNotNull {
                                             val id = it.id
@@ -4370,6 +5324,95 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         }
                                         .toMap()
                                 } catch (e: Exception) {
+                                    AppLogger.e("Error in latLonResult: ${e.message}", e.toString())
+                                    throw e
+                                }
+                            }
+                        } else {
+                            null
+                        }
+
+                        val tphDeferred = async {
+                            val estateIdToUse =
+                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                    selectedEstate.toInt()
+                                } else {
+                                    estateId!!.toInt()
+                                }
+
+                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
+                            datasetViewModel.getTPHList(
+                                estateIdToUse,
+                                selectedDivisiValue!!,
+                                selectedTahunTanamValue!!,
+                                selectedBlokValue!!
+                            )
+                        }
+
+                        tphList = tphDeferred.await() ?: emptyList()
+                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
+
+                        val normalTphList = tphList.filter { tph ->
+                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+                            jenisId == 1
+                        }
+
+                        panenStoredLocal.forEach { (tphId, data) ->
+                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
+                        }
+
+                        val noTPHList = normalTphList.map { tph ->
+                            val tphData = panenStoredLocal[tph.id]
+                            val selectionCount = tphData?.count ?: 0
+                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            val defaultLimit =
+                                jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+                            val limit = defaultLimit
+
+                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
+
+                            when (selectionCount) {
+                                0 -> tph.nomor
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
+                            }
+                        }
+
+                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
+                        AppLogger.d(noTPHList.toString())
+
+                        withContext(Dispatchers.Main) {
+                            val layoutNoTPH =
+                                linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
+
+                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
+                            if (noTPHList.isNotEmpty()) {
+                                setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
+                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
+                            } else {
+                                setupSpinnerView(layoutNoTPH, emptyList())
+                                AppLogger.d("TPH spinner populated with empty list")
+                            }
+
+                            // Setup scan trigger
+                            if (blokBanjir == 0) {
+                                setupScanTPHTrigger()
+                            }
+
+                            // Load and display map AFTER setupScanTPHTrigger
+                            if (blokBanjir == 0 && latLonResult != null) {
+                                try {
+                                    latLonMap = latLonResult.await()
+                                    AppLogger.d("latLonMap loaded with ${latLonMap.size} locations")
+
+                                    mapTPHInsideBlok()
+
+                                } catch (e: Exception) {
+                                    AppLogger.e(
+                                        "Error awaiting latLonResult: ${e.message}",
+                                        e.toString()
+                                    )
                                     AlertDialogUtility.withSingleAction(
                                         this@FeaturePanenTBSActivity,
                                         stringXML(R.string.al_back),
@@ -4377,35 +5420,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         "Error fetching listLatLonAfd: ${e.message}",
                                         "warning.json",
                                         R.color.colorRedDark
-                                    ) {}
-                                    emptyMap()
+                                    ) { }
+                                    latLonMap = emptyMap()
                                 }
-                            }.await()
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            try {
-                                val layoutTahunTanam =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
-                                setupSpinnerView(
-                                    layoutTahunTanam,
-                                    tahunTanamList.ifEmpty { emptyList() })
-                                if (blokBanjir == 0) {
-                                    setupScanTPHTrigger()
-                                } else {
-
-                                }
-                                // Kemandoran spinner setup removed from here
-                            } catch (e: Exception) {
-                                AppLogger.e("Error updating UI: ${e.message}")
                             }
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        AppLogger.e("Error fetching TPH data: ${e.message}")
+                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 this@FeaturePanenTBSActivity,
-                                "Error loading afdeling data: ${e.message}",
+                                "Error loading TPH data: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -4414,48 +5440,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             hideLoadingDots(linearLayout)
                         }
                     }
-                }
-            }
-
-
-            R.id.layoutTahunTanam -> {
-//                resetTPHSpinner(linearLayout.rootView)
-                val selectedTahunTanam = selectedItem.toString()
-                selectedTahunTanamValue = selectedTahunTanam
-                selectedTahunTanamValueBackup = selectedTahunTanam
-                selectedTahunTanamIdSpinner = position
-
-//                setupSpinnerView(layoutBlok, emptyList())
-//                selectedBlok = ""
-//                selectedBlokIdSpinner = 0
-//                selectedBlokValue = null
-//                setupSpinnerView(layoutNoTPH, emptyList())
-//                selectedTPH = ""
-//                selectedTPHIdSpinner = 0
-//                selectedTPHJenisId = null
-//                selectedTPHValue = null
-
-                val filteredBlokCodes = blokList.filter {
-                    val estateIdToUse =
-                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                            selectedEstate.toInt()
-                        } else {
-                            estateId!!.toInt()
-                        }
-
-                    it.dept == estateIdToUse &&
-                            it.divisi == selectedDivisiValue &&
-                            it.tahun == selectedTahunTanamValue
-                }
-
-                val layoutBlok =
-                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
-                if (filteredBlokCodes.isNotEmpty()) {
-                    val blokNames = filteredBlokCodes.map { it.blok_kode }
-                    setupSpinnerView(layoutBlok, blokNames as List<String>)
-                    layoutBlok.visibility = View.VISIBLE
-                } else {
-                    setupSpinnerView(layoutBlok, emptyList())
                 }
             }
 
@@ -4517,151 +5501,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     } ?: run {
 
                         Log.w("TPH_WARNING", "No TPH selected")
-                    }
-                }
-            }
-
-            R.id.layoutBlok -> {
-//                resetTPHSpinner(linearLayout.rootView)
-                selectedBlok = selectedItem.toString()
-                selectedBlokIdSpinner = position
-
-                val selectedFieldId = try {
-                    // Determine which estate ID to use
-                    val estateIdToUse =
-                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                            selectedEstate.toIntOrNull()
-                        } else {
-                            estateId?.toIntOrNull()
-                        }
-
-                    blokList.find { blok ->
-                        blok.dept == estateIdToUse &&
-                                blok.divisi == selectedDivisiValue &&
-                                blok.tahun == selectedTahunTanamValue &&
-                                blok.blok_kode == selectedBlok
-                    }?.blok
-                } catch (e: Exception) {
-                    AppLogger.e("Error finding selected Blok ID: ${e.message}")
-                    null
-                }
-
-                if (selectedFieldId != null) {
-                    selectedBlokValue = selectedFieldId
-                    selectedBlokValueBackup = selectedFieldId
-                    AppLogger.d("Selected Blok ID: $selectedBlokValue")
-                } else {
-                    selectedBlokValue = null
-                    AppLogger.e("Selected Blok ID is null, skipping processing.")
-                    return
-                }
-
-
-                if (blokBanjir == 1) {
-                    setupSpinnerView(layoutNoTPH, emptyList())
-                    selectedTPH = ""
-                    selectedTPHIdSpinner = 0
-                    selectedTPHJenisId = null
-                    selectedTPHValue = null
-                }
-
-
-                // In the handleItemSelection for R.id.layoutBlok
-                lifecycleScope.launch(Dispatchers.IO) {
-                    withContext(Dispatchers.Main) {
-                        animateLoadingDots(linearLayout)
-                        delay(1000)
-                    }
-
-                    try {
-                        // Log all parameters to ensure they're not null
-                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
-
-                        if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
-                            throw IllegalStateException("One or more required parameters are null!")
-                        }
-
-                        val tphDeferred = async {
-                            val estateIdToUse =
-                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                    selectedEstate.toInt()
-                                } else {
-                                    estateId!!.toInt()
-                                }
-
-                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
-                            datasetViewModel.getTPHList(
-                                estateIdToUse,
-                                selectedDivisiValue!!,
-                                selectedTahunTanamValue!!,
-                                selectedBlokValue!!
-                            )
-                        }
-
-                        tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
-                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
-
-                        val normalTphList = tphList.filter { tph ->
-                            // Convert jenis_tph_id to Int, defaulting to 0 if null or not a valid integer
-                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
-
-                            // Only include TPH with jenis_tph_id = 1 (normal)
-                            jenisId == 1
-                        }
-
-                        panenStoredLocal.forEach { (tphId, data) ->
-                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
-                        }
-                        val noTPHList = normalTphList.map { tph ->
-                            val tphData = panenStoredLocal[tph.id]
-                            val selectionCount = tphData?.count ?: 0
-                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
-
-                            // Get the default limit from jenisTPHListGlobal
-                            val defaultLimit =
-                                jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
-
-                            // Use the default limit directly
-                            val limit = defaultLimit
-
-                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
-
-                            when (selectionCount) {
-                                0 -> tph.nomor
-                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
-                            }
-                        }
-                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
-                        AppLogger.d(noTPHList.toString())
-                        withContext(Dispatchers.Main) {
-                            val layoutNoTPH =
-                                linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
-
-                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
-                            if (noTPHList.isNotEmpty()) {
-
-
-                                setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
-                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
-                            } else {
-                                setupSpinnerView(layoutNoTPH, emptyList())
-                                AppLogger.d("TPH spinner populated with empty list")
-                            }
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error fetching TPH data: ${e.message}")
-                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                this@FeaturePanenTBSActivity,
-                                "Error loading TPH data: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } finally {
-                        withContext(Dispatchers.Main) {
-                            hideLoadingDots(linearLayout)
-                        }
                     }
                 }
             }
@@ -4787,8 +5626,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
 
                     // Show filter container and setup remove button
-                    val filterContainer = linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                    val removeFilterButton = filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    val filterContainer =
+                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton =
+                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
                     removeFilterButton.setOnClickListener {
@@ -4802,7 +5643,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             try {
                                 loadMainPemanenOnly(linearLayout.rootView) // Use full logic to restore both spinners
                             } catch (e: Exception) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error load full pemanen estate: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error load full pemanen estate: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
@@ -4829,12 +5674,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 }
 
                                 // Get the divisi of this specific kemandoran
-                                val selectedKemandoranDivisi = kemandoranList.find { it.id == filteredKemandoranId }?.divisi
+                                val selectedKemandoranDivisi =
+                                    kemandoranList.find { it.id == filteredKemandoranId }?.divisi
                                 AppLogger.d("Selected kemandoran divisi: $selectedKemandoranDivisi")
 
                                 // Apply dynamic logic
                                 val (mainKaryawan, lainKaryawan) = if (userAfdelingId != null && selectedKemandoranDivisi != null) {
-                                    val isPresentDivisiInList = divisiList.any { it.divisi == selectedKemandoranDivisi }
+                                    val isPresentDivisiInList =
+                                        divisiList.any { it.divisi == selectedKemandoranDivisi }
                                     AppLogger.d("Is selected kemandoran divisi in divisi list: $isPresentDivisiInList")
 
                                     if (isPresentDivisiInList) {
@@ -4862,18 +5709,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 karyawanList = mainKaryawan
                                 karyawanLainList = lainKaryawan
 
-                                val mainNames = mainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                val lainNames = lainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val mainNames = mainKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val lainNames = lainKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                                 withContext(Dispatchers.Main) {
                                     // Update main spinner
-                                    val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                     layoutPemanen.visibility = View.VISIBLE
                                     if (mainNames.isNotEmpty()) {
                                         setupSpinnerView(layoutPemanen, mainNames)
                                     } else {
                                         setupSpinnerView(layoutPemanen, emptyList())
-                                        val pemanenSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        val pemanenSpinner =
+                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                         pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                                     }
 
@@ -4882,7 +5733,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching karyawan data: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error loading worker data: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error loading worker data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
@@ -5013,8 +5868,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (selectedIdKemandoranLain != null) {
                     AppLogger.d("Selected ID Kemandoran Lain: $selectedIdKemandoranLain")
 
-                    val filterContainer = linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                    val removeFilterButton = filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    val filterContainer =
+                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton =
+                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
                     removeFilterButton.setOnClickListener {
@@ -5028,7 +5885,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             try {
                                 loadLainPemanenOnly(linearLayout.rootView) // Use full logic to restore both spinners
                             } catch (e: Exception) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error load full pemanen estate: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error load full pemanen estate: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
@@ -5053,12 +5914,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 }
 
                                 // Get the divisi of this specific kemandoran lain
-                                val selectedKemandoranLainDivisi = kemandoranLainList.find { it.id == selectedIdKemandoranLain }?.divisi
+                                val selectedKemandoranLainDivisi =
+                                    kemandoranLainList.find { it.id == selectedIdKemandoranLain }?.divisi
                                 AppLogger.d("Selected kemandoran lain divisi: $selectedKemandoranLainDivisi")
 
                                 // Apply the SAME dynamic logic
                                 val (mainKaryawan, lainKaryawan) = if (userAfdelingId != null && selectedKemandoranLainDivisi != null) {
-                                    val isPresentDivisiInList = divisiList.any { it.divisi == selectedKemandoranLainDivisi }
+                                    val isPresentDivisiInList =
+                                        divisiList.any { it.divisi == selectedKemandoranLainDivisi }
                                     AppLogger.d("Is selected kemandoran lain divisi in divisi list: $isPresentDivisiInList")
 
                                     if (isPresentDivisiInList) {
@@ -5086,19 +5949,23 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 karyawanList = mainKaryawan
                                 karyawanLainList = lainKaryawan
 
-                                val mainNames = mainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                val lainNames = lainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val mainNames = mainKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val lainNames = lainKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                                 withContext(Dispatchers.Main) {
 
                                     // Update lain spinner
-                                    val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                    val layoutPemanenLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
                                     if (layoutPemanenLain != null) {
                                         if (lainNames.isNotEmpty()) {
                                             setupSpinnerView(layoutPemanenLain, lainNames)
                                         } else {
                                             setupSpinnerView(layoutPemanenLain, emptyList())
-                                            val pemanenLainSpinner = layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                            val pemanenLainSpinner =
+                                                layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                             pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
                                         }
                                     }
@@ -5107,7 +5974,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching kemandoran lain data: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error loading kemandoran lain data: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error loading kemandoran lain data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
@@ -5231,9 +6102,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             setupSelfiePhotoLayout()
         }
 
-        val waterMark = if(featureName == AppUtils.ListFeatureNames.MutuBuah){
-            AppUtils.ListFeatureNames.MutuBuah.uppercase().replace(" ","_")
-        }else{
+        val waterMark = if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+            AppUtils.ListFeatureNames.MutuBuah.uppercase().replace(" ", "_")
+        } else {
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
         }
 
@@ -5303,12 +6174,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             ) == PackageManager.PERMISSION_GRANTED -> {
                 takeSelfiePhoto()
             }
+
             ActivityCompat.shouldShowRequestPermissionRationale(
                 this,
                 android.Manifest.permission.CAMERA
             ) -> {
                 showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
             }
+
             else -> {
                 ActivityCompat.requestPermissions(
                     this,
@@ -5336,11 +6209,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         // Check required fields for MutuBuah
         when {
             locationData.estate.isNullOrEmpty() -> {
-                Toast.makeText(this, "Pastikan sudah mengisi Estate terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Pastikan sudah mengisi Estate terlebih dahulu!",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return
             }
+
             locationData.afdeling.isNullOrEmpty() -> {
-                Toast.makeText(this, "Pastikan sudah mengisi Afdeling terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Pastikan sudah mengisi Afdeling terlebih dahulu!",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return
             }
         }
@@ -5390,6 +6272,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 sourceFoto,
                 CameraRepository.CameraType.FRONT
             )
+        }
+    }
+
+    private fun getCachedMarker(color: Int, number: String?, showText: Boolean): Drawable {
+        val key = "${color}_${number}_${showText}"
+        return markerCache.getOrPut(key) {
+            if (showText && number != null) {
+                createColoredMarkerWithNumber(color, number)
+            } else {
+                createColoredMarkerWithoutNumber(color)
+            }
         }
     }
 
@@ -5459,6 +6352,44 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         updateCounterTextViews()
     }
 
+    private fun createXMarker(color: Int): Drawable {
+        val size = 40
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val padding = 8f
+
+        // White outline paint
+        val outlinePaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = 7f  // Thicker for outline
+            this.color = Color.WHITE
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Main X paint
+        val mainPaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = 4f
+            this.color = color
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Draw white outline first
+        canvas.drawLine(padding, padding, size - padding, size - padding, outlinePaint)
+        canvas.drawLine(size - padding, padding, padding, size - padding, outlinePaint)
+
+        // Draw colored X on top
+        canvas.drawLine(padding, padding, size - padding, size - padding, mainPaint)
+        canvas.drawLine(size - padding, padding, padding, size - padding, mainPaint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+
+
     private fun setupScanTPHTrigger() {
         val alertCardScanRadius =
             findViewById<MaterialCardView>(R.id.alertCardScanRadius)
@@ -5481,6 +6412,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         // Show auto scan switch when scanning is available
         layoutAutoScan.visibility = View.VISIBLE
+
+        titleLiveMapPanen.visibility = View.VISIBLE
+        descTitleLiveMapPanen.visibility = View.VISIBLE
+        // Show map card
+        cardMapPanenBlok?.visibility = View.VISIBLE
+
+        // Initialize map if not already done
+        if (mapViewPanenBlok?.overlays?.isEmpty() == true) {
+            initializeMapView()
+        }
 
         val radiusText = "${radiusMinimum.toInt()} m"
         val text =
@@ -5687,14 +6628,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         selectedBlok = selectedTPHInLIst.blockCode
         selectedTPHValue = selectedTPHIdByScan
         selectedTPH = selectedTPHInLIst.number
-        if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+        if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
             layoutAncak.visibility = View.VISIBLE
             layoutNomorPemanen.visibility = View.VISIBLE
             layoutTipePanen.visibility = View.VISIBLE
             layoutKemandoran.visibility = View.VISIBLE
             layoutPemanen.visibility = View.VISIBLE
             layoutSelAsistensi.visibility = View.VISIBLE
-        }else{
+        } else {
             layoutNomorPemanen.visibility = View.VISIBLE
         }
 
@@ -6222,6 +7163,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             lon = location.longitude
         }
 
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        sensorManager?.registerListener(
+            sensorEventListener,
+            rotationSensor,
+            SensorManager.SENSOR_DELAY_UI
+        )
+
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
             findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
@@ -6240,6 +7189,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 )
             )
         }
+
+        mapViewPanenBlok?.onResume()
 
         checkDateTimeSettings()
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
@@ -6283,12 +7234,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
     override fun onPause() {
-        super.onPause()
-        // Stop auto scanning when activity is paused
         autoScanEnabled = false
         autoScanHandler.removeCallbacks(autoScanRunnable)
 
+        // Stop sensor
+        sensorManager?.unregisterListener(sensorEventListener)
+
+        // Stop map tracking
+        stopLiveLocationTracking()
+        mapViewPanenBlok?.onPause()
+        pulsingUserOverlay?.stopAnimation()
+
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+        super.onPause()
     }
 
     // Add this to your setupUI or initializeActivity function
@@ -6296,11 +7254,41 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         setupAutoScanSwitch()
     }
 
+    private val sensorEventListener: SensorEventListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent?) {
+            if (event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
+                val rotationMatrix = FloatArray(9)
+                SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+
+                val orientation = FloatArray(3)
+                SensorManager.getOrientation(rotationMatrix, orientation)
+
+                currentBearing = Math.toDegrees(orientation[0].toDouble()).toFloat()
+
+                // Update both overlays
+                pulsingUserOverlay?.setUserBearing(currentBearing) // Main map
+                fullscreenUserOverlay?.setUserBearing(currentBearing) // Fullscreen map
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
+
+    private fun stopLiveLocationTracking() {
+        locationUpdateJob?.cancel()
+        locationUpdateJob = null
+        AppLogger.d("Live location tracking stopped")
+    }
+
     override fun onDestroy() {
-        super.onDestroy()
+        // Clean up map
+        stopLiveLocationTracking()
+        mapViewPanenBlok?.onDetach()
+        pulsingUserOverlay?.stopAnimation()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         SoundPlayer.releaseMediaPlayer()
+        super.onDestroy()
     }
 
     // Update the onPhotoTaken method to handle selfie photos:
@@ -6377,7 +7365,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 photoCount++
             }
 
-            val viewHolder = recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
+            val viewHolder =
+                recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
             viewHolder?.let {
                 Glide.with(this)
                     .load(photoFile)

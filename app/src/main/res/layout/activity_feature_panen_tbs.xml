@@ -229,6 +229,198 @@
                         layout="@layout/pertanyaan_spinner_layout"
                         />
 
+
+
+
+                    <include
+                        android:id="@+id/layoutTahunTanam"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+
+                    <include
+                        android:id="@+id/layoutBlok"
+
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <TextView
+                        android:id="@+id/titleLiveMapPanen"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="left"
+                        android:layout_marginTop="10dp"
+                        android:text="Fitur Live Map Panen"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/xl"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                        tools:ignore="MissingConstraints" />
+
+
+                    <TextView
+                        android:id="@+id/descTitleLiveMapPanen"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="left"
+                        android:text="Anda dapat melihat posisi Anda saat ini beserta titik panen TPH terdekat. Silakan menuju titik tersebut dan scan untuk mendapatakan titik panen TPH."
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="10dp"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                        tools:ignore="MissingConstraints" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardMapPanenBlok"
+                        android:layout_width="match_parent"
+                        android:layout_height="250dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:visibility="gone"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="3dp"
+                        app:strokeColor="@color/greenDarker"
+                        app:strokeWidth="2dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical">
+
+                            <!-- Map Container -->
+                            <FrameLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="0dp"
+                                android:layout_weight="1">
+
+                                <org.osmdroid.views.MapView
+                                    android:id="@+id/mapViewPanenBlok"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent" />
+
+                            </FrameLayout>
+
+                            <!-- Legend and Buttons Row -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/white"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:padding="8dp">
+
+                                <!-- Legend (Left Side) -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="5dp"
+                                        android:fontFamily="@font/manrope_bold"
+
+                                        android:text="Simbol Map:"
+
+                                        android:textColor="@color/black"
+                                        android:textSize="@dimen/m" />
+
+                                    <!-- User Location Legend -->
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="4dp"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal">
+
+                                        <View
+                                            android:id="@+id/legendOrangeCircle"
+                                            android:layout_width="12dp"
+                                            android:layout_height="12dp"
+                                            android:background="@drawable/legend_circle" />
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="4dp"
+                                            android:fontFamily="@font/manrope_medium"
+                                            android:text="Lokasi Anda"
+                                            android:textColor="@color/black"
+                                            android:textSize="@dimen/s" />
+                                    </LinearLayout>
+
+                                    <!-- Blue Transaction Legend -->
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="4dp"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal">
+
+                                        <View
+                                            android:id="@+id/legendBlueCircle"
+                                            android:layout_width="12dp"
+                                            android:layout_height="12dp"
+                                            android:background="@drawable/legend_circle" />
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="4dp"
+                                            android:fontFamily="@font/manrope_medium"
+                                            android:text="Titik TPH"
+                                            android:textColor="@color/black"
+                                            android:textSize="@dimen/s" />
+                                    </LinearLayout>
+
+
+                                </LinearLayout>
+
+                                <!-- Buttons (Right Side) -->
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical">
+
+                                    <!-- Refresh Location Button -->
+                                    <!--                                    <com.google.android.material.button.MaterialButton-->
+                                    <!--                                        android:id="@+id/btnRefreshLocation"-->
+                                    <!--                                        android:layout_width="wrap_content"-->
+                                    <!--                                        android:layout_height="wrap_content"-->
+                                    <!--                                        android:layout_marginBottom="4dp"-->
+                                    <!--                                        android:minWidth="140dp"-->
+                                    <!--                                        android:backgroundTint="@color/bluedarklight"-->
+                                    <!--                                        android:fontFamily="@font/manrope_medium"-->
+                                    <!--                                        android:text="Refresh Lokasi"-->
+                                    <!--                                        android:textAllCaps="false"-->
+                                    <!--                                        android:textSize="@dimen/s" />-->
+
+                                    <!-- Fullscreen Map Button -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnDetailMapPanen"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:minWidth="140dp"
+                                        android:backgroundTint="@color/greenDarker"
+                                        android:fontFamily="@font/manrope_medium"
+                                        android:text="Map Penuh"
+                                        android:textAllCaps="false"
+                                        android:textSize="@dimen/s"
+                                        app:icon="@drawable/baseline_fullscreen_24"
+                                        app:iconGravity="start"
+                                        app:iconSize="20dp" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/alertCardScanRadius"
                         android:layout_width="match_parent"
@@ -306,18 +498,6 @@
                             android:layout_gravity="center"
                             android:visibility="gone" />
                     </LinearLayout>
-
-
-                    <include
-                        android:id="@+id/layoutTahunTanam"
-                        android:visibility="gone"
-                        layout="@layout/pertanyaan_spinner_layout" />
-
-
-                    <include
-                        android:id="@+id/layoutBlok"
-                        android:visibility="gone"
-                        layout="@layout/pertanyaan_spinner_layout" />
 
 
                     <androidx.core.widget.NestedScrollView

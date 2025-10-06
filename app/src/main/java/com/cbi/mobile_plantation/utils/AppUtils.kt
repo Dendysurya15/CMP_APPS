@@ -73,6 +73,8 @@ object AppUtils {
     const val max_data_in_zip = 12
     const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
 
+    const val LOCATION_USER_UPDATE_INTERVAL = 3000L // 3 seconds
+
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
         const val UPLOADING = "Sedang Upload"
@@ -194,8 +196,8 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//        return 5000F
+//        return prefManager?.radiusMinimum ?:15F
+        return 25F
     }
 
     object DatabaseTables {

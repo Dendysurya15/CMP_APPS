@@ -88,6 +88,7 @@
                     android:background="@drawable/legend_circle" />
 
                 <TextView
+                    android:id="@+id/legentTitleBlueCircle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
@@ -111,6 +112,7 @@
                     android:background="@drawable/legend_circle" />
 
                 <TextView
+                    android:id="@+id/legentTitleRedCircle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"

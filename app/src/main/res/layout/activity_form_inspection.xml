@@ -518,7 +518,7 @@
                                         android:orientation="horizontal">
 
                                         <View
-                                            android:id="@+id/legendGreenCircle"
+                                            android:id="@+id/legendOrangeCircle"
                                             android:layout_width="12dp"
                                             android:layout_height="12dp"
                                             android:background="@drawable/legend_circle" />

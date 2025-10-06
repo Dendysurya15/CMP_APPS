@@ -116,7 +116,9 @@ import com.cbi.mobile_plantation.ui.adapter.TakeFotoPreviewAdapter.Companion.CAM
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
+import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.LegendItem
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel.InspectionParameterItem
@@ -168,6 +170,9 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import org.w3c.dom.Text
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -193,6 +198,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var sensorManager: SensorManager? = null
     private var rotationSensor: Sensor? = null
     private var currentBearing: Float = 0f
+
+    private val markerCache = mutableMapOf<String, Drawable>()
 
     private var parameterInspeksi: List<InspectionParameterItem> = emptyList()
     private var afdelingNameUser: String? = null
@@ -301,7 +308,14 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private var hasInspectionStarted = false
     private var divisiList: List<TPHNewModel> = emptyList()
-    private val LOCATION_USER_UPDATE_INTERVAL = 3000L // 3 seconds
+    private var currentZoomLevel = 15.0
+    private val ZOOM_THRESHOLD_SHOW_TEXT = 16.0 // Show text when zoom >= 16
+
+    data class LegendItem(
+        val color: Int,
+        val title: String,
+        val isVisible: Boolean = true
+    )
 
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
@@ -409,6 +423,9 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private val tphAdapter: ListTPHInsideRadiusAdapter?
         get() = tphScannedResultRecyclerView.adapter as? ListTPHInsideRadiusAdapter
+
+    private var zoomUpdateJob: Job? = null
+    private var lastShowTextState: Boolean? = null
 
     data class KaryawanInfo(
         val nik: String,
@@ -912,27 +929,26 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 markerDataList.forEach { data ->
                     try {
+                        val showText = currentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+                        val color = if (data.hasTransaction) R.color.bluedarklight else R.color.colorRedDark
+
                         val marker = Marker(mapViewPanenBlok).apply {
                             position = GeoPoint(data.lat, data.lon)
-                            title = "TPH ${data.nomor} (${data.transactionCount} transaksi)"
+                            title = "TPH ${data.nomor}${if (data.transactionCount > 0) " (${data.transactionCount} transaksi)" else ""}"
 
-                            icon = if (data.hasTransaction) {
-                                blueCount++
-                                createColoredMarker(
-                                    ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight)
-                                )
-                            } else {
-                                redCount++
-                                createXMarker(
-                                    ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark)
-                                )
-                            }
+                            if (data.hasTransaction) blueCount++ else redCount++
+
+                            val colorInt = ContextCompat.getColor(this@FormInspectionActivity, color)
+                            icon = getCachedMarker(
+                                colorInt,
+                                if (showText) data.nomor else null,
+                                showText
+                            )
 
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         }
 
                         markers.add(marker)
-
                     } catch (e: Exception) {
                         AppLogger.e("Error creating marker for TPH ${data.tphId}: ${e.message}")
                     }
@@ -1041,10 +1057,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                         fullscreenUserOverlay?.setUserLocation(userLocation)
                         fullscreenUserOverlay?.setUserBearing(currentBearing)
 
-//                        AppLogger.d("Location auto-updated: $lat, $lon, bearing: $currentBearing")
                     }
 
-                    delay(LOCATION_USER_UPDATE_INTERVAL)
+                    delay(AppUtils.LOCATION_USER_UPDATE_INTERVAL)
                 } catch (e: Exception) {
                     AppLogger.e("Error updating live location: ${e.message}")
                 }
@@ -1052,55 +1067,63 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun updateUserLocationOnMap(lat: Double, lon: Double) {
-        lifecycleScope.launch(Dispatchers.Main) {
-            try {
-                val userPosition = GeoPoint(lat, lon)
 
-                // Update pulsing overlay location (this is all you need)
-                pulsingUserOverlay?.setUserLocation(userPosition)
+    private fun createColoredMarkerWithNumber(color: Int, number: String): Drawable {
+        val size = 50
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
 
-                mapViewPanenBlok?.invalidate()
-
-                AppLogger.d("User location updated: $lat, $lon")
-            } catch (e: Exception) {
-                AppLogger.e("Error updating user location marker: ${e.message}")
-            }
+        val circlePaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color
         }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, circlePaint)
+
+        // Draw white border
+        circlePaint.color = Color.WHITE
+        circlePaint.style = Paint.Style.STROKE
+        circlePaint.strokeWidth = 4f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, circlePaint)
+
+        // Draw TPH number text
+        val textPaint = Paint().apply {
+            isAntiAlias = true
+            this.color = Color.WHITE
+            textSize = 20f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+
+        val xPos = size / 2f
+        val yPos = (size / 2f) - ((textPaint.descent() + textPaint.ascent()) / 2)
+
+        canvas.drawText(number, xPos, yPos, textPaint)
+
+        return BitmapDrawable(resources, bitmap)
     }
 
-    private fun createXMarker(color: Int): Drawable {
+    private fun createColoredMarkerWithoutNumber(color: Int): Drawable {
         val size = 40
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val padding = 8f
-
-        // White outline paint
-        val outlinePaint = Paint().apply {
+        val paint = Paint().apply {
             isAntiAlias = true
-            style = Paint.Style.STROKE
-            strokeWidth = 7f  // Thicker for outline
-            this.color = Color.WHITE
-            strokeCap = Paint.Cap.ROUND
-        }
-
-        // Main X paint
-        val mainPaint = Paint().apply {
-            isAntiAlias = true
-            style = Paint.Style.STROKE
-            strokeWidth = 4f
+            style = Paint.Style.FILL
             this.color = color
-            strokeCap = Paint.Cap.ROUND
         }
 
-        // Draw white outline first
-        canvas.drawLine(padding, padding, size - padding, size - padding, outlinePaint)
-        canvas.drawLine(size - padding, padding, padding, size - padding, outlinePaint)
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
 
-        // Draw colored X on top
-        canvas.drawLine(padding, padding, size - padding, size - padding, mainPaint)
-        canvas.drawLine(size - padding, padding, padding, size - padding, mainPaint)
+        // Draw white border
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, paint)
 
         return BitmapDrawable(resources, bitmap)
     }
@@ -1512,20 +1535,23 @@ open class FormInspectionActivity : AppCompatActivity(),
             userAgentValue = packageName
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
+
+            tileFileSystemCacheMaxBytes = 50L * 1024 * 1024 // 50MB instead of default
+            tileFileSystemCacheTrimBytes = 40L * 1024 * 1024
         }
 
         cardMapPanenBlok = findViewById(R.id.cardMapPanenBlok)
         mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
         btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
 
-        findViewById<View>(R.id.legendGreenCircle)?.background?.setTint(
-            ContextCompat.getColor(this, R.color.orange)
-        )
-        findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
-            ContextCompat.getColor(this, R.color.bluedarklight)
-        )
-        findViewById<View>(R.id.legendRedCircle)?.background?.setTint(
-            ContextCompat.getColor(this, R.color.colorRedDark)
+        // Setup legend
+        setupLegend(
+            findViewById(android.R.id.content),
+            listOf(
+                LegendItem(R.color.orange, "Lokasi Anda"),
+                LegendItem(R.color.bluedarklight, "Ada Transaksi"),
+                LegendItem(R.color.colorRedDark, "Tidak Ada Transaksi")
+            )
         )
 
         mapViewPanenBlok?.apply {
@@ -1555,6 +1581,28 @@ open class FormInspectionActivity : AppCompatActivity(),
             maxZoomLevel = 20.0
             controller.setZoom(15.0)
 
+            // Add zoom change listener
+            addMapListener(object : MapListener {
+                override fun onScroll(event: ScrollEvent?): Boolean = false
+
+                override fun onZoom(event: ZoomEvent?): Boolean {
+                    event?.let {
+                        val newZoom = it.zoomLevel
+                        if (newZoom != currentZoomLevel) {
+                            currentZoomLevel = newZoom
+
+                            // Debounce - wait 300ms after zoom stops
+                            zoomUpdateJob?.cancel()
+                            zoomUpdateJob = lifecycleScope.launch {
+                                delay(300)
+                                updateMarkerVisibility()
+                            }
+                        }
+                    }
+                    return false
+                }
+            })
+
             setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
@@ -1568,17 +1616,57 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             pulsingUserOverlay = PulsingUserLocationOverlay(this@FormInspectionActivity, this)
-            // Set boundary meters here (replace 15f with your global variable)
-            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager)) // or yourBoundaryVariable
+            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
             overlays.add(0, pulsingUserOverlay)
         }
 
-//        findViewById<Button>(R.id.btnRefreshLocation)?.setOnClickListener {
-//            refreshUserLocation()
-//        }
-
         btnDetailMapPanen?.setOnClickListener {
             showDetailPokokDialog()
+        }
+    }
+
+    private fun updateMarkerVisibility() {
+        // Debounce - cancel previous job
+        zoomUpdateJob?.cancel()
+        zoomUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            delay(300) // Wait 300ms after zoom stops
+
+            try {
+                val showText = currentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                // Only update if visibility actually changed
+                if (lastShowTextState == showText) {
+                    AppLogger.d("Marker visibility unchanged, skipping update")
+                    return@launch
+                }
+                lastShowTextState = showText
+
+                tphMarkersList.forEachIndexed { index, marker ->
+                    val tphData = latLonMap.entries.elementAtOrNull(index)
+                    if (tphData != null) {
+                        // Get transaction status
+                        val tphIdsWithTransactions = panenTPH
+                            .mapNotNull { it.panen.tph_id?.toIntOrNull() }
+                            .toSet()
+                        val hasTransaction = tphData.key in tphIdsWithTransactions
+
+                        val color = if (hasTransaction) R.color.bluedarklight else R.color.colorRedDark
+                        val colorInt = ContextCompat.getColor(this@FormInspectionActivity, color)
+
+                        marker.icon = getCachedMarker(
+                            colorInt,
+                            if (showText) tphData.value.nomor else null,
+                            showText
+                        )
+                    }
+                }
+
+                mapViewPanenBlok?.invalidate()
+                AppLogger.d("Updated markers for zoom level: $currentZoomLevel (text visible: $showText)")
+
+            } catch (e: Exception) {
+                AppLogger.e("Error updating marker visibility: ${e.message}")
+            }
         }
     }
 
@@ -1588,21 +1676,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.d("Live location tracking stopped")
     }
 
-    // Simplified refresh - just centers the map
-//    private fun refreshUserLocation() {
-//        val btnRefresh = findViewById<MaterialButton>(R.id.btnRefreshLocation) ?: return
-//
-//        showButtonRefreshProgress(btnRefresh, {
-//            if (lat != null && lon != null) {
-//                val userLocation = GeoPoint(lat!!, lon!!)
-//                mapViewPanenBlok?.controller?.animateTo(userLocation)
-//                mapViewPanenBlok?.invalidate()
-//                Toast.makeText(this, "Peta dipusatkan ke lokasi Anda", Toast.LENGTH_SHORT).show()
-//            } else {
-//                Toast.makeText(this, "Lokasi belum tersedia", Toast.LENGTH_SHORT).show()
-//            }
-//        })
-//    }
 
     private fun showDetailPokokDialog() {
         if (latLonMap.isEmpty()) {
@@ -1656,18 +1729,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                 }
 
-                // Pre-create marker icons in IO thread
-                val (blueIcon, redIcon) = withContext(Dispatchers.IO) {
-                    try {
-                        val blue = createColoredMarker(Color.BLUE)
-                        val red = createColoredMarker(Color.RED)
-                        Pair(blue, red)
-                    } catch (e: Exception) {
-                        AppLogger.e("Error creating marker icons: ${e.message}\n${e.stackTraceToString()}")
-                        throw Exception("Gagal membuat ikon marker: ${e.message}", e)
-                    }
-                }
-
                 // Now switch to Main thread for UI operations
                 withContext(Dispatchers.Main) {
                     try {
@@ -1688,16 +1749,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val btnClose = view.findViewById<Button>(R.id.btnCloseMap)
 
 
-
-                        // Set legend colors
-                        view.findViewById<View>(R.id.legendOrangeCircle)?.background?.setTint(
-                            ContextCompat.getColor(this@FormInspectionActivity, R.color.orange)
-                        )
-                        view.findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
-                            ContextCompat.getColor(this@FormInspectionActivity, R.color.bluedarklight)
-                        )
-                        view.findViewById<View>(R.id.legendRedCircle)?.background?.setTint(
-                            ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark)
+                        setupLegend(
+                            view,
+                            listOf(
+                                LegendItem(R.color.orange, "Lokasi Anda"),
+                                LegendItem(R.color.bluedarklight, "Ada Transaksi"),
+                                LegendItem(R.color.colorRedDark,  "Tidak Ada Transaksi", isVisible = true)
+                            )
                         )
 
                         titleDialog.text = "Peta TPH - $selectedBlok (${latLonMap.size} titik)"
@@ -1758,30 +1816,49 @@ open class FormInspectionActivity : AppCompatActivity(),
                         mapContainer.addView(fullscreenMapView, 0) // Add at index 0 so legend stays on top
 
                         val mapView = fullscreenMapView!!
+                        var fullscreenCurrentZoomLevel = 15.0
+                        mapView.addMapListener(object : MapListener {
+                            override fun onScroll(event: ScrollEvent?): Boolean = false
 
-//                        val btnRefreshFullscreen = view.findViewById<Button>(R.id.btnRefreshLocationFullscreen)
-//
-//                        btnRefreshFullscreen.setOnClickListener {
-//                            showButtonRefreshProgress(it as Button, {
-//                                if (lat != null && lon != null) {
-//                                    val userLocation = GeoPoint(lat!!, lon!!)
-//                                    fullscreenUserOverlay?.setUserLocation(userLocation)
-//                                    fullscreenUserOverlay?.setUserBearing(currentBearing)
-//                                    mapView.controller.animateTo(userLocation)
-//                                    mapView.invalidate()
-//                                }
-//                            })
-//                        }
+                            override fun onZoom(event: ZoomEvent?): Boolean {
+                                event?.let {
+                                    val newZoom = it.zoomLevel
+                                    if (newZoom != fullscreenCurrentZoomLevel) {  // ✅ Compare with fullscreen zoom
+                                        fullscreenCurrentZoomLevel = newZoom       // ✅ Update fullscreen zoom
 
-                        AppLogger.d("Adding ${dialogData.size} markers to fullscreen map")
+                                        // Update fullscreen markers
+                                        zoomUpdateJob?.cancel()
+                                        zoomUpdateJob = lifecycleScope.launch {
+                                            delay(300)
+                                            updateFullscreenMarkers(mapView, dialogData, fullscreenCurrentZoomLevel)
+                                        }
+                                    }
+                                }
+                                return false
+                            }
+                        })
 
-                        // Add all markers
                         try {
+                            val showText = fullscreenCurrentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
                             dialogData.forEachIndexed { index, (position, title, hasTransaction) ->
+                                val tphNumber = title.substringAfter("TPH ").substringBefore(" ")
+                                    .replace("(", "").replace(")", "").trim()
+                                val color = if (hasTransaction) R.color.bluedarklight else R.color.colorRedDark
+
                                 val marker = Marker(mapView).apply {
                                     this.position = position
                                     this.title = title
-                                    this.icon = if (hasTransaction) blueIcon else redIcon
+                                    this.icon = if (showText) {
+                                        createColoredMarkerWithNumber(
+                                            ContextCompat.getColor(this@FormInspectionActivity, color),
+                                            tphNumber
+                                        )
+                                    } else {
+                                        createColoredMarkerWithoutNumber(
+                                            ContextCompat.getColor(this@FormInspectionActivity, color)
+                                        )
+                                    }
                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                 }
                                 mapView.overlays.add(marker)
@@ -1795,6 +1872,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             AppLogger.e("Error adding markers to map: ${e.message}\n${e.stackTraceToString()}")
                             throw Exception("Gagal menambahkan marker ke peta: ${e.message}", e)
                         }
+
 
                         // Add user location with pulsing overlay
                         try {
@@ -1942,40 +2020,89 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     }
 
-
-    private fun showButtonRefreshProgress(
-        button: Button,
-        onRefresh: () -> Unit,
-        duration: Long = 600
+    private fun updateFullscreenMarkers(
+        mapView: MapView,
+        dialogData: List<Triple<GeoPoint, String, Boolean>>,
+        zoomLevel: Double
     ) {
-        // Save original text color
-        val originalTextColor = button.currentTextColor
+        lifecycleScope.launch(Dispatchers.Main) {
+            try {
+                val showText = zoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
 
-        // Create circular progress drawable with proper size
-        val progressDrawable = CircularProgressDrawable(this).apply {
-            strokeWidth = 5f
-            centerRadius = 12f
-            setColorSchemeColors(Color.WHITE)
-            setBounds(0, 0, 24, 24)
-            start()
+                // Remove old markers (keep user overlay at index 0)
+                val markersToRemove = mapView.overlays.filterIsInstance<Marker>()
+                markersToRemove.forEach { mapView.overlays.remove(it) }
+
+                // Add markers with correct visibility
+                dialogData.forEach { (position, title, hasTransaction) ->
+                    val tphNumber = title.substringAfter("TPH ").substringBefore(" ")
+                        .replace("(", "").replace(")", "").trim()
+                    val color = if (hasTransaction) R.color.bluedarklight else R.color.colorRedDark
+                    val colorInt = ContextCompat.getColor(this@FormInspectionActivity, color)
+
+                    val marker = Marker(mapView).apply {
+                        this.position = position
+                        this.title = title
+                        this.icon = getCachedMarker(colorInt, if (showText) tphNumber else null, showText)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    }
+                    mapView.overlays.add(marker)
+                }
+
+                mapView.invalidate()
+                AppLogger.d("Fullscreen markers updated - zoom: $zoomLevel, showText: $showText")
+            } catch (e: Exception) {
+                AppLogger.e("Error updating fullscreen markers: ${e.message}")
+            }
         }
+    }
 
-        // Show progress next to text
-        button.setCompoundDrawables(progressDrawable, null, null, null)
-        button.compoundDrawablePadding = 12
-        button.setTextColor(originalTextColor)
-        button.isEnabled = false
 
-        // Execute refresh action
-        onRefresh()
+    private fun getCachedMarker(color: Int, number: String?, showText: Boolean): Drawable {
+        val key = "${color}_${number}_${showText}"
+        return markerCache.getOrPut(key) {
+            if (showText && number != null) {
+                createColoredMarkerWithNumber(color, number)
+            } else {
+                createColoredMarkerWithoutNumber(color)
+            }
+        }
+    }
 
-        // Remove progress after duration
-        button.postDelayed({
-            progressDrawable.stop()
-            button.setCompoundDrawables(null, null, null, null)
-            button.setTextColor(originalTextColor)
-            button.isEnabled = true
-        }, duration)
+    private fun setupLegend(rootView: View, legendItems: List<FormInspectionActivity.LegendItem>) {
+        legendItems.forEachIndexed { index, item ->
+            when (index) {
+                0 -> {
+                    // Orange circle - Lokasi Anda
+                    rootView.findViewById<View>(R.id.legendOrangeCircle)?.background?.setTint(
+                        ContextCompat.getColor(this, item.color)
+                    )
+                }
+                1 -> {
+                    // Blue circle - Titik TPH
+                    rootView.findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
+                        ContextCompat.getColor(this, item.color)
+                    )
+                    rootView.findViewById<TextView>(R.id.legentTitleBlueCircle)?.apply {
+                        text = item.title
+                        visibility = View.VISIBLE
+                    }
+                }
+                2 -> {
+                    // Red circle - Hide this completely
+                    rootView.findViewById<View>(R.id.legendRedCircle)?.apply {
+                        background?.setTint(ContextCompat.getColor(this@FormInspectionActivity, item.color))
+                    }
+                    rootView.findViewById<TextView>(R.id.legentTitleRedCircle)?.apply {
+                        text = item.title
+                        visibility = if (item.isVisible) View.VISIBLE else View.GONE
+                    }
+                    // Hide the entire red legend row
+                    (rootView.findViewById<View>(R.id.legendRedCircle)?.parent as? LinearLayout)?.visibility =
+                        if (item.isVisible) View.VISIBLE else View.GONE
+                }
+            }
+        }
     }
 
     private fun showFormInspectionScreen() {
