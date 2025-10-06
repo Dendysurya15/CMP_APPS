@@ -461,8 +461,8 @@
                         android:visibility="gone"
                         app:cardCornerRadius="12dp"
                         app:cardElevation="3dp"
-                        app:strokeColor="@color/white"
-                        app:strokeWidth="1dp">
+                        app:strokeColor="@color/greenDarker"
+                        app:strokeWidth="2dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -589,17 +589,17 @@
                                     android:orientation="vertical">
 
                                     <!-- Refresh Location Button -->
-                                    <com.google.android.material.button.MaterialButton
-                                        android:id="@+id/btnRefreshLocation"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginBottom="4dp"
-                                        android:minWidth="140dp"
-                                        android:backgroundTint="@color/bluedarklight"
-                                        android:fontFamily="@font/manrope_medium"
-                                        android:text="Refresh Lokasi"
-                                        android:textAllCaps="false"
-                                        android:textSize="@dimen/s" />
+<!--                                    <com.google.android.material.button.MaterialButton-->
+<!--                                        android:id="@+id/btnRefreshLocation"-->
+<!--                                        android:layout_width="wrap_content"-->
+<!--                                        android:layout_height="wrap_content"-->
+<!--                                        android:layout_marginBottom="4dp"-->
+<!--                                        android:minWidth="140dp"-->
+<!--                                        android:backgroundTint="@color/bluedarklight"-->
+<!--                                        android:fontFamily="@font/manrope_medium"-->
+<!--                                        android:text="Refresh Lokasi"-->
+<!--                                        android:textAllCaps="false"-->
+<!--                                        android:textSize="@dimen/s" />-->
 
                                     <!-- Fullscreen Map Button -->
                                     <com.google.android.material.button.MaterialButton

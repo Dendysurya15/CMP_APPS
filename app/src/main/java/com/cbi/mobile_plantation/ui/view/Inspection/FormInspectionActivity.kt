@@ -301,6 +301,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var inputMappings: List<Triple<LinearLayout, String, InputType>>
     private var hasInspectionStarted = false
     private var divisiList: List<TPHNewModel> = emptyList()
+    private val LOCATION_USER_UPDATE_INTERVAL = 3000L // 3 seconds
 
     private var kemandoranLainList: List<KemandoranModel> = emptyList()
     private var pemuatList: List<KaryawanModel> = emptyList()
@@ -1023,23 +1024,27 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun startLiveLocationTracking() {
-        // Cancel existing job if any
         locationUpdateJob?.cancel()
 
-        locationUpdateJob = lifecycleScope.launch {
+        locationUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
             while (isActive) {
                 try {
-                    // Get current location (use your existing location provider)
-                    val currentLat = lat
-                    val currentLon = lon
+                    if (lat != null && lon != null) {
+                        val userLocation = GeoPoint(lat!!, lon!!)
 
-                    if (currentLat != null && currentLon != null) {
-                        updateUserLocationOnMap(currentLat, currentLon)
+                        // Update main map
+                        pulsingUserOverlay?.setUserLocation(userLocation)
+                        pulsingUserOverlay?.setUserBearing(currentBearing)
+                        mapViewPanenBlok?.invalidate()
+
+                        // Update fullscreen map if it exists
+                        fullscreenUserOverlay?.setUserLocation(userLocation)
+                        fullscreenUserOverlay?.setUserBearing(currentBearing)
+
+//                        AppLogger.d("Location auto-updated: $lat, $lon, bearing: $currentBearing")
                     }
 
-                    AppLogger.d("update ges")
-                    // Update every 2 seconds
-                    delay(2000)
+                    delay(LOCATION_USER_UPDATE_INTERVAL)
                 } catch (e: Exception) {
                     AppLogger.e("Error updating live location: ${e.message}")
                 }
@@ -1568,32 +1573,36 @@ open class FormInspectionActivity : AppCompatActivity(),
             overlays.add(0, pulsingUserOverlay)
         }
 
-        findViewById<Button>(R.id.btnRefreshLocation)?.setOnClickListener {
-            refreshUserLocation()
-        }
+//        findViewById<Button>(R.id.btnRefreshLocation)?.setOnClickListener {
+//            refreshUserLocation()
+//        }
 
         btnDetailMapPanen?.setOnClickListener {
             showDetailPokokDialog()
         }
     }
 
-    private fun refreshUserLocation() {
-        val btnRefresh = findViewById<MaterialButton>(R.id.btnRefreshLocation) ?: return
-
-        showButtonRefreshProgress(btnRefresh, {
-            if (lat != null && lon != null) {
-                val userLocation = GeoPoint(lat!!, lon!!)
-                pulsingUserOverlay?.setUserLocation(userLocation)
-                pulsingUserOverlay?.setUserBearing(currentBearing)
-                mapViewPanenBlok?.controller?.animateTo(userLocation)
-                mapViewPanenBlok?.invalidate()
-                fullscreenUserOverlay?.setUserLocation(userLocation)
-                fullscreenUserOverlay?.setUserBearing(currentBearing)
-            } else {
-                Toast.makeText(this, "Lokasi belum tersedia", Toast.LENGTH_SHORT).show()
-            }
-        })
+    private fun stopLiveLocationTracking() {
+        locationUpdateJob?.cancel()
+        locationUpdateJob = null
+        AppLogger.d("Live location tracking stopped")
     }
+
+    // Simplified refresh - just centers the map
+//    private fun refreshUserLocation() {
+//        val btnRefresh = findViewById<MaterialButton>(R.id.btnRefreshLocation) ?: return
+//
+//        showButtonRefreshProgress(btnRefresh, {
+//            if (lat != null && lon != null) {
+//                val userLocation = GeoPoint(lat!!, lon!!)
+//                mapViewPanenBlok?.controller?.animateTo(userLocation)
+//                mapViewPanenBlok?.invalidate()
+//                Toast.makeText(this, "Peta dipusatkan ke lokasi Anda", Toast.LENGTH_SHORT).show()
+//            } else {
+//                Toast.makeText(this, "Lokasi belum tersedia", Toast.LENGTH_SHORT).show()
+//            }
+//        })
+//    }
 
     private fun showDetailPokokDialog() {
         if (latLonMap.isEmpty()) {
@@ -1750,19 +1759,19 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                         val mapView = fullscreenMapView!!
 
-                        val btnRefreshFullscreen = view.findViewById<Button>(R.id.btnRefreshLocationFullscreen)
-
-                        btnRefreshFullscreen.setOnClickListener {
-                            showButtonRefreshProgress(it as Button, {
-                                if (lat != null && lon != null) {
-                                    val userLocation = GeoPoint(lat!!, lon!!)
-                                    fullscreenUserOverlay?.setUserLocation(userLocation)
-                                    fullscreenUserOverlay?.setUserBearing(currentBearing)
-                                    mapView.controller.animateTo(userLocation)
-                                    mapView.invalidate()
-                                }
-                            })
-                        }
+//                        val btnRefreshFullscreen = view.findViewById<Button>(R.id.btnRefreshLocationFullscreen)
+//
+//                        btnRefreshFullscreen.setOnClickListener {
+//                            showButtonRefreshProgress(it as Button, {
+//                                if (lat != null && lon != null) {
+//                                    val userLocation = GeoPoint(lat!!, lon!!)
+//                                    fullscreenUserOverlay?.setUserLocation(userLocation)
+//                                    fullscreenUserOverlay?.setUserBearing(currentBearing)
+//                                    mapView.controller.animateTo(userLocation)
+//                                    mapView.invalidate()
+//                                }
+//                            })
+//                        }
 
                         AppLogger.d("Adding ${dialogData.size} markers to fullscreen map")
 
@@ -2089,7 +2098,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
 
-            // Update status location icon based on accuracy
             val statusLocation = findViewById<ImageView>(R.id.statusLocation)
             val isLocationGood = accuracy <= boundaryAccuracy
 
@@ -2106,12 +2114,15 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         super.onResume()
 
+        // ONLY resume the map view, DON'T start tracking yet
+        mapViewPanenBlok?.onResume()
+        // Remove this line: startLiveLocationTracking()
+
         checkDateTimeSettings()
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
             startPeriodicDateTimeChecking()
         }
     }
-
     override fun onPause() {
         autoScanEnabled = false
         autoScanHandler.removeCallbacks(autoScanRunnable)
@@ -2119,12 +2130,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Stop sensor
         sensorManager?.unregisterListener(sensorEventListener)
 
+        // Stop map tracking
+        stopLiveLocationTracking()
         mapViewPanenBlok?.onPause()
         pulsingUserOverlay?.stopAnimation()
+
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onPause()
     }
-
     private val sensorEventListener: SensorEventListener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent?) {
             if (event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
@@ -2148,9 +2161,11 @@ open class FormInspectionActivity : AppCompatActivity(),
     override fun onDestroy() {
         keyboardWatcher.unregister()
 
+        // Clean up map
+        stopLiveLocationTracking()
         mapViewPanenBlok?.onDetach()
         pulsingUserOverlay?.stopAnimation()
-        locationUpdateJob?.cancel()
+
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onDestroy()
     }
@@ -4426,7 +4441,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                             }
 
                             if (!isStartFromTPH) {
-                                refreshUserLocation()
+//                                refreshUserLocation()
+
+                                if (lat != null && lon != null) {
+                                    val userLocation = GeoPoint(lat!!, lon!!)
+                                    mapViewPanenBlok?.controller?.animateTo(userLocation)
+                                    mapViewPanenBlok?.invalidate()
+
+                                }
                             }
                             clFormInspection.visibility = View.GONE
                             clInfoBlokSection.visibility = View.VISIBLE

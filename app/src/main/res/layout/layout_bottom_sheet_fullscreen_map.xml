@@ -142,22 +142,22 @@
             android:backgroundTint="@color/greenDarker"
             android:fontFamily="@font/manrope_bold"
             android:text="Tutup"
-            android:layout_marginEnd="8dp"
+
             android:textColor="#FFFFFF"
             android:textSize="@dimen/m" />
 
         <!-- Refresh Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRefreshLocationFullscreen"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:backgroundTint="@color/bluedarklight"
-            android:fontFamily="@font/manrope_bold"
-            android:text="Refresh"
-            android:textColor="#FFFFFF"
-            android:textSize="@dimen/m"
-            />
+<!--        <com.google.android.material.button.MaterialButton-->
+<!--            android:id="@+id/btnRefreshLocationFullscreen"-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_weight="1"-->
+<!--            android:backgroundTint="@color/bluedarklight"-->
+<!--            android:fontFamily="@font/manrope_bold"-->
+<!--            android:text="Refresh"-->
+<!--            android:textColor="#FFFFFF"-->
+<!--            android:textSize="@dimen/m"-->
+<!--            />-->
 
 
     </LinearLayout>
