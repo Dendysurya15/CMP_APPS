@@ -32,6 +32,7 @@ import android.os.Vibrator
 import android.util.Log
 import android.util.Rational
 import android.util.Size
+import android.view.OrientationEventListener
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
@@ -80,6 +81,45 @@ class CameraRepository(
         BACK,
         FRONT
     }
+
+    private var currentDisplayRotation = 0
+    private val rotationListener = object : OrientationEventListener(context) {
+        override fun onOrientationChanged(orientation: Int) {
+            if (orientation == ORIENTATION_UNKNOWN) return
+
+            val newRotation = when (orientation) {
+                in 45..134 -> 270   // Left landscape
+                in 135..224 -> 180  // Upside down
+                in 225..314 -> 90   // Right landscape
+                else -> 0           // Portrait
+            }
+
+            if (newRotation != currentDisplayRotation) {
+                currentDisplayRotation = newRotation
+                rotateUIElements()
+            }
+        }
+    }
+
+    private fun rotateUIElements() {
+        mainHandler.post {
+            val rotation = currentDisplayRotation.toFloat()
+            overlayView?.setTextRotation(rotation)
+
+            // Remove all classCountsView related code
+
+            performanceOverlay?.animate()
+                ?.rotation(rotation)
+                ?.setDuration(200)
+                ?.start()
+
+            val pivotX = textureViewCam.width / 2f
+            val pivotY = textureViewCam.height / 2f
+            textureViewCam.pivotX = pivotX
+            textureViewCam.pivotY = pivotY
+        }
+    }
+
 
     interface PhotoCallback {
         fun onPhotoTaken(
@@ -268,7 +308,7 @@ class CameraRepository(
         mainHandler.post {
             if (lockedDetectionResults == null) {
                 overlayView?.clear()
-                classCountsView?.clear()
+                performanceOverlay?.updateTotalDetections(0)
             }
         }
     }
@@ -280,7 +320,8 @@ class CameraRepository(
         mainHandler.post {
             if (lockedDetectionResults == null) {
                 overlayView?.setResults(boundingBoxes)
-                classCountsView?.updateClassCounts(metrics.classCounts)
+                // Update performance overlay with total count from metrics
+                performanceOverlay?.updateTotalDetections(metrics.classCounts.values.sum())
             }
         }
     }
@@ -508,9 +549,9 @@ class CameraRepository(
         val torchButton = view.findViewById<Button>(R.id.torchButton)
         val switchButton = view.findViewById<Button>(R.id.switchButton)
 
-        if (shouldEnableFFB) {
-            setupFFBControls(view)
-        }
+//        if (shouldEnableFFB) {
+//            setupFFBControls(view)
+//        }
 
         val blockingView = View(context).apply {
             layoutParams = RelativeLayout.LayoutParams(
@@ -543,6 +584,9 @@ class CameraRepository(
             object : TextureView.SurfaceTextureListener {
                 @SuppressLint("MissingPermission")
                 override fun onSurfaceTextureAvailable(p0: SurfaceTexture, p1: Int, p2: Int) {
+                    if (rotationListener.canDetectOrientation()) {
+                        rotationListener.enable()
+                    }
                     cameraManager.openCamera(
                         cameraManager.cameraIdList[lastCameraId],
                         object : CameraDevice.StateCallback() {
@@ -635,16 +679,7 @@ class CameraRepository(
         }
         rlCamera.addView(overlayView)
 
-        classCountsView = FFBClassCountsView(context, null).apply {
-            layoutParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                addRule(RelativeLayout.ALIGN_PARENT_TOP)
-                topMargin = 100
-            }
-        }
-        rlCamera.addView(classCountsView)
+        // Remove classCountsView setup entirely
 
         performanceOverlay = PerformanceOverlayView(context, null).apply {
             layoutParams = RelativeLayout.LayoutParams(
@@ -653,41 +688,11 @@ class CameraRepository(
             ).apply {
                 addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
                 addRule(RelativeLayout.ALIGN_PARENT_LEFT)
-                bottomMargin = 120 // Above capture button
+                bottomMargin = 120
                 leftMargin = 20
             }
         }
         rlCamera.addView(performanceOverlay)
-    }
-
-    private fun setupFFBControls(view: View) {
-        val gpuButton = Button(context).apply {
-            text = if (useGPUDetection) "GPU ON" else "GPU OFF"
-            setBackgroundColor(if (useGPUDetection) Color.GREEN else Color.GRAY)
-            setTextColor(Color.WHITE)
-            layoutParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                addRule(RelativeLayout.ALIGN_PARENT_TOP)
-                addRule(RelativeLayout.ALIGN_PARENT_RIGHT)
-                topMargin = 200
-                rightMargin = 20
-            }
-
-            setOnClickListener {
-                useGPUDetection = !useGPUDetection
-                text = if (useGPUDetection) "GPU ON" else "GPU OFF"
-                setBackgroundColor(if (useGPUDetection) Color.GREEN else Color.GRAY)
-
-                ffbDetector?.close()
-                ffbDetector = null
-                initializeFFBDetection()
-            }
-        }
-
-        val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
-        rlCamera.addView(gpuButton)
     }
 
     private fun setupTorchButton(view: View) {
@@ -955,11 +960,9 @@ class CameraRepository(
         captureCam.setOnClickListener {
             if (isInPortraitMode(orientationHandler)) {
                 vibrate(context)
-                Toast.makeText(context, "Mohon putar HP ke mode landscape", Toast.LENGTH_SHORT)
-                    .show()
+                Toast.makeText(context, "Mohon putar HP ke mode landscape", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             captureCam.isEnabled = false
 
             if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
@@ -1024,13 +1027,15 @@ class CameraRepository(
 
     fun closeCamera() {
         if (isCameraOpen) {
+            rotationListener.disable()
+
             stopFFBDetection()
 
             val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
             rlCamera.removeView(textureViewCam)
 
             overlayView?.let { rlCamera.removeView(it) }
-            classCountsView?.let { rlCamera.removeView(it) }
+//            classCountsView?.let { rlCamera.removeView(it) }
             performanceOverlay?.let { rlCamera.removeView(it) } // Add this line
 
             // Reset performance counters

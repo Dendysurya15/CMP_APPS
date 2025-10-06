@@ -93,26 +93,25 @@ class FFBClassCountsView @JvmOverloads constructor(
         headerLayout = LinearLayout(context).apply {
             orientation = HORIZONTAL
             setPadding(16, 12, 16, 12)
-            setBackgroundColor(Color.parseColor("#E0000000")) // Semi-transparent black
             isClickable = true
             isFocusable = true
         }
 
-        headerText = TextView(context).apply {
-            text = "FFB Detection Results (tap to expand)"
-            textSize = 14f
-            setTextColor(Color.WHITE)
-            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
-        }
-
         totalCountText = TextView(context).apply {
             text = "Total: 0"
-            textSize = 12f
+            textSize = 16f // Increased from 12f
             setTextColor(Color.YELLOW)
-            setPadding(8, 0, 0, 0)
+            setPadding(12, 8, 12, 8) // Added padding
+            setBackgroundColor(Color.parseColor("#E0000000")) // Semi-transparent black
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(16, 16, 16, 16) // Added margins: left, top, right, bottom
+            }
         }
 
-        headerLayout.addView(headerText)
+//        headerLayout.addView(headerText)
         headerLayout.addView(totalCountText)
 
         // Create RecyclerView with proper styling

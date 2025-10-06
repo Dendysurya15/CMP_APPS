@@ -17,6 +17,7 @@ class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, at
     private var textPaint = Paint()
     private var bounds = Rect()
     private var boxTransparency: Float = 1.0f
+    private var textRotation: Float = 0f
 
     private val classColors = arrayOf(
         Color.RED,
@@ -81,6 +82,11 @@ class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, at
         invalidate()
     }
 
+    fun setTextRotation(rotation: Float) {
+        textRotation = rotation
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
@@ -94,7 +100,7 @@ class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, at
             val transparentColor = applyTransparency(classColor, boxTransparency)
             boxPaint.color = transparentColor
 
-            // Draw bounding box
+            // Draw bounding box (not rotated)
             canvas.drawRect(left, top, right, bottom, boxPaint)
 
             // Prepare text
@@ -115,7 +121,17 @@ class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, at
                 Color.blue(classColor)
             )
 
-            // Draw text background
+            // Calculate text position (center of text background)
+            val textCenterX = left + textWidth / 2 + BOUNDING_RECT_TEXT_PADDING
+            val textCenterY = top - textHeight / 2 - BOUNDING_RECT_TEXT_PADDING
+
+            // Save canvas state
+            canvas.save()
+
+            // Rotate canvas around text center
+            canvas.rotate(textRotation, textCenterX, textCenterY)
+
+            // Draw text background (rotated)
             canvas.drawRect(
                 left,
                 top - textHeight - BOUNDING_RECT_TEXT_PADDING * 2,
@@ -128,13 +144,16 @@ class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, at
             val textAlpha = (255 * boxTransparency).roundToInt().coerceIn(128, 255)
             textPaint.color = Color.argb(textAlpha, 255, 255, 255)
 
-            // Draw text
+            // Draw text (rotated)
             canvas.drawText(
                 drawableText,
                 left + BOUNDING_RECT_TEXT_PADDING,
                 top - BOUNDING_RECT_TEXT_PADDING,
                 textPaint
             )
+
+            // Restore canvas state
+            canvas.restore()
         }
     }
 
