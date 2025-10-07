@@ -161,6 +161,15 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateArchiveTransferInspeksiPanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) = viewModelScope.launch(Dispatchers.IO) {
+        try {
+            repository.updateArchiveTransferInspeksiPanenStatusByIds(recordIds, archiveStatus)
+            AppLogger.d("ViewModel: Updated archive status for ${recordIds.size} records")
+        } catch (e: Exception) {
+            AppLogger.e("ViewModel error updating archive status: ${e.message}")
+        }
+    }
+
 
     fun loadTPHESPB(archive: Int, statusTransferRestan: Int, hasNoEspb: Boolean, scanStatus: Int, date: String? = null) = viewModelScope.launch {
         try {
@@ -221,25 +230,11 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         return count
     }
 
-    fun loadCountTPHESPB(archive: Int, statusEspb: Int, scanStatus: Int, date: String? = null) = viewModelScope.launch {
-        try {
-            val formattedDate = date?.take(10) // Ensures only YYYY-MM-DD is passed
-            val count = repository.loadCountTPHESPB(archive, statusEspb, scanStatus, formattedDate)
-            _panenCountTPHESPB.value = count
-        } catch (e: Exception) {
-            AppLogger.e("Error loading TPH ESPB count: ${e.message}")
-            _panenCountTPHESPB.value = 0
-        }
-    }
 
     fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) = viewModelScope.launch(Dispatchers.IO) {
         try {
             repository.updateArchiveMpanenStatusByIds(recordIds, archiveStatus)
             AppLogger.d("ViewModel: Updated archive status for ${recordIds.size} records")
-
-            // Refresh data after update
-            val currentDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-            getAllScanMPanenByDate(0, currentDate)
 
         } catch (e: Exception) {
             AppLogger.e("ViewModel error updating archive status: ${e.message}")

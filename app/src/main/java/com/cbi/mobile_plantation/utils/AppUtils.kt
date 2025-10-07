@@ -73,7 +73,7 @@ object AppUtils {
     const val max_data_in_zip = 12
     const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
 
-    const val LOCATION_USER_UPDATE_INTERVAL = 3000L // 3 seconds
+    const val LOCATION_USER_UPDATE_INTERVAL = 1000L // 3 seconds
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"

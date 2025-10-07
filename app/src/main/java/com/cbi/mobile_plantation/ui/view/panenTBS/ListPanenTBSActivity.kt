@@ -908,8 +908,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
     }
 
     private fun setupCardListeners() {
-// In ListPanenTBSActivity.kt, update the cardTersimpan.setOnClickListener around line 750-850
-
         cardTersimpan.setOnClickListener {
 
             listAdapter.updateData(emptyList())
@@ -958,8 +956,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     panenViewModel.countTPHESPB(0, 1, true, 1)
                     panenViewModel.countHasBeenESPB(0, 0, true, 1)
                 } else {
-
-                    AppLogger.d("loh gesss")
                     panenViewModel.loadTPHNonESPB(0, 0, true, 1, globalFormattedDate)
                     panenViewModel.countTPHNonESPB(0, 0, true, 1, globalFormattedDate)
                     panenViewModel.countTPHESPB(0, 1, true, 1, globalFormattedDate)
@@ -997,8 +993,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 }
             }
         }
-
-        // In ListPanenTBSActivity.kt, update the cardTerscan.setOnClickListener around line 800-900
 
         cardTerscan.setOnClickListener {
             listAdapter.updateData(emptyList())

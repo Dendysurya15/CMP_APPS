@@ -628,7 +628,7 @@ class TransferHektarPanenActivity : AppCompatActivity() {
         tvGenQRFull.visibility = View.VISIBLE
 
         btnGenerateQRTPH.setOnClickListener {
-            limit = 50
+            limit = 0
             generateQRTPH(0)
         }
 

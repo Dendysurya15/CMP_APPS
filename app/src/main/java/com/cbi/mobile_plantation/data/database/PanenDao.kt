@@ -243,6 +243,9 @@ abstract class PanenDao {
     @Query("UPDATE ${AppUtils.DatabaseTables.PANEN} SET archive_mpanen = :archiveStatus WHERE id IN (:recordIds)")
     abstract suspend fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int)
 
+    @Query("UPDATE ${AppUtils.DatabaseTables.PANEN} SET archive_transfer_inspeksi = :archiveStatus WHERE id IN (:recordIds)")
+    abstract suspend fun updateArchiveTransferInspeksiPanenStatusByIds(recordIds: List<Int>, archiveStatus: Int)
+
     @Query("UPDATE panen_table SET status_upload = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadPanen(ids: List<Int>, status: Int)
 

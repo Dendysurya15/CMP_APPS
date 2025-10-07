@@ -312,7 +312,7 @@ class ListTPHApproval : AppCompatActivity() {
                                     )
                                 }
 
-                            AppLogger.d(result.toString())
+                            AppLogger.d("result nya bro $result")
 
                             result.fold(
                                 onSuccess = { saveResult ->
@@ -1209,6 +1209,13 @@ class ListTPHApproval : AppCompatActivity() {
         val tvBluetoothStatus = dialogView.findViewById<TextView>(R.id.tvBluetoothStatus)
         val tvReceiveStatus = dialogView.findViewById<TextView>(R.id.tvReceiveStatus)
         val btnCloseReceive = dialogView.findViewById<Button>(R.id.btnCloseReceive)
+        val titleDialogBluetoothReceive = dialogView.findViewById<TextView>(R.id.titleDialogBluetoothReceive)
+
+        titleDialogBluetoothReceive.text = when (featureName) {
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> "Data Transfer Inspeksi Bluetooth"
+            AppUtils.ListFeatureNames.ScanHasilPanen -> "Data Hasil Panen Bluetooth"
+            else -> "Data Transfer Hektaran Bluetooth" // or AppUtils.ListFeatureNames.ScanPanenMPanen
+        }
 
         tvBluetoothStatus.text = "Status Bluetooth: Aktif - Mendengarkan koneksi"
         tvReceiveStatus.text = "Menunggu data dari perangkat pengirim..."
@@ -1267,7 +1274,7 @@ class ListTPHApproval : AppCompatActivity() {
             } catch (e: Exception) {
                 AppLogger.e("Failed to start Bluetooth server: ${e.message}")
                 runOnUiThread {
-                    tvReceiveStatus.text = "Gagal memulai server Bluetooth"
+                    tvReceiveStatus.text = "Gagal memulai server Bluetooth $e"
                     progressBar.visibility = View.GONE
                 }
             }
@@ -1500,6 +1507,22 @@ class ListTPHApproval : AppCompatActivity() {
                 }
             }
 
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
+                // Use savedEntities if provided, otherwise fall back to original list
+                val entitiesToProcess =
+                    if (savedEntities.isNotEmpty()) savedEntities else saveDataTransferInspeksiList
+
+                // For MPanen, extract only the required fields: tph_id, date_created, jjg_json, nik
+                entitiesToProcess.map { panenEntity ->
+                    mapOf(
+                        "tph_id" to panenEntity.tph_id,
+                        "date_created" to panenEntity.date_created,
+                        "karyawan_nama" to panenEntity.karyawan_nama,
+                        "karyawan_nik" to panenEntity.karyawan_nik,
+                    )
+                }
+            }
+
             else -> emptyList()
         }
     }
@@ -1613,6 +1636,8 @@ class ListTPHApproval : AppCompatActivity() {
                 loadingDialog.dismiss()
 
                 // Handle different save scenarios
+
+                AppLogger.d("saveResult $saveResult")
                 when {
                     saveResult.success -> {
                         // Success or partial success
@@ -1648,7 +1673,7 @@ class ListTPHApproval : AppCompatActivity() {
                         val finalMessage = if (saveResult.duplicateCount > 0) {
                             "Data berhasil diproses:\n• ${saveResult.savedCount} data baru tersimpan\n• ${saveResult.duplicateCount} data duplikat dilewati"
                         } else {
-                            "Data hektaran berhasil disimpan (${saveResult.savedCount} item)"
+                            "Data ${featureName} berhasil disimpan (${saveResult.savedCount} item)"
                         }
 
                         // ADD THIS NEW CODE HERE:
@@ -1664,7 +1689,7 @@ class ListTPHApproval : AppCompatActivity() {
                             "OK",
                             "Transfer Data Selesai",
                             finalMessage,
-                            "warning.json",
+                            "success.json",
                             dialogColor
                         ) {
                             startActivity(Intent(this@ListTPHApproval, HomePageActivity::class.java))

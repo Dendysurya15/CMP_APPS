@@ -487,23 +487,69 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="20dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="50dp"
         android:src="@drawable/baseline_delete_forever_24"
         android:backgroundTint="@color/colorRedDark"
         android:visibility="gone"
         app:fabCustomSize="65dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnTransferBT"
         app:maxImageSize="30dp"
         app:tint="@android:color/white"
         tools:ignore="ContentDescription" />
+
+    <TextView
+        android:id="@+id/tvDeleteInspect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Delete\nInspect"
+        android:visibility="gone"
+        android:textColor="@color/black"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:shadowColor="@color/white"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintEnd_toEndOf="@+id/fabDelListInspect"
+        app:layout_constraintStart_toStartOf="@+id/fabDelListInspect"
+        app:layout_constraintTop_toBottomOf="@+id/fabDelListInspect" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnTransferBT"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="50dp"
+        android:src="@drawable/baseline_bluetooth_searching_24"
+        android:tooltipText="Transfer Bluetooth"
+        app:backgroundTint="@color/greenDarker"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnGenerateQRTPH"
+        app:maxImageSize="30dp"
+        android:visibility="gone"
+        app:rippleColor="@color/bgLightOrange"
+        app:tint="@color/white"/>
+
+    <TextView
+        android:id="@+id/tvTransferBT"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Transfer\nBluetooth"
+        android:visibility="gone"
+        android:textColor="@color/black"
+        android:outlineSpotShadowColor="@color/white"
+        android:outlineAmbientShadowColor="@color/white"
+        android:shadowColor="@color/white"
+        android:fontFamily="@font/manrope_bold"
+        app:layout_constraintEnd_toEndOf="@+id/btnTransferBT"
+        app:layout_constraintStart_toStartOf="@+id/btnTransferBT"
+        app:layout_constraintTop_toBottomOf="@+id/btnTransferBT" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnGenerateQRTPH"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginRight="30dp"
-        android:layout_marginBottom="30dp"
+        android:layout_marginBottom="50dp"
         android:src="@drawable/baseline_qr_code_scanner_24"
         android:tooltipText="Generate QR TPH"
         android:visibility="gone"
@@ -513,5 +559,19 @@
         app:maxImageSize="30dp"
         app:rippleColor="@color/bgLightOrange"
         app:tint="@color/white" />
+
+    <TextView
+        android:id="@+id/tvGenQRInspect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Generate\nQR"
+        android:visibility="gone"
+        android:shadowColor="@color/white"
+        android:textColor="@color/black"
+        android:fontFamily="@font/manrope_bold"
+        android:outlineSpotShadowColor="@color/white"
+        app:layout_constraintEnd_toEndOf="@+id/btnGenerateQRTPH"
+        app:layout_constraintStart_toStartOf="@+id/btnGenerateQRTPH"
+        app:layout_constraintTop_toBottomOf="@+id/btnGenerateQRTPH" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -362,7 +362,7 @@
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnTransferBT"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    android:layout_height="wrap_content"
         android:layout_marginRight="20dp"
         android:layout_marginBottom="50dp"
         android:src="@drawable/baseline_bluetooth_searching_24"
@@ -410,7 +410,7 @@
         android:id="@+id/tvGenQR60"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Generate\nQR 50"
+        android:text="Generate\nQR"
         android:visibility="gone"
         android:shadowColor="@color/white"
         android:textColor="@color/black"

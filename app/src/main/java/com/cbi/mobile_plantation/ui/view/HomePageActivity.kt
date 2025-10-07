@@ -1347,6 +1347,16 @@ class HomePageActivity : AppCompatActivity() {
 
                             if (!isSyncValid) return@launch
 
+                            // ADD THIS: Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncDateValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            if (!isSyncDateValid) return@launch
+
                             // Validate present karyawan
                             val presentKaryawan = ValidationSyncHelper.validatePresentKaryawan(
                                 this@HomePageActivity,
@@ -1982,9 +1992,28 @@ class HomePageActivity : AppCompatActivity() {
                             )
 
                             if (isSyncValid) {
-                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
-                                intent.putExtra("FEATURE_NAME", feature.featureName)
-                                startActivity(intent)
+                                AlertDialogUtility.withTwoActions(
+                                    this@HomePageActivity,
+                                    actionText = "Scan QR",  // Right button
+                                    titleText = getString(R.string.confirmation_dialog_title),
+                                    alertText = "Pilih metode transfer data inspeksi",
+                                    animAsset = "warning.json",
+                                    buttonColor = ContextCompat.getColor(this@HomePageActivity, R.color.bluedarklight),
+                                    cancelText = "Transfer Bluetooth", // Left button
+                                    function = {
+                                        // Scan QR action (right button)
+                                        val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        startActivity(intent)
+                                    },
+                                    cancelFunction = {
+                                        // Transfer Bluetooth action (left button)
+                                        val intent = Intent(this@HomePageActivity, ListTPHApproval::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        intent.putExtra("IS_TRANSFER_BLUETOOTH", true)
+                                        startActivity(intent)
+                                    }
+                                )
                             }
 
                         } catch (e: Exception) {
@@ -9133,55 +9162,63 @@ class HomePageActivity : AppCompatActivity() {
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
-        // Add notification permission for Android 13+
+        // Notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        // Add other permissions based on Android version
-        val otherPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_MEDIA_IMAGES
+        // Bluetooth permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+
+            permissionsToRequest.addAll(
+                listOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_ADVERTISE
+                )
             )
         } else {
-            mutableListOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ).apply {
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
-                    add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                }
-            }.toTypedArray()
+            // Android 11 and below
+            permissionsToRequest.addAll(
+                listOf(
+                    Manifest.permission.BLUETOOTH,
+                    Manifest.permission.BLUETOOTH_ADMIN
+                )
+            )
         }
 
-        otherPermissions.forEach { permission ->
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    permission
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(permission)
+        // Location & Camera (all versions)
+        permissionsToRequest.addAll(
+            listOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.CAMERA
+            )
+        )
+
+        // Storage permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
+                permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
 
-        if (permissionsToRequest.isNotEmpty()) {
-            AppLogger.d("Requesting ${permissionsToRequest.size} permissions: $permissionsToRequest")
+        // Filter out already granted permissions
+        val permissionsNeeded = permissionsToRequest.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsNeeded.isNotEmpty()) {
+            AppLogger.d("Requesting ${permissionsNeeded.size} permissions: $permissionsNeeded")
             ActivityCompat.requestPermissions(
                 this,
-                permissionsToRequest.toTypedArray(),
+                permissionsNeeded.toTypedArray(),
                 ALL_PERMISSIONS_REQUEST_CODE
             )
         } else {
-            // All permissions are already granted
+            // All permissions already granted
             setupNotifications()
             startDownloads()
         }
