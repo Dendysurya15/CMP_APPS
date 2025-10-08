@@ -7328,9 +7328,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
         selectedKaryawanList = emptyList()
 
-        selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
-        selectedKaryawanList = emptyList()
-
         lyKemandoran.visibility = View.VISIBLE
         lyPemuat.visibility = View.VISIBLE
 

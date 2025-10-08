@@ -472,17 +472,26 @@ class HomePageActivity : AppCompatActivity() {
                     featureAdapter.showLoadingForFeature("Rekap Hasil Panen")
                     delay(300)
                 }
-                try {
-                    val countDeferred = async { panenViewModel.loadPanenCount() }
-                    countPanenTPH = countDeferred.await()
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount("Rekap Hasil Panen", countPanenTPH.toString())
-                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error fetching data: ${e.message}")
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                val jabatanUser = prefManager!!.jabatanUserLogin
+                val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
+                val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+
+                if (!isAskepUser && !isManagerUser) {
+                    try {
+                        val afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull() ?: 0
+
+                        val countDeferred = async { panenViewModel.loadPanenCount(afdelingId) }
+                        countPanenTPH = countDeferred.await()
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.updateCount("Rekap Hasil Panen", countPanenTPH.toString())
+                            featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading panen count: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.updateCount("Rekap Hasil Panen", "0")
+                            featureAdapter.hideLoadingForFeature("Rekap Hasil Panen")
+                        }
                     }
                 }
                 try {
@@ -502,25 +511,27 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                try {
-                    val countDeferred = async { panenViewModel.loadPanenCountForTransferInspeksi() }
-                    countPanenTPHForTransferInspeksi = countDeferred.await()
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(
-                            AppUtils.ListFeatureNames.TransferInspeksiPanen,
-                            countPanenTPHForTransferInspeksi.toString()
-                        )
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error fetching data: ${e.message}")
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+                if (!isAskepUser && !isManagerUser) {
+                    try {
+                        val afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull() ?: 0
+
+                        val countDeferred = async { panenViewModel.loadPanenCountForTransferInspeksi(afdelingId) }
+                        countPanenTPHForTransferInspeksi = countDeferred.await()
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.updateCount(
+                                AppUtils.ListFeatureNames.TransferInspeksiPanen,
+                                countPanenTPHForTransferInspeksi.toString()
+                            )
+                            featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferInspeksiPanen)
+                        }
                     }
                 }
-                val jabatanUser = prefManager!!.jabatanUserLogin
-                val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
-                val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+
 
 // Skip panen count loading for askep and manager users since they can have multiple afdelings
                 if (!isAskepUser && !isManagerUser) {
@@ -630,20 +641,24 @@ class HomePageActivity : AppCompatActivity() {
                         featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapInspeksiPanen)
                     }
                 }
-                try {
-                    val countDeferred = async { panenViewModel.getCountScanMPanen(0) }
-                    countScanMpanen = countDeferred.await()
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.updateCount(
-                            AppUtils.ListFeatureNames.TransferHektarPanen,
-                            countScanMpanen.toString()
-                        )
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferHektarPanen)
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error fetching data: ${e.message}")
-                    withContext(Dispatchers.Main) {
-                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferHektarPanen)
+                if (!isAskepUser && !isManagerUser) {
+                    try {
+                        val afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull() ?: 0
+
+                        val countDeferred = async { panenViewModel.getCountScanMPanen(0, afdelingId) }
+                        countScanMpanen = countDeferred.await()
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.updateCount(
+                                AppUtils.ListFeatureNames.TransferHektarPanen,
+                                countScanMpanen.toString()
+                            )
+                            featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferHektarPanen)
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.TransferHektarPanen)
+                        }
                     }
                 }
             }
@@ -3142,24 +3157,24 @@ class HomePageActivity : AppCompatActivity() {
                                 } else {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
-//                                AppUtils.clearTempJsonFiles(this@HomePageActivity)
-//                                try {
-//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                        if (!exists()) mkdirs()
-//                                    }
-//
-//                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
-//                                    val tempFile = File(tempDir, filename)
-//
-//                                    FileOutputStream(tempFile).use { fos ->
-//                                        fos.write(batchJson.toByteArray())
-//                                    }
-//
-//                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
-//                                } catch (e: Exception) {
-//                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
-//                                    e.printStackTrace()
-//                                }
+                                AppUtils.clearTempJsonFiles(this@HomePageActivity)
+                                try {
+                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
+
+                                    val filename = "panen_data_${System.currentTimeMillis()}.json"
+                                    val tempFile = File(tempDir, filename)
+
+                                    FileOutputStream(tempFile).use { fos ->
+                                        fos.write(batchJson.toByteArray())
+                                    }
+
+                                    AppLogger.d("Saved raw absensi data to temp file: ${tempFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to save absensi data to temp file: ${e.message}")
+                                    e.printStackTrace()
+                                }
 
 
                                 panenBatchMap[batchKey] = mapOf(

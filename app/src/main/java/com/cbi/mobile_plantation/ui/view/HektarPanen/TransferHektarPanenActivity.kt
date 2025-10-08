@@ -303,14 +303,45 @@ class TransferHektarPanenActivity : AppCompatActivity() {
             AppLogger.d(panenList.toString())
             Handler(Looper.getMainLooper()).postDelayed({
                 lifecycleScope.launch {
-                    if (panenList.isNotEmpty()) {
+                    AppLogger.d("=== FILTERING ACTIVE PANEN LIST ===")
+                    AppLogger.d("Total records before filtering: ${panenList.size}")
+
+                    // Apply filter
+                    val filteredPanenList = panenList.filter { panenEntityWithRelations ->
+                        val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                        val userAfdelingId = prefManager!!.afdelingIdUserLogin
+                        val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                        val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
+
+                        AppLogger.d("Checking record: TPH ID = ${panenEntityWithRelations.panen.tph_id}")
+                        AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                        AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
+
+                        // First check: if afdeling matches, include it
+                        if (tphDivisi == userAfdelingId) {
+                            AppLogger.d("  ✓ INCLUDED: Afdeling matches")
+                            true
+                        } else {
+                            // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
+                            val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                            if (asistensiMatch) {
+                                AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
+                            } else {
+                                AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
+                            }
+                            asistensiMatch
+                        }
+                    }
+
+                    AppLogger.d("Active panen count after filtering: ${filteredPanenList.size}")
+
+                    if (filteredPanenList.isNotEmpty()) {
                         tvEmptyState.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
                         val allWorkerData = mutableListOf<Map<String, Any>>()
 
-
                         originalMappedData.clear()
-                        panenList.map { panenWithRelations ->
+                        filteredPanenList.map { panenWithRelations ->
                             val standardData = mapOf<String, Any>(
                                 "id" to (panenWithRelations.panen.id as Any),
                                 "tph_id" to (panenWithRelations.panen.tph_id as Any),
@@ -451,12 +482,11 @@ class TransferHektarPanenActivity : AppCompatActivity() {
 
                         // Then update the adapter with the correctly typed list
                         adapter.updateList(transferHektarPanenDataList)
-                        originalData =
-                            emptyList()
+                        originalData = emptyList()
 
                         loadingDialog.dismiss()
                     } else {
-                        AppLogger.d("panenWithRelations panenList is empty")
+                        AppLogger.d("panenWithRelations panenList is empty after filtering")
                         tvEmptyState.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
 

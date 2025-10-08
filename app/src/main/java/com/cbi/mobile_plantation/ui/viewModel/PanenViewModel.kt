@@ -260,20 +260,20 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    suspend fun loadPanenCount(): Int {
-        val count = repository.getPanenCount()
+    suspend fun loadPanenCount(afdelingId: Int): Int {
+        val count = repository.getPanenCount(afdelingId)
         _panenCount.value = count
         return count
     }
 
-    suspend fun loadPanenCountForTransferInspeksi(): Int {
-        val count = repository.getPanenCountForTransferInspeksi()
+    suspend fun loadPanenCountForTransferInspeksi(afdelingId: Int): Int {
+        val count = repository.getPanenCountForTransferInspeksi(afdelingId)
         _panenCountForTransferInspeksi.value = count
         return count
     }
 
-    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int {
-        val count = repository.getCountScanMPanen(status_scan_mpanen)
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int, afdelingId: Int): Int {
+        val count = repository.getCountScanMPanen(status_scan_mpanen, afdelingId)
         _panenCount.value = count
         return count
     }
@@ -481,11 +481,11 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadCountTransferInspeksi(
         datetime: String? = null,
-        archive_transfer_inspeksi: Int
+        archive_transfer_inspeksi: Int,
+        afdelingId: Int
     ) {
         viewModelScope.launch {
-            val count =
-                repository.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+            val count = repository.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi, afdelingId)
             _countPanenTransferInspeksi.value = Pair(archive_transfer_inspeksi, count)
         }
     }

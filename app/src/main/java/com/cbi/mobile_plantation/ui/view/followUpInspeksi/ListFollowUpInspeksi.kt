@@ -149,7 +149,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
     private lateinit var bluetoothScanner: BluetoothScanner
     private var bluetoothJsonData: String = ""
     private var bluetoothDataInfo: String = ""
-
+    private var afdelingId: Int = 0
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var userName: String? = null
     private var estateName: String? = null
@@ -219,6 +219,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
 
+        afdelingId = prefManager!!.afdelingIdUserLogin!!.toInt()
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
@@ -256,8 +257,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
             } else {
                 panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
             }
         }
 
@@ -1020,8 +1021,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             AppLogger.d("Transfer completed with timeout - refreshing data")
 
                             panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
                         }
                     }
 
@@ -1256,8 +1257,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             ) {
                                 AppLogger.d("Transfer completed successfully with feedback and verification")
                                 panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
                             }
 
                             AppLogger.d("Transfer, save and verification completed successfully. Verified: ${verificationResult.verifiedCount}, Total transferred: $totalTransferred")
@@ -1319,8 +1320,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             ) {
                                 AppLogger.d("Transfer completed with duplicates, verification done")
                                 panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
                             }
 
                             AppLogger.d("Transfer completed with all duplicates. Verified: ${verificationResult.verifiedCount}")
@@ -1858,8 +1859,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                                     currentState
                                 )
 
-                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
 
                             }
 
@@ -2172,8 +2173,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
                     // Load panen data based on current state - pass NULL for all data
                     panenViewModel.loadDataPanenTransferInspeksi(null, currentState)
-                    panenViewModel.loadCountTransferInspeksi(null, 0)
-                    panenViewModel.loadCountTransferInspeksi(null, 1)
+                    panenViewModel.loadCountTransferInspeksi(null, 0,afdelingId)
+                    panenViewModel.loadCountTransferInspeksi(null, 1,afdelingId)
                 } else {
                     // Load inspection data
                     inspectionViewModel.loadInspectionPaths(null, 1)
@@ -2188,8 +2189,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
                     // Load panen data based on current state - pass globalFormattedDate for specific date
                     panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, currentState)
-                    panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                    panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                    panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                    panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
                 } else {
                     // Load inspection data
                     inspectionViewModel.loadInspectionPaths(globalFormattedDate, 1)
@@ -2219,8 +2220,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
                     // Load panen data based on current state
                     panenViewModel.loadDataPanenTransferInspeksi(todayBackendDate, currentState)
-                    panenViewModel.loadCountTransferInspeksi(todayBackendDate, 0)
-                    panenViewModel.loadCountTransferInspeksi(todayBackendDate, 1)
+                    panenViewModel.loadCountTransferInspeksi(todayBackendDate, 0,afdelingId)
+                    panenViewModel.loadCountTransferInspeksi(todayBackendDate, 1,afdelingId)
                 } else {
                     // Load inspection data
                     inspectionViewModel.loadInspectionPaths(todayBackendDate, 1)
@@ -2252,15 +2253,15 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     null,
                     currentState
                 )
-                panenViewModel.loadCountTransferInspeksi(null, 0)
-                panenViewModel.loadCountTransferInspeksi(null, 1)
+                panenViewModel.loadCountTransferInspeksi(null, 0,afdelingId)
+                panenViewModel.loadCountTransferInspeksi(null, 1,afdelingId)
             } else {
                 panenViewModel.loadDataPanenTransferInspeksi(
                     globalFormattedDate,
                     currentState
                 ) // Pass currentState (0)
-                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
             }
         }
 
@@ -2282,15 +2283,15 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     null,
                     currentState
                 ) // Pass currentState (1)
-                panenViewModel.loadCountTransferInspeksi(null, 0)
-                panenViewModel.loadCountTransferInspeksi(null, 1)
+                panenViewModel.loadCountTransferInspeksi(null, 0,afdelingId)
+                panenViewModel.loadCountTransferInspeksi(null, 1,afdelingId)
             } else {
                 panenViewModel.loadDataPanenTransferInspeksi(
                     globalFormattedDate,
                     currentState
                 ) // Pass currentState (1)
-                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,afdelingId)
+                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,afdelingId)
             }
         }
     }
@@ -2535,8 +2536,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
             // Load panen data based on current state
             panenViewModel.loadDataPanenTransferInspeksi(selectedDate, currentState)
-            panenViewModel.loadCountTransferInspeksi(selectedDate, 0)
-            panenViewModel.loadCountTransferInspeksi(selectedDate, 1)
+            panenViewModel.loadCountTransferInspeksi(selectedDate, 0,afdelingId)
+            panenViewModel.loadCountTransferInspeksi(selectedDate, 1,afdelingId)
         } else {
             // Load inspection data
             inspectionViewModel.loadInspectionPaths(selectedDate, 1)
@@ -2560,8 +2561,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
                 // Load panen data based on current state
                 panenViewModel.loadDataPanenTransferInspeksi(todayBackendDate, currentState)
-                panenViewModel.loadCountTransferInspeksi(todayBackendDate, 0)
-                panenViewModel.loadCountTransferInspeksi(todayBackendDate, 1)
+                panenViewModel.loadCountTransferInspeksi(todayBackendDate, 0,afdelingId)
+                panenViewModel.loadCountTransferInspeksi(todayBackendDate, 1,afdelingId)
             } else {
                 // Load inspection data
                 inspectionViewModel.loadInspectionPaths(todayBackendDate, 1)
@@ -2711,8 +2712,40 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
         if (featureName == AppUtils.ListFeatureNames.TransferInspeksiPanen) {
             panenViewModel.panenTransferInspeksi.observe(this) { panenData ->
-                adapter.setPanenData(panenData)
-                mappedData = panenData.map { panenEntityWithRelations ->
+                AppLogger.d("=== FILTERING TRANSFER INSPEKSI LIST ===")
+                AppLogger.d("Total records before filtering: ${panenData.size}")
+
+                // Apply filter
+                val filteredPanenData = panenData.filter { panenEntityWithRelations ->
+                    val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
+                    val userAfdelingId = prefManager!!.afdelingIdUserLogin
+                    val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                    val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
+
+                    AppLogger.d("Checking record: TPH ID = ${panenEntityWithRelations.panen.tph_id}")
+                    AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                    AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
+
+                    // First check: if afdeling matches, include it
+                    if (tphDivisi == userAfdelingId) {
+                        AppLogger.d("  ✓ INCLUDED: Afdeling matches")
+                        true
+                    } else {
+                        // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
+                        val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                        if (asistensiMatch) {
+                            AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
+                        } else {
+                            AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
+                        }
+                        asistensiMatch
+                    }
+                }
+
+                AppLogger.d("Transfer Inspeksi count after filtering: ${filteredPanenData.size}")
+
+                adapter.setPanenData(filteredPanenData)
+                mappedData = filteredPanenData.map { panenEntityWithRelations ->
                     mapOf(
                         "id" to panenEntityWithRelations.panen.id,
                         "tph_id" to panenEntityWithRelations.panen.tph_id,
@@ -2763,9 +2796,6 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 val listBlok = findViewById<TextView>(R.id.listBlok)
                 val totalTPH = findViewById<TextView>(R.id.totalTPH)
 
-// Make sure the total_section is visible so totalTPH shows
-
-
                 AppLogger.d("processedData $processedData")
                 listBlok.text = processedData["blokDisplay"].toString()
                 totalTPH.text = processedData["tphCount"].toString()
@@ -2774,7 +2804,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     loadingDialog.dismiss()
 
                     lifecycleScope.launch {
-                        if (panenData.isNotEmpty()) {
+                        if (filteredPanenData.isNotEmpty()) {
                             val totalSection = findViewById<LinearLayout>(R.id.total_section)
                             totalSection.visibility = View.VISIBLE
 

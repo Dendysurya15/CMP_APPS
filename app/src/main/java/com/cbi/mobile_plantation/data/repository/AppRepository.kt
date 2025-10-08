@@ -237,9 +237,10 @@ class AppRepository(context: Context) {
 
     suspend fun getCountPanenForTransferInspeksi(
         datetime: String? = null,
-        archive_transfer_inspeksi: Int
+        archive_transfer_inspeksi: Int,
+        afdelingId: Int
     ): Int {
-        return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+        return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi, afdelingId)
     }
 
     suspend fun resetEspbStatus(
@@ -1650,12 +1651,12 @@ class AppRepository(context: Context) {
         tphDao.getNomorTPHbyId(tphId)
     }
 
-    suspend fun getPanenCount(): Int {
-        return panenDao.getCount()
+    suspend fun getPanenCount(afdelingId: Int): Int {
+        return panenDao.getCount(afdelingId)
     }
 
-    suspend fun getPanenCountForTransferInspeksi(): Int {
-        return panenDao.getCountForTransferInspeksi()
+    suspend fun getPanenCountForTransferInspeksi(afdelingId: Int): Int {
+        return panenDao.getCountForTransferInspeksi(afdelingId)
     }
 
     suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
@@ -2055,9 +2056,9 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int {
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int, afdelingId: Int): Int {
         return try {
-            panenDao.getCountScanMPanen(status_scan_mpanen)
+            panenDao.getCountScanMPanen(status_scan_mpanen, afdelingId)
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB created today: ${e.message}")
             0

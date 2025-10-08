@@ -2201,8 +2201,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             AppLogger.d("Transfer completed with timeout - refreshing data")
 
                             panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,prefManager!!.afdelingIdUserLogin!!.toInt())
+                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,prefManager!!.afdelingIdUserLogin!!.toInt())
                         }
                     }
 
@@ -2468,8 +2468,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             ) {
                                 AppLogger.d("Transfer completed successfully with feedback and verification")
 //                                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,prefManager!!.afdelingIdUserLogin.toInt())
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,prefManager!!.afdelingIdUserLogin.toInt())
                             }
 
                             AppLogger.d("Transfer, save and verification completed successfully. Verified: ${verificationResult.verifiedCount}, Total transferred: $totalTransferred")
@@ -2531,8 +2531,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             ) {
                                 AppLogger.d("Transfer completed with duplicates, verification done")
 //                                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,prefManager!!.afdelingIdUserLogin.toInt())
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,prefManager!!.afdelingIdUserLogin.toInt())
                             }
 
                             AppLogger.d("Transfer completed with all duplicates. Verified: ${verificationResult.verifiedCount}")
