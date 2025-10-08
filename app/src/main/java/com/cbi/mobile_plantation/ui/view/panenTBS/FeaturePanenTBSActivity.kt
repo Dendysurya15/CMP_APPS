@@ -1260,10 +1260,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         )
                                     } else {
 
+                                        val asistensiValue = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi ?: 0)
+
+                                        AppLogger.d("prefManager?.estateUserLogin ${prefManager?.estateUserLogin}")
                                         panenViewModel.saveDataPanen(
                                             tph_id = tph_id,
                                             date_created = date_created,
-                                            created_by = userId!!,  // Prevent crash if userId is null
+                                            created_by = userId!!,
                                             karyawan_id = uniqueIdKaryawan,
                                             kemandoran_id = uniqueKemandoranId,
                                             karyawan_nik = uniqueNikPemanen,
@@ -1271,17 +1274,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             jjg_json = jjg_json,
                                             foto = photoFilesString,
                                             komentar = komentarFotoString ?: "",
-                                            asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
-                                                ?: 0),
+                                            asistensi = asistensiValue,
                                             lat = finalLat ?: 0.0,
                                             lon = finalLon ?: 0.0,
-                                            jenis_panen = selectedTipePanen.toIntOrNull()
-                                                ?: 0, // Avoid NumberFormatException
+                                            jenis_panen = selectedTipePanen.toIntOrNull() ?: 0,
                                             ancakInput = ancakInput.toInt(),
                                             nomorPemanenInput = nomorPemanenInput.toInt(),
                                             info = infoApp ?: "",
                                             archive = 0,
-                                            blokBanjir = blokBanjir
+                                            blokBanjir = blokBanjir,
+                                            asistensiDept = if (asistensiValue == 2) prefManager?.estateIdUserLogin?.toInt() else null,
+                                            asistensiDeptNama = if (asistensiValue == 2) prefManager?.estateUserLengkapLogin else null,
+                                            asistensiDivisi = if (asistensiValue == 2) prefManager?.afdelingIdUserLogin?.toIntOrNull() else null
                                         )
                                     }
                                 }

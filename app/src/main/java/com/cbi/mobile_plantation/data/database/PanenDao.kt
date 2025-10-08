@@ -1,6 +1,8 @@
 package com.cbi.mobile_plantation.data.database
 
 import androidx.room.*
+import androidx.sqlite.db.SimpleSQLiteQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
@@ -160,7 +162,7 @@ abstract class PanenDao {
     AND date(p.date_created) = date('now', 'localtime') 
     AND (p.no_espb IS NULL OR p.no_espb = '' OR p.no_espb = 'NULL')
     AND p.scan_status = 1
-    AND (t.divisi = :afdelingId OR p.asistensi = 2)
+    AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdelingId))
 """)
     abstract suspend fun getCountApprovalByAfdeling(afdelingId: Int): Int
 
@@ -243,8 +245,31 @@ abstract class PanenDao {
     @Query("UPDATE ${AppUtils.DatabaseTables.PANEN} SET archive_mpanen = :archiveStatus WHERE id IN (:recordIds)")
     abstract suspend fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int)
 
-    @Query("UPDATE ${AppUtils.DatabaseTables.PANEN} SET archive_transfer_inspeksi = :archiveStatus WHERE id IN (:recordIds)")
-    abstract suspend fun updateArchiveTransferInspeksiPanenStatusByIds(recordIds: List<Int>, archiveStatus: Int)
+    suspend fun updateArchiveByFeature(
+        featureName: String,
+        recordIds: List<Int>,
+        archiveStatus: Int
+    ) {
+        val columnName = when (featureName) {
+            AppUtils.ListFeatureNames.RekapHasilPanen -> "archive"
+            AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> "archive_transfer_inspeksi"
+            else -> "archive_transfer_inspeksi" // default column
+        }
+
+        val query = SimpleSQLiteQuery(
+            "UPDATE ${AppUtils.DatabaseTables.PANEN} SET $columnName = ? WHERE id IN (${
+                recordIds.joinToString(
+                    ","
+                ) { "?" }
+            })",
+            arrayOf(archiveStatus, *recordIds.toTypedArray())
+        )
+
+        updateArchiveDynamic(query)
+    }
+
+    @RawQuery
+    abstract suspend fun updateArchiveDynamic(query: SupportSQLiteQuery): Int
 
     @Query("UPDATE panen_table SET status_upload = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadPanen(ids: List<Int>, status: Int)

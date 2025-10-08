@@ -734,18 +734,12 @@ class ListTPHApproval : AppCompatActivity() {
                             "NULL",
                             "NULL",
                             0,
-                            asistensi = 1
+                            asistensi = 1,
+                            asistensi_divisi = null
                         )
 
                         if (featureName == AppUtils.ListFeatureNames.ScanHasilPanen) {
                             val parts = entry.split(",")
-//                            if (parts.size != 4) {
-//                                Log.e(
-//                                    TAG,
-//                                    "Invalid entry format, expected 4 parts but got ${parts.size}: $entry"
-//                                )
-//                                return@mapNotNull null
-//                            }
 
                             idtph = parts[0].toInt()
                             dateIndex = parts[1]
@@ -753,9 +747,12 @@ class ListTPHApproval : AppCompatActivity() {
                             jjg = parts[3].toInt()
                             nomor_pemanen = parts[4].toInt()
                             asistensi = parts[5].toInt()
+                            val asistensiDivisi = parts.getOrNull(6)?.toIntOrNull()
 
                             AppLogger.d("asistensi $asistensi")
+                            AppLogger.d("asistensiDivisi $asistensiDivisi")
                             AppLogger.d("nomorPemanen $nomor_pemanen")
+
                             // Get the full date from the date map
                             val fullDate = dateMap[dateIndex] ?: "Unknown Date"
                             val fullDateTime = "$fullDate $time"
@@ -777,22 +774,24 @@ class ListTPHApproval : AppCompatActivity() {
                             }
 
                             val displayName = tphInfo?.blokKode ?: "Tidak Diketahui"
+
                             // Create display data
                             displayData = TphRvData(
                                 namaBlok = displayName,
                                 noTPH = noTph.toString(),
-                                time = time,  // Just show the time part for display
+                                time = time,
                                 jjg = jjg.toString(),
                                 username = usernameString,
                                 kemandoran_id = "",
                                 tipePanen = "NULL",
                                 ancak = "NULL"
                             )
+
                             // Create save data with original values
                             saveDataHasilPanen = TphRvData(
-                                namaBlok = parts[0], // Original ID as namaBlok
+                                namaBlok = parts[0],
                                 noTPH = idtph.toString(),
-                                time = fullDateTime, // Reconstructed full datetime
+                                time = fullDateTime,
                                 jjg = jjg.toString(),
                                 username = usernameString,
                                 kemandoran_id = "",
@@ -800,6 +799,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 ancak = "NULL",
                                 nomor_pemanen = nomor_pemanen,
                                 asistensi = asistensi,
+                                asistensi_divisi = asistensiDivisi
                             )
                         } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
                             val parts = entry.split(",")

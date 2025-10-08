@@ -202,10 +202,12 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         if (requestCode == ListFollowUpInspeksi.Companion.REQUEST_ENABLE_BT) {
             if (resultCode == Activity.RESULT_OK) {
                 // Bluetooth was enabled, now generate JSON and show the dialog
-                Toast.makeText(this, "Bluetooth diaktifkan. Menyiapkan data...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Bluetooth diaktifkan. Menyiapkan data...", Toast.LENGTH_SHORT)
+                    .show()
                 generateJsonAndShowBluetoothDialog()
             } else {
-                Toast.makeText(this, "Bluetooth diperlukan untuk transfer data", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Bluetooth diperlukan untuk transfer data", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
     }
@@ -511,8 +513,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         when {
             bluetoothAdapter == null -> {
                 // Device doesn't support Bluetooth
-                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT)
+                    .show()
             }
+
             !bluetoothAdapter.isEnabled -> {
                 // Bluetooth is not enabled, ask user to enable it
                 AlertDialogUtility.withTwoActions(
@@ -531,6 +535,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     }
                 )
             }
+
             else -> {
                 // Bluetooth is enabled, proceed with scanning
                 generateJsonAndShowBluetoothDialog()
@@ -579,7 +584,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                 // ENCODE THE JSON DATA BEFORE SENDING
                 val encodedData = try {
-                    encodeJsonToBase64ZipQR(jsonData) ?: throw Exception("Encoding failed - data too large or invalid")
+                    encodeJsonToBase64ZipQR(jsonData)
+                        ?: throw Exception("Encoding failed - data too large or invalid")
                 } catch (e: Exception) {
                     AppLogger.e("Error encoding data for Bluetooth: ${e.message}")
                     withContext(Dispatchers.Main) {
@@ -611,12 +617,12 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 } ?: "Unknown Feature"
 
                 bluetoothDataInfo = """
-        Data $capitalizedFeatureName:
-        • Blok: ${processedData["blokDisplay"] ?: "N/A"}
-        • Total JJG: ${processedData["totalJjgCount"] ?: "0"}
-        • Total TPH: ${processedData["tphCount"] ?: "0"}
-        • Size: ${String.format("%.2f", encodedData.length / 1024.0)} KB (encoded)
-    """.trimIndent()
+            Data $capitalizedFeatureName:
+            • Blok: ${processedData["blokDisplay"] ?: "N/A"}
+            • Total JJG: ${processedData["totalJjgCount"] ?: "0"}
+            • Total TPH: ${processedData["tphCount"] ?: "0"}
+            • Size: ${String.format("%.2f", encodedData.length / 1024.0)} KB (encoded)
+        """.trimIndent()
 
                 AppLogger.d("DEBUG: bluetoothDataInfo = $bluetoothDataInfo")
 
@@ -714,12 +720,18 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     progressBar.visibility = View.GONE
                     // ✅ CHECK IF NO DEVICES FOUND AND SHOW HELPFUL MESSAGE
                     if (devices.size == 0) {
-                        tvStatus.text = "Selesai - 0 perangkat ditemukan\n(Pastikan perangkat sudah tersambung melalui Bluetooth)"
+                        tvStatus.text =
+                            "Selesai - 0 perangkat ditemukan\n(Pastikan perangkat sudah tersambung melalui Bluetooth)"
                     } else {
                         tvStatus.text = "Selesai - ${devices.size} perangkat ditemukan"
                     }
                     btnScanStop.text = "Scan"
-                    btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.bluedarklight))
+                    btnScanStop.setBackgroundColor(
+                        ContextCompat.getColor(
+                            this,
+                            R.color.bluedarklight
+                        )
+                    )
                     isScanning = false
                 }, 1000)
             } else {
@@ -747,7 +759,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 // Check if device already exists (avoid duplicates)
                 val existingIndex = devices.indexOfFirst { it.address == deviceAddress }
                 if (existingIndex == -1) {
-                    val deviceInfo = formatDeviceInfo(deviceName, deviceAddress )
+                    val deviceInfo = formatDeviceInfo(deviceName, deviceAddress)
                     devices.add(device)
                     deviceNames.add(deviceInfo)
                     adapter.notifyDataSetChanged()
@@ -756,7 +768,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     // Update existing device info if we got a better name
                     val currentName = deviceNames[existingIndex]
                     if (currentName.contains("Unknown") && !deviceName.contains("Unknown")) {
-                        val updatedInfo = formatDeviceInfo(deviceName, deviceAddress )
+                        val updatedInfo = formatDeviceInfo(deviceName, deviceAddress)
                         deviceNames[existingIndex] = updatedInfo
                         adapter.notifyDataSetChanged()
                         AppLogger.d("Updated device name: $updatedInfo")
@@ -807,163 +819,30 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         btnScanStop.performClick()
     }
 
-    @SuppressLint("MissingPermission")
     private fun getDeviceName(device: BluetoothDevice): String {
-        return try {
-            // Try multiple methods to get device name
-            var name = device.name
-
-            if (name.isNullOrBlank()) {
-                // Try to get name from bonded devices
-                val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-                val bluetoothAdapter = bluetoothManager.adapter
-                val bondedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == device.address }
-                name = bondedDevice?.name
-            }
-
-            if (name.isNullOrBlank()) {
-                // Generate a more descriptive unknown name based on device type and full address
-                when (device.type) {
-                    BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic Device (${device.address})"
-                    BluetoothDevice.DEVICE_TYPE_LE -> "BLE Device (${device.address})"
-                    BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual Mode (${device.address})"
-                    else -> "Unknown Device (${device.address})"
-                }
-            } else {
-                name
-            }
-        } catch (e: Exception) {
-            AppLogger.e("Error getting device name: ${e.message}")
-            "Device (${device.address})"
-        }
+        return AppUtils.getDeviceName(device, this)
     }
 
-    // Helper function to get device type information with permission check
-    private fun getDeviceTypeInfo(device: BluetoothDevice): String {
-        return if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
-            == PackageManager.PERMISSION_GRANTED) {
-            when (device.type) {
-                BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic"
-                BluetoothDevice.DEVICE_TYPE_LE -> "BLE"
-                BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual"
-                else -> "Unknown Type"
-            }
-        } else {
-            "Permission Required"
-        }
-    }
-
-    // Helper function to format device info for display
     private fun formatDeviceInfo(name: String, address: String): String {
-        return "$name"
+        return AppUtils.formatDeviceInfo(name, address)
     }
 
-    // Helper function to include ONLY paired PHONE devices
-    @SuppressLint("MissingPermission")
     private fun scanPairedPhoneDevices(
         devices: MutableList<BluetoothDevice>,
         deviceNames: MutableList<String>,
         deviceTypes: MutableMap<String, String>,
         adapter: ArrayAdapter<String>
     ) {
-        try {
-            val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-            val bluetoothAdapter = bluetoothManager.adapter
-            val pairedDevices = bluetoothAdapter?.bondedDevices
-
-            // Filter for phone devices only
-            pairedDevices?.forEach { device ->
-                if (isPhoneDevice(device)) {
-                    val deviceName = device.name ?: "Phone Device (${device.address.takeLast(8).replace(":", "")})"
-                    val deviceTypeInfo = "${getDeviceTypeInfo(device)} • Tersambung"
-                    val deviceInfo = formatDeviceInfo(deviceName, device.address)
-
-                    devices.add(device)
-                    deviceNames.add(deviceInfo)
-                    deviceTypes[device.address] = deviceTypeInfo
-
-                    AppLogger.d("Added paired PHONE: Name='$deviceName', Address='${device.address}', Type=${device.type}")
-                } else {
-                    AppLogger.d("Skipped non-phone device: Name='${device.name}', Address='${device.address}'")
-                }
-            }
-
-            runOnUiThread {
-                adapter.notifyDataSetChanged()
-            }
-        } catch (e: Exception) {
-            AppLogger.e("Error scanning paired phone devices: ${e.message}")
-        }
-    }
-
-    // Helper function to identify if device is a phone using Bluetooth Device Class
-    @SuppressLint("MissingPermission")
-    private fun isPhoneDevice(device: BluetoothDevice): Boolean {
-        val deviceClass = device.bluetoothClass
-
-        if (deviceClass == null) {
-            AppLogger.d("Device '${device.name}': No BluetoothClass available, checking by type")
-            // If no bluetooth class, check if it's a dual mode device (likely phone)
-            return device.type == BluetoothDevice.DEVICE_TYPE_DUAL || device.type == BluetoothDevice.DEVICE_TYPE_LE
-        }
-
-        val majorDeviceClass = deviceClass.majorDeviceClass
-        val minorDeviceClass = deviceClass.deviceClass and 0xFF // Get minor class from device class
-
-        // Phone identification using Bluetooth Device Class
-        val isPhone = when {
-            // Major Device Class: Phone (0x200 = 512)
-            majorDeviceClass == BluetoothClass.Device.Major.PHONE -> true
-
-            // Has telephony service
-            deviceClass.hasService(BluetoothClass.Service.TELEPHONY) -> true
-
-            // Computer class with phone-like minor classes
-            majorDeviceClass == BluetoothClass.Device.Major.COMPUTER &&
-                    (minorDeviceClass == BluetoothClass.Device.Major.PHONE ||
-                            deviceClass.hasService(BluetoothClass.Service.TELEPHONY)) -> true
-
-            // Uncategorized but has telephony or networking services (modern smartphones)
-            majorDeviceClass == BluetoothClass.Device.Major.UNCATEGORIZED &&
-                    (deviceClass.hasService(BluetoothClass.Service.TELEPHONY) ||
-                            deviceClass.hasService(BluetoothClass.Service.NETWORKING)) -> true
-
-            else -> false
-        }
-
-        // Log detailed device class information
-        AppLogger.d("Device '${device.name}': " +
-                "MajorClass=$majorDeviceClass (${getDeviceClassString(majorDeviceClass)}), " +
-                "MinorClass=$minorDeviceClass, " +
-                "HasTelephony=${deviceClass.hasService(BluetoothClass.Service.TELEPHONY)}, " +
-                "HasNetworking=${deviceClass.hasService(BluetoothClass.Service.NETWORKING)}, " +
-                "IsPhone=$isPhone")
-
-        return isPhone
-    }
-
-    // Helper function to get human readable device class string
-    private fun getDeviceClassString(majorDeviceClass: Int): String {
-        return when (majorDeviceClass) {
-            BluetoothClass.Device.Major.AUDIO_VIDEO -> "Audio/Video"
-            BluetoothClass.Device.Major.COMPUTER -> "Computer"
-            BluetoothClass.Device.Major.HEALTH -> "Health"
-            BluetoothClass.Device.Major.IMAGING -> "Imaging"
-            BluetoothClass.Device.Major.MISC -> "Miscellaneous"
-            BluetoothClass.Device.Major.NETWORKING -> "Networking"
-            BluetoothClass.Device.Major.PERIPHERAL -> "Peripheral"
-            BluetoothClass.Device.Major.PHONE -> "Phone"
-            BluetoothClass.Device.Major.TOY -> "Toy"
-            BluetoothClass.Device.Major.UNCATEGORIZED -> "Uncategorized"
-            BluetoothClass.Device.Major.WEARABLE -> "Wearable"
-            else -> "Unknown($majorDeviceClass)"
-        }
+        AppUtils.scanPairedPhoneDevices(this, devices, deviceNames, deviceTypes, adapter)
     }
 
     @SuppressLint("MissingPermission")
     private fun startBluetoothTransfer(targetDevice: BluetoothDevice) {
         loadingDialog.show()
-        loadingDialog.setMessage("Mengirim data ke ${targetDevice.name ?: "Perangkat Tidak Dikenal"}...", true)
+        loadingDialog.setMessage(
+            "Mengirim data ke ${targetDevice.name ?: "Perangkat Tidak Dikenal"}...",
+            true
+        )
 
         Thread {
             var bluetoothSocket: BluetoothSocket? = null
@@ -976,7 +855,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 bluetoothAdapter?.cancelDiscovery()
 
                 runOnUiThread {
-                    loadingDialog.setMessage("Membuat koneksi ke ${targetDevice.name ?: "Perangkat"}...", true)
+                    loadingDialog.setMessage(
+                        "Membuat koneksi ke ${targetDevice.name ?: "Perangkat"}...",
+                        true
+                    )
                 }
 
                 // Try multiple connection methods
@@ -985,7 +867,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 } catch (e: Exception) {
                     // Fallback method for some devices
                     AppLogger.d("Primary connection failed, trying fallback method")
-                    val method = targetDevice.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                    val method = targetDevice.javaClass.getMethod(
+                        "createRfcommSocket",
+                        Int::class.javaPrimitiveType
+                    )
                     method.invoke(targetDevice, 1) as BluetoothSocket
                 }
 
@@ -1018,7 +903,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                 while (bytesSent < dataBytes.size) {
                     val remainingBytes = dataBytes.size - bytesSent
-                    val currentChunkSize = if (remainingBytes < chunkSize) remainingBytes else chunkSize
+                    val currentChunkSize =
+                        if (remainingBytes < chunkSize) remainingBytes else chunkSize
 
                     // Send chunk
                     outputStream.write(dataBytes, bytesSent, currentChunkSize)
@@ -1043,7 +929,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                 // UPDATE: Listen for feedback from receiver
                 runOnUiThread {
-                    loadingDialog.setMessage("Menunggu response dari ${targetDevice.name ?: "perangkat"}...", true)
+                    loadingDialog.setMessage(
+                        "Menunggu response dari ${targetDevice.name ?: "perangkat"}...",
+                        true
+                    )
                 }
 
                 // Listen for feedback
@@ -1058,7 +947,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                         if (inputStream.available() > 0) {
                             val bytes = inputStream.read(feedbackBuffer)
                             if (bytes > 0) {
-                                val receivedFeedback = String(feedbackBuffer, 0, bytes, Charsets.UTF_8)
+                                val receivedFeedback =
+                                    String(feedbackBuffer, 0, bytes, Charsets.UTF_8)
                                 feedbackBuilder.append(receivedFeedback)
 
                                 val feedbackData = feedbackBuilder.toString()
@@ -1066,12 +956,17 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                                 AppLogger.d("Total feedback so far: $feedbackData")
 
                                 // Check for feedback markers
-                                if (feedbackData.contains("FEEDBACK_START") && feedbackData.contains("FEEDBACK_END")) {
-                                    val startIndex = feedbackData.indexOf("FEEDBACK_START") + "FEEDBACK_START".length
+                                if (feedbackData.contains("FEEDBACK_START") && feedbackData.contains(
+                                        "FEEDBACK_END"
+                                    )
+                                ) {
+                                    val startIndex =
+                                        feedbackData.indexOf("FEEDBACK_START") + "FEEDBACK_START".length
                                     val endIndex = feedbackData.indexOf("FEEDBACK_END")
 
                                     if (startIndex > 0 && endIndex > startIndex) {
-                                        val feedbackJson = feedbackData.substring(startIndex, endIndex).trim()
+                                        val feedbackJson =
+                                            feedbackData.substring(startIndex, endIndex).trim()
 
                                         AppLogger.d("Complete feedback JSON received: $feedbackJson")
 
@@ -1079,7 +974,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                                         runOnUiThread {
                                             loadingDialog.dismiss()
-                                            processFeedbackFromReceiver(feedbackJson, targetDevice.name)
+                                            processFeedbackFromReceiver(
+                                                feedbackJson,
+                                                targetDevice.name
+                                            )
                                         }
 
                                         break
@@ -1093,7 +991,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             // Update waiting message with countdown
                             val remainingTime = maxFeedbackAttempts - feedbackAttempts
                             runOnUiThread {
-                                loadingDialog.setMessage("Menunggu response dari ${targetDevice.name ?: "perangkat"}... ($remainingTime detik)", true)
+                                loadingDialog.setMessage(
+                                    "Menunggu response dari ${targetDevice.name ?: "perangkat"}... ($remainingTime detik)",
+                                    true
+                                )
                             }
                         }
                     } catch (e: Exception) {
@@ -1136,14 +1037,19 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     val errorMessage = when {
                         e.message?.contains("read failed") == true ->
                             "Koneksi terputus saat transfer. Pastikan kedua perangkat dalam jarak dekat dan Mandor panen Scan Data dengan Transfer Bluetooth"
+
                         e.message?.contains("Service discovery failed") == true ->
                             "Perangkat tidak mendukung layanan transfer data"
+
                         e.message?.contains("Connection refused") == true ->
                             "Koneksi ditolak. Pastikan perangkat penerima siap menerima data"
+
                         e.message?.contains("Device or resource busy") == true ->
                             "Perangkat sedang sibuk. Tutup aplikasi Bluetooth lain dan coba lagi"
+
                         e.message?.contains("timeout") == true ->
                             "Koneksi timeout. Pastikan kedua perangkat dalam jarak dekat"
+
                         else -> "Gagal mengirim data: ${e.message}"
                     }
 
@@ -1170,6 +1076,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             }
         }.start()
     }
+
     // Updated function to process both saved and duplicate data for archiving
     private suspend fun verifyAndUpdateAllTransferredData(
         savedData: List<Map<String, Any>>?,
@@ -1203,7 +1110,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 AppLogger.d("Verifying transferred record: tph_id=$transferredTphId, date_created=$transferredDateCreated, karyawan_nama=$transferredKaryawanNama, karyawan_nik=$transferredKaryawanNik")
 
                 if (transferredTphId.isNullOrEmpty() || transferredDateCreated.isNullOrEmpty() ||
-                    transferredKaryawanNama.isNullOrEmpty() || transferredKaryawanNik.isNullOrEmpty()) {
+                    transferredKaryawanNama.isNullOrEmpty() || transferredKaryawanNik.isNullOrEmpty()
+                ) {
                     errorMessages.add("Invalid transferred record: missing required fields")
                     return@forEach
                 }
@@ -1260,7 +1168,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         if (idsToUpdate.isNotEmpty()) {
             withContext(Dispatchers.Main) {
                 try {
-                    panenViewModel.updateArchiveTransferInspeksiPanenStatusByIds(idsToUpdate, 1)
+                    panenViewModel.updateArchiveByFeature(featureName, idsToUpdate, 1)
                     AppLogger.d("Updated archive status for ${idsToUpdate.size} ALL transferred records: $idsToUpdate")
                 } catch (e: Exception) {
                     AppLogger.e("Error updating archive status: ${e.message}")
@@ -1299,7 +1207,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                     lifecycleScope.launch {
                         try {
                             // Verify and update archive status for ALL transferred data (saved + duplicates)
-                            val verificationResult = verifyAndUpdateAllTransferredData(savedData, duplicateData)
+                            val verificationResult =
+                                verifyAndUpdateAllTransferredData(savedData, duplicateData)
 
                             // Hide loading dialog
                             loadingDialog.dismiss()
@@ -1308,7 +1217,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             playSound(R.raw.berhasil_simpan)
 
                             // Calculate total transferred
-                            val totalTransferred = (savedCount?.toInt() ?: 0) + (duplicateCount?.toInt() ?: 0)
+                            val totalTransferred =
+                                (savedCount?.toInt() ?: 0) + (duplicateCount?.toInt() ?: 0)
 
                             val baseMessage = if (verificationResult.verifiedCount > 0) {
                                 "Data berhasil dikirim dan disimpan di ${deviceName ?: "perangkat penerima"}!\n\n${verificationResult.verifiedCount} item diarsipkan"
@@ -1321,16 +1231,20 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                                 savedCount != null && duplicateCount != null && duplicateCount > 0 -> {
                                     "$baseMessage\n\nDetail transfer:\n• ${savedCount.toInt()} data baru disimpan\n• ${duplicateCount.toInt()} data duplikat dilewati"
                                 }
+
                                 savedCount != null -> {
                                     "$baseMessage\n\n${savedCount.toInt()} data baru disimpan"
                                 }
+
                                 else -> baseMessage
                             }
 
                             // Determine color based on whether there were duplicates
                             val hasDuplicates = (duplicateCount?.toInt() ?: 0) > 0
-                            val alertColor = if (hasDuplicates) R.color.orange else R.color.greenDarker
-                            val alertTitle = if (hasDuplicates) "Transfer & Arsip Berhasil dengan Duplikat" else "Transfer & Arsip Data Berhasil"
+                            val alertColor =
+                                if (hasDuplicates) R.color.orange else R.color.greenDarker
+                            val alertTitle =
+                                if (hasDuplicates) "Transfer & Arsip Berhasil dengan Duplikat" else "Transfer & Arsip Data Berhasil"
 
                             AlertDialogUtility.withSingleAction(
                                 this@ListFollowUpInspeksi,
@@ -1378,13 +1292,15 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                         try {
                             // Extract duplicate data from error details and verify
                             val duplicateDataFromError = extractDataFromErrorDetails(error ?: "")
-                            val verificationResult = verifyAndUpdateAllTransferredData(null, duplicateDataFromError)
+                            val verificationResult =
+                                verifyAndUpdateAllTransferredData(null, duplicateDataFromError)
 
                             // Hide loading dialog
                             loadingDialog.dismiss()
 
                             val errorDetail = error ?: "Unknown error"
-                            val processedErrorMessage = processErrorDuplicateDetails(errorDetail, deviceName)
+                            val processedErrorMessage =
+                                processErrorDuplicateDetails(errorDetail, deviceName)
 
                             // Enhanced message with verification results
                             val finalMessage = if (verificationResult.verifiedCount > 0) {
@@ -1415,7 +1331,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                             // Fallback to original error handling without verification
                             val errorDetail = error ?: "Unknown error"
-                            val processedErrorMessage = processErrorDuplicateDetails(errorDetail, deviceName)
+                            val processedErrorMessage =
+                                processErrorDuplicateDetails(errorDetail, deviceName)
 
                             AlertDialogUtility.withSingleAction(
                                 this@ListFollowUpInspeksi,
@@ -1499,7 +1416,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                             if (matchingLocalRecord != null) {
                                 // Extract TPH details from the mapped data
-                                val blokKode = matchingLocalRecord["blok_name"] as? String ?: "Unknown"
+                                val blokKode =
+                                    matchingLocalRecord["blok_name"] as? String ?: "Unknown"
                                 val tphNomor = matchingLocalRecord["nomor"] as? String ?: "Unknown"
 
                                 AppLogger.d("Found matching error duplicate - Blok: $blokKode, Nomor: $tphNomor, Date: $dateCreated")
@@ -1530,7 +1448,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             "Data duplikat terdeteksi"
         }
 
-        val finalMessage = "Data berhasil dikirim ke ${deviceName ?: "perangkat"} namun data duplikat:\n\n$duplicateDetails"
+        val finalMessage =
+            "Data berhasil dikirim ke ${deviceName ?: "perangkat"} namun data duplikat:\n\n$duplicateDetails"
         AppLogger.d("Final error message with TPH details: $finalMessage")
 
         return finalMessage
@@ -1567,7 +1486,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             val mockTransferredRecord = mapOf(
                                 "tph_id" to tphId,
                                 "date_created" to dateCreated,
-                                "karyawan_nama" to (matchingRecord["karyawan_nama"] as? String ?: ""),
+                                "karyawan_nama" to (matchingRecord["karyawan_nama"] as? String
+                                    ?: ""),
                                 "karyawan_nik" to (matchingRecord["karyawan_nik"] as? String ?: "")
                             )
                             extractedData.add(mockTransferredRecord)
@@ -2860,10 +2780,14 @@ class ListFollowUpInspeksi : AppCompatActivity() {
 
                             val blokSection = findViewById<LinearLayout>(R.id.blok_section)
                             blokSection.visibility = View.VISIBLE
-                            btnGenerateQRTPH.visibility = if (currentState == 0) View.VISIBLE else View.GONE
-                            btnTransferBT.visibility = if (currentState == 0) View.VISIBLE else View.GONE
-                            tvTransferBT.visibility = if (currentState == 0) View.VISIBLE else View.GONE
-                            tvGenQRInspect.visibility = if (currentState == 0) View.VISIBLE else View.GONE
+                            btnGenerateQRTPH.visibility =
+                                if (currentState == 0) View.VISIBLE else View.GONE
+                            btnTransferBT.visibility =
+                                if (currentState == 0) View.VISIBLE else View.GONE
+                            tvTransferBT.visibility =
+                                if (currentState == 0) View.VISIBLE else View.GONE
+                            tvGenQRInspect.visibility =
+                                if (currentState == 0) View.VISIBLE else View.GONE
                             tvEmptyState.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
 
@@ -2876,8 +2800,10 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                             tvEmptyState.text = "Tidak ada data pencarian"
                             btnGenerateQRTPH.visibility = View.GONE
                             btnTransferBT.visibility = View.GONE
-                            tvTransferBT.visibility = if (currentState == 0) View.VISIBLE else View.GONE
-                            tvGenQRInspect.visibility = if (currentState == 0) View.VISIBLE else View.GONE
+                            tvTransferBT.visibility =
+                                if (currentState == 0) View.VISIBLE else View.GONE
+                            tvGenQRInspect.visibility =
+                                if (currentState == 0) View.VISIBLE else View.GONE
                             tvEmptyState.visibility = View.VISIBLE
                             recyclerView.visibility = View.GONE
                         }
@@ -3013,8 +2939,6 @@ class ListFollowUpInspeksi : AppCompatActivity() {
             null // Return null instead of throwing exception
         }
     }
-
-
 
 
     private fun updateTableHeaders(headerNames: List<String>) {

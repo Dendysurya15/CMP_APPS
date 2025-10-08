@@ -262,10 +262,14 @@ class AppRepository(context: Context) {
     }
 
 
-    suspend fun updateArchiveTransferInspeksiPanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) = withContext(Dispatchers.IO) {
+    suspend fun updateArchiveByFeature(
+        featureName: String,
+        recordIds: List<Int>,
+        archiveStatus: Int
+    ) = withContext(Dispatchers.IO) {
         try {
-            panenDao.updateArchiveTransferInspeksiPanenStatusByIds(recordIds, archiveStatus)
-            AppLogger.d("Repository: Updated archive status for ${recordIds.size} records")
+            panenDao.updateArchiveByFeature(featureName, recordIds, archiveStatus)
+            AppLogger.d("Repository: Updated archive status for ${recordIds.size} records with feature: $featureName")
         } catch (e: Exception) {
             AppLogger.e("Repository error updating archive status: ${e.message}")
             throw e
@@ -1319,6 +1323,7 @@ class AppRepository(context: Context) {
                         AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
                         AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
                         AppLogger.d("   asistensi: '${tphData.asistensi}' vs '${existingRecord.panen.asistensi}' → ${tphData.asistensi == existingRecord.panen.asistensi}")
+                        AppLogger.d("   asistensi_divisi: '${tphData.asistensi_divisi}' vs '${existingRecord.panen.asistensi_divisi}' → ${tphData.asistensi_divisi == existingRecord.panen.asistensi_divisi}")
 
                         // Helper function to check if a value should be ignored
                         fun shouldIgnoreValue(value: String?): Boolean {
@@ -1357,11 +1362,15 @@ class AppRepository(context: Context) {
                         }
                         AppLogger.d("   ancak: '${tphData.ancak}' vs '${existingRecord.panen.ancak}' → $ancakMatches ${if (incomingAncak == null) "(skipped - incoming NULL/empty)" else ""}")
 
+                        // Check asistensi_divisi match
+                        val asistensiDivisiMatches = tphData.asistensi_divisi == existingRecord.panen.asistensi_divisi
+
                         val isExactDuplicate = (
                                 tphData.namaBlok == existingRecord.tph?.id.toString() &&
                                         tphData.time == existingRecord.panen.date_created &&
                                         tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen &&
                                         tphData.asistensi == existingRecord.panen.asistensi &&
+                                        asistensiDivisiMatches &&
                                         usernameMatches &&
                                         jjgMatches &&
                                         tipePanenMatches &&
@@ -1379,7 +1388,8 @@ class AppRepository(context: Context) {
                                 panen = existingRecord.panen.copy(
                                     nomor_pemanen = if (tphData.nomor_pemanen != 0)
                                         tphData.nomor_pemanen else existingRecord.panen.nomor_pemanen,
-                                        asistensi = tphData.asistensi,
+                                    asistensi = tphData.asistensi,
+                                    asistensi_divisi = tphData.asistensi_divisi,
                                     username = if (!shouldIgnoreValue(tphData.username))
                                         tphData.username else existingRecord.panen.username,
                                     jjg_json = if (!shouldIgnoreValue(tphData.jjg))
@@ -1416,6 +1426,7 @@ class AppRepository(context: Context) {
                                 foto = "",
                                 komentar = "",
                                 asistensi = tphData.asistensi,
+                                asistensi_divisi = tphData.asistensi_divisi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = 0,
@@ -1450,8 +1461,6 @@ class AppRepository(context: Context) {
                 AppLogger.d("==========================")
 
                 // Create result based on what happened
-                // In your saveTPHDataList function, change the result handling:
-
                 when {
                     duplicates.isEmpty() && updatedIds.isEmpty() -> {
                         // All items were saved as new records
@@ -1462,7 +1471,7 @@ class AppRepository(context: Context) {
                     duplicates.isEmpty() && savedIds.isEmpty() -> {
                         // All items were updates of existing records
                         AppLogger.d("All ${updatedIds.size} items were updates!")
-                        Result.success(SaveTPHResult.AllSuccess(updatedIds)) // or create AllUpdated if you prefer
+                        Result.success(SaveTPHResult.AllSuccess(updatedIds))
                     }
 
                     savedIds.isEmpty() && updatedIds.isEmpty() -> {
@@ -1491,7 +1500,7 @@ class AppRepository(context: Context) {
                         AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.PartialSuccess(
-                                savedIds = savedIds + updatedIds, // combine both lists
+                                savedIds = savedIds + updatedIds,
                                 duplicateCount = duplicates.size,
                                 duplicateInfo = duplicateInfo
                             )

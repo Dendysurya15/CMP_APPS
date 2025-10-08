@@ -7,6 +7,10 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -35,6 +39,7 @@ import android.view.Window
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -42,6 +47,8 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -66,9 +73,11 @@ import com.cbi.mobile_plantation.ui.adapter.ListPanenTPHAdapter
 import com.cbi.mobile_plantation.ui.adapter.TPHItem
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.adapter.detailESPBListTPHAdapter
+import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity.VerificationResult
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.espb.FormESPBActivity
 import com.cbi.mobile_plantation.ui.view.ScanQR
+
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.MutuBuahViewModel
@@ -79,6 +88,7 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
+import com.cbi.mobile_plantation.utils.BluetoothScanner
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScreenshotUtil
@@ -117,6 +127,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 @Suppress("IMPLICIT_CAST_TO_ANY")
 class ListPanenTBSActivity : AppCompatActivity() {
@@ -162,7 +173,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var userName: String? = null
     private var estateName: String? = null
     private var jabatanUser: String? = null
-    private var afdelingUser: String? = null
     private lateinit var btnAddMoreTph: FloatingActionButton
     private var tph1IdPanen = ""
     private var tph1NoIdPanen = ""
@@ -205,6 +215,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
         }
     }
+    private lateinit var bluetoothScanner: BluetoothScanner
+    private var bluetoothJsonData: String = ""
+    private var bluetoothDataInfo: String = ""
+    companion object {
+        private const val REQUEST_ENABLE_BT = 1
+    }
+    private var bluetoothAdapter: BluetoothAdapter? = null
     private var shouldRestoreCheckboxState = false
     private var previouslySelectedTphIds = mutableSetOf<String>()
     private val dateIndexMap = mutableMapOf<String, Int>()
@@ -477,6 +494,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupObservers()
+        bluetoothScanner = BluetoothScanner(this)
         if (featureName != "Buat eSPB" && featureName != "Detail eSPB") {
             setupSpeedDial()
             setupCheckboxControl()  // Add this
@@ -798,6 +816,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
 
         setupButtonGenerateQR()
+        setupTransferBT()
 
         if (featureName == "Buat eSPB") {
             btnAddMoreTph = FloatingActionButton(this)
@@ -1242,6 +1261,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             ?: throw IllegalArgumentException("Missing nomor_pemanen.")
                         val asistensi = data["asistensi"]?.toString()
                             ?: throw IllegalArgumentException("Missing asistensi.")
+                        val asistensiDivisi = data["asistensi_divisi"]?.toString() ?: "0"
                         val jjgJsonString = data["jjg_json"]?.toString()
                             ?: throw IllegalArgumentException("Missing jjg_json.")
                         val jjgJson = try {
@@ -1268,8 +1288,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val time = dateParts[1]  // 13:15:18
 
                         // Use dateIndexMap.size as the index for new dates
-                        // Format: tphId,dateIndex,time,toValue,nomorPemanen,asistensi;
-                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue,$nomorPemanen,$asistensi;")
+                        // Format: tphId,dateIndex,time,toValue,nomorPemanen,asistensi,asistensiDivisi;
+                        append("$tphId,${dateIndexMap.getOrPut(date) { dateIndexMap.size }},${time},$toValue,$nomorPemanen,$asistensi,$asistensiDivisi;")
                     } catch (e: Exception) {
                         throw IllegalArgumentException("Error processing data entry: ${e.message}")
                     }
@@ -1657,6 +1677,1046 @@ class ListPanenTBSActivity : AppCompatActivity() {
         Log.d("ListPanenTBSActivityESPB", "Final tph1: $tph1")
         Log.d("ListPanenTBSActivityESPB", "Final tph1IdPanen: $tph1IdPanen")
 
+    }
+
+    private fun setupTransferBT(){
+        val btnTransferBT = findViewById<FloatingActionButton>(R.id.btnTransferBT)
+        btnTransferBT.setOnClickListener {
+            checkBluetoothAndShowDialog()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun checkBluetoothAndShowDialog() {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothAdapter = bluetoothManager.adapter
+
+        when {
+            bluetoothAdapter == null -> {
+                // Device doesn't support Bluetooth
+                Toast.makeText(this, "Perangkat ini tidak mendukung Bluetooth", Toast.LENGTH_SHORT)
+                    .show()
+            }
+
+            !bluetoothAdapter.isEnabled -> {
+                // Bluetooth is not enabled, ask user to enable it
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Aktifkan",
+                    "Bluetooth Nonaktif",
+                    "Aktifkan Bluetooth untuk memindai perangkat",
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = {
+                        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                        startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
+                    },
+                    cancelFunction = {
+                        // User cancelled enabling Bluetooth
+                    }
+                )
+            }
+
+            else -> {
+                // Bluetooth is enabled, proceed with scanning
+                generateJsonAndShowBluetoothDialog()
+            }
+        }
+    }
+
+    private fun generateJsonAndShowBluetoothDialog() {
+        // Show loading dialog while generating JSON
+        loadingDialog.show()
+        loadingDialog.setMessage("Menyiapkan data untuk transfer...", true)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            delay(500)
+            try {
+                // DEBUG: Check mappedData first
+                AppLogger.d("DEBUG: mappedData size = ${mappedData?.size ?: "NULL"}")
+                AppLogger.d("DEBUG: mappedData content = $mappedData")
+
+                if (mappedData.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()
+                        Toast.makeText(
+                            this@ListPanenTBSActivity,
+                            "Tidak ada data untuk ditransfer. Pastikan data sudah dimuat.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                // Generate JSON data for all items
+                val effectiveLimit = mappedData.size
+
+                val jsonData = try {
+                    // Take all items for Bluetooth transfer
+                    val limitedData = mappedData.take(effectiveLimit)
+                    AppLogger.d("DEBUG: limitedData size = ${limitedData.size}")
+                    formatPanenDataForQR(limitedData)
+                } catch (e: Exception) {
+                    AppLogger.e("Error generating JSON data for Bluetooth: ${e.message}")
+                    throw e
+                }
+
+                AppLogger.d("Original JSON data: $jsonData")
+
+                // ENCODE THE JSON DATA BEFORE SENDING
+                val encodedData = try {
+                    encodeJsonToBase64ZipQR(jsonData)
+                        ?: throw Exception("Encoding failed - data too large or invalid")
+                } catch (e: Exception) {
+                    AppLogger.e("Error encoding data for Bluetooth: ${e.message}")
+                    withContext(Dispatchers.Main) {
+                        loadingDialog.dismiss()
+                        Toast.makeText(
+                            this@ListPanenTBSActivity,
+                            "Terjadi kesalah ketika hash data ke Base64: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                AppLogger.d("Encoded data size: ${encodedData.length} characters")
+
+                // Get processed data info for display
+                val limitedData = mappedData.take(effectiveLimit)
+                val processedData = AppUtils.getPanenProcessedData(limitedData, featureName)
+
+                // DEBUG: Check processed data
+                AppLogger.d("DEBUG: processedData = $processedData")
+                AppLogger.d("DEBUG: featureName = $featureName")
+
+                // Store the ENCODED data for transfer instead of raw JSON
+                bluetoothJsonData = encodedData
+
+                val capitalizedFeatureName = featureName?.split(" ")?.joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                } ?: "Unknown Feature"
+
+                bluetoothDataInfo = """
+            Data $capitalizedFeatureName:
+            • Blok: ${processedData["blokDisplay"] ?: "N/A"}
+            • Total JJG: ${processedData["totalJjgCount"] ?: "0"}
+            • Total TPH: ${processedData["tphCount"] ?: "0"}
+            • Size: ${String.format("%.2f", encodedData.length / 1024.0)} KB (encoded)
+        """.trimIndent()
+
+                AppLogger.d("DEBUG: bluetoothDataInfo = $bluetoothDataInfo")
+
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
+                    // Now show Bluetooth devices dialog
+                    showBluetoothDevicesDialog()
+                }
+
+            } catch (e: Exception) {
+                AppLogger.e("Error in Bluetooth JSON generation: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismiss()
+                    Toast.makeText(
+                        this@ListPanenTBSActivity,
+                        "Gagal menyiapkan data untuk transfer: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun showBluetoothDevicesDialog() {
+        val devices = mutableListOf<BluetoothDevice>()
+        val deviceNames = mutableListOf<String>()
+        val deviceTypes = mutableMapOf<String, String>() // Store device type info
+        var isScanning = false
+
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val dialogView = layoutInflater.inflate(R.layout.layout_bluetooth_scanner, null)
+        bottomSheetDialog.setContentView(dialogView)
+
+        // Use the SAME working pattern as your receiver
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.7).toInt()
+
+        bottomSheetDialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            ?.let { bottomSheet ->
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+
+                behavior.apply {
+                    this.peekHeight = maxHeight
+                    this.state = BottomSheetBehavior.STATE_EXPANDED
+                    this.isFitToContents = true
+                    this.isDraggable = false
+                    this.isHideable = false
+                }
+
+                bottomSheet.layoutParams?.height = maxHeight
+            }
+
+        val listView = dialogView.findViewById<ListView>(R.id.lvBluetoothDevices)
+        val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
+        val tvStatus = dialogView.findViewById<TextView>(R.id.tvStatus)
+        val btnScanStop = dialogView.findViewById<Button>(R.id.btnScanStop)
+        val btnClose = dialogView.findViewById<Button>(R.id.btnClose)
+        val tvDataInfo = dialogView.findViewById<TextView>(R.id.tvDataInfo)
+
+        val titleDialogBluetooth = dialogView.findViewById<TextView>(R.id.titleDialogBluetooth)
+        titleDialogBluetooth.text = "Scan Perangkat $featureName"
+
+        // UPDATE THE tvDataInfo WITH THE CALCULATED DATA
+        tvDataInfo.text = bluetoothDataInfo
+        AppLogger.d("UI UPDATE: Setting tvDataInfo.text = $bluetoothDataInfo")
+
+        val adapter = ArrayAdapter(this, R.layout.bluetooth_device_item, deviceNames)
+        listView.adapter = adapter
+
+        // Prevent outside touch dismissal
+        bottomSheetDialog.setCanceledOnTouchOutside(false)
+
+        // Handle dialog dismissal cleanup
+        bottomSheetDialog.setOnDismissListener {
+            bluetoothScanner.stopScan()
+            bluetoothScanner.onDeviceFound = null
+            bluetoothScanner.onDiscoveryFinished = null
+        }
+
+        btnScanStop.setOnClickListener {
+            if (!isScanning) {
+                devices.clear()
+                deviceNames.clear()
+                deviceTypes.clear()
+                adapter.notifyDataSetChanged()
+                progressBar.visibility = View.VISIBLE
+                tvStatus.text = "Mencari perangkat yang sudah dipasangkan..."
+                btnScanStop.text = "Stop"
+                btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.colorRedDark))
+                isScanning = true
+
+                // Only scan for paired phone devices
+                scanPairedPhoneDevices(devices, deviceNames, deviceTypes, adapter)
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    progressBar.visibility = View.GONE
+                    // ✅ CHECK IF NO DEVICES FOUND AND SHOW HELPFUL MESSAGE
+                    if (devices.size == 0) {
+                        tvStatus.text =
+                            "Selesai - 0 perangkat ditemukan\n(Pastikan perangkat sudah tersambung melalui Bluetooth)"
+                    } else {
+                        tvStatus.text = "Selesai - ${devices.size} perangkat ditemukan"
+                    }
+                    btnScanStop.text = "Scan"
+                    btnScanStop.setBackgroundColor(
+                        ContextCompat.getColor(
+                            this,
+                            R.color.bluedarklight
+                        )
+                    )
+                    isScanning = false
+                }, 1000)
+            } else {
+                bluetoothScanner.stopScan()
+                progressBar.visibility = View.GONE
+                tvStatus.text = "Scan stopped - Found ${devices.size} device(s)"
+                btnScanStop.text = "Scan"
+                btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.bluedarklight))
+                isScanning = false
+            }
+        }
+
+        btnClose.setOnClickListener {
+            bluetoothScanner.stopScan()
+            bottomSheetDialog.dismiss()
+        }
+
+        bluetoothScanner.onDeviceFound = { device ->
+            runOnUiThread {
+                val deviceName = getDeviceName(device)
+                val deviceAddress = device.address
+
+                AppLogger.d("Found device: Name='$deviceName', Address='$deviceAddress'")
+
+                // Check if device already exists (avoid duplicates)
+                val existingIndex = devices.indexOfFirst { it.address == deviceAddress }
+                if (existingIndex == -1) {
+                    val deviceInfo = formatDeviceInfo(deviceName, deviceAddress)
+                    devices.add(device)
+                    deviceNames.add(deviceInfo)
+                    adapter.notifyDataSetChanged()
+                    tvStatus.text = "Ditemukan ${devices.size} perangkat"
+                } else {
+                    // Update existing device info if we got a better name
+                    val currentName = deviceNames[existingIndex]
+                    if (currentName.contains("Unknown") && !deviceName.contains("Unknown")) {
+                        val updatedInfo = formatDeviceInfo(deviceName, deviceAddress)
+                        deviceNames[existingIndex] = updatedInfo
+                        adapter.notifyDataSetChanged()
+                        AppLogger.d("Updated device name: $updatedInfo")
+                    }
+                }
+            }
+        }
+
+        bluetoothScanner.onDiscoveryFinished = { allDevices ->
+            runOnUiThread {
+                progressBar.visibility = View.GONE
+                if (allDevices.isEmpty() && devices.isEmpty()) {
+                    tvStatus.text = "Tidak ada perangkat ditemukan"
+                } else {
+                    tvStatus.text = "Pemindaian selesai - ${devices.size} perangkat ditemukan"
+                }
+                btnScanStop.text = "Scan"
+                btnScanStop.setBackgroundColor(ContextCompat.getColor(this, R.color.bluedarklight))
+                isScanning = false
+            }
+        }
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val selectedDevice = devices[position]
+            val deviceInfo = deviceNames[position]
+
+            // Show confirmation dialog before transfer
+            AlertDialogUtility.withTwoActions(
+                this@ListPanenTBSActivity,
+                "Kirim Data",
+                "Konfirmasi Transfer Hektaran Panen",
+                "Kirim data ke:\n$deviceInfo\n\n$bluetoothDataInfo",
+                "warning.json",
+                ContextCompat.getColor(this@ListPanenTBSActivity, R.color.bluedarklight),
+                function = {
+                    // User confirmed - start the transfer
+                    bluetoothScanner.stopScan()
+                    bottomSheetDialog.dismiss()
+                    startBluetoothTransfer(selectedDevice)
+                },
+                cancelFunction = {
+                    // User cancelled - just close dialog and continue scanning
+                }
+            )
+        }
+
+        bottomSheetDialog.show()
+        btnScanStop.performClick()
+    }
+
+    private fun getDeviceName(device: BluetoothDevice): String {
+        return AppUtils.getDeviceName(device, this)
+    }
+
+    private fun formatDeviceInfo(name: String, address: String): String {
+        return AppUtils.formatDeviceInfo(name, address)
+    }
+
+    private fun scanPairedPhoneDevices(
+        devices: MutableList<BluetoothDevice>,
+        deviceNames: MutableList<String>,
+        deviceTypes: MutableMap<String, String>,
+        adapter: ArrayAdapter<String>
+    ) {
+        AppUtils.scanPairedPhoneDevices(this, devices, deviceNames, deviceTypes, adapter)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startBluetoothTransfer(targetDevice: BluetoothDevice) {
+        loadingDialog.show()
+        loadingDialog.setMessage(
+            "Mengirim data ke ${targetDevice.name ?: "Perangkat Tidak Dikenal"}...",
+            true
+        )
+
+        Thread {
+            var bluetoothSocket: BluetoothSocket? = null
+            var feedbackReceived = false // Add this flag
+
+            try {
+                val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+                // Cancel any ongoing discovery first
+                bluetoothAdapter?.cancelDiscovery()
+
+                runOnUiThread {
+                    loadingDialog.setMessage(
+                        "Membuat koneksi ke ${targetDevice.name ?: "Perangkat"}...",
+                        true
+                    )
+                }
+
+                // Try multiple connection methods
+                bluetoothSocket = try {
+                    targetDevice.createRfcommSocketToServiceRecord(uuid)
+                } catch (e: Exception) {
+                    // Fallback method for some devices
+                    AppLogger.d("Primary connection failed, trying fallback method")
+                    val method = targetDevice.javaClass.getMethod(
+                        "createRfcommSocket",
+                        Int::class.javaPrimitiveType
+                    )
+                    method.invoke(targetDevice, 1) as BluetoothSocket
+                }
+
+                runOnUiThread {
+                    loadingDialog.setMessage("Menghubungkan...", true)
+                }
+
+                // Set connection timeout and connect
+                bluetoothSocket!!.connect()
+
+                // Wait for connection to stabilize
+                Thread.sleep(1000)
+
+                runOnUiThread {
+                    loadingDialog.setMessage("Terhubung! Mengirim data...", true)
+                }
+
+                // Send data with proper formatting
+                val outputStream = bluetoothSocket.outputStream
+
+                // Add a simple header and footer to mark start/end of transmission
+                val dataToSend = "START_DATA\n$bluetoothJsonData\nEND_DATA"
+                val dataBytes = dataToSend.toByteArray(Charsets.UTF_8)
+
+                AppLogger.d("Sending ${dataBytes.size} bytes of data")
+
+                // Send data in smaller chunks with delays
+                val chunkSize = 512 // Smaller chunks for better reliability
+                var bytesSent = 0
+
+                while (bytesSent < dataBytes.size) {
+                    val remainingBytes = dataBytes.size - bytesSent
+                    val currentChunkSize =
+                        if (remainingBytes < chunkSize) remainingBytes else chunkSize
+
+                    // Send chunk
+                    outputStream.write(dataBytes, bytesSent, currentChunkSize)
+                    outputStream.flush()
+
+                    bytesSent += currentChunkSize
+
+                    val progress = (bytesSent * 100) / dataBytes.size
+                    runOnUiThread {
+                        loadingDialog.setMessage("Mengirim data... $progress%", true)
+                    }
+
+                    // Longer delay between chunks for stability
+                    Thread.sleep(100)
+                }
+
+                // Send final flush and wait for processing
+                outputStream.flush()
+                Thread.sleep(1000) // Give receiver time to process
+
+                AppLogger.d("Data sent successfully, now waiting for feedback...")
+
+                // UPDATE: Listen for feedback from receiver
+                runOnUiThread {
+                    loadingDialog.setMessage(
+                        "Menunggu response dari ${targetDevice.name ?: "perangkat"}...",
+                        true
+                    )
+                }
+
+                // Listen for feedback
+                val inputStream = bluetoothSocket.inputStream
+                val feedbackBuffer = ByteArray(2048)
+                val feedbackBuilder = StringBuilder()
+                var feedbackAttempts = 0
+                val maxFeedbackAttempts = 30 // 30 seconds timeout
+
+                while (!feedbackReceived && feedbackAttempts < maxFeedbackAttempts) {
+                    try {
+                        if (inputStream.available() > 0) {
+                            val bytes = inputStream.read(feedbackBuffer)
+                            if (bytes > 0) {
+                                val receivedFeedback =
+                                    String(feedbackBuffer, 0, bytes, Charsets.UTF_8)
+                                feedbackBuilder.append(receivedFeedback)
+
+                                val feedbackData = feedbackBuilder.toString()
+                                AppLogger.d("Received feedback chunk: $receivedFeedback")
+                                AppLogger.d("Total feedback so far: $feedbackData")
+
+                                // Check for feedback markers
+                                if (feedbackData.contains("FEEDBACK_START") && feedbackData.contains(
+                                        "FEEDBACK_END"
+                                    )
+                                ) {
+                                    val startIndex =
+                                        feedbackData.indexOf("FEEDBACK_START") + "FEEDBACK_START".length
+                                    val endIndex = feedbackData.indexOf("FEEDBACK_END")
+
+                                    if (startIndex > 0 && endIndex > startIndex) {
+                                        val feedbackJson =
+                                            feedbackData.substring(startIndex, endIndex).trim()
+
+                                        AppLogger.d("Complete feedback JSON received: $feedbackJson")
+
+                                        feedbackReceived = true // Set flag to true
+
+                                        runOnUiThread {
+                                            loadingDialog.dismiss()
+                                            processFeedbackFromReceiver(
+                                                feedbackJson,
+                                                targetDevice.name
+                                            )
+                                        }
+
+                                        break
+                                    }
+                                }
+                            }
+                        } else {
+                            Thread.sleep(1000) // Wait 1 second before checking again
+                            feedbackAttempts++
+
+                            // Update waiting message with countdown
+                            val remainingTime = maxFeedbackAttempts - feedbackAttempts
+                            runOnUiThread {
+                                loadingDialog.setMessage(
+                                    "Menunggu response dari ${targetDevice.name ?: "perangkat"}... ($remainingTime detik)",
+                                    true
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error listening for feedback: ${e.message}")
+                        break
+                    }
+                }
+
+                // Handle timeout case - only if feedback was not received
+                if (!feedbackReceived) {
+                    runOnUiThread {
+                        loadingDialog.dismiss()
+
+                        AlertDialogUtility.withSingleAction(
+                            this@ListPanenTBSActivity,
+                            "Kembali",
+                            "Transfer Timeout",
+                            "Data berhasil dikirim ke ${targetDevice.name ?: "perangkat"}, tapi tidak menerima konfirmasi penyimpanan dalam 30 detik.\n\nSize: ${dataBytes.size} bytes",
+                            "warning.json",
+                            R.color.orange
+                        ) {
+                            // Action after timeout - refresh the data
+                            AppLogger.d("Transfer completed with timeout - refreshing data")
+
+                            panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
+                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
+                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                        }
+                    }
+
+                    AppLogger.w("Feedback timeout - no response received within 30 seconds")
+                }
+
+            } catch (e: Exception) {
+                AppLogger.e("Bluetooth transfer error: ${e.message}")
+
+                runOnUiThread {
+                    loadingDialog.dismiss()
+
+                    val errorMessage = when {
+                        e.message?.contains("read failed") == true ->
+                            "Koneksi terputus saat transfer. Pastikan kedua perangkat dalam jarak dekat dan Mandor panen Scan Data dengan Transfer Bluetooth"
+
+                        e.message?.contains("Service discovery failed") == true ->
+                            "Perangkat tidak mendukung layanan transfer data"
+
+                        e.message?.contains("Connection refused") == true ->
+                            "Koneksi ditolak. Pastikan perangkat penerima siap menerima data"
+
+                        e.message?.contains("Device or resource busy") == true ->
+                            "Perangkat sedang sibuk. Tutup aplikasi Bluetooth lain dan coba lagi"
+
+                        e.message?.contains("timeout") == true ->
+                            "Koneksi timeout. Pastikan kedua perangkat dalam jarak dekat"
+
+                        else -> "Gagal mengirim data: ${e.message}"
+                    }
+
+                    AlertDialogUtility.withTwoActions(
+                        this@ListPanenTBSActivity,
+                        "Coba Lagi",
+                        "Transfer Gagal",
+                        errorMessage,
+                        "warning.json",
+                        R.color.colorRedDark,
+                        function = {
+                            startBluetoothTransfer(targetDevice)
+                        },
+                        cancelFunction = { }
+                    )
+                }
+            } finally {
+                try {
+                    bluetoothSocket?.close()
+                    AppLogger.d("Bluetooth socket closed")
+                } catch (e: Exception) {
+                    AppLogger.e("Error closing Bluetooth socket: ${e.message}")
+                }
+            }
+        }.start()
+    }
+
+    private suspend fun verifyAndUpdateAllTransferredData(
+        savedData: List<Map<String, Any>>?,
+        duplicateData: List<Map<String, Any>>?
+    ): VerificationResult = withContext(Dispatchers.IO) {
+
+        // Combine both saved and duplicate data
+        val allTransferredData = mutableListOf<Map<String, Any>>()
+        savedData?.let { allTransferredData.addAll(it) }
+        duplicateData?.let { allTransferredData.addAll(it) }
+
+        if (allTransferredData.isEmpty()) {
+            AppLogger.d("No transferred data to verify")
+            return@withContext VerificationResult(0, 0, listOf("No transferred data to verify"))
+        }
+
+        var verifiedCount = 0
+        var notFoundCount = 0
+        val errorMessages = mutableListOf<String>()
+        val idsToUpdate = mutableListOf<Int>()
+
+        AppLogger.d("Starting verification of ${allTransferredData.size} TOTAL transferred records (saved + duplicates)")
+
+        allTransferredData.forEach { transferredRecord ->
+            try {
+                val transferredTphId = transferredRecord["tph_id"] as? String
+                val transferredDateCreated = transferredRecord["date_created"] as? String
+                val transferredJjgJson = transferredRecord["jjg_json"] as? String
+                val transferredKaryawanNik = transferredRecord["karyawan_nik"] as? String
+
+                AppLogger.d("Verifying transferred record: tph_id=$transferredTphId, date_created=$transferredDateCreated")
+
+                if (transferredTphId.isNullOrEmpty() || transferredDateCreated.isNullOrEmpty() ||
+                    transferredJjgJson.isNullOrEmpty() || transferredKaryawanNik.isNullOrEmpty()) {
+                    errorMessages.add("Invalid transferred record: missing required fields")
+                    return@forEach
+                }
+
+                val matchingLocalRecord = originalMappedData.find { localRecord ->
+                    val localTphId = localRecord["tph_id"] as? String
+                    val localDateCreated = localRecord["date_created"] as? String
+                    val localJjgJson = localRecord["jjg_json"] as? String
+                    val localKaryawanNik = localRecord["karyawan_nik"] as? String
+
+                    // Basic field matches
+                    val tphMatches = localTphId == transferredTphId
+                    val dateMatches = localDateCreated == transferredDateCreated
+                    val nikMatches = localKaryawanNik == transferredKaryawanNik
+
+                    // Special JSON matching - check if all transferred JSON keys exist in local JSON with same values
+                    val jjgMatches = try {
+                        if (transferredJjgJson != null && localJjgJson != null) {
+                            val transferredJsonObj = JSONObject(transferredJjgJson)
+                            val localJsonObj = JSONObject(localJjgJson)
+
+                            // Check if all keys from transferred data exist in local data with same values
+                            var allKeysMatch = true
+                            val transferredKeys = transferredJsonObj.keys()
+
+                            while (transferredKeys.hasNext()) {
+                                val key = transferredKeys.next()
+                                val transferredValue = transferredJsonObj.get(key)
+                                val localValue = localJsonObj.opt(key)
+
+                                if (transferredValue != localValue) {
+                                    allKeysMatch = false
+                                    break
+                                }
+                            }
+
+                            allKeysMatch
+                        } else {
+                            transferredJjgJson == localJjgJson
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error comparing JSON: ${e.message}")
+                        false
+                    }
+
+                    val allMatch = tphMatches && dateMatches && jjgMatches && nikMatches
+
+                    if (allMatch) {
+                        AppLogger.d("✅ Perfect match found for transferred record: ID=${localRecord["id"]}")
+                    }
+
+                    allMatch
+                }
+
+                if (matchingLocalRecord != null) {
+                    val recordId = matchingLocalRecord["id"] as? Int
+                    if (recordId != null) {
+                        // Check if this ID is already in the list to avoid duplicates
+                        if (!idsToUpdate.contains(recordId)) {
+                            idsToUpdate.add(recordId)
+                            verifiedCount++
+                            AppLogger.d("Found matching record - ID: $recordId, tph_id: $transferredTphId")
+                        } else {
+                            AppLogger.d("ID $recordId already in update list, skipping duplicate")
+                        }
+                    } else {
+                        errorMessages.add("Found matching record but ID is null for tph_id: $transferredTphId")
+                    }
+                } else {
+                    notFoundCount++
+                    AppLogger.w("No matching local record found for transferred tph_id=$transferredTphId")
+                }
+
+            } catch (e: Exception) {
+                errorMessages.add("Error processing record: ${e.message}")
+                AppLogger.e("Error processing transferred record: ${e.message}")
+            }
+        }
+
+        AppLogger.d("idsToUpdate $idsToUpdate")
+        // Update all found IDs at once - for ALL transferred data (saved + duplicates)
+        if (idsToUpdate.isNotEmpty()) {
+            withContext(Dispatchers.Main) {
+                try {
+                    when (featureName) {
+                        AppUtils.ListFeatureNames.RekapHasilPanen,
+                        AppUtils.ListFeatureNames.RekapPanenDanRestan -> {
+                            panenViewModel.updateArchiveByFeature(featureName, idsToUpdate, 1)
+                        }
+                    }
+                    AppLogger.d("Updated archive status for ${idsToUpdate.size} ALL transferred records: $idsToUpdate")
+                } catch (e: Exception) {
+                    AppLogger.e("Error updating archive status: ${e.message}")
+                    errorMessages.add("Failed to update archive status: ${e.message}")
+                }
+            }
+        }
+
+        AppLogger.d("Verification completed: $verifiedCount verified, $notFoundCount not found (ALL transferred data)")
+        VerificationResult(verifiedCount, notFoundCount, errorMessages)
+    }
+
+    private fun processFeedbackFromReceiver(feedbackJson: String, deviceName: String?) {
+        try {
+            AppLogger.d("Processing feedback JSON: $feedbackJson")
+
+            val feedback = Gson().fromJson(feedbackJson, Map::class.java) as Map<String, Any>
+            val status = feedback["status"] as? String
+            val message = feedback["message"] as? String
+            val savedCount = feedback["savedCount"] as? Double
+            val duplicateCount = feedback["duplicateCount"] as? Double
+            val error = feedback["error"] as? String
+            val savedData = feedback["savedData"] as? List<Map<String, Any>>
+            val duplicateData = feedback["duplicateData"] as? List<Map<String, Any>>
+
+            AppLogger.d("Feedback parsed - Status: $status, Message: $message, SavedCount: $savedCount, DuplicateCount: $duplicateCount, Error: $error")
+            AppLogger.d("SavedData count: ${savedData?.size ?: 0}, DuplicateData count: ${duplicateData?.size ?: 0}")
+
+            when (status) {
+                "success" -> {
+                    // Show loading dialog for data verification
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Sedang cek data...", true)
+
+                    // Start data verification in background
+                    lifecycleScope.launch {
+                        try {
+                            // Verify and update archive status for ALL transferred data (saved + duplicates)
+                            val verificationResult =
+                                verifyAndUpdateAllTransferredData(savedData, duplicateData)
+
+                            // Hide loading dialog
+                            loadingDialog.dismiss()
+
+                            // Play success sound
+                            playSound(R.raw.berhasil_simpan)
+
+                            // Calculate total transferred
+                            val totalTransferred =
+                                (savedCount?.toInt() ?: 0) + (duplicateCount?.toInt() ?: 0)
+
+                            val baseMessage = if (verificationResult.verifiedCount > 0) {
+                                "Data berhasil dikirim dan disimpan di ${deviceName ?: "perangkat penerima"}!\n\n${verificationResult.verifiedCount} item diarsipkan"
+                            } else {
+                                "Data berhasil dikirim dan disimpan di ${deviceName ?: "perangkat penerima"}!"
+                            }
+
+                            // Enhanced message with transfer details
+                            val successMessage = when {
+                                savedCount != null && duplicateCount != null && duplicateCount > 0 -> {
+                                    "$baseMessage\n\nDetail transfer:\n• ${savedCount.toInt()} data baru disimpan\n• ${duplicateCount.toInt()} data duplikat dilewati"
+                                }
+
+                                savedCount != null -> {
+                                    "$baseMessage\n\n${savedCount.toInt()} data baru disimpan"
+                                }
+
+                                else -> baseMessage
+                            }
+
+                            // Determine color based on whether there were duplicates
+                            val hasDuplicates = (duplicateCount?.toInt() ?: 0) > 0
+                            val alertColor =
+                                if (hasDuplicates) R.color.orange else R.color.greenDarker
+                            val alertTitle =
+                                if (hasDuplicates) "Transfer & Arsip Berhasil dengan Duplikat" else "Transfer & Arsip Data Berhasil"
+
+                            AlertDialogUtility.withSingleAction(
+                                this@ListPanenTBSActivity,
+                                "Kembali",
+                                alertTitle,
+                                successMessage,
+                                "success.json",
+                                alertColor
+                            ) {
+                                AppLogger.d("Transfer completed successfully with feedback and verification")
+//                                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                            }
+
+                            AppLogger.d("Transfer, save and verification completed successfully. Verified: ${verificationResult.verifiedCount}, Total transferred: $totalTransferred")
+
+                        } catch (e: Exception) {
+                            loadingDialog.dismiss()
+                            AppLogger.e("Error during data verification: ${e.message}")
+
+                            // Still show success but mention verification issue
+                            AlertDialogUtility.withSingleAction(
+                                this@ListPanenTBSActivity,
+                                "Kembali",
+                                "Transfer Berhasil",
+                                "Data berhasil dikirim dan disimpan, namun terjadi error saat verifikasi lokal: ${e.message}",
+                                "warning.json",
+                                R.color.orange
+                            ) { }
+                        }
+                    }
+                }
+
+                "error" -> {
+                    // FIXED: Also handle ID verification and archive update for error case (all duplicates)
+                    AppLogger.d("Error case - handling duplicate data verification and archive update")
+
+                    // Show loading dialog for data verification
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Sedang cek data duplikat...", true)
+
+                    // Start data verification in background for duplicates
+                    lifecycleScope.launch {
+                        try {
+                            // Extract duplicate data from error details and verify
+                            val duplicateDataFromError = extractDataFromErrorDetails(error ?: "")
+                            val verificationResult =
+                                verifyAndUpdateAllTransferredData(null, duplicateDataFromError)
+
+                            // Hide loading dialog
+                            loadingDialog.dismiss()
+
+                            val errorDetail = error ?: "Unknown error"
+                            val processedErrorMessage =
+                                processErrorDuplicateDetails(errorDetail, deviceName)
+
+                            // Enhanced message with verification results
+                            val finalMessage = if (verificationResult.verifiedCount > 0) {
+                                "$processedErrorMessage\n\n${verificationResult.verifiedCount} item diarsipkan meskipun duplikat"
+                            } else {
+                                processedErrorMessage
+                            }
+
+                            AlertDialogUtility.withSingleAction(
+                                this@ListPanenTBSActivity,
+                                "Ok",
+                                "Transfer Berhasil, Data Duplikat",
+                                finalMessage,
+                                "warning.json",
+                                R.color.orange,
+                            ) {
+                                AppLogger.d("Transfer completed with duplicates, verification done")
+//                                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0)
+//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1)
+                            }
+
+                            AppLogger.d("Transfer completed with all duplicates. Verified: ${verificationResult.verifiedCount}")
+
+                        } catch (e: Exception) {
+                            loadingDialog.dismiss()
+                            AppLogger.e("Error during duplicate data verification: ${e.message}")
+
+                            // Fallback to original error handling without verification
+                            val errorDetail = error ?: "Unknown error"
+                            val processedErrorMessage =
+                                processErrorDuplicateDetails(errorDetail, deviceName)
+
+                            AlertDialogUtility.withSingleAction(
+                                this@ListPanenTBSActivity,
+                                "Ok",
+                                "Transfer Berhasil, Arsip Gagal",
+                                processedErrorMessage,
+                                "warning.json",
+                                R.color.colorRedDark,
+                            ) { }
+                        }
+                    }
+                }
+
+                else -> {
+                    AlertDialogUtility.withSingleAction(
+                        this@ListPanenTBSActivity,
+                        "Ok",
+                        "Transfer Berhasil, Penyimpanan Gagal",
+                        "Menerima respons tidak dikenal dari ${deviceName ?: "perangkat"}: $feedbackJson",
+                        "warning.json",
+                        R.color.colorRedDark,
+                    ) { }
+
+                    AppLogger.w("Unknown feedback status: $status, Full feedback: $feedbackJson")
+                }
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Error processing feedback: ${e.message}")
+            AppLogger.e("Raw feedback was: $feedbackJson")
+
+            AlertDialogUtility.withSingleAction(
+                this@ListPanenTBSActivity,
+                "Coba Lagi",
+                "Transfer Berhasil, Penyimpanan Gagal",
+                "Data berhasil dikirim tapi terjadi error saat arsip data: ${e.message}",
+                "warning.json",
+                R.color.colorRedDark,
+            ) { }
+        }
+    }
+
+    private fun processErrorDuplicateDetails(errorDetail: String, deviceName: String?): String {
+        AppLogger.d("Processing error duplicate details: $errorDetail")
+
+        // Check if this is a duplicate error
+        if (!errorDetail.contains("duplikat", ignoreCase = true)) {
+            // Not a duplicate error, return original message
+            return "Data berhasil dikirim ke ${deviceName ?: "perangkat"} namun gagal diarsipkan:\n\n$errorDetail"
+        }
+
+        val duplicateInfoList = mutableListOf<String>()
+
+        try {
+            // Parse the error detail to extract TPH IDs and dates
+            // Format: "TPH ID: 138470, Date: 2025-09-18 09:11:33"
+            val lines = errorDetail.split("\n")
+
+            lines.forEach { line ->
+                if (line.contains("TPH ID:")) {
+                    try {
+                        // Extract TPH ID and Date from the line
+                        val tphIdMatch = Regex("TPH ID: (\\d+)").find(line)
+                        val dateMatch = Regex("Date: ([^\\n]+)").find(line)
+
+                        val tphId = tphIdMatch?.groupValues?.get(1)
+                        val dateCreated = dateMatch?.groupValues?.get(1)?.trim()
+
+                        AppLogger.d("Extracted from error: tph_id=$tphId, date_created=$dateCreated")
+
+                        if (!tphId.isNullOrEmpty() && !dateCreated.isNullOrEmpty()) {
+                            // Find matching record in mappedData
+                            val matchingLocalRecord = mappedData.find { localRecord ->
+                                val localTphId = localRecord["tph_id"] as? String
+                                val localDateCreated = localRecord["date_created"] as? String
+
+                                AppLogger.d("Comparing error with local: $localTphId == $tphId && $localDateCreated == $dateCreated")
+
+                                localTphId == tphId && localDateCreated == dateCreated
+                            }
+
+                            if (matchingLocalRecord != null) {
+                                // Extract TPH details from the mapped data
+                                val blokKode =
+                                    matchingLocalRecord["blok_name"] as? String ?: "Unknown"
+                                val tphNomor = matchingLocalRecord["nomor"] as? String ?: "Unknown"
+
+                                AppLogger.d("Found matching error duplicate - Blok: $blokKode, Nomor: $tphNomor, Date: $dateCreated")
+
+                                // Format: "Blok ABC, TPH 123, full date"
+                                val duplicateInfo = "Blok $blokKode, TPH $tphNomor, $dateCreated"
+                                duplicateInfoList.add(duplicateInfo)
+                            } else {
+                                AppLogger.w("No matching local record found for error tph_id=$tphId")
+                                duplicateInfoList.add("TPH $tphId, $dateCreated")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error parsing duplicate line: $line, error: ${e.message}")
+                    }
+                }
+            }
+
+        } catch (e: Exception) {
+            AppLogger.e("Error processing error duplicate details: ${e.message}")
+            return "Data berhasil dikirim ke ${deviceName ?: "perangkat"} namun gagal diarsipkan:\n\n$errorDetail"
+        }
+
+        // Build the final message
+        val duplicateDetails = if (duplicateInfoList.isNotEmpty()) {
+            duplicateInfoList.joinToString("\n")
+        } else {
+            "Data duplikat terdeteksi"
+        }
+
+        val finalMessage =
+            "Data berhasil dikirim ke ${deviceName ?: "perangkat"} namun data duplikat:\n\n$duplicateDetails"
+        AppLogger.d("Final error message with TPH details: $finalMessage")
+
+        return finalMessage
+    }
+
+    private fun extractDataFromErrorDetails(errorDetail: String): List<Map<String, Any>>? {
+        AppLogger.d("🔍 Extracting data from error details for verification: $errorDetail")
+
+        val extractedData = mutableListOf<Map<String, Any>>()
+
+        try {
+            val lines = errorDetail.split("\n")
+
+            lines.forEach { line ->
+                if (line.contains("TPH ID:")) {
+                    val tphIdMatch = Regex("TPH ID: (\\d+)").find(line)
+                    val dateMatch = Regex("Date: ([^\\n]+)").find(line)
+
+                    val tphId = tphIdMatch?.groupValues?.get(1)
+                    val dateCreated = dateMatch?.groupValues?.get(1)?.trim()
+
+                    AppLogger.d("🔍 Extracted from error line: tph_id=$tphId, date_created=$dateCreated")
+
+                    if (!tphId.isNullOrEmpty() && !dateCreated.isNullOrEmpty()) {
+                        // Find the full record in mappedData to get all required fields
+                        val matchingRecord = mappedData.find { localRecord ->
+                            val localTphId = localRecord["tph_id"] as? String
+                            val localDateCreated = localRecord["date_created"] as? String
+                            localTphId == tphId && localDateCreated == dateCreated
+                        }
+
+                        if (matchingRecord != null) {
+                            // Create a map similar to what the receiver would send back with all required fields
+                            val mockTransferredRecord = mapOf(
+                                "tph_id" to tphId,
+                                "date_created" to dateCreated,
+                                "karyawan_nama" to (matchingRecord["karyawan_nama"] as? String
+                                    ?: ""),
+                                "karyawan_nik" to (matchingRecord["karyawan_nik"] as? String ?: "")
+                            )
+                            extractedData.add(mockTransferredRecord)
+                            AppLogger.d("✅ Successfully extracted duplicate data for verification: tph_id=$tphId, date=$dateCreated")
+                        } else {
+                            AppLogger.w("⚠️ No matching local record found for error tph_id=$tphId, date=$dateCreated")
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("❌ Error extracting data from error details: ${e.message}")
+            return null
+        }
+
+        AppLogger.d("📊 Total extracted duplicate records for verification: ${extractedData.size}")
+        return if (extractedData.isNotEmpty()) extractedData else null
     }
 
     private fun setupButtonGenerateQR() {
@@ -2114,6 +3174,31 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
                         AppLogger.d("jsonData $jsonData")
+
+                        // Check JSON size BEFORE encoding
+                        val jsonSizeInBytes = jsonData.toByteArray(Charsets.UTF_8).size
+                        val jsonSizeInKB = jsonSizeInBytes / 1024.0
+
+                        AppLogger.d("JSON size: $jsonSizeInKB KB ($jsonSizeInBytes bytes)")
+
+                        if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
+                            withContext(Dispatchers.Main) {
+                                stopLoadingAnimation(loadingLogo, loadingContainer)
+
+                                AlertDialogUtility.withSingleAction(
+                                    this@ListPanenTBSActivity,
+                                    "OK",
+                                    "Data Terlalu Besar",
+                                    "Ukuran data ${String.format("%.2f", jsonSizeInKB)} KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Close bottom sheet or do nothing
+                                }
+                            }
+                            return@launch // Stop execution
+                        }
+
                         val encodedData = withContext(Dispatchers.IO) {
                             try {
                                 encodeJsonToBase64ZipQR(jsonData)
@@ -2567,6 +3652,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
         val totalSection = findViewById<LinearLayout>(R.id.total_section)
         val btnGenerateQRTPH = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPH)
         val btnGenerateQRTPHUnl = findViewById<FloatingActionButton>(R.id.btnGenerateQRTPHUnl)
+        val btnTransferBT = findViewById<FloatingActionButton>(R.id.btnTransferBT)
+        val tvTransferBT = findViewById<TextView>(R.id.tvTransferBT)
         val tvGenQR60 = findViewById<TextView>(R.id.tvGenQR60)
         val tvGenQRFull = findViewById<TextView>(R.id.tvGenQRFull)
 
@@ -2697,12 +3784,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 val afdelingMatch = tphDivisi == userAfdelingId
-                val asistensiMatch = panenAsistensi == 2
+                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                 val included = afdelingMatch || asistensiMatch
 
-//                AppLogger.d("Active TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+//                AppLogger.d("Active TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi, asistensi_divisi=$panenAsistensiDivisi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
 
                 included
             }
@@ -2719,12 +3807,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 val afdelingMatch = tphDivisi == userAfdelingId
-                val asistensiMatch = panenAsistensi == 2
+                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                 val included = afdelingMatch || asistensiMatch
-
-//                AppLogger.d("Archived TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
 
                 included
             }
@@ -2741,12 +3828,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
             val filteredPanenList = panenList.filter { panenEntityWithRelations ->
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 val afdelingMatch = tphDivisi == userAfdelingId
-                val asistensiMatch = panenAsistensi == 2
+                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                 val included = afdelingMatch || asistensiMatch
 
-//                AppLogger.d("ESPB TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
+//                AppLogger.d("ESPB TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi, asistensi_divisi=$panenAsistensiDivisi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
 
                 included
             }
@@ -3148,22 +4236,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin
                 val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 AppLogger.d("Checking record: TPH ID = ${panenEntityWithRelations.panen.tph_id}")
                 AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
-                AppLogger.d("  Panen asistensi = $panenAsistensi")
+                AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
 
                 // First check: if afdeling matches, include it
                 if (tphDivisi == userAfdelingId) {
                     AppLogger.d("  ✓ INCLUDED: Afdeling matches")
                     true
                 } else {
-                    // If afdeling doesn't match, check if asistensi is 2
-                    val asistensiMatch = panenAsistensi == 2
+                    // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
+                    val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                     if (asistensiMatch) {
-                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2")
+                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
                     } else {
-                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and asistensi ≠ 2")
+                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
                     }
                     asistensiMatch
                 }
@@ -3932,6 +5021,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     if (filteredPanenList.size == 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPHUnl.visibility = View.GONE
+//                        btnTransferBT.visibility = View.GONE
+//                        tvTransferBT.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
@@ -3939,6 +5030,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     } else if (filteredPanenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
+//                        btnTransferBT.visibility = View.VISIBLE
+//                        tvTransferBT.visibility = View.VISIBLE
                         btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
@@ -3962,6 +5055,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == "Rekap Hasil Panen" && (currentState == 2 || currentState == 3)) {
                         btnGenerateQRTPHUnl.visibility = View.GONE
+//                        btnTransferBT.visibility = View.GONE
+//                        tvTransferBT.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
@@ -4010,22 +5105,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val tphDivisi = panenEntityWithRelations.tph?.divisi.toString()
                 val userAfdelingId = prefManager!!.afdelingIdUserLogin
                 val panenAsistensi = panenEntityWithRelations.panen.asistensi
+                val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 AppLogger.d("Checking record: TPH ID = ${panenEntityWithRelations.panen.tph_id}")
                 AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
-                AppLogger.d("  Panen asistensi = $panenAsistensi")
+                AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
 
                 // First check: if afdeling matches, include it
                 if (tphDivisi == userAfdelingId) {
                     AppLogger.d("  ✓ INCLUDED: Afdeling matches")
                     true
                 } else {
-                    // If afdeling doesn't match, check if asistensi is 2
-                    val asistensiMatch = panenAsistensi == 2
+                    // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
+                    val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                     if (asistensiMatch) {
-                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2")
+                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
                     } else {
-                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and asistensi ≠ 2")
+                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
                     }
                     asistensiMatch
                 }
@@ -4383,6 +5479,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 sizePx,
                 hints
             )
+
+            // batas 2,7 kb json
 
             // Create bitmap with appropriate size
             val width = bitMatrix.width
@@ -5159,22 +6257,23 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             val tphDivisi = panenWithRelations.tph?.divisi.toString()
                             val userAfdelingId = prefManager!!.afdelingIdUserLogin
                             val panenAsistensi = panenWithRelations.panen.asistensi
+                            val panenAsistensiDivisi = panenWithRelations.panen.asistensi_divisi
 
                             AppLogger.d("Checking record: TPH ID = ${panenWithRelations.panen.tph_id}")
                             AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
-                            AppLogger.d("  Panen asistensi = $panenAsistensi")
+                            AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
 
                             // First check: if afdeling matches, include it
                             if (tphDivisi == userAfdelingId) {
                                 AppLogger.d("  ✓ INCLUDED: Afdeling matches")
                                 true
                             } else {
-                                // If afdeling doesn't match, check if asistensi is 2
-                                val asistensiMatch = panenAsistensi == 2
+                                // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
+                                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                                 if (asistensiMatch) {
-                                    AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2")
+                                    AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
                                 } else {
-                                    AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and asistensi ≠ 2")
+                                    AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
                                 }
                                 asistensiMatch
                             }

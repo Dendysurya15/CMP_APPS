@@ -890,7 +890,7 @@ class FormESPBActivity : AppCompatActivity() {
                             kemandoran_id = uniqueKemandoranId
                         )
 
-                        AppLogger.d("json $json")
+
 
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
 

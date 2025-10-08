@@ -969,155 +969,20 @@ class TransferHektarPanenActivity : AppCompatActivity() {
     // Helper function to get better device names
     @SuppressLint("MissingPermission")
     private fun getDeviceName(device: BluetoothDevice): String {
-        return try {
-            // Try multiple methods to get device name
-            var name = device.name
-
-            if (name.isNullOrBlank()) {
-                // Try to get name from bonded devices
-                val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-                val bluetoothAdapter = bluetoothManager.adapter
-                val bondedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == device.address }
-                name = bondedDevice?.name
-            }
-
-            if (name.isNullOrBlank()) {
-                // Generate a more descriptive unknown name based on device type and full address
-                when (device.type) {
-                    BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic Device (${device.address})"
-                    BluetoothDevice.DEVICE_TYPE_LE -> "BLE Device (${device.address})"
-                    BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual Mode (${device.address})"
-                    else -> "Unknown Device (${device.address})"
-                }
-            } else {
-                name
-            }
-        } catch (e: Exception) {
-            AppLogger.e("Error getting device name: ${e.message}")
-            "Device (${device.address})"
-        }
+        return AppUtils.getDeviceName(device, this)
     }
 
-    // Helper function to get device type information with permission check
-    private fun getDeviceTypeInfo(device: BluetoothDevice): String {
-        return if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
-            == PackageManager.PERMISSION_GRANTED) {
-            when (device.type) {
-                BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic"
-                BluetoothDevice.DEVICE_TYPE_LE -> "BLE"
-                BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual"
-                else -> "Unknown Type"
-            }
-        } else {
-            "Permission Required"
-        }
-    }
-
-    // Helper function to format device info for display
     private fun formatDeviceInfo(name: String, address: String): String {
-        return "$name"
+        return AppUtils.formatDeviceInfo(name, address)
     }
 
-    // Helper function to include ONLY paired PHONE devices
-    @SuppressLint("MissingPermission")
     private fun scanPairedPhoneDevices(
         devices: MutableList<BluetoothDevice>,
         deviceNames: MutableList<String>,
         deviceTypes: MutableMap<String, String>,
         adapter: ArrayAdapter<String>
     ) {
-        try {
-            val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-            val bluetoothAdapter = bluetoothManager.adapter
-            val pairedDevices = bluetoothAdapter?.bondedDevices
-
-            // Filter for phone devices only
-            pairedDevices?.forEach { device ->
-                if (isPhoneDevice(device)) {
-                    val deviceName = device.name ?: "Phone Device (${device.address.takeLast(8).replace(":", "")})"
-                    val deviceTypeInfo = "${getDeviceTypeInfo(device)} • Tersambung"
-                    val deviceInfo = formatDeviceInfo(deviceName, device.address)
-
-                    devices.add(device)
-                    deviceNames.add(deviceInfo)
-                    deviceTypes[device.address] = deviceTypeInfo
-
-                    AppLogger.d("Added paired PHONE: Name='$deviceName', Address='${device.address}', Type=${device.type}")
-                } else {
-                    AppLogger.d("Skipped non-phone device: Name='${device.name}', Address='${device.address}'")
-                }
-            }
-
-            runOnUiThread {
-                adapter.notifyDataSetChanged()
-            }
-        } catch (e: Exception) {
-            AppLogger.e("Error scanning paired phone devices: ${e.message}")
-        }
-    }
-
-    // Helper function to identify if device is a phone using Bluetooth Device Class
-    @SuppressLint("MissingPermission")
-    private fun isPhoneDevice(device: BluetoothDevice): Boolean {
-        val deviceClass = device.bluetoothClass
-
-        if (deviceClass == null) {
-            AppLogger.d("Device '${device.name}': No BluetoothClass available, checking by type")
-            // If no bluetooth class, check if it's a dual mode device (likely phone)
-            return device.type == BluetoothDevice.DEVICE_TYPE_DUAL || device.type == BluetoothDevice.DEVICE_TYPE_LE
-        }
-
-        val majorDeviceClass = deviceClass.majorDeviceClass
-        val minorDeviceClass = deviceClass.deviceClass and 0xFF // Get minor class from device class
-
-        // Phone identification using Bluetooth Device Class
-        val isPhone = when {
-            // Major Device Class: Phone (0x200 = 512)
-            majorDeviceClass == BluetoothClass.Device.Major.PHONE -> true
-
-            // Has telephony service
-            deviceClass.hasService(BluetoothClass.Service.TELEPHONY) -> true
-
-            // Computer class with phone-like minor classes
-            majorDeviceClass == BluetoothClass.Device.Major.COMPUTER &&
-                    (minorDeviceClass == BluetoothClass.Device.Major.PHONE ||
-                            deviceClass.hasService(BluetoothClass.Service.TELEPHONY)) -> true
-
-            // Uncategorized but has telephony or networking services (modern smartphones)
-            majorDeviceClass == BluetoothClass.Device.Major.UNCATEGORIZED &&
-                    (deviceClass.hasService(BluetoothClass.Service.TELEPHONY) ||
-                            deviceClass.hasService(BluetoothClass.Service.NETWORKING)) -> true
-
-            else -> false
-        }
-
-        // Log detailed device class information
-        AppLogger.d("Device '${device.name}': " +
-                "MajorClass=$majorDeviceClass (${getDeviceClassString(majorDeviceClass)}), " +
-                "MinorClass=$minorDeviceClass, " +
-                "HasTelephony=${deviceClass.hasService(BluetoothClass.Service.TELEPHONY)}, " +
-                "HasNetworking=${deviceClass.hasService(BluetoothClass.Service.NETWORKING)}, " +
-                "IsPhone=$isPhone")
-
-        return isPhone
-    }
-
-    // Helper function to get human readable device class string
-    private fun getDeviceClassString(majorDeviceClass: Int): String {
-        return when (majorDeviceClass) {
-            BluetoothClass.Device.Major.AUDIO_VIDEO -> "Audio/Video"
-            BluetoothClass.Device.Major.COMPUTER -> "Computer"
-            BluetoothClass.Device.Major.HEALTH -> "Health"
-            BluetoothClass.Device.Major.IMAGING -> "Imaging"
-            BluetoothClass.Device.Major.MISC -> "Miscellaneous"
-            BluetoothClass.Device.Major.NETWORKING -> "Networking"
-            BluetoothClass.Device.Major.PERIPHERAL -> "Peripheral"
-            BluetoothClass.Device.Major.PHONE -> "Phone"
-            BluetoothClass.Device.Major.TOY -> "Toy"
-            BluetoothClass.Device.Major.UNCATEGORIZED -> "Uncategorized"
-            BluetoothClass.Device.Major.WEARABLE -> "Wearable"
-            else -> "Unknown($majorDeviceClass)"
-        }
+        AppUtils.scanPairedPhoneDevices(this, devices, deviceNames, deviceTypes, adapter)
     }
 
     @SuppressLint("MissingPermission")

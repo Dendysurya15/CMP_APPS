@@ -31,7 +31,6 @@ class SyncDataUserRepository(
                 put("id", idUser)
             })
         }
-        AppLogger.d("dsadfasdfsdf")
         val checkRequestBody = checkKemandoranQuery.toString().toRequestBody("application/json".toMediaType())
         val checkResponse = apiService.getDataRaw(checkRequestBody)
 
@@ -117,7 +116,6 @@ class SyncDataUserRepository(
 
         AppLogger.d("User Data API Request (with kemandoran JOIN: $hasKemandoranPpro): ${jsonObject.toString()}")
 
-        // Make the API call
         return apiService.getDataRaw(requestBody)
     }
 }

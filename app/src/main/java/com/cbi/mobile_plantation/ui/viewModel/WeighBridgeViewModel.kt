@@ -221,6 +221,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 }
         }
     }
+
+    fun fetchTPHByBlockPPRO(blockId: Int) {
+        viewModelScope.launch {
+            repository.getTPHByBlockPPRO(blockId)
+                .onSuccess { tph ->
+                    _tphData.postValue(tph)
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load TPH data")
+                }
+        }
+    }
+
+
     
 
     fun checkEspbExists(noEspb: String) {

@@ -997,7 +997,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                                     // Fetch the TPH data if we have a block ID
                                                     firstBlockId?.let { blockId ->
-                                                        weightBridgeViewModel.fetchTPHByBlockId(
+                                                        weightBridgeViewModel.fetchTPHByBlockPPRO(
                                                             blockId
                                                         )
 

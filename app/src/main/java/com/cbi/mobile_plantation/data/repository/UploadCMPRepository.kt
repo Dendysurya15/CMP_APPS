@@ -9,6 +9,8 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
+import com.cbi.mobile_plantation.data.network.TestingAPIClient
+
 import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
@@ -383,7 +385,6 @@ class UploadCMPRepository(context: Context) {
                                     path = basePathRequestBody
                                 )
 
-                                AppLogger.d("kfjalksjdfl asdfklj asldfk")
 
                                 AppLogger.d("====== RESPONSE FOR IMAGE ${index + 1} ======")
                                 AppLogger.d("Response successful: ${response.isSuccessful}")

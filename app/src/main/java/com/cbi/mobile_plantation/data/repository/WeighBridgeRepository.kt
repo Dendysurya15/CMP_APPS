@@ -104,6 +104,15 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
+    suspend fun getTPHByBlockPPRO(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
+        try {
+            val tphData = tphDao.getTPHByBlockPPRO(blockId)
+            Result.success(tphData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?): Result<BlokModel?> = withContext(Dispatchers.IO) {
         try {
             // First try to match with kode if available

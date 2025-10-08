@@ -463,18 +463,6 @@ class HomePageActivity : AppCompatActivity() {
         return if (file.exists() && file.length() > 0) file else null
     }
 
-    // Helper method to show download error
-    private fun showDownloadError(message: String) {
-        AlertDialogUtility.withSingleAction(
-            this@HomePageActivity,
-            stringXML(R.string.al_back),
-            "Download Failed",
-            message,
-            "warning.json",
-            R.color.colorRedDark
-        ) { }
-    }
-
 
     private fun fetchDataEachCard() {
 
@@ -1470,9 +1458,28 @@ class HomePageActivity : AppCompatActivity() {
                             )
 
                             if (isSyncValid) {
-                                val intent = Intent(this@HomePageActivity, ScanQR::class.java)
-                                intent.putExtra("FEATURE_NAME", feature.featureName)
-                                startActivity(intent)
+                                AlertDialogUtility.withTwoActions(
+                                    this@HomePageActivity,
+                                    actionText = "Scan QR",  // Right button
+                                    titleText = getString(R.string.confirmation_dialog_title),
+                                    alertText = "Pilih metode transfer data hasil panen",
+                                    animAsset = "warning.json",
+                                    buttonColor = ContextCompat.getColor(this@HomePageActivity, R.color.bluedarklight),
+                                    cancelText = "Transfer Bluetooth", // Left button
+                                    function = {
+                                        // Scan QR action (right button)
+                                        val intent = Intent(this@HomePageActivity, ScanQR::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        startActivity(intent)
+                                    },
+                                    cancelFunction = {
+                                        // Transfer Bluetooth action (left button)
+                                        val intent = Intent(this@HomePageActivity, ListTPHApproval::class.java)
+                                        intent.putExtra("FEATURE_NAME", feature.featureName)
+                                        intent.putExtra("IS_TRANSFER_BLUETOOTH", true)
+                                        startActivity(intent)
+                                    }
+                                )
                             }
 
                         } catch (e: Exception) {
@@ -3075,6 +3082,9 @@ class HomePageActivity : AppCompatActivity() {
                                     ?: ""),
                                 "ancak" to panenWithRelations.panen.ancak,
                                 "asistensi" to panenWithRelations.panen.asistensi,
+                                "asistensi_dept" to (panenWithRelations.panen.asistensi_dept ?: 0),
+                                "asistensi_dept_nama" to (panenWithRelations.panen.asistensi_dept_nama ?: ""),
+                                "asistensi_divisi" to (panenWithRelations.panen.asistensi_divisi ?: 0),
                                 "kemandoran_id" to panenWithRelations.panen.kemandoran_id,
                                 "karyawan_id" to panenWithRelations.panen.karyawan_id,
                                 "karyawan_nik" to panenWithRelations.panen.karyawan_nik,
@@ -3221,10 +3231,9 @@ class HomePageActivity : AppCompatActivity() {
                                     CompletableDeferred<TPHNewModel?>()
 
 
-                                AppLogger.d("firstBlockId $firstBlockId")
                                 // Fetch the TPH data if we have a block ID
                                 firstBlockId?.let { blockId ->
-                                    weightBridgeViewModel.fetchTPHByBlockId(blockId)
+                                    weightBridgeViewModel.fetchTPHByBlockPPRO(blockId)
 
                                     // Set up a one-time observer for the LiveData
                                     weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->

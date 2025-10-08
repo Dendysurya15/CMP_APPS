@@ -631,6 +631,30 @@ class ListAbsensiActivity : AppCompatActivity() {
                         AppLogger.d("test $mappedData")
                         val jsonData = formatPanenDataForQR(mappedData)
                         AppLogger.d("data json $jsonData")
+
+                        // Check JSON size BEFORE encoding
+                        val jsonSizeInBytes = jsonData.toByteArray(Charsets.UTF_8).size
+                        val jsonSizeInKB = jsonSizeInBytes / 1024.0
+
+                        AppLogger.d("JSON size: $jsonSizeInKB KB ($jsonSizeInBytes bytes)")
+
+                        if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
+                            withContext(Dispatchers.Main) {
+                                stopLoadingAnimation(loadingLogo, loadingContainer)
+
+                                AlertDialogUtility.withSingleAction(
+                                    this@ListAbsensiActivity,
+                                    "OK",
+                                    "Data Terlalu Besar",
+                                    "Ukuran data ${String.format("%.2f", jsonSizeInKB)} KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
+                                    "warning.json",
+                                    R.color.colorRedDark
+                                ) {
+                                    // Close bottom sheet or do nothing
+                                }
+                            }
+                            return@launch // Stop execution
+                        }
                         val encodedData =
                             encodeJsonToBase64ZipQR(jsonData)
                                 ?: throw Exception("Encoding failed")

@@ -37,11 +37,14 @@ import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
 import net.lingala.zip4j.model.enums.EncryptionMethod
-import okhttp3.MediaType
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody
-import okio.BufferedSink
-import org.json.JSONArray
+import android.Manifest
+
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+
+import android.content.pm.PackageManager
+import android.widget.ArrayAdapter
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -86,6 +89,153 @@ object AppUtils {
         const val DONE_CHECK = "Sudah diperiksa"
         const val FAILED = "Gagal Upload!"
         const val ERROR = "ERROR!"
+    }
+
+    @SuppressLint("MissingPermission", "ServiceCast")
+    fun getDeviceName(device: BluetoothDevice, context: Context): String {
+        return try {
+            // Try multiple methods to get device name
+            var name = device.name
+
+            if (name.isNullOrBlank()) {
+                // Try to get name from bonded devices
+                val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+                val bluetoothAdapter = bluetoothManager.adapter
+                val bondedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == device.address }
+                name = bondedDevice?.name
+            }
+
+            if (name.isNullOrBlank()) {
+                // Generate a more descriptive unknown name based on device type and full address
+                when (device.type) {
+                    BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic Device (${device.address})"
+                    BluetoothDevice.DEVICE_TYPE_LE -> "BLE Device (${device.address})"
+                    BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual Mode (${device.address})"
+                    else -> "Unknown Device (${device.address})"
+                }
+            } else {
+                name
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error getting device name: ${e.message}")
+            "Device (${device.address})"
+        }
+    }
+
+    fun getDeviceTypeInfo(device: BluetoothDevice, context: Context): String {
+        return if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+            == PackageManager.PERMISSION_GRANTED) {
+            when (device.type) {
+                BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic"
+                BluetoothDevice.DEVICE_TYPE_LE -> "BLE"
+                BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual"
+                else -> "Unknown Type"
+            }
+        } else {
+            "Permission Required"
+        }
+    }
+
+    fun formatDeviceInfo(name: String, address: String): String {
+        return "$name"
+    }
+
+    @SuppressLint("MissingPermission")
+    fun isPhoneDevice(device: BluetoothDevice): Boolean {
+        val deviceClass = device.bluetoothClass
+
+        if (deviceClass == null) {
+            AppLogger.d("Device '${device.name}': No BluetoothClass available, checking by type")
+            // If no bluetooth class, check if it's a dual mode device (likely phone)
+            return device.type == BluetoothDevice.DEVICE_TYPE_DUAL || device.type == BluetoothDevice.DEVICE_TYPE_LE
+        }
+
+        val majorDeviceClass = deviceClass.majorDeviceClass
+        val minorDeviceClass = deviceClass.deviceClass and 0xFF // Get minor class from device class
+
+        // Phone identification using Bluetooth Device Class
+        val isPhone = when {
+            // Major Device Class: Phone (0x200 = 512)
+            majorDeviceClass == BluetoothClass.Device.Major.PHONE -> true
+
+            // Has telephony service
+            deviceClass.hasService(BluetoothClass.Service.TELEPHONY) -> true
+
+            // Computer class with phone-like minor classes
+            majorDeviceClass == BluetoothClass.Device.Major.COMPUTER &&
+                    (minorDeviceClass == BluetoothClass.Device.Major.PHONE ||
+                            deviceClass.hasService(BluetoothClass.Service.TELEPHONY)) -> true
+
+            // Uncategorized but has telephony or networking services (modern smartphones)
+            majorDeviceClass == BluetoothClass.Device.Major.UNCATEGORIZED &&
+                    (deviceClass.hasService(BluetoothClass.Service.TELEPHONY) ||
+                            deviceClass.hasService(BluetoothClass.Service.NETWORKING)) -> true
+
+            else -> false
+        }
+
+        // Log detailed device class information
+        AppLogger.d("Device '${device.name}': " +
+                "MajorClass=$majorDeviceClass (${getDeviceClassString(majorDeviceClass)}), " +
+                "MinorClass=$minorDeviceClass, " +
+                "HasTelephony=${deviceClass.hasService(BluetoothClass.Service.TELEPHONY)}, " +
+                "HasNetworking=${deviceClass.hasService(BluetoothClass.Service.NETWORKING)}, " +
+                "IsPhone=$isPhone")
+
+        return isPhone
+    }
+
+    fun getDeviceClassString(majorDeviceClass: Int): String {
+        return when (majorDeviceClass) {
+            BluetoothClass.Device.Major.AUDIO_VIDEO -> "Audio/Video"
+            BluetoothClass.Device.Major.COMPUTER -> "Computer"
+            BluetoothClass.Device.Major.HEALTH -> "Health"
+            BluetoothClass.Device.Major.IMAGING -> "Imaging"
+            BluetoothClass.Device.Major.MISC -> "Miscellaneous"
+            BluetoothClass.Device.Major.NETWORKING -> "Networking"
+            BluetoothClass.Device.Major.PERIPHERAL -> "Peripheral"
+            BluetoothClass.Device.Major.PHONE -> "Phone"
+            BluetoothClass.Device.Major.TOY -> "Toy"
+            BluetoothClass.Device.Major.UNCATEGORIZED -> "Uncategorized"
+            BluetoothClass.Device.Major.WEARABLE -> "Wearable"
+            else -> "Unknown($majorDeviceClass)"
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun scanPairedPhoneDevices(
+        context: Context,
+        devices: MutableList<BluetoothDevice>,
+        deviceNames: MutableList<String>,
+        deviceTypes: MutableMap<String, String>,
+        adapter: ArrayAdapter<String>
+    ) {
+        try {
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val bluetoothAdapter = bluetoothManager.adapter
+            val pairedDevices = bluetoothAdapter?.bondedDevices
+
+            // Filter for phone devices only
+            pairedDevices?.forEach { device ->
+                if (isPhoneDevice(device)) {
+                    val deviceName = device.name ?: "Phone Device (${device.address.takeLast(8).replace(":", "")})"
+                    val deviceTypeInfo = "${getDeviceTypeInfo(device, context)} • Tersambung"
+                    val deviceInfo = formatDeviceInfo(deviceName, device.address)
+
+                    devices.add(device)
+                    deviceNames.add(deviceInfo)
+                    deviceTypes[device.address] = deviceTypeInfo
+
+                    AppLogger.d("Added paired PHONE: Name='$deviceName', Address='${device.address}', Type=${device.type}")
+                } else {
+                    AppLogger.d("Skipped non-phone device: Name='${device.name}', Address='${device.address}'")
+                }
+            }
+
+            adapter.notifyDataSetChanged()
+        } catch (e: Exception) {
+            AppLogger.e("Error scanning paired phone devices: ${e.message}")
+        }
     }
 
 
@@ -197,8 +347,10 @@ object AppUtils {
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
 //        return prefManager?.radiusMinimum ?:15F
-        return 25F
+        return 5000F
     }
+
+    const val MAX_QR_SIZE_KB = 2.5
 
     object DatabaseTables {
         const val MUTU_BUAH = "mutu_buah"

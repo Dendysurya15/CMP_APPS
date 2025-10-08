@@ -2878,6 +2878,28 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val createdBy = item.optInt("created_by", 0)
                             val ancak = item.optInt("ancak", 0)
                             val asistensi = item.optInt("asistensi", 0)
+
+                            // Extract new asistensi fields with proper null handling
+                            val asistensiDept = if (item.isNull("asistensi_dept")) {
+                                null
+                            } else {
+                                item.optInt("asistensi_dept", 0).takeIf { it != 0 }
+                            }
+
+                            val asistensiDeptNama = if (item.isNull("asistensi_dept_nama")) {
+                                null
+                            } else {
+                                item.optString("asistensi_dept_nama", "").takeIf {
+                                    it.isNotEmpty() && !it.equals("null", ignoreCase = true)
+                                }
+                            }
+
+                            val asistensiDivisi = if (item.isNull("asistensi_divisi")) {
+                                null
+                            } else {
+                                item.optInt("asistensi_divisi", 0).takeIf { it != 0 }
+                            }
+
                             val jenis_panen = item.optInt("tipe", 0)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val jjgJson = "{\"KP\": $jjgKirim}"
@@ -2977,6 +2999,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 foto = "",
                                 komentar = "",
                                 asistensi = asistensi,
+                                asistensi_dept = asistensiDept,
+                                asistensi_dept_nama = asistensiDeptNama,
+                                asistensi_divisi = asistensiDivisi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = jenis_panen,
@@ -3020,7 +3045,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
-                                // Batch processing - process in chunks of 50
+                                // Batch processing - process in chunks of 500
                                 val batchSize = 500
                                 val batches = panenList.chunked(batchSize)
 
@@ -3044,7 +3069,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 insertList.add(panen)
                                                 AppLogger.d("Queued for insert: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
                                             } else {
-                                                // Record exists -> UPDATE (check for null/""/0 values and update them)
+                                                // Record exists -> UPDATE
                                                 AppLogger.d("Record exists, queued for update: TPH=${panen.tph_id}, Date=${panen.date_created}")
 
                                                 val updatedRecord = existingRecord.copy(
@@ -3056,6 +3081,25 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         existingRecord.jenis_panen
                                                     },
                                                     asistensi = panen.asistensi,
+
+                                                    asistensi_dept = if (panen.asistensi_dept != null) {
+                                                        panen.asistensi_dept
+                                                    } else {
+                                                        existingRecord.asistensi_dept
+                                                    },
+
+                                                    asistensi_dept_nama = if (panen.asistensi_dept_nama != null) {
+                                                        panen.asistensi_dept_nama
+                                                    } else {
+                                                        existingRecord.asistensi_dept_nama
+                                                    },
+
+                                                    asistensi_divisi = if (panen.asistensi_divisi != null) {
+                                                        panen.asistensi_divisi
+                                                    } else {
+                                                        existingRecord.asistensi_divisi
+                                                    },
+
                                                     ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
                                                         panen.ancak
                                                     } else {
@@ -5033,7 +5077,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())
@@ -5053,7 +5098,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 //            AppLogger.d("Processing ${dataArray.length()} panen records for first-time download...")
 
-                                            // STEP 1: Parse ALL JSON records into entities (FAST - no DB checks)
                                             for (i in 0 until dataArray.length()) {
                                                 val item = dataArray.getJSONObject(i)
 
@@ -5063,33 +5107,41 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val createdDate = item.optString("created_date", "")
                                                 val createdBy = item.optInt("created_by", 0)
                                                 val asistensi = item.optInt("asistensi", 0)
+                                                val asistensiDept = if (item.isNull("asistensi_dept")) {
+                                                    null
+                                                } else {
+                                                    item.optInt("asistensi_dept", 0).takeIf { it != 0 }
+                                                }
+
+                                                val asistensiDeptNama = if (item.isNull("asistensi_dept_nama")) {
+                                                    null
+                                                } else {
+                                                    item.optString("asistensi_dept_nama", "").takeIf {
+                                                        it.isNotEmpty() && !it.equals("null", ignoreCase = true)
+                                                    }
+                                                }
+                                                val asistensiDivisi = if (item.isNull("asistensi_divisi")) {
+                                                    null
+                                                } else {
+                                                    item.optInt("asistensi_divisi", 0).takeIf { it != 0 }
+                                                }
                                                 val ancak = item.optInt("ancak", 0)
                                                 val jenis_panen = item.optInt("tipe", 0)
                                                 val jjgKirim = item.optInt("jjg_kirim", 0)
                                                 val spb_kode = item.optString("spb_kode", "").let {
-                                                    if (it.equals(
-                                                            "null",
-                                                            ignoreCase = true
-                                                        )
-                                                    ) "" else it
+                                                    if (it.equals("null", ignoreCase = true)) "" else it
                                                 }
                                                 val status_espb = item.optInt("status_espb", 0)
                                                 val jjgJson = "{\"KP\": $jjgKirim}"
                                                 val createdName = item.optString("created_name", "")
-                                                val username =
-                                                    if (createdName.isNullOrEmpty() || createdName.equals(
-                                                            "NULL",
-                                                            ignoreCase = true
-                                                        )
-                                                    ) {
-                                                        ""  // Keep it empty if null/NULL
-                                                    } else {
-                                                        extractUsernameFromCreatedName(createdName)
-                                                    }
+                                                val username = if (createdName.isNullOrEmpty() || createdName.equals("NULL", ignoreCase = true)) {
+                                                    ""
+                                                } else {
+                                                    extractUsernameFromCreatedName(createdName)
+                                                }
 
                                                 // Parse kemandoran JSON to extract kemandoran_id and karyawan info
-                                                val kemandoranString =
-                                                    item.optString("kemandoran", "")
+                                                val kemandoranString = item.optString("kemandoran", "")
                                                 var kemandoranId = ""
                                                 var karyawanNikList = mutableListOf<String>()
                                                 var karyawanNamaList = mutableListOf<String>()
@@ -5100,28 +5152,17 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     !item.isNull("kemandoran")
                                                 ) {
                                                     try {
-                                                        val kemandoranArray =
-                                                            JSONArray(kemandoranString)
+                                                        val kemandoranArray = JSONArray(kemandoranString)
                                                         if (kemandoranArray.length() > 0) {
-                                                            val kemandoranObj =
-                                                                kemandoranArray.getJSONObject(0)
-                                                            kemandoranId =
-                                                                kemandoranObj.optString("id", "")
+                                                            val kemandoranObj = kemandoranArray.getJSONObject(0)
+                                                            kemandoranId = kemandoranObj.optString("id", "")
 
-                                                            val pemanenArray =
-                                                                kemandoranObj.optJSONArray("pemanen")
+                                                            val pemanenArray = kemandoranObj.optJSONArray("pemanen")
                                                             if (pemanenArray != null) {
                                                                 for (j in 0 until pemanenArray.length()) {
-                                                                    val pemanenObj =
-                                                                        pemanenArray.getJSONObject(j)
-                                                                    val nik = pemanenObj.optString(
-                                                                        "nik",
-                                                                        ""
-                                                                    )
-                                                                    val nama = pemanenObj.optString(
-                                                                        "nama",
-                                                                        ""
-                                                                    )
+                                                                    val pemanenObj = pemanenArray.getJSONObject(j)
+                                                                    val nik = pemanenObj.optString("nik", "")
+                                                                    val nama = pemanenObj.optString("nama", "")
                                                                     if (nik.isNotEmpty()) {
                                                                         karyawanNikList.add(nik)
                                                                         karyawanNamaList.add(nama)
@@ -5130,16 +5171,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
                                                         }
                                                     } catch (e: Exception) {
-//                        AppLogger.e("Error parsing kemandoran JSON for record ${item.optInt("id", 0)}: ${e.message}")
-//                        AppLogger.d("Kemandoran raw value: '$kemandoranString'")
+                                                        // Error handling
                                                     }
-                                                } else {
-//                    AppLogger.d("Kemandoran data is null or empty for record ${item.optInt("id", 0)}")
                                                 }
 
                                                 // Store NIK list for bulk karyawan lookup
                                                 allKaryawanNikLists.add(karyawanNikList.toList())
-
 
                                                 // Create entity with empty karyawan_id (will be filled after bulk lookup)
                                                 val panenEntity = PanenEntity(
@@ -5155,6 +5192,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     foto = "",
                                                     komentar = "",
                                                     asistensi = asistensi,
+                                                    asistensi_dept = asistensiDept,
+                                                    asistensi_dept_nama = asistensiDeptNama,
+                                                    asistensi_divisi = asistensiDivisi,
                                                     lat = 0.0,
                                                     lon = 0.0,
                                                     jenis_panen = jenis_panen,
@@ -5268,7 +5308,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing panen data: ${e.message}")
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                                     AppLogger.d("Processing settingJSON dataset")
 
                                     if (responseBodyString.isBlank()) {
