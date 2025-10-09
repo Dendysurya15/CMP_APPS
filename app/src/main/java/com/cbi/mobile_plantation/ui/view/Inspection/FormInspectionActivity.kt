@@ -185,6 +185,10 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.reflect.KMutableProperty0
+import com.google.android.gms.location.*
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.tasks.Task
+import android.content.IntentSender
 
 @Suppress("UNCHECKED_CAST")
 open class FormInspectionActivity : AppCompatActivity(),
@@ -404,7 +408,6 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var badgePhotoFUTPH: ImageView
     private lateinit var badgePhotoInspect: ImageView
 
-
     private lateinit var fabPhotoInfoBlok: FloatingActionButton
     private lateinit var clInfoBlokSection: ConstraintLayout
     private lateinit var clFormInspection: ConstraintLayout
@@ -427,15 +430,28 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var zoomUpdateJob: Job? = null
     private var lastShowTextState: Boolean? = null
 
+    private var cachedSelectedTPH: ScannedTPHSelectionItem? = null
+    private var hasValidTPHSelection = false
+
     data class KaryawanInfo(
         val nik: String,
         val nama: String,
         val individualId: String
     )
 
+    private val LOCATION_SETTINGS_REQUEST_CODE = 1001
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationRequest: com.google.android.gms.location.LocationRequest
+    private var locationCallback: LocationCallback? = null
+
+    // Add these new variables:
+    private val locationCheckHandler = Handler(Looper.getMainLooper())
+    private val LOCATION_CHECK_INTERVAL = 3000L // Check every 3 seconds
+    private var isLocationMonitoringActive = false
+    private var locationCheckRunnable: Runnable? = null
+
     // Add this as a class property
     private var selectedKaryawanList: List<KaryawanInfo> = emptyList()
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -555,12 +571,189 @@ open class FormInspectionActivity : AppCompatActivity(),
         alertTvScannedRadius.text = spannableScanTPHTitle
     }
 
+    private fun initializeLocationServices() {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        createLocationRequest()
+        checkLocationSettings()
+        startLocationMonitoring() // Add this line
+    }
+
+    private fun createLocationRequest() {
+        locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
+            interval = 5000 // Update every 5 seconds
+            fastestInterval = 2000 // Fastest update every 2 seconds
+            priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
+        }
+    }
+
+    private fun createLocationCheckRunnable() {
+        locationCheckRunnable = object : Runnable {
+            override fun run() {
+                if (isLocationMonitoringActive) {
+                    AppLogger.d("Periodic location check running...")
+                    checkLocationSettings()
+                    locationCheckHandler.postDelayed(this, LOCATION_CHECK_INTERVAL)
+                }
+            }
+        }
+    }
+
+    private fun startLocationMonitoring() {
+        if (!isLocationMonitoringActive) {
+            isLocationMonitoringActive = true
+            createLocationCheckRunnable()
+            locationCheckRunnable?.let {
+                locationCheckHandler.post(it)
+            }
+            AppLogger.d("Started periodic location monitoring")
+        }
+    }
+
+    private fun checkLocationSettings() {
+        val builder = LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+            .setAlwaysShow(true)
+
+        val client: SettingsClient = LocationServices.getSettingsClient(this)
+        val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
+
+        task.addOnSuccessListener { locationSettingsResponse ->
+            AppLogger.d("Location settings are satisfied")
+            locationEnable = true
+            hideLocationLostWarning() // Add this
+            startLocationUpdates()
+        }
+
+        task.addOnFailureListener { exception ->
+            locationEnable = false
+
+            // Show warning if inspection is in progress
+            if (hasInspectionStarted || totalPokokInspection > 0) {
+                showLocationLostWarning() // Add this
+            }
+
+            if (exception is ResolvableApiException) {
+                try {
+                    AppLogger.d("Location disabled - showing dialog")
+                    stopLocationUpdates()
+
+                    exception.startResolutionForResult(
+                        this@FormInspectionActivity,
+                        LOCATION_SETTINGS_REQUEST_CODE
+                    )
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    AppLogger.e("Error showing location dialog: ${sendEx.message}")
+                    showManualLocationPrompt()
+                }
+            } else {
+                AppLogger.e("Location settings error: ${exception.message}")
+                showManualLocationPrompt()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            AppLogger.e("Location permission not granted")
+            return
+        }
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    lat = location.latitude
+                    lon = location.longitude
+                    currentAccuracy = location.accuracy
+
+                    AppLogger.d("Location updated - Lat: $lat, Lon: $lon, Accuracy: $currentAccuracy m")
+
+                    // Update UI if needed
+                    runOnUiThread {
+                        locationEnable = true
+                    }
+                }
+            }
+        }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback!!,
+            Looper.getMainLooper()
+        )
+
+        AppLogger.d("Started location updates")
+    }
+
+    private fun stopLocationUpdates() {
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+            AppLogger.d("Stopped location updates")
+        }
+    }
+
+    private fun showManualLocationPrompt() {
+        AlertDialogUtility.withTwoActions(
+            this,
+            "Aktifkan Lokasi",
+            "Lokasi Diperlukan",
+            "Aplikasi ini memerlukan akses lokasi yang aktif untuk melanjutkan. Silakan aktifkan GPS/Lokasi pada perangkat Anda.",
+            "warning.json",
+            ContextCompat.getColor(this, R.color.colorRedDark),
+            function = {
+                // Try again
+                checkLocationSettings()
+            },
+            cancelFunction = {
+                // User cancelled - you can decide whether to finish activity or allow limited functionality
+                Toasty.warning(
+                    this,
+                    "Beberapa fitur mungkin tidak berfungsi tanpa lokasi",
+                    Toast.LENGTH_LONG,
+                    true
+                ).show()
+            }
+        )
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        when (requestCode) {
+            LOCATION_SETTINGS_REQUEST_CODE -> {
+                when (resultCode) {
+                    RESULT_OK -> {
+                        AppLogger.d("User enabled location via dialog")
+                        startLocationUpdates()
+
+                        Toasty.success(
+                            this,
+                            "Lokasi berhasil diaktifkan",
+                            Toast.LENGTH_SHORT,
+                            true
+                        ).show()
+                    }
+                    RESULT_CANCELED -> {
+                        AppLogger.d("User declined to enable location")
+                        showLocationDeclinedDialog()
+                    }
+                }
+            }
+        }
+    }
+
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
         radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
         boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
 
+        initializeLocationServices()
         initViewModel()
         initUI()
         dept_abbr_pasar_tengah = intent.getStringExtra("DEPT_ABBR").toString()
@@ -2207,10 +2400,20 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("DefaultLocale")
     override fun onResume() {
+        if (::fusedLocationClient.isInitialized) {
+            startLocationMonitoring() // Add this
+            checkLocationSettings()
+        }
+
         locationViewModel.locationData.observe(this) { location ->
+            val wasLocationDisabled = !locationEnable
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
+
+            if (wasLocationDisabled && hasValidTPHSelection) {
+                restoreTPHDataFromCache()
+            }
         }
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -2250,12 +2453,17 @@ open class FormInspectionActivity : AppCompatActivity(),
             startPeriodicDateTimeChecking()
         }
     }
+
     override fun onPause() {
         autoScanEnabled = false
         autoScanHandler.removeCallbacks(autoScanRunnable)
 
         // Stop sensor
         sensorManager?.unregisterListener(sensorEventListener)
+
+        // Stop location monitoring and updates
+        stopLocationMonitoring() // Add this
+        stopLocationUpdates()
 
         // Stop map tracking
         stopLiveLocationTracking()
@@ -2265,6 +2473,15 @@ open class FormInspectionActivity : AppCompatActivity(),
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onPause()
     }
+
+    private fun stopLocationMonitoring() {
+        isLocationMonitoringActive = false
+        locationCheckRunnable?.let {
+            locationCheckHandler.removeCallbacks(it)
+        }
+        AppLogger.d("Stopped periodic location monitoring")
+    }
+
     private val sensorEventListener: SensorEventListener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent?) {
             if (event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
@@ -2288,6 +2505,10 @@ open class FormInspectionActivity : AppCompatActivity(),
     override fun onDestroy() {
         keyboardWatcher.unregister()
 
+        // Clean up location monitoring
+        stopLocationMonitoring() // Add this
+        stopLocationUpdates()
+
         // Clean up map
         stopLiveLocationTracking()
         mapViewPanenBlok?.onDetach()
@@ -2295,6 +2516,78 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         super.onDestroy()
+    }
+
+    private fun showLocationDeclinedDialog() {
+        // Check if inspection has started
+        val inspectionInProgress = hasInspectionStarted ||
+                totalPokokInspection > 0 ||
+                !photoInTPH.isNullOrEmpty()
+
+        val title = if (inspectionInProgress) "⚠️ Lokasi Mati!" else "Lokasi Tidak Aktif"
+        val message = if (inspectionInProgress) {
+            "PERINGATAN: Lokasi GPS telah dimatikan!\n\n" +
+                    "Inspeksi yang sedang berlangsung memerlukan lokasi aktif untuk menyimpan koordinat yang akurat.\n\n" +
+                    "Mohon aktifkan kembali lokasi sekarang atau data inspeksi mungkin tidak valid!"
+        } else {
+            "Anda belum mengaktifkan lokasi. Aplikasi memerlukan lokasi aktif untuk melanjutkan inspeksi.\n\n" +
+                    "Apakah Anda ingin mencoba lagi?"
+        }
+
+        AlertDialogUtility.withTwoActions(
+            this,
+            "Aktifkan Sekarang",
+            title,
+            message,
+            "warning.json",
+            ContextCompat.getColor(this, R.color.colorRedDark),
+            function = {
+                checkLocationSettings()
+            },
+            cancelFunction = {
+                if (inspectionInProgress) {
+                    // Don't let them continue without location during active inspection
+                    Toasty.error(
+                        this,
+                        "Lokasi harus aktif untuk melanjutkan inspeksi!",
+                        Toast.LENGTH_LONG,
+                        true
+                    ).show()
+
+                    // Check again after 2 seconds
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        checkLocationSettings()
+                    }, 2000)
+                } else {
+                    finish()
+                }
+            }
+        )
+    }
+
+    private var locationWarningSnackbar: Snackbar? = null
+
+    private fun showLocationLostWarning() {
+        locationWarningSnackbar?.dismiss()
+
+        locationWarningSnackbar = Snackbar.make(
+            findViewById(android.R.id.content),
+            "⚠️ GPS MATI! Data koordinat tidak terekam!",
+            Snackbar.LENGTH_INDEFINITE
+        ).apply {
+            setBackgroundTint(ContextCompat.getColor(this@FormInspectionActivity, R.color.colorRedDark))
+            setTextColor(Color.WHITE)
+            setAction("AKTIFKAN") {
+                checkLocationSettings()
+            }
+            setActionTextColor(Color.YELLOW)
+            show()
+        }
+    }
+
+    private fun hideLocationLostWarning() {
+        locationWarningSnackbar?.dismiss()
+        locationWarningSnackbar = null
     }
 
     private fun initViewModel() {
@@ -3130,6 +3423,14 @@ open class FormInspectionActivity : AppCompatActivity(),
             val totalPagesWithData = formData.size
             val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
 
+            AppLogger.d("=== SAVE BUTTON CLICKED ===")
+            AppLogger.d("totalPagesWithData: $totalPagesWithData")
+            AppLogger.d("hasSelfiePhoto: $hasSelfiePhoto")
+            AppLogger.d("totalPokokInspection: $totalPokokInspection")
+            AppLogger.d("selectedTPHIdByScan: $selectedTPHIdByScan")
+            AppLogger.d("cachedSelectedTPH: ${cachedSelectedTPH?.id}")
+            AppLogger.d("hasValidTPHSelection: $hasValidTPHSelection")
+
             if (!hasSelfiePhoto) {
                 vibrate(500)
                 isForSelfie = true
@@ -3156,6 +3457,52 @@ open class FormInspectionActivity : AppCompatActivity(),
                     R.color.colorRedDark
                 ) {}
                 return@setOnClickListener
+            }
+
+            // CRITICAL: Ensure TPH ID is available from cache if needed
+            if (selectedTPHIdByScan == null) {
+                AppLogger.w("selectedTPHIdByScan is null, attempting to restore from cache")
+
+                if (hasValidTPHSelection && cachedSelectedTPH != null) {
+                    AppLogger.d("Cache is available, restoring TPH data")
+                    restoreTPHDataFromCache()
+
+                    // Verify restoration was successful
+                    if (selectedTPHIdByScan == null) {
+                        AppLogger.e("Failed to restore TPH ID from cache - cache restoration did not work")
+                        AlertDialogUtility.withSingleAction(
+                            this,
+                            stringXML(R.string.al_back),
+                            "Error",
+                            "Terjadi kesalahan: Data TPH tidak dapat dipulihkan. Silakan pilih TPH kembali atau restart aplikasi.",
+                            "warning.json",
+                            R.color.colorRedDark
+                        ) {}
+                        return@setOnClickListener
+                    } else {
+                        AppLogger.d("Successfully restored TPH ID from cache: $selectedTPHIdByScan")
+                        Toast.makeText(
+                            this,
+                            "Data TPH dipulihkan dari cache",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    AppLogger.e("Critical error: TPH ID is null and no cache available")
+                    AppLogger.e("hasValidTPHSelection: $hasValidTPHSelection, cachedSelectedTPH: $cachedSelectedTPH")
+
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        "Error",
+                        "Data TPH tidak tersedia dan tidak ada data cache. Silakan pilih TPH kembali.",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnClickListener
+                }
+            } else {
+                AppLogger.d("TPH ID is available: $selectedTPHIdByScan")
             }
 
             val isFollowUp = featureName == AppUtils.ListFeatureNames.FollowUpInspeksi
@@ -3185,6 +3532,25 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     true
                                 )
 
+                                // ADDITIONAL CHECK: Verify TPH ID one more time before save
+                                if (selectedTPHIdByScan == null) {
+                                    AppLogger.e("CRITICAL: TPH ID became null again just before save operation")
+
+                                    // Last attempt to restore
+                                    if (hasValidTPHSelection && cachedSelectedTPH != null) {
+                                        AppLogger.d("Making final attempt to restore from cache")
+                                        restoreTPHDataFromCache()
+
+                                        if (selectedTPHIdByScan == null) {
+                                            throw Exception("Data TPH hilang dan gagal dipulihkan dari cache")
+                                        }
+                                    } else {
+                                        throw Exception("Data TPH tidak tersedia (ID: null, Cache: ${cachedSelectedTPH != null})")
+                                    }
+                                }
+
+                                AppLogger.d("Final verification: TPH ID = $selectedTPHIdByScan")
+
                                 if (!isTenthTrees) {
                                     trackingLocation["end"] = Location(lat ?: 0.0, lon ?: 0.0)
                                 }
@@ -3204,32 +3570,23 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 ).format(Date())
 
                                 val result = if (isFollowUp) {
-                                    // Follow-up logic remains the same...
+                                    // Follow-up logic
                                     inspectionViewModel.saveDataInspection(
-                                        created_date_start = currentInspectionData?.inspeksi?.created_date
-                                            ?: "",
-                                        created_by = currentInspectionData?.inspeksi?.created_by
-                                            ?: "",
-                                        created_name = currentInspectionData?.inspeksi?.created_name
-                                            ?: "",
+                                        created_date_start = currentInspectionData?.inspeksi?.created_date ?: "",
+                                        created_by = currentInspectionData?.inspeksi?.created_by ?: "",
+                                        created_name = currentInspectionData?.inspeksi?.created_name ?: "",
                                         tph_id = currentInspectionData?.inspeksi?.tph_id ?: 0,
                                         id_panen = currentInspectionData?.inspeksi?.id_panen ?: "0",
-                                        date_panen = currentInspectionData?.inspeksi?.date_panen
-                                            ?: "",
-                                        jalur_masuk = currentInspectionData?.inspeksi?.jalur_masuk
-                                            ?: "",
-                                        jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi
-                                            ?: 1,
+                                        date_panen = currentInspectionData?.inspeksi?.date_panen ?: "",
+                                        jalur_masuk = currentInspectionData?.inspeksi?.jalur_masuk ?: "",
+                                        jenis_kondisi = currentInspectionData?.inspeksi?.jenis_kondisi ?: 1,
                                         baris = currentInspectionData?.inspeksi?.baris ?: "",
-                                        jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi
-                                            ?: 0,
-                                        tracking_path = currentInspectionData?.inspeksi?.tracking_path
-                                            ?: "",
+                                        jml_pkk_inspeksi = currentInspectionData?.inspeksi?.jml_pkk_inspeksi ?: 0,
+                                        tracking_path = currentInspectionData?.inspeksi?.tracking_path ?: "",
                                         foto_user = "",
                                         jjg_panen = currentInspectionData?.inspeksi?.jjg_panen ?: 0,
                                         foto_user_pemulihan = photoSelfie,
-                                        app_version = currentInspectionData?.inspeksi?.app_version
-                                            ?: "",
+                                        app_version = currentInspectionData?.inspeksi?.app_version ?: "",
                                         app_version_pemulihan = infoApp,
                                         status_upload = "0",
                                         status_uploaded_image = "0",
@@ -3244,34 +3601,32 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     )
                                 } else {
                                     // New inspection with collected pemuat data
+                                    // FINAL SAFETY CHECK before save
                                     if (selectedTPHIdByScan == null) {
-                                        throw Exception("TPH ID tidak boleh kosong")
+                                        throw Exception("TPH ID tidak boleh kosong saat menyimpan inspeksi baru")
                                     }
 
-                                    val entriesWithEmptyTree1 =
-                                        formData.values.filter { it.emptyTree == 1 }
+                                    val entriesWithEmptyTree1 = formData.values.filter { it.emptyTree == 1 }
                                     val allEntriesComplete = entriesWithEmptyTree1.all { pageData ->
-                                        val isComplete =
-                                            !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
+                                        val isComplete = !pageData.foto_pemulihan.isNullOrEmpty() && pageData.status_pemulihan == 1
                                         isComplete
                                     }
-                                    val allConditionsMet =
-                                        allEntriesComplete && photoTPHFollowUp != null
+                                    val allConditionsMet = allEntriesComplete && photoTPHFollowUp != null
                                     val inspeksiPutaran = if (allConditionsMet) 2 else 1
 
                                     AppLogger.d("🔍 About to save inspection with pemuat data:")
+                                    AppLogger.d("🔍 TPH ID: $selectedTPHIdByScan")
                                     AppLogger.d("🔍 kemandoran_ppro_pemuat: '${pemuatInfo.kemandoranPproPemuat}'")
                                     AppLogger.d("🔍 kemandoran_nama_pemuat: '${pemuatInfo.kemandoranNamaPemuat}'")
                                     AppLogger.d("🔍 nik_pemuat: '${pemuatInfo.nikPemuat}'")
                                     AppLogger.d("🔍 nama_pemuat: '${pemuatInfo.namaPemuat}'")
-                                    AppLogger.d("jenis kondisi, $selectedKondisiValue")
+                                    AppLogger.d("🔍 jenis_kondisi: $selectedKondisiValue")
 
-                                    // 🎯 USE THE COLLECTED PEMUAT DATA HERE
                                     inspectionViewModel.saveDataInspection(
                                         created_date_start = dateStartInspection,
                                         created_by = userId.toString(),
                                         created_name = prefManager!!.nameUserLogin ?: "",
-                                        tph_id = selectedTPHIdByScan ?: 0,
+                                        tph_id = selectedTPHIdByScan!!, // Safe to use !! here due to checks above
                                         id_panen = selectedIdPanenByScan ?: "0",
                                         date_panen = selectedTanggalPanenByScan!!,
                                         foto_user = photoSelfie ?: "",
@@ -3285,7 +3640,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         app_version = infoApp,
                                         status_upload = "0",
                                         status_uploaded_image = "0",
-                                        // 🎯 ADD THE COLLECTED PEMUAT FIELDS
                                         kemandoran_ppro_pemuat = pemuatInfo.kemandoranPproPemuat,
                                         kemandoran_nama_pemuat = pemuatInfo.kemandoranNamaPemuat,
                                         nik_pemuat = pemuatInfo.nikPemuat,
@@ -3293,35 +3647,31 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     )
                                 }
 
-
                                 when (result) {
                                     is InspectionViewModel.SaveDataInspectionState.Success -> {
                                         inspectionId = result.inspectionId.toString()
-
+                                        AppLogger.d("✅ Inspection saved successfully with ID: $inspectionId")
 
                                         if (!isFollowUp) {
-                                            val selectedPemuatWorkers =
-                                                selectedPemuatAdapter.getSelectedWorkers()
+                                            val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
 
-                                            val detailResult =
-                                                inspectionViewModel.saveDataInspectionDetails(
-                                                    inspectionId = result.inspectionId.toString(),
-                                                    formData = formData,
-                                                    jumBrdTglPath = jumBrdTglPath,
-                                                    jumBuahTglPath = jumBuahTglPath,
-                                                    parameterInspeksi = parameterInspeksi,
-                                                    createdDate = dateStartInspection,
-                                                    createdName = prefManager?.nameUserLogin ?: "",
-                                                    createdBy = userId.toString(),
-                                                    latTPH = lat ?: 0.0,
-                                                    lonTPH = lon ?: 0.0,
-                                                    foto = photoInTPH,
-                                                    komentar = komentarInTPH ?: "",
-                                                    foto_pemulihan_tph = photoTPHFollowUp ?: "",
-                                                    komentar_pemulihan_tph = komentarTPHFollowUp
-                                                        ?: "",
-                                                    pemuatWorkers = selectedPemuatWorkers
-                                                )
+                                            val detailResult = inspectionViewModel.saveDataInspectionDetails(
+                                                inspectionId = result.inspectionId.toString(),
+                                                formData = formData,
+                                                jumBrdTglPath = jumBrdTglPath,
+                                                jumBuahTglPath = jumBuahTglPath,
+                                                parameterInspeksi = parameterInspeksi,
+                                                createdDate = dateStartInspection,
+                                                createdName = prefManager?.nameUserLogin ?: "",
+                                                createdBy = userId.toString(),
+                                                latTPH = lat ?: 0.0,
+                                                lonTPH = lon ?: 0.0,
+                                                foto = photoInTPH,
+                                                komentar = komentarInTPH ?: "",
+                                                foto_pemulihan_tph = photoTPHFollowUp ?: "",
+                                                komentar_pemulihan_tph = komentarTPHFollowUp ?: "",
+                                                pemuatWorkers = selectedPemuatWorkers
+                                            )
 
                                             when (detailResult) {
                                                 is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
@@ -3333,20 +3683,18 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 }
                                             }
                                         } else {
-                                            // Handle follow-up detail update...
-                                            val detailResult =
-                                                inspectionViewModel.updateDataInspectionDetailsForFollowUp(
-                                                    detailInspeksiList = currentInspectionData?.detailInspeksi
-                                                        ?: emptyList(),
-                                                    formData = formData,
-                                                    latTPH = lat ?: 0.0,
-                                                    lonTPH = lon ?: 0.0,
-                                                    photoTPHFollowUp = photoTPHFollowUp ?: "",
-                                                    komentarTPHFollowUp = komentarTPHFollowUp ?: "",
-                                                    createdDateStart = dateStartInspection,
-                                                    createdName = prefManager?.nameUserLogin ?: "",
-                                                    createdBy = userId.toString()
-                                                )
+                                            // Handle follow-up detail update
+                                            val detailResult = inspectionViewModel.updateDataInspectionDetailsForFollowUp(
+                                                detailInspeksiList = currentInspectionData?.detailInspeksi ?: emptyList(),
+                                                formData = formData,
+                                                latTPH = lat ?: 0.0,
+                                                lonTPH = lon ?: 0.0,
+                                                photoTPHFollowUp = photoTPHFollowUp ?: "",
+                                                komentarTPHFollowUp = komentarTPHFollowUp ?: "",
+                                                createdDateStart = dateStartInspection,
+                                                createdName = prefManager?.nameUserLogin ?: "",
+                                                createdBy = userId.toString()
+                                            )
 
                                             when (detailResult) {
                                                 is InspectionViewModel.SaveDataInspectionDetailsState.Success -> {
@@ -3369,7 +3717,18 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             } catch (e: Exception) {
                                 loadingDialog.dismiss()
-                                showErrorDialog(e.message ?: "Unknown error")
+                                val errorMsg = e.message ?: "Unknown error"
+                                AppLogger.e("❌ Error during save: $errorMsg")
+                                AppLogger.e("Stack trace: ${e.stackTraceToString()}")
+
+                                // Provide more specific error message
+                                val userMessage = when {
+                                    errorMsg.contains("TPH") -> "Error: $errorMsg\n\nSilakan coba scan ulang TPH atau restart aplikasi."
+                                    errorMsg.contains("GPS") || errorMsg.contains("lokasi") -> "Error: $errorMsg\n\nPastikan GPS aktif dan coba lagi."
+                                    else -> "Error: $errorMsg"
+                                }
+
+                                showErrorDialog(userMessage)
                             }
                         }
                     }
@@ -7242,6 +7601,11 @@ open class FormInspectionActivity : AppCompatActivity(),
             return
         }
 
+        // CRITICAL: Cache the TPH selection IMMEDIATELY before any validation
+        cachedSelectedTPH = selectedTPHInLIst
+        hasValidTPHSelection = true
+        AppLogger.d("Cached TPH selection: ID=${selectedTPHInLIst.id}, Number=${selectedTPHInLIst.number}")
+
         if (photoInTPH != null) {
             AlertDialogUtility.withTwoActions(
                 this@FormInspectionActivity,
@@ -7267,6 +7631,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("User cancelled TPH selection, reverting UI selection")
                     tphAdapter?.revertSelection()
                     isProcessingTPHSelection = false
+
+                    // Keep the cache since user might retry
+                    AppLogger.d("Keeping cached TPH data for potential retry")
                 }
             )
         } else {
@@ -7278,8 +7645,18 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun proceedWithTPHSelection(selectedTPHInLIst: ScannedTPHSelectionItem) {
         isProcessingTPHSelection = true
 
-        AppLogger.d("selectedTPHInLIst $selectedTPHInLIst")
+        // Reinforce the cache (in case it was cleared somehow)
+        cachedSelectedTPH = selectedTPHInLIst
+        hasValidTPHSelection = true
+
+        AppLogger.d("Proceeding with TPH selection: $selectedTPHInLIst")
         tvErrorScannedNotSelected.visibility = View.GONE
+
+        // Store critical TPH data immediately - this should NEVER be null after this point
+        selectedTPHIdByScan = selectedTPHInLIst.id
+        selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
+
+        AppLogger.d("Set selectedTPHIdByScan=$selectedTPHIdByScan, selectedTPHNomorByScan=$selectedTPHNomorByScan")
 
         //sph * 0.55 = total pages
         // Dynamic calculation based on tipeArea
@@ -7325,7 +7702,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         setupAdapterCallbacks()
         setupManualAdapterCallbacks()
 
-        selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
         selectedKaryawanList = emptyList()
 
         lyKemandoran.visibility = View.VISIBLE
@@ -7340,7 +7716,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 if (matchingPanenList.isEmpty()) {
                     AppLogger.e("No matching panen records found for TPH ID: ${selectedTPHInLIst.id}")
-                    return@postDelayed
+                    AppLogger.w("However, TPH data is cached and can still be used for inspection")
+                    // Don't return - allow continuation with cached TPH data
                 }
 
                 // Merge all panen records for this TPH
@@ -7352,13 +7729,15 @@ open class FormInspectionActivity : AppCompatActivity(),
                 AppLogger.d("- Ancaks: ${mergedData.ancakList}")
 
                 // Get info from first record for basic data
-                val firstPanen = matchingPanenList.first().panen
-                val firstTph = matchingPanenList.first().tph
+                val firstPanen = matchingPanenList.firstOrNull()?.panen
+                val firstTph = matchingPanenList.firstOrNull()?.tph
 
-                selectedTPHIdByScan = selectedTPHInLIst.id
-                selectedEstateByScan = firstTph?.dept_abbr ?: ""
-                selectedAfdelingByScan = firstTph?.divisi_abbr ?: ""
-                selectedBlokByScan = firstTph?.blok_kode ?: ""
+                // Use cached data as fallback if panen data is not available
+                selectedEstateByScan = firstTph?.dept_abbr ?: cachedSelectedTPH?.deptCode ?: ""
+                selectedAfdelingByScan = firstTph?.divisi_abbr ?: cachedSelectedTPH?.divisiCode ?: ""
+                selectedBlokByScan = firstTph?.blok_kode ?: cachedSelectedTPH?.blockCode ?: ""
+
+                AppLogger.d("Set estate/afdeling/blok: $selectedEstateByScan/$selectedAfdelingByScan/$selectedBlokByScan")
 
                 // Store all available workers for spinner
                 val allAvailableWorkers = mutableListOf<Worker>()
@@ -7446,7 +7825,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     "tidak diketahui"
                 }
 
-
                 val panenIdsJson = JSONArray()
                 matchingPanenList.forEach { panenWithRelations ->
                     panenWithRelations.panen?.id?.let { panenId ->
@@ -7456,11 +7834,16 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 selectedIdPanenByScan = panenIdsJson.toString()
                 selectedAncakByScan = ancakText
+
                 val datesJson = JSONArray()
                 mergedData.dateList.forEach { date ->
                     datesJson.put(date)
                 }
                 selectedTanggalPanenByScan = datesJson.toString()
+
+                AppLogger.d("Set panen IDs: $selectedIdPanenByScan")
+                AppLogger.d("Set ancak: $selectedAncakByScan")
+                AppLogger.d("Set dates: $selectedTanggalPanenByScan")
 
                 val today = LocalDate.now()
 
@@ -7498,13 +7881,56 @@ open class FormInspectionActivity : AppCompatActivity(),
                 setupManualPemanenSpinner()
 
                 AppLogger.d("Total workers available in spinner: ${allAvailableWorkers.size}")
+                AppLogger.d("TPH selection process completed successfully")
 
             } catch (e: Exception) {
                 AppLogger.e("Error processing merged TPH selection: ${e.message}")
+                AppLogger.e("Stack trace: ${e.stackTraceToString()}")
+
+                // Even on error, ensure cached data is preserved
+                AppLogger.w("Error occurred but TPH cache is preserved: ID=$selectedTPHIdByScan")
+
+                // Show error to user but don't clear TPH selection
+                runOnUiThread {
+                    Toast.makeText(
+                        this@FormInspectionActivity,
+                        "Terjadi kesalahan saat memproses data TPH, namun pilihan TPH tetap tersimpan",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             } finally {
                 isProcessingTPHSelection = false
+
+                // Log final state for debugging
+                AppLogger.d("Final TPH selection state:")
+                AppLogger.d("- selectedTPHIdByScan: $selectedTPHIdByScan")
+                AppLogger.d("- cachedSelectedTPH: ${cachedSelectedTPH?.id}")
+                AppLogger.d("- hasValidTPHSelection: $hasValidTPHSelection")
             }
         }, 200)
+    }
+
+    // Add the restore function
+    private fun restoreTPHDataFromCache() {
+        if (hasValidTPHSelection && cachedSelectedTPH != null) {
+            AppLogger.d("Restoring TPH data from cache")
+            val cached = cachedSelectedTPH!!
+
+            selectedTPHIdByScan = cached.id
+            selectedTPHNomorByScan = cached.number.toInt()
+            selectedEstateByScan = cached.deptCode
+            selectedAfdelingByScan = cached.divisiCode
+            selectedBlokByScan = cached.blockCode
+
+            AppLogger.d("Restored TPH data:")
+            AppLogger.d("- ID: $selectedTPHIdByScan")
+            AppLogger.d("- Number: $selectedTPHNomorByScan")
+            AppLogger.d("- Estate: $selectedEstateByScan")
+            AppLogger.d("- Afdeling: $selectedAfdelingByScan")
+            AppLogger.d("- Blok: $selectedBlokByScan")
+            return
+        }
+        AppLogger.w("No cached TPH data to restore")
     }
 
     private fun populateManualPemanenSpinner(availableWorkers: List<Worker>) {
@@ -9240,9 +9666,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         val missingFields = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
-        AppLogger.d(" askjlkjas lkfjsdf")
         AppLogger.d("=== VALIDATION START ===")
         AppLogger.d("featureName: $featureName")
+        AppLogger.d("selectedTPHIdByScan: $selectedTPHIdByScan")
+        AppLogger.d("cachedSelectedTPH: ${cachedSelectedTPH?.id}")
+        AppLogger.d("hasValidTPHSelection: $hasValidTPHSelection")
 
         if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             AppLogger.d("Checking Follow-up photo validation...")
@@ -9253,7 +9681,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 isForSelfie = false
                 isForFollowUp = true
                 showViewPhotoBottomSheet(null, true, false, true)
-                errorMessages.add("Foto Pemuliahan di TPH wajib")
+                errorMessages.add("Foto Pemulihan di TPH wajib")
                 missingFields.add("Foto Pemulihan TPH")
             } else {
                 AppLogger.d("✅ Follow-up photo validation passed")
@@ -9294,13 +9722,24 @@ open class FormInspectionActivity : AppCompatActivity(),
                 hideValidationError(layoutPemanenOtomatis)
             }
 
-            // LOCATION VALIDATION
+            // LOCATION VALIDATION - Modified to be more lenient
             AppLogger.d("Location validation - Enable: $locationEnable, Lat: $lat, Lon: $lon")
-            if (!locationEnable || lat == 0.0 || lon == 0.0 || lat == null || lon == null) {
-                AppLogger.d("❌ VALIDATION FAILED: Location invalid")
+
+            // Check if we have EITHER current location OR cached TPH with valid coordinates
+            val hasCurrentLocation = locationEnable && lat != null && lon != null && lat != 0.0 && lon != 0.0
+            val hasCachedLocation = hasValidTPHSelection && cachedSelectedTPH != null
+
+            AppLogger.d("hasCurrentLocation: $hasCurrentLocation, hasCachedLocation: $hasCachedLocation")
+
+            if (!hasCurrentLocation && !hasCachedLocation) {
+                AppLogger.d("❌ VALIDATION FAILED: No location data available")
                 isValid = false
-                errorMessages.add(stringXML(R.string.al_location_description_failed))
+                errorMessages.add("GPS tidak aktif dan tidak ada data lokasi tersimpan. Mohon aktifkan GPS.")
                 missingFields.add("Location")
+            } else if (!hasCurrentLocation && hasCachedLocation) {
+                AppLogger.d("⚠️ WARNING: Using cached location data, current GPS unavailable")
+                // Don't fail validation, just warn user
+                errorMessages.add("Perhatian: GPS tidak aktif, menggunakan data lokasi tersimpan.")
             } else {
                 AppLogger.d("✅ Location validation passed")
             }
@@ -9387,23 +9826,26 @@ open class FormInspectionActivity : AppCompatActivity(),
                 }
             }
 
-            // TPH SCAN VALIDATION
-            AppLogger.d("TPH scan validation - selectedTPHIdByScan: $selectedTPHIdByScan, selectedAfdeling: '$selectedAfdeling'")
+            // MODIFIED TPH SCAN VALIDATION - use cached data as fallback
+            AppLogger.d("TPH scan validation - selectedTPHIdByScan: $selectedTPHIdByScan, cachedSelectedTPH: ${cachedSelectedTPH?.id}")
             AppLogger.d("isTriggeredBtnScanned: $isTriggeredBtnScanned, isEmptyScannedTPH: $isEmptyScannedTPH")
 
-            if (selectedTPHIdByScan == null && selectedAfdeling.isNotEmpty()) {
+            // Check both current selection and cached selection
+            val hasTPHSelection = selectedTPHIdByScan != null || (hasValidTPHSelection && cachedSelectedTPH != null)
+
+            AppLogger.d("hasTPHSelection: $hasTPHSelection (current: ${selectedTPHIdByScan != null}, cached: ${hasValidTPHSelection && cachedSelectedTPH != null})")
+
+            if (!hasTPHSelection && selectedAfdeling.isNotEmpty()) {
                 if (isTriggeredBtnScanned) {
                     if (isEmptyScannedTPH) {
                         AppLogger.d("❌ VALIDATION FAILED: No TPH detected")
-                        tvErrorScannedNotSelected.text =
-                            stringXML(R.string.al_no_tph_detected_trigger_submit)
+                        tvErrorScannedNotSelected.text = stringXML(R.string.al_no_tph_detected_trigger_submit)
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add(stringXML(R.string.al_no_tph_detected_trigger_submit))
                         isValid = false
                     } else {
                         AppLogger.d("❌ VALIDATION FAILED: TPH not selected")
-                        tvErrorScannedNotSelected.text =
-                            "Silakan untuk memilih TPH yang ingin diperiksa!"
+                        tvErrorScannedNotSelected.text = "Silakan untuk memilih TPH yang ingin diperiksa!"
                         tvErrorScannedNotSelected.visibility = View.VISIBLE
                         errorMessages.add("Silakan untuk memilih TPH yang ingin diperiksa!")
                         isValid = false
@@ -9416,12 +9858,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                     isValid = false
                 }
             } else {
-                AppLogger.d("✅ TPH scan validation passed")
+                AppLogger.d("✅ TPH scan validation passed (current or cached)")
                 tvErrorScannedNotSelected.visibility = View.GONE
+
+                // Restore from cache if current is null but cache exists
+                if (selectedTPHIdByScan == null && hasValidTPHSelection && cachedSelectedTPH != null) {
+                    AppLogger.d("Restoring TPH data from cache during validation")
+                    restoreTPHDataFromCache()
+                }
             }
 
-            // BARIS VALIDATION
-            AppLogger.d("Baris validation - selectedKondisiValue: $selectedKondisiValue, br1Value: '$br1Value', br2Value: '$br2Value'")
             // BARIS VALIDATION
             AppLogger.d("Baris validation - selectedKondisiValue: '$selectedKondisiValue', br1Value: '$br1Value', br2Value: '$br2Value'")
 
@@ -9461,7 +9907,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 val allMessages = mutableListOf<String>()
                 if (missingFields.isNotEmpty()) {
                     AppLogger.d("Adding 'mohon di lengkapi data' message because missingFields is not empty")
-                    allMessages.add(stringXML(R.string.al_pls_complete_data)) // This is where "mohon di lengkapi data" comes from!
+                    allMessages.add(stringXML(R.string.al_pls_complete_data))
                 }
                 allMessages.addAll(errorMessages)
                 allMessages.forEachIndexed { index, message ->
