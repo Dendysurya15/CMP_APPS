@@ -8,7 +8,6 @@ import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
-import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 
 import com.cbi.mobile_plantation.data.network.StagingApiClient
@@ -379,7 +378,7 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("basePathRequestBody $basePathRequestBody")
 
                                 // Make the API call for single image
-                                val response = CMPApiClient.instance.uploadPhotos(
+                                val response = TestingAPIClient.instance.uploadPhotos(
                                     photos = listOf(photoPart),
                                     datasetType = datasetTypeRequestBody,
                                     path = basePathRequestBody
@@ -932,7 +931,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1514,7 +1513,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1807,7 +1806,7 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("Sending upload request...")
 
-                val response = CMPApiClient.instance.uploadZip(filePart)
+                val response = TestingAPIClient.instance.uploadZip(filePart)
 
                 AppLogger.d(response.toString())
                 if (response.isSuccessful) {

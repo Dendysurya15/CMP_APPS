@@ -6850,12 +6850,17 @@ class ListPanenTBSActivity : AppCompatActivity() {
             .filter { it.isNotEmpty() }
             .filter { entry ->
                 val parts = entry.split(",")
-                // Only keep entries where the type field (index 3) is not "0"
+                // Keep entries where type field (index 3) is not "0"
                 parts.size < 4 || parts[3] != "0"
             }
-            .distinct()
+            // ✅ Deduplicate only by the first 3 fields
+            .distinctBy { entry ->
+                val parts = entry.split(",")
+                if (parts.size >= 3) "${parts[0]},${parts[1]},${parts[2]}" else entry
+            }
             .joinToString(";")
 
         return uniqueEntries
     }
+
 }

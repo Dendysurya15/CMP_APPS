@@ -12,6 +12,7 @@ import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.HektarPanenDao
+import com.cbi.mobile_plantation.data.database.PanenDao
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -2063,6 +2064,10 @@ class AppRepository(context: Context) {
             AppLogger.e("Error counting ESPB created today: ${e.message}")
             0
         }
+    }
+
+    suspend fun findPanenWithRelationsByTphAndDate(tphId: String, dateCreated: String): PanenEntityWithRelations? {
+        return panenDao.findPanenWithRelationsByTphAndDate(tphId, dateCreated)
     }
 
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {

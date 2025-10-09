@@ -427,6 +427,14 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     @Query("UPDATE panen_table SET status_scan_inspeksi = :status WHERE id = :id")
     abstract suspend fun updateScanInspeksiStatus(id: Int, status: Int): Int
 
+    @Transaction
+    @Query("""
+    SELECT * FROM panen_table 
+    WHERE tph_id = :tphId AND date_created = :dateCreated
+    LIMIT 1
+""")
+    abstract suspend fun findPanenWithRelationsByTphAndDate(tphId: String, dateCreated: String): PanenEntityWithRelations?
+
     @Query("SELECT * FROM panen_table WHERE archive_mpanen = :status_scan_mpanen")
     abstract fun getAllScanMPanenWithoutDateFilter(status_scan_mpanen: Int): List<PanenEntityWithRelations>
 

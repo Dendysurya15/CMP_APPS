@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.mobile_plantation.data.database.PanenDao
 import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
@@ -278,6 +279,9 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         return count
     }
 
+    suspend fun findPanenWithRelationsByTphAndDate(tphId: String, dateCreated: String): PanenEntityWithRelations? {
+        return repository.findPanenWithRelationsByTphAndDate(tphId, dateCreated)
+    }
 
     fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -402,18 +406,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
-//    fun getAllScanMPanenByDate(status_mpanen: Int, date: String) {
-//        viewModelScope.launch {
-//            repository.getAllScanMPanenByDate(status_mpanen, date)
-//                .onSuccess { panenList ->
-//                    _activePanenList.value = panenList
-//                }
-//                .onFailure { exception ->
-//                    _error.postValue(exception.message ?: "Failed to load data")
-//                }
-//        }
-//    }
 
     fun getAllScanMPanenByDate(archiveMpanen: Int, date: String? = null) =
         viewModelScope.launch(Dispatchers.IO) {
@@ -583,23 +575,6 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }.toString()
     }
 
-    suspend fun getNamaByNik(nik: String): String {
-        return try {
-            repository.getNamaByNik(nik)
-        } catch (e: Exception) {
-            AppLogger.e("Error loading blok kode: ${e.message}")
-            ""
-        }.toString()
-    }
-
-    suspend fun getNomorTPHbyId(tphId: Int): String {
-        return try {
-            repository.getNomorTPHbyId(tphId)
-        } catch (e: Exception) {
-            AppLogger.e("Error loading nomor TPH: ${e.message}")
-            ""
-        }.toString()
-    }
 
     suspend fun saveDataPanen(
         tph_id: String,
