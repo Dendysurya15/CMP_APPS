@@ -1991,6 +1991,33 @@ class TransferHektarPanenActivity : AppCompatActivity() {
                             }
                         }
 
+
+// Check JSON size before proceeding
+                        val jsonSizeInBytes = jsonData.toByteArray(Charsets.UTF_8).size
+                        val jsonSizeInKB = jsonSizeInBytes / 1024.0
+
+                        if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
+
+                            AppLogger.d("jsonSizeInKB $jsonSizeInKB")
+                            dialog?.dismiss()
+                            withContext(Dispatchers.Main) {
+                                AlertDialogUtility.withSingleAction(
+                                    this@TransferHektarPanenActivity,
+                                    "OK",
+                                    "Data Terlalu Besar",
+                                    "Ukuran data melebihi batas maksimal untuk QR Code.\n\nSize: ${String.format("%.2f", jsonSizeInKB)} KB (Maks: 2.5 KB)\n\nMohon menggunakan transfer via bluetooth.",
+                                    "warning.json",
+                                    R.color.orange
+                                ) {
+                                    // Optional: Handle what happens after user dismisses the alert
+
+                                    checkBluetoothAndShowDialog()
+                                }
+                            }
+                            return@launch // or return depending on your context
+                        }
+
+
                         AppLogger.d("jsonData $jsonData")
                         val encodedData = withContext(Dispatchers.IO) {
                             try {

@@ -1415,13 +1415,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
-                    val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
-                        // Split by comma, trim whitespace, filter empty values, then rejoin
-                        nikString.split(",")
-                            .map { it.trim() }
-                            .filter { it.isNotEmpty() }
-                            .joinToString(",")
-                    } ?: ""
+//                    val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
+//                        // Split by comma, trim whitespace, filter empty values, then rejoin
+//                        nikString.split(",")
+//                            .map { it.trim() }
+//                            .filter { it.isNotEmpty() }
+//                            .joinToString(",")
+//                    } ?: ""
 
                     globalRegional = firstBlok?.regional.toString() ?: ""
                     globalWilayah = firstBlok?.wilayah.toString() ?: ""
@@ -1438,7 +1438,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalTransporterId = transporterId
                     globalPemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-"
                     globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-"
-                    globalPemuatNik = nikValues
+                    globalPemuatNik =  modifiedParsedData?.espb?.pemuat_nik ?: "-"
                     globalMillId = millId
                     globalTph0 = modifiedParsedData?.tph0 ?: "-"
                     globalTph1 = modifiedParsedData?.tph1 ?: "-"

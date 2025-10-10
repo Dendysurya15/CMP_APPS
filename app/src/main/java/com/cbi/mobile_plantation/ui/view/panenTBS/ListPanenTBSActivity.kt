@@ -3196,33 +3196,26 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                         AppLogger.d("jsonData $jsonData")
 
-                        // Check JSON size BEFORE encoding
                         val jsonSizeInBytes = jsonData.toByteArray(Charsets.UTF_8).size
                         val jsonSizeInKB = jsonSizeInBytes / 1024.0
 
-                        AppLogger.d("JSON size: $jsonSizeInKB KB ($jsonSizeInBytes bytes)")
-
                         if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
-                            withContext(Dispatchers.Main) {
-                                stopLoadingAnimation(loadingLogo, loadingContainer)
 
+                            AppLogger.d("jsonSizeInKB $jsonSizeInKB")
+                            dialog?.dismiss()
+                            withContext(Dispatchers.Main) {
                                 AlertDialogUtility.withSingleAction(
                                     this@ListPanenTBSActivity,
                                     "OK",
                                     "Data Terlalu Besar",
-                                    "Ukuran data ${
-                                        String.format(
-                                            "%.2f",
-                                            jsonSizeInKB
-                                        )
-                                    } KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
+                                    "Ukuran data melebihi batas maksimal untuk QR Code.\n\nSize: ${String.format("%.2f", jsonSizeInKB)} KB (Maks: 2.5 KB)\n\nMohon menggunakan transfer via bluetooth.",
                                     "warning.json",
-                                    R.color.colorRedDark
+                                    R.color.orange
                                 ) {
-                                    // Close bottom sheet or do nothing
+                                    checkBluetoothAndShowDialog()
                                 }
                             }
-                            return@launch // Stop execution
+                            return@launch // or return depending on your context
                         }
 
                         val encodedData = withContext(Dispatchers.IO) {
