@@ -3080,7 +3080,7 @@ class HomePageActivity : AppCompatActivity() {
                         val uniquePhotos = mutableMapOf<String, Map<String, String>>()
 
                         // Only process photos if we're working with regular panenList
-                        if (listToProcess.isNotEmpty()) {
+                        if (panenList.isNotEmpty()) {
                             // Prepare to search for photo files in CMP directories
                             val picturesDirs = listOf(
                                 getExternalFilesDir(Environment.DIRECTORY_PICTURES),
@@ -3385,12 +3385,12 @@ class HomePageActivity : AppCompatActivity() {
                             mappedPanenData = emptyList()
                         }
 
-                        // Rest of your panen upload logic...
+                        AppLogger.d("mappedPanenData $mappedPanenData")
                         val panenDataToUpload = if (panenESPBMandor1Asisten.isNotEmpty()) {
 
                             mappedPanenData.filter { panenMap ->
                                 val id = panenMap["id"] as? Int ?: 0
-                                val original = panenList.find { it.panen.id == id }
+                                val original = panenESPBMandor1Asisten.find { it.panen.id == id }
                                 original?.panen?.status_upload == 0
                             }
                         } else {
@@ -3421,7 +3421,6 @@ class HomePageActivity : AppCompatActivity() {
                                 } else {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
-
 
                                 try {
                                     val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
@@ -3454,8 +3453,9 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-                        // Only process photos if we used regular panenList
-                        if (listToProcess.isNotEmpty()) {
+// ✅ CHANGED: Check panenList directly instead of listToProcess
+                        if (panenList.isNotEmpty()) {
+                            // Only process photos if we used regular panenList
                             allPhotosPanen = uniquePhotos.values.toMutableList()
                             if (allPhotosPanen.isNotEmpty()) {
                                 AppLogger.d("Adding ${allPhotosPanen.size} unique photos to upload data")
