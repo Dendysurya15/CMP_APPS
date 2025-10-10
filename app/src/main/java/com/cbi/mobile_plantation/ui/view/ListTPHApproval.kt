@@ -787,7 +787,7 @@ class ListTPHApproval : AppCompatActivity() {
                                 ancak = "NULL"
                             )
 
-                            // Create save data with original values
+                            // Create save data with original values + new fields
                             saveDataHasilPanen = TphRvData(
                                 namaBlok = parts[0],
                                 noTPH = idtph.toString(),
@@ -799,7 +799,9 @@ class ListTPHApproval : AppCompatActivity() {
                                 ancak = "NULL",
                                 nomor_pemanen = nomor_pemanen,
                                 asistensi = asistensi,
-                                asistensi_divisi = asistensiDivisi
+                                asistensi_divisi = asistensiDivisi,
+                                date_created = fullDateTime,  // Add this - using the full datetime
+                                tph_id = idtph                // Add this - using the original idtph
                             )
                         } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
                             val parts = entry.split(",")
@@ -1492,11 +1494,9 @@ class ListTPHApproval : AppCompatActivity() {
     ): List<Map<String, Any>> {
         return when (featureName) {
             AppUtils.ListFeatureNames.ScanPanenMPanen -> {
-                // Use savedEntities if provided, otherwise fall back to original list
                 val entitiesToProcess =
                     if (savedEntities.isNotEmpty()) savedEntities else saveDataMPanenList
 
-                // For MPanen, extract only the required fields: tph_id, date_created, jjg_json, nik
                 entitiesToProcess.map { panenEntity ->
                     mapOf(
                         "tph_id" to panenEntity.tph_id,
@@ -1508,17 +1508,27 @@ class ListTPHApproval : AppCompatActivity() {
             }
 
             AppUtils.ListFeatureNames.ScanTransferInspeksiPanen -> {
-                // Use savedEntities if provided, otherwise fall back to original list
                 val entitiesToProcess =
                     if (savedEntities.isNotEmpty()) savedEntities else saveDataTransferInspeksiList
 
-                // For MPanen, extract only the required fields: tph_id, date_created, jjg_json, nik
                 entitiesToProcess.map { panenEntity ->
                     mapOf(
                         "tph_id" to panenEntity.tph_id,
                         "date_created" to panenEntity.date_created,
                         "karyawan_nama" to panenEntity.karyawan_nama,
                         "karyawan_nik" to panenEntity.karyawan_nik,
+                    )
+                }
+            }
+
+            AppUtils.ListFeatureNames.ScanHasilPanen -> {
+                // For ScanHasilPanen, use saveData which is List<TphRvData>
+                // No savedEntities parameter needed here since it's a different type
+                saveData.map { tphRvData ->
+                    mapOf(
+                        "tph_id" to tphRvData.tph_id,
+                        "date_created" to tphRvData.date_created,
+                        "jjg_json" to tphRvData.jjg,
                     )
                 }
             }

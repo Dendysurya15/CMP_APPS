@@ -1725,9 +1725,40 @@ class HomePageActivity : AppCompatActivity() {
 
             AppUtils.ListFeatureNames.ScanAbsensiPanen -> {
                 if (feature.displayType == DisplayType.ICON) {
-                    val intent = Intent(this, ScanAbsensiActivity::class.java)
-                    intent.putExtra("FEATURE_NAME", feature.featureName)
-                    startActivity(intent)
+                    lifecycleScope.launch {
+                        try {
+                            val jabatanUser = prefManager?.jabatanUserLogin
+                            val shouldSkipAfdelingCheck =
+                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+
+                            // Validate afdeling if needed
+                            ValidationSyncHelper.validateAfdeling(
+                                this@HomePageActivity,
+                                prefManager!!,
+                                datasetViewModel,
+                                shouldSkipAfdelingCheck
+                            ) ?: return@launch
+
+                            // Validate sync date
+                            val lastSyncDateTime = prefManager?.lastSyncDate
+                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                this@HomePageActivity,
+                                lastSyncDateTime,
+                                checkCurrentDate = true
+                            )
+
+                            // If sync is valid, proceed to the activity
+                            if (isSyncValid) {
+                                val intent = Intent(this@HomePageActivity, ScanAbsensiActivity::class.java)
+                                intent.putExtra("FEATURE_NAME", feature.featureName)
+                                startActivity(intent)
+                            }
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in validation checks: ${e.message}")
+                            ValidationSyncHelper.showErrorDialog(this@HomePageActivity)
+                        }
+                    }
                 }
             }
 

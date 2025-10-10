@@ -11,7 +11,9 @@ data class TphRvData(
     val ancak: String = "NULL",
     val nomor_pemanen: Int = 0,
     val asistensi: Int = 1,
-    val asistensi_divisi: Int? = null
+    val asistensi_divisi: Int? = null,
+    val date_created: String = "",  // Add this
+    val tph_id: Int = 0              // Add this
 )
 data class TPHBlokInfo(
     val tphNomor: String,

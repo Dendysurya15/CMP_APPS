@@ -218,9 +218,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private lateinit var bluetoothScanner: BluetoothScanner
     private var bluetoothJsonData: String = ""
     private var bluetoothDataInfo: String = ""
+
     companion object {
         private const val REQUEST_ENABLE_BT = 1
     }
+
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var shouldRestoreCheckboxState = false
     private var previouslySelectedTphIds = mutableSetOf<String>()
@@ -286,13 +288,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
             }
         } else if (featureName == AppUtils.ListFeatureNames.RekapPanenDanRestan) {
             if (currentState == 0) {
-                AppLogger.d("bug kah ? ")
                 panenViewModel.loadTPHNonESPB(0, 0, true, 1, filterDate)
                 panenViewModel.countTPHNonESPB(0, 0, true, 1, filterDate)
                 panenViewModel.countTPHESPB(0, 1, true, 1, filterDate)
                 panenViewModel.countHasBeenESPB(0, 0, false, 1, filterDate)
-            }
-            else if (currentState == 1) {
+            } else if (currentState == 1) {
                 panenViewModel.loadTPHESPB(0, 1, true, 1, filterDate)
                 panenViewModel.countTPHNonESPB(0, 0, true, 1, filterDate)
                 panenViewModel.countTPHESPB(0, 1, true, 1, filterDate)
@@ -1679,7 +1679,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
     }
 
-    private fun setupTransferBT(){
+    private fun setupTransferBT() {
         val btnTransferBT = findViewById<FloatingActionButton>(R.id.btnTransferBT)
         btnTransferBT.setOnClickListener {
             checkBluetoothAndShowDialog()
@@ -2201,8 +2201,16 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             AppLogger.d("Transfer completed with timeout - refreshing data")
 
                             panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,prefManager!!.afdelingIdUserLogin!!.toInt())
-                            panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,prefManager!!.afdelingIdUserLogin!!.toInt())
+                            panenViewModel.loadCountTransferInspeksi(
+                                globalFormattedDate,
+                                0,
+                                prefManager!!.afdelingIdUserLogin!!.toInt()
+                            )
+                            panenViewModel.loadCountTransferInspeksi(
+                                globalFormattedDate,
+                                1,
+                                prefManager!!.afdelingIdUserLogin!!.toInt()
+                            )
                         }
                     }
 
@@ -2268,6 +2276,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         savedData?.let { allTransferredData.addAll(it) }
         duplicateData?.let { allTransferredData.addAll(it) }
 
+        AppLogger.d("allTransferredData $allTransferredData")
         if (allTransferredData.isEmpty()) {
             AppLogger.d("No transferred data to verify")
             return@withContext VerificationResult(0, 0, listOf("No transferred data to verify"))
@@ -2282,61 +2291,71 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         allTransferredData.forEach { transferredRecord ->
             try {
-                val transferredTphId = transferredRecord["tph_id"] as? String
+                // Handle different data types for tph_id (Int, Double, or String)
+                val transferredTphId = when (val tphId = transferredRecord["tph_id"]) {
+                    is Int -> tphId.toString()
+                    is Double -> tphId.toInt().toString()
+                    is String -> tphId
+                    else -> null
+                }
+
                 val transferredDateCreated = transferredRecord["date_created"] as? String
-                val transferredJjgJson = transferredRecord["jjg_json"] as? String
-                val transferredKaryawanNik = transferredRecord["karyawan_nik"] as? String
+
+                // Convert jjg_json to string, handling different types (Int, Double, String)
+                val transferredJjgValue = when (val jjg = transferredRecord["jjg_json"]) {
+                    is Int -> jjg.toString()
+                    is Double -> jjg.toInt().toString()
+                    is String -> jjg
+                    else -> null
+                }
+
+                AppLogger.d("transferredTphId: $transferredTphId")
+                AppLogger.d("transferredDateCreated: $transferredDateCreated")
+                AppLogger.d("transferredJjgValue: $transferredJjgValue")
 
                 AppLogger.d("Verifying transferred record: tph_id=$transferredTphId, date_created=$transferredDateCreated")
 
                 if (transferredTphId.isNullOrEmpty() || transferredDateCreated.isNullOrEmpty() ||
-                    transferredJjgJson.isNullOrEmpty() || transferredKaryawanNik.isNullOrEmpty()) {
+                    transferredJjgValue.isNullOrEmpty()
+                ) {
                     errorMessages.add("Invalid transferred record: missing required fields")
                     return@forEach
                 }
 
+                AppLogger.d("originalMappedData $originalMappedData")
                 val matchingLocalRecord = originalMappedData.find { localRecord ->
                     val localTphId = localRecord["tph_id"] as? String
                     val localDateCreated = localRecord["date_created"] as? String
                     val localJjgJson = localRecord["jjg_json"] as? String
-                    val localKaryawanNik = localRecord["karyawan_nik"] as? String
 
                     // Basic field matches
                     val tphMatches = localTphId == transferredTphId
                     val dateMatches = localDateCreated == transferredDateCreated
-                    val nikMatches = localKaryawanNik == transferredKaryawanNik
 
-                    // Special JSON matching - check if all transferred JSON keys exist in local JSON with same values
+                    // Special JJG matching - check if KP value in local JSON matches transferred value
                     val jjgMatches = try {
-                        if (transferredJjgJson != null && localJjgJson != null) {
-                            val transferredJsonObj = JSONObject(transferredJjgJson)
+                        if (localJjgJson != null) {
                             val localJsonObj = JSONObject(localJjgJson)
+                            // Get the KP value from local JSON
+                            val localKpValue = localJsonObj.optInt("KP", -1)
 
-                            // Check if all keys from transferred data exist in local data with same values
-                            var allKeysMatch = true
-                            val transferredKeys = transferredJsonObj.keys()
+                            // Convert transferred value to Int for comparison
+                            val transferredKpValue = transferredJjgValue.toIntOrNull() ?: -1
 
-                            while (transferredKeys.hasNext()) {
-                                val key = transferredKeys.next()
-                                val transferredValue = transferredJsonObj.get(key)
-                                val localValue = localJsonObj.opt(key)
+                            val matches = localKpValue == transferredKpValue
 
-                                if (transferredValue != localValue) {
-                                    allKeysMatch = false
-                                    break
-                                }
-                            }
+                            AppLogger.d("JJG Comparison - Local KP: $localKpValue, Transferred: $transferredKpValue, Matches: $matches")
 
-                            allKeysMatch
+                            matches
                         } else {
-                            transferredJjgJson == localJjgJson
+                            false
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error comparing JSON: ${e.message}")
+                        AppLogger.e("Error comparing JJG: ${e.message}")
                         false
                     }
 
-                    val allMatch = tphMatches && dateMatches && jjgMatches && nikMatches
+                    val allMatch = tphMatches && dateMatches && jjgMatches
 
                     if (allMatch) {
                         AppLogger.d("✅ Perfect match found for transferred record: ID=${localRecord["id"]}")
@@ -2467,9 +2486,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 alertColor
                             ) {
                                 AppLogger.d("Transfer completed successfully with feedback and verification")
-//                                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,prefManager!!.afdelingIdUserLogin.toInt())
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,prefManager!!.afdelingIdUserLogin.toInt())
+                                panenViewModel.loadTPHNonESPB(0, 0, true, 1, globalFormattedDate)
+                                panenViewModel.countTPHNonESPB(0, 0, true, 1, globalFormattedDate)
+                                panenViewModel.countTPHESPB(1, 0, true, 0, globalFormattedDate)
+                                panenViewModel.countHasBeenESPB(0, 0, false, 1, globalFormattedDate)
                             }
 
                             AppLogger.d("Transfer, save and verification completed successfully. Verified: ${verificationResult.verifiedCount}, Total transferred: $totalTransferred")
@@ -2530,9 +2550,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 R.color.orange,
                             ) {
                                 AppLogger.d("Transfer completed with duplicates, verification done")
-//                                panenViewModel.loadDataPanenTransferInspeksi(globalFormattedDate, 0)
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 0,prefManager!!.afdelingIdUserLogin.toInt())
-//                                panenViewModel.loadCountTransferInspeksi(globalFormattedDate, 1,prefManager!!.afdelingIdUserLogin.toInt())
+                                panenViewModel.loadTPHNonESPB(0, 0, true, 1, globalFormattedDate)
+                                panenViewModel.countTPHNonESPB(0, 0, true, 1, globalFormattedDate)
+                                panenViewModel.countTPHESPB(1, 0, true, 0, globalFormattedDate)
+                                panenViewModel.countHasBeenESPB(0, 0, false, 1, globalFormattedDate)
                             }
 
                             AppLogger.d("Transfer completed with all duplicates. Verified: ${verificationResult.verifiedCount}")
@@ -3189,7 +3210,12 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     this@ListPanenTBSActivity,
                                     "OK",
                                     "Data Terlalu Besar",
-                                    "Ukuran data ${String.format("%.2f", jsonSizeInKB)} KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
+                                    "Ukuran data ${
+                                        String.format(
+                                            "%.2f",
+                                            jsonSizeInKB
+                                        )
+                                    } KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
                                     "warning.json",
                                     R.color.colorRedDark
                                 ) {
@@ -3787,7 +3813,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 val afdelingMatch = tphDivisi == userAfdelingId
-                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                val asistensiMatch =
+                    panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                 val included = afdelingMatch || asistensiMatch
 
 //                AppLogger.d("Active TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi, asistensi_divisi=$panenAsistensiDivisi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
@@ -3810,7 +3837,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 val afdelingMatch = tphDivisi == userAfdelingId
-                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                val asistensiMatch =
+                    panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                 val included = afdelingMatch || asistensiMatch
 
                 included
@@ -3831,7 +3859,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                 val panenAsistensiDivisi = panenEntityWithRelations.panen.asistensi_divisi
 
                 val afdelingMatch = tphDivisi == userAfdelingId
-                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                val asistensiMatch =
+                    panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                 val included = afdelingMatch || asistensiMatch
 
 //                AppLogger.d("ESPB TPH ${panenEntityWithRelations.panen.tph_id}: divisi=$tphDivisi, user=$userAfdelingId, asistensi=$panenAsistensi, asistensi_divisi=$panenAsistensiDivisi -> ${if (included) "INCLUDED" else "EXCLUDED"}")
@@ -4248,7 +4277,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     true
                 } else {
                     // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
-                    val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                    val asistensiMatch =
+                        panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                     if (asistensiMatch) {
                         AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
                     } else {
@@ -5021,8 +5051,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     if (filteredPanenList.size == 0 && featureName == "Rekap Hasil Panen") {
                         btnGenerateQRTPHUnl.visibility = View.GONE
-//                        btnTransferBT.visibility = View.GONE
-//                        tvTransferBT.visibility = View.GONE
+                        btnTransferBT.visibility = View.GONE
+                        tvTransferBT.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
@@ -5030,8 +5060,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     } else if (filteredPanenList.size > 0 && featureName == "Rekap Hasil Panen" && currentState != 2 && currentState != 3) {
                         btnGenerateQRTPH.visibility = View.VISIBLE
-//                        btnTransferBT.visibility = View.VISIBLE
-//                        tvTransferBT.visibility = View.VISIBLE
+                        btnTransferBT.visibility = View.VISIBLE
+                        tvTransferBT.visibility = View.VISIBLE
                         btnGenerateQRTPHUnl.visibility = View.GONE
                         tvGenQR60.visibility = View.VISIBLE
                         tvGenQRFull.visibility = View.VISIBLE
@@ -5055,8 +5085,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
                     } else if (featureName == "Rekap Hasil Panen" && (currentState == 2 || currentState == 3)) {
                         btnGenerateQRTPHUnl.visibility = View.GONE
-//                        btnTransferBT.visibility = View.GONE
-//                        tvTransferBT.visibility = View.GONE
+                        btnTransferBT.visibility = View.GONE
+                        tvTransferBT.visibility = View.GONE
                         tvGenQR60.visibility = View.GONE
                         tvGenQRFull.visibility = View.GONE
                         btnGenerateQRTPH.visibility = View.GONE
@@ -5117,7 +5147,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                     true
                 } else {
                     // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
-                    val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                    val asistensiMatch =
+                        panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
                     if (asistensiMatch) {
                         AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
                     } else {
@@ -6253,31 +6284,33 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                     if (panenWithRelationsList != null) {
 
-                        val filteredPanenList = panenWithRelationsList.filter { panenWithRelations ->
-                            val tphDivisi = panenWithRelations.tph?.divisi.toString()
-                            val userAfdelingId = prefManager!!.afdelingIdUserLogin
-                            val panenAsistensi = panenWithRelations.panen.asistensi
-                            val panenAsistensiDivisi = panenWithRelations.panen.asistensi_divisi
+                        val filteredPanenList =
+                            panenWithRelationsList.filter { panenWithRelations ->
+                                val tphDivisi = panenWithRelations.tph?.divisi.toString()
+                                val userAfdelingId = prefManager!!.afdelingIdUserLogin
+                                val panenAsistensi = panenWithRelations.panen.asistensi
+                                val panenAsistensiDivisi = panenWithRelations.panen.asistensi_divisi
 
-                            AppLogger.d("Checking record: TPH ID = ${panenWithRelations.panen.tph_id}")
-                            AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
-                            AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
+                                AppLogger.d("Checking record: TPH ID = ${panenWithRelations.panen.tph_id}")
+                                AppLogger.d("  TPH divisi = $tphDivisi, User afdeling = $userAfdelingId")
+                                AppLogger.d("  Panen asistensi = $panenAsistensi, asistensi_divisi = $panenAsistensiDivisi")
 
-                            // First check: if afdeling matches, include it
-                            if (tphDivisi == userAfdelingId) {
-                                AppLogger.d("  ✓ INCLUDED: Afdeling matches")
-                                true
-                            } else {
-                                // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
-                                val asistensiMatch = panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
-                                if (asistensiMatch) {
-                                    AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
+                                // First check: if afdeling matches, include it
+                                if (tphDivisi == userAfdelingId) {
+                                    AppLogger.d("  ✓ INCLUDED: Afdeling matches")
+                                    true
                                 } else {
-                                    AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
+                                    // If afdeling doesn't match, check if asistensi is 2 AND asistensi_divisi matches
+                                    val asistensiMatch =
+                                        panenAsistensi == 2 && panenAsistensiDivisi.toString() == userAfdelingId
+                                    if (asistensiMatch) {
+                                        AppLogger.d("  ✓ INCLUDED: Afdeling doesn't match but asistensi = 2 and asistensi_divisi matches")
+                                    } else {
+                                        AppLogger.d("  ✗ EXCLUDED: Afdeling doesn't match and (asistensi ≠ 2 or asistensi_divisi doesn't match)")
+                                    }
+                                    asistensiMatch
                                 }
-                                asistensiMatch
                             }
-                        }
 
                         AppLogger.d("Total records after filtering: ${filteredPanenList.size}")
                         AppLogger.d("=== FILTERING COMPLETE ===")
@@ -6299,7 +6332,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 }
                             } catch (e: Exception) {
                                 AppLogger.e("Error parsing JJG JSON for TPH ${panenWithRelations.panen.tph_id}: ${e.message}")
-                                panenWithRelations.panen.jjg_json ?: "" // Fallback to original value
+                                panenWithRelations.panen.jjg_json
+                                    ?: "" // Fallback to original value
                             }
 
                             TPHItem(
@@ -6636,7 +6670,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                 val newBlokJjg = calculateBlokJjgFromTph1(newTph1String)
                                 val updateResult = withContext(Dispatchers.IO) {
-                                    espbViewModel.updateTPH1AndBlokJjg(noespb, newTph1String, newBlokJjg)
+                                    espbViewModel.updateTPH1AndBlokJjg(
+                                        noespb,
+                                        newTph1String,
+                                        newBlokJjg
+                                    )
                                 }
 
                                 if (updateResult > 0) {
@@ -6671,7 +6709,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         }
 
                         dialog.dismiss()
-                    }else {
+                    } else {
                         Toast.makeText(
                             this@ListPanenTBSActivity,
                             "Pilih minimal satu TPH",
@@ -6745,7 +6783,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             }
 
                             if (tphBlokPproInfo != null) {
-                                tphRecords.add(Triple(tphId, tphBlokPproInfo.blok_ppro.toString(), jjgValue))
+                                tphRecords.add(
+                                    Triple(
+                                        tphId,
+                                        tphBlokPproInfo.blok_ppro.toString(),
+                                        jjgValue
+                                    )
+                                )
                                 AppLogger.d("TPH $tphId -> Blok Ppro ${tphBlokPproInfo.blok_ppro} -> JJG $jjgValue")
                             }
                         }
