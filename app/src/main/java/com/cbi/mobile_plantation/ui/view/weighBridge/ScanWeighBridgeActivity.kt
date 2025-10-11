@@ -311,6 +311,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "created_by_id" to (globalCreatedById ?: 0),
                                     "created_at" to globalCreatedAt,
                                     "pemuat_id" to globalPemuatId,
+                                    "pemuat_nik" to globalPemuatNik,
                                     "kemandoran_id" to globalKemandoranId,
                                     "nopol" to globalNopol,
                                     "driver" to globalDriver,
