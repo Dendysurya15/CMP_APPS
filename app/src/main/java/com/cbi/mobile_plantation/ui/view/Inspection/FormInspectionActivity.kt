@@ -1742,8 +1742,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             findViewById(android.R.id.content),
             listOf(
                 LegendItem(R.color.orange, "Lokasi Anda"),
-                LegendItem(R.color.bluedarklight, "Ada Transaksi"),
-                LegendItem(R.color.colorRedDark, "Tidak Ada Transaksi")
+                LegendItem(R.color.bluedarklight, "TPH dengan Transaksi Panen"),
+                LegendItem(R.color.colorRedDark, "TPH tanpa Transaksi Panen")
             )
         )
 
@@ -1946,8 +1946,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             view,
                             listOf(
                                 LegendItem(R.color.orange, "Lokasi Anda"),
-                                LegendItem(R.color.bluedarklight, "Ada Transaksi"),
-                                LegendItem(R.color.colorRedDark,  "Tidak Ada Transaksi", isVisible = true)
+                                LegendItem(R.color.bluedarklight, "TPH dengan Transaksi Panen"),
+                                LegendItem(R.color.colorRedDark,  "TPH tanpa Transaksi Panen", isVisible = true)
                             )
                         )
 

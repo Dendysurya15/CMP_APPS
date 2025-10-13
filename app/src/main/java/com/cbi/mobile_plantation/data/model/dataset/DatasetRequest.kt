@@ -13,5 +13,6 @@ data class DatasetRequest(
     @SerializedName("dataset") val dataset: String,
     @SerializedName("jabatan") val jabatan: String? = null,
     @SerializedName("data") val data: List<String>? = null,
-    @SerializedName("isDownloadMasterTPHAsistensi") val isDownloadMasterTPHAsistensi: Boolean = false
+    @SerializedName("isDownloadMasterTPHAsistensi") val isDownloadMasterTPHAsistensi: Boolean = false,
+    @SerializedName("downloadIdMap") val downloadIdMap: String? = null
 )

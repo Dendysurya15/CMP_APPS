@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.api
 
 import androidx.room.Query
+import com.cbi.mobile_plantation.data.model.DownloadMapResponse
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
@@ -172,6 +173,10 @@ interface ApiService {
     suspend fun checkStatusUploadCMP(
         @Field("idData") ids: String // Send list as a comma-separated string
     ):  Response<checkStatusUploadedData>
+
+    @GET("cmpmain/maps/downloads")
+    @Headers("Accept: application/json")
+    suspend fun getDownloadMapList(): Response<DownloadMapResponse>
 
     @POST("check_duplicates/")
     suspend fun checkTPHDuplicates(@Body requestBody: RequestBody): Response<CheckDuplicateResponse>

@@ -29,6 +29,7 @@ import com.cbi.mobile_plantation.data.database.DepartmentInfo
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.DownloadMapResponse
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
@@ -36,6 +37,7 @@ import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.ParameterModel
 import com.cbi.mobile_plantation.data.repository.DataPanenInspectionRepository
+import com.cbi.mobile_plantation.data.repository.DownloadIDMapRepository
 import com.cbi.mobile_plantation.data.repository.RestanRepository
 import com.cbi.mobile_plantation.data.repository.SyncDataUserRepository
 import com.cbi.mobile_plantation.data.repository.VersioningAppRepository
@@ -80,6 +82,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val dataPanenInspectionRepository: DataPanenInspectionRepository =
         DataPanenInspectionRepository(application)
     private val prefManager = PrefManager(application)
+
+    private val downloadMapRepository = DownloadIDMapRepository()
 
     private val database = AppDatabase.getDatabase(application)
     private val uploadCMPDao = database.uploadCMPDao()
@@ -139,6 +143,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
+
+    private val _downloadMapList = MutableLiveData<Result<DownloadMapResponse>>()
+    val downloadMapList: LiveData<Result<DownloadMapResponse>> = _downloadMapList
+
 
     private val _fetchStatusUploadCMPLiveData = MutableLiveData<List<FetchResponseItem>>()
     val fetchStatusUploadCMPLiveData: LiveData<List<FetchResponseItem>> =
@@ -786,6 +794,18 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val fileName: String,
         val message: String
     )
+
+    fun getDownloadMapList() {
+        viewModelScope.launch {
+            try {
+                val result = downloadMapRepository.getDownloadMapList()
+                _downloadMapList.postValue(result)
+            } catch (e: Exception) {
+                AppLogger.e("Error in getDownloadMapList: ${e.message}")
+                _downloadMapList.postValue(Result.failure(e))
+            }
+        }
+    }
 
     fun updateLocalUploadCMP(
         uploadData: List<Pair<String, String>>,

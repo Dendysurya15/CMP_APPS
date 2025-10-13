@@ -81,6 +81,7 @@ import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
+import com.cbi.mobile_plantation.data.model.DownloadMapItem
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
@@ -234,7 +235,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private lateinit var layoutBlok: LinearLayout
     private lateinit var layoutSelAsistensi: LinearLayout
     private lateinit var tvErrorScannedNotSelected: TextView
+
     private lateinit var mbSaveDataPanenTBS: MaterialButton
+    private lateinit var btnDownloadMapPanenOffline: MaterialButton
     private lateinit var progressBarScanTPHManual: ProgressBar
     private lateinit var progressBarScanTPHAuto: ProgressBar
     private var keyboardBeingDismissed = false
@@ -1239,8 +1242,115 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
         initializeMapView()
+        setupDownloadOfflineMap()
     }
 
+    private fun setupDownloadOfflineMap(){
+        btnDownloadMapPanenOffline.setOnClickListener {
+            AlertDialogUtility.withTwoActions(
+                this,
+                "Download",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.al_confirm_download_offline_map),
+                "warning.json",
+                ContextCompat.getColor(this, R.color.bluedarklight),
+                function = { getDownloadIdMap() },
+                cancelFunction = { }
+            )
+        }
+    }
+
+    private fun getDownloadIdMap() {
+        lifecycleScope.launch {
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang memproses data...")
+
+            try {
+                // Call API through datasetViewModel
+                datasetViewModel.getDownloadMapList()
+
+                // Observe result
+                datasetViewModel.downloadMapList.observe(this@FeaturePanenTBSActivity) { result ->
+                    loadingDialog.dismiss()
+
+                    result.onSuccess { response ->
+                        if (response.success && response.data.downloads.isNotEmpty()) {
+                            AppLogger.d("Download map list: ${response.data.downloads.size} items")
+
+                            // Pass the download list to start download
+                            startDownloadOfflineMap(response.data.downloads)
+                        } else {
+                            Toast.makeText(
+                                this@FeaturePanenTBSActivity,
+                                "Tidak ada data peta offline tersedia",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }.onFailure { error ->
+                        AppLogger.e("Error getting download map list: ${error.message}")
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Gagal mengambil data: ${error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+
+            } catch (e: Exception) {
+                loadingDialog.dismiss()
+                AppLogger.e("Error in getDownloadIdMap: ${e.message}")
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun startDownloadOfflineMap(downloadList: List<DownloadMapItem>) {
+        val userEstate = prefManager!!.estateUserLogin
+
+        // Find the download item matching user's estate
+        val matchedDownload = downloadList.find { it.estateAbbr == userEstate }
+
+        if (matchedDownload != null) {
+            val downloadId = matchedDownload.downloadId
+
+            AppLogger.d("Matched estate: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
+            AppLogger.d("Download ID: $downloadId")
+            AppLogger.d("Status: ${matchedDownload.status}")
+            AppLogger.d("Total Size: ${matchedDownload.totalSize}")
+
+            val datasetRequests = mutableListOf<DatasetRequest>()
+
+            datasetRequests.add(
+                DatasetRequest(
+                    estate = estateId,
+                    estateAbbr = matchedDownload.estateAbbr,
+                    lastModified = null,
+                    dataset = "Download map offline ${matchedDownload.estateAbbr}",
+                    isDownloadMasterTPHAsistensi = false,
+                    downloadIdMap = downloadId
+                )
+            )
+
+            setupDownloadDialog(datasetRequests)
+        } else {
+            AppLogger.e("No matching estate found for: $userEstate")
+
+            AlertDialogUtility.withSingleAction(
+                this@FeaturePanenTBSActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_map_offline),
+                "Estate $userEstate tidak ditemukan dalam daftar download map",
+                "warning.json",
+                R.color.colorRedDark
+            ) {
+
+            }
+        }
+    }
     private fun initializeJjgJson() {
         jjg_json = JSONObject().apply {
             put("TO", jumTBS)
@@ -1301,6 +1411,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         progressBarScanTPHManual = findViewById(R.id.progressBarScanTPHManual)
         progressBarScanTPHAuto = findViewById(R.id.progressBarScanTPHAuto)
         mbSaveDataPanenTBS = findViewById(R.id.mbSaveDataPanenTBS)
+        btnDownloadMapPanenOffline = findViewById(R.id.btnDownloadMapPanenOffline)
         titleLiveMapPanen = findViewById(R.id.titleLiveMapPanen)
         descTitleLiveMapPanen = findViewById(R.id.descTitleLiveMapPanen)
         layoutEstate = findViewById(R.id.layoutEstate)
@@ -3265,7 +3376,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
         // Update button text to reflect download operation
-        btnDownloadDataset.text = "Download Dataset"
+
         btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
 
         val containerDownloadDataset =
@@ -3282,10 +3393,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         var itemId = 0
         datasetRequests.forEach { request ->
+            // Check if downloadIdMap exists and set button text accordingly
+            val itemTitle = if (request.downloadIdMap != null) {
+                btnDownloadDataset.text = "Download Offline Map"
+                request.dataset
+            } else {
+                btnDownloadDataset.text = "Download Dataset"
+                "Master TPH ${request.estateAbbr}"
+            }
+
             downloadItems.add(
                 UploadCMPItem(
                     id = itemId++,
-                    title = "Master TPH ${request.estateAbbr}",
+                    title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
                     data = "",
