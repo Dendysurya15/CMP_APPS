@@ -99,7 +99,10 @@ class UploadProgressCMPDataAdapter(
         // Your existing binding code
         if (item.title.contains("Master")) {
             holder.tvNameProgress.text = item.title
-        } else {
+        }else if(item.title.contains("Map")) {
+            holder.tvNameProgress.text = item.title
+        }
+        else {
             // Check if the title contains any of the standard dataset names
             val containsStandardDataset = AppUtils.DatasetNames::class.java.declaredFields
                 .filter { it.type == String::class.java }

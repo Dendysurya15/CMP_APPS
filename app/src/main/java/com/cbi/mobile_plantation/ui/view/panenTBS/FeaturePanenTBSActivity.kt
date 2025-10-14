@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -68,8 +69,10 @@ import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -142,14 +145,25 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
+import org.osmdroid.tileprovider.MapTileProviderArray
+import org.osmdroid.tileprovider.MapTileProviderBasic
+import org.osmdroid.tileprovider.modules.IArchiveFile
+import org.osmdroid.tileprovider.modules.MapTileFileArchiveProvider
+import org.osmdroid.tileprovider.modules.MapTileModuleProviderBase
+import org.osmdroid.tileprovider.tilesource.BitmapTileSourceBase
+import org.osmdroid.tileprovider.tilesource.ITileSource
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import java.io.File
+import java.io.FileFilter
+import java.io.FileInputStream
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -1247,16 +1261,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
     private fun setupDownloadOfflineMap(){
         btnDownloadMapPanenOffline.setOnClickListener {
-            AlertDialogUtility.withTwoActions(
-                this,
-                "Download",
-                getString(R.string.confirmation_dialog_title),
-                getString(R.string.al_confirm_download_offline_map),
-                "warning.json",
-                ContextCompat.getColor(this, R.color.bluedarklight),
-                function = { getDownloadIdMap() },
-                cancelFunction = { }
-            )
+            if (AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    getString(R.string.al_confirm_download_offline_map),
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { getDownloadIdMap() },
+                    cancelFunction = { }
+                )
+            }else{
+                AlertDialogUtility.withSingleAction(
+                    this@FeaturePanenTBSActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_cmp),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+
+            }
+
         }
     }
 
@@ -1269,17 +1296,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 // Call API through datasetViewModel
                 datasetViewModel.getDownloadMapList()
 
-                // Observe result
-                datasetViewModel.downloadMapList.observe(this@FeaturePanenTBSActivity) { result ->
-                    loadingDialog.dismiss()
-
+                // Observe ONCE - auto-removes after first trigger
+                datasetViewModel.downloadMapList.observeOnce(this@FeaturePanenTBSActivity) { result ->
                     result.onSuccess { response ->
                         if (response.success && response.data.downloads.isNotEmpty()) {
                             AppLogger.d("Download map list: ${response.data.downloads.size} items")
-
-                            // Pass the download list to start download
                             startDownloadOfflineMap(response.data.downloads)
                         } else {
+                            loadingDialog.dismiss()
                             Toast.makeText(
                                 this@FeaturePanenTBSActivity,
                                 "Tidak ada data peta offline tersedia",
@@ -1287,6 +1311,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             ).show()
                         }
                     }.onFailure { error ->
+                        loadingDialog.dismiss()
                         AppLogger.e("Error getting download map list: ${error.message}")
                         Toast.makeText(
                             this@FeaturePanenTBSActivity,
@@ -1310,8 +1335,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
     private fun startDownloadOfflineMap(downloadList: List<DownloadMapItem>) {
         val userEstate = prefManager!!.estateUserLogin
-
-        // Find the download item matching user's estate
         val matchedDownload = downloadList.find { it.estateAbbr == userEstate }
 
         if (matchedDownload != null) {
@@ -1322,21 +1345,56 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             AppLogger.d("Status: ${matchedDownload.status}")
             AppLogger.d("Total Size: ${matchedDownload.totalSize}")
 
-            val datasetRequests = mutableListOf<DatasetRequest>()
+            loadingDialog.setMessage("Mengambil detail peta...")
+            datasetViewModel.getDownloadMapProgress(downloadId)
 
-            datasetRequests.add(
-                DatasetRequest(
-                    estate = estateId,
-                    estateAbbr = matchedDownload.estateAbbr,
-                    lastModified = null,
-                    dataset = "Download map offline ${matchedDownload.estateAbbr}",
-                    isDownloadMasterTPHAsistensi = false,
-                    downloadIdMap = downloadId
-                )
-            )
+            // Observe ONCE - auto-removes after first trigger
+            datasetViewModel.downloadMapProgress.observeOnce(this@FeaturePanenTBSActivity) { progressResult ->
+                loadingDialog.dismiss()
 
-            setupDownloadDialog(datasetRequests)
+                progressResult.onSuccess { progressResponse ->
+                    if (progressResponse.success) {
+                        val progressData = progressResponse.data
+
+                        AppLogger.d("Chunks count: ${progressData.chunksCount}")
+                        AppLogger.d("Total tiles: ${progressData.totalTiles}")
+                        AppLogger.d("Size bytes: ${progressData.sizeBytesRaw}")
+                        AppLogger.d("Total chunks: ${progressData.chunks.size}")
+
+                        val datasetRequests = mutableListOf<DatasetRequest>()
+
+                        datasetRequests.add(
+                            DatasetRequest(
+                                estate = estateId,
+                                estateAbbr = progressData.estateAbbr,
+                                lastModified = null,
+                                dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
+                                isDownloadMasterTPHAsistensi = false,
+                                downloadIdMap = downloadId,
+                                totalChunks = progressData.chunksCount
+                            )
+                        )
+
+                        setupDownloadDialog(datasetRequests)
+                    } else {
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Gagal mendapatkan detail peta",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }.onFailure { error ->
+                    AppLogger.e("Error getting download map progress: ${error.message}")
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Gagal mengambil detail: ${error.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
         } else {
+            loadingDialog.dismiss()
             AppLogger.e("No matching estate found for: $userEstate")
 
             AlertDialogUtility.withSingleAction(
@@ -1346,11 +1404,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 "Estate $userEstate tidak ditemukan dalam daftar download map",
                 "warning.json",
                 R.color.colorRedDark
-            ) {
-
-            }
+            ) { }
         }
     }
+
+
     private fun initializeJjgJson() {
         jjg_json = JSONObject().apply {
             put("TO", jumTBS)
@@ -1395,6 +1453,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         findViewById<TextView>(R.id.tvCounterKirimPabrik).text = "$kirimPabrik Buah"
         findViewById<TextView>(R.id.tvCounterTBSDibayar).text = "$tbsDibayar Buah"
 //        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
+    }
+
+    private fun <T> LiveData<T>.observeOnce(owner: LifecycleOwner, observer: (T) -> Unit) {
+        observe(owner, object : Observer<T> {
+            override fun onChanged(value: T) {
+                removeObserver(this)
+                observer(value)
+            }
+        })
     }
 
 
@@ -1894,7 +1961,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
 
-            // Optimize for low-end devices
             tileFileSystemCacheMaxBytes = 50L * 1024 * 1024
             tileFileSystemCacheTrimBytes = 40L * 1024 * 1024
         }
@@ -1903,7 +1969,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
         btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
 
-        // Setup legend
         setupLegend(
             findViewById(android.R.id.content),
             listOf(
@@ -1914,23 +1979,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         )
 
         mapViewPanenBlok?.apply {
-            val tileSource = if (AppUtils.isNetworkAvailable(this@FeaturePanenTBSActivity)) {
-                object : OnlineTileSourceBase(
-                    "GoogleSatellite",
-                    0, 18, 256, ".png",
-                    arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
-                ) {
-                    override fun getTileURLString(pMapTileIndex: Long): String {
-                        val zoom = MapTileIndex.getZoom(pMapTileIndex)
-                        val x = MapTileIndex.getX(pMapTileIndex)
-                        val y = MapTileIndex.getY(pMapTileIndex)
-                        return baseUrl.replace("{x}", x.toString())
-                            .replace("{y}", y.toString())
-                            .replace("{z}", zoom.toString())
-                    }
+            // ✅ Use when expression that calls the right function
+            val tileSource = when {
+                prefManager!!.isDownloadedMapOffline -> {
+                    AppLogger.d("Using offline map tiles")
+                    loadOfflineMapTileSource()
                 }
-            } else {
-                TileSourceFactory.MAPNIK
+                else -> {
+                    createOnlineTileSource()
+                }
             }
 
             setTileSource(tileSource)
@@ -1940,7 +1997,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             maxZoomLevel = 20.0
             controller.setZoom(15.0)
 
-            // Add zoom change listener with debouncing
             addMapListener(object : MapListener {
                 override fun onScroll(event: ScrollEvent?): Boolean = false
 
@@ -1961,7 +2017,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                         v.parent.requestDisallowInterceptTouchEvent(true)
                     }
-
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         v.parent.requestDisallowInterceptTouchEvent(false)
                     }
@@ -1976,6 +2031,199 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         btnDetailMapPanen?.setOnClickListener {
             showDetailPokokDialog()
+        }
+    }
+
+    private fun updateMapTileSource() {
+        AppLogger.d("updateMapTileSource called")
+        AppLogger.d("isDownloadedMapOffline: ${prefManager!!.isDownloadedMapOffline}")
+
+        mapViewPanenBlok?.apply {
+            // ✅ Simplified - no duplication
+            val tileSource = when {
+                prefManager!!.isDownloadedMapOffline -> {
+                    AppLogger.d("Switching to offline map tiles")
+                    loadOfflineMapTileSource()
+                }
+                else -> {
+                    createOnlineTileSource()
+                }
+            }
+
+            setTileSource(tileSource)
+            invalidate()
+            AppLogger.d("Tile source updated and map invalidated")
+        } ?: run {
+            AppLogger.e("mapViewPanenBlok is null, cannot update tile source")
+        }
+    }
+
+    private fun loadOfflineMapTileSource(): ITileSource {
+        try {
+            val userEstate = prefManager!!.estateUserLogin
+            val tilesDir = File(
+                getExternalFilesDir(null),
+                "map_offline/$userEstate/tiles"
+            )
+
+            AppLogger.d("Loading offline tiles from: ${tilesDir.absolutePath}")
+
+            if (!tilesDir.exists()) {
+                AppLogger.e("Tiles directory doesn't exist")
+                return createOnlineTileSource()
+            }
+
+            val metadataFile = File(tilesDir, "region_metadata.json")
+            if (!metadataFile.exists()) {
+                AppLogger.e("region_metadata.json not found")
+                return createOnlineTileSource()
+            }
+
+            val metadata = JSONObject(metadataFile.readText())
+            val minZoom = metadata.getInt("minZoom")
+            val maxZoom = metadata.getInt("maxZoom")
+            val estatePath = metadata.getString("path")
+            val estateName = metadata.getString("name")
+
+            AppLogger.d("Estate: $estateName")
+            AppLogger.d("Zoom range: $minZoom - $maxZoom")
+
+            val estateFolder = File(tilesDir, estatePath)
+            AppLogger.d("Estate folder: ${estateFolder.absolutePath}")
+
+            if (!estateFolder.exists()) {
+                AppLogger.e("Estate folder doesn't exist")
+                return createOnlineTileSource()
+            }
+
+            // Set map center from bounds
+            val bounds = metadata.getJSONObject("bounds")
+            val centerLat = (bounds.getDouble("sw_lat") + bounds.getDouble("ne_lat")) / 2
+            val centerLng = (bounds.getDouble("sw_lng") + bounds.getDouble("ne_lng")) / 2
+
+            mapViewPanenBlok?.controller?.setCenter(GeoPoint(centerLat, centerLng))
+            AppLogger.d("Map centered at: $centerLat, $centerLng")
+
+            // Create custom tile source
+            val offlineTileSource = object : BitmapTileSourceBase(
+                "OfflineMap",
+                minZoom,
+                maxZoom,
+                256,
+                ".png"
+            ) {
+                override fun getDrawable(aFilePath: String?): Drawable? {
+                    return try {
+                        if (aFilePath == null) return null
+                        val file = File(aFilePath)
+                        if (!file.exists()) {
+                            AppLogger.d("Tile not found: ${file.name}")
+                            return null
+                        }
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        if (bitmap != null) {
+                            AppLogger.d("✅ Loaded: ${file.name}")
+                            BitmapDrawable(resources, bitmap)
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading tile: ${e.message}")
+                        null
+                    }
+                }
+
+                override fun getDrawable(aFileInputStream: InputStream?): Drawable? {
+                    return try {
+                        if (aFileInputStream == null) return null
+                        val bitmap = BitmapFactory.decodeStream(aFileInputStream)
+                        if (bitmap != null) {
+                            BitmapDrawable(resources, bitmap)
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error decoding stream: ${e.message}")
+                        null
+                    }
+                }
+            }
+
+
+            // Create custom archive file for x-y.png format
+            val archiveProvider = MapTileFileArchiveProvider(
+                SimpleRegisterReceiver(this@FeaturePanenTBSActivity),
+                offlineTileSource,
+                arrayOf(object : IArchiveFile {
+                    override fun init(pFile: File?) {}
+
+                    override fun getInputStream(
+                        pTileSource: ITileSource?,
+                        pTile: Long
+                    ): InputStream? {
+                        // OSMDroid uses tile index as Long
+                        val zoom = org.osmdroid.util.MapTileIndex.getZoom(pTile)
+                        val x = org.osmdroid.util.MapTileIndex.getX(pTile)
+                        val y = org.osmdroid.util.MapTileIndex.getY(pTile)
+
+                        val tileFile = File(estateFolder, "$zoom/$x-$y.png")
+
+                        return if (tileFile.exists()) {
+                            FileInputStream(tileFile)
+                        } else {
+                            null
+                        }
+                    }
+
+                    override fun close() {}
+
+                    override fun getTileSources(): MutableSet<String> {
+                        return mutableSetOf("OfflineMap")
+                    }
+
+                    override fun setIgnoreTileSource(pIgnoreTileSource: Boolean) {
+                        // Not needed for our use case
+                    }
+                })
+            )
+
+// Set the tile source and provider using the public constructor
+            mapViewPanenBlok?.setTileSource(offlineTileSource)
+            mapViewPanenBlok?.tileProvider = MapTileProviderArray(
+                offlineTileSource,
+                SimpleRegisterReceiver(this@FeaturePanenTBSActivity),
+                arrayOf<MapTileModuleProviderBase>(archiveProvider)
+            )
+
+            return offlineTileSource
+
+        } catch (e: Exception) {
+            AppLogger.e("Error loading offline map: ${e.message}")
+            e.printStackTrace()
+            return createOnlineTileSource()
+        }
+    }
+
+    private fun createOnlineTileSource(): ITileSource {
+        return if (AppUtils.isNetworkAvailable(this)) {
+            AppLogger.d("Using online Google Satellite")
+            object : OnlineTileSourceBase(
+                "GoogleSatellite",
+                0, 18, 256, ".png",
+                arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+            ) {
+                override fun getTileURLString(pMapTileIndex: Long): String {
+                    val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                    val x = MapTileIndex.getX(pMapTileIndex)
+                    val y = MapTileIndex.getY(pMapTileIndex)
+                    return baseUrl.replace("{x}", x.toString())
+                        .replace("{y}", y.toString())
+                        .replace("{z}", zoom.toString())
+                }
+            }
+        } else {
+            AppLogger.d("No internet, using MAPNIK fallback")
+            TileSourceFactory.MAPNIK
         }
     }
 
@@ -2118,22 +2366,29 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 FrameLayout.LayoutParams.MATCH_PARENT
                             )
 
-                            val googleSatellite = object : OnlineTileSourceBase(
-                                "GoogleSatelliteFullscreen",
-                                0, 18, 256, ".png",
-                                arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
-                            ) {
-                                override fun getTileURLString(pMapTileIndex: Long): String {
-                                    val zoom = MapTileIndex.getZoom(pMapTileIndex)
-                                    val x = MapTileIndex.getX(pMapTileIndex)
-                                    val y = MapTileIndex.getY(pMapTileIndex)
-                                    return baseUrl.replace("{x}", x.toString())
-                                        .replace("{y}", y.toString())
-                                        .replace("{z}", zoom.toString())
+                            // ✅ USE OFFLINE OR ONLINE TILE SOURCE
+                            val tileSource = if (prefManager!!.isDownloadedMapOffline) {
+                                AppLogger.d("Using offline tiles for fullscreen map")
+                                loadOfflineMapTileSource()
+                            } else {
+                                AppLogger.d("Using online tiles for fullscreen map")
+                                object : OnlineTileSourceBase(
+                                    "GoogleSatelliteFullscreen",
+                                    0, 18, 256, ".png",
+                                    arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+                                ) {
+                                    override fun getTileURLString(pMapTileIndex: Long): String {
+                                        val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                                        val x = MapTileIndex.getX(pMapTileIndex)
+                                        val y = MapTileIndex.getY(pMapTileIndex)
+                                        return baseUrl.replace("{x}", x.toString())
+                                            .replace("{y}", y.toString())
+                                            .replace("{z}", zoom.toString())
+                                    }
                                 }
                             }
 
-                            setTileSource(googleSatellite)
+                            setTileSource(tileSource)
                             setMultiTouchControls(true)
                             setBuiltInZoomControls(false)
                             minZoomLevel = 10.0
@@ -2558,7 +2813,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 // Prepare DATA in background thread
                 val markerDataList = withContext(Dispatchers.IO) {
                     latLonMap.map { (tphId, location) ->
-                        AppLogger.d("TPH $tphId (${location.nomor}): RED - no transaction")
 
                         MarkerData(
                             tphId = tphId,
@@ -3364,7 +3618,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Download Dataset"
+
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
         val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
@@ -3395,24 +3649,49 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         datasetRequests.forEach { request ->
             // Check if downloadIdMap exists and set button text accordingly
             val itemTitle = if (request.downloadIdMap != null) {
-                btnDownloadDataset.text = "Download Offline Map"
+                titleTV.text = "Download Offline Map"
+                btnDownloadDataset.text = "Download Map"
                 request.dataset
             } else {
                 btnDownloadDataset.text = "Download Dataset"
+                titleTV.text = "Download Dataset"
                 "Master TPH ${request.estateAbbr}"
             }
 
-            downloadItems.add(
-                UploadCMPItem(
-                    id = itemId++,
-                    title = itemTitle,
-                    fullPath = "",
-                    baseFilename = request.estateAbbr ?: "",
-                    data = "",
-                    type = "",
-                    databaseTable = ""
+            datasetRequests.forEach { request ->
+                // Check if downloadIdMap exists and set button text accordingly
+                val itemTitle = if (request.downloadIdMap != null) {
+                    titleTV.text = "Download Offline Map"
+                    btnDownloadDataset.text = "Download Map"
+                    request.dataset
+                } else {
+                    btnDownloadDataset.text = "Download Dataset"
+                    titleTV.text = "Download Dataset"
+                    "Master TPH ${request.estateAbbr}"
+                }
+
+                // Create JSON string for data field
+                val dataJson = if (request.downloadIdMap != null && request.totalChunks != null) {
+                    JSONObject().apply {
+                        put("downloadId", request.downloadIdMap)
+                        put("totalChunks", request.totalChunks)
+                    }.toString()
+                } else {
+                    ""
+                }
+
+                downloadItems.add(
+                    UploadCMPItem(
+                        id = itemId++,
+                        title = itemTitle,
+                        fullPath = "",
+                        baseFilename = request.estateAbbr ?: "",
+                        data = dataJson,
+                        type = "",
+                        databaseTable = ""
+                    )
                 )
-            )
+            }
         }
 
         Handler(Looper.getMainLooper()).postDelayed({
@@ -3462,18 +3741,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             // Reset title color
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
-            titleTV.text = "Download Dataset"
 
             datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
         }
 
         btnDownloadDataset.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
+                // Check if downloading offline map or dataset
+                val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                val confirmMessage = if (isDownloadingMap) {
+                    getString(R.string.al_confirm_download_offline_map)
+                } else {
+                    getString(R.string.al_confirm_upload)
+                }
+
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Download",
                     getString(R.string.confirmation_dialog_title),
-                    getString(R.string.al_confirm_upload),
+                    confirmMessage,
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = { startDownload() },
@@ -3503,13 +3789,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 AppLogger.d("failedRequests $failedRequests")
 
                 failedRequests.forEach { request ->
+                    // Check if downloadIdMap exists and set title accordingly
+                    val itemTitle = if (request.downloadIdMap != null) {
+                        request.dataset
+                    } else {
+                        "Master TPH ${request.estateAbbr}"
+                    }
+
                     retryDownloadItems.add(
                         UploadCMPItem(
                             id = itemId++,
-                            title = "${request.estateAbbr} - ${request.dataset}",
+                            title = itemTitle,
                             fullPath = "",
                             baseFilename = request.estateAbbr ?: "",
-                            data = "",
+                            data = request.downloadIdMap ?: "",
                             type = "",
                             databaseTable = ""
                         )
@@ -3527,7 +3820,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 // Update UI elements
                 counterTV.text = "0/${retryDownloadItems.size}"
-                titleTV.text = "Download Dataset"
+
+                // Check if retrying offline map or dataset
+                val isDownloadingMap = failedRequests.any { it.downloadIdMap != null }
+                titleTV.text = if (isDownloadingMap) "Download Offline Map" else "Download Dataset"
                 titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
 
                 // Hide retry button, show download button
@@ -3576,9 +3872,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             // Update title if any download is in progress
             if (progressMap.values.any { it in 1..99 }) {
-                titleTV.text = "Sedang Download Dataset..."
+                // Check if downloading offline map or dataset
+                val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                titleTV.text = if (isDownloadingMap) {
+                    "Sedang Download Peta Offline..."
+                } else {
+                    "Sedang Download Dataset..."
+                }
             }
-
         }
 
 
@@ -3632,6 +3933,69 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             closeDialogBtn.isEnabled = true
                             closeDialogBtn.alpha = 1f
                             closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                            // ✅ Process offline map if it's a map download
+                            val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                            if (isDownloadingMap) {
+                                AppLogger.d("Starting offline map processing...")
+
+                                // Show processing dialog
+                                loadingDialog.show()
+                                loadingDialog.setMessage("Memproses peta offline...")
+
+                                try {
+                                    // Get estate abbreviation
+                                    val estateAbbr = datasetRequests.first().estateAbbr
+                                    val userEstate = prefManager!!.estateUserLogin
+
+                                    val offlineMapDir = File(
+                                        getExternalFilesDir(null),
+                                        "map_offline/$userEstate"
+                                    )
+
+                                    // Step 1: Merge chunks
+                                    loadingDialog.setMessage("Menggabungkan file peta...")
+                                    val mergedZipFile = mergeChunksToZip(offlineMapDir)
+
+                                    // Step 2: Extract tiles
+                                    loadingDialog.setMessage("Mengekstrak tiles peta...")
+                                    extractZipToTiles(mergedZipFile, offlineMapDir)
+
+                                    // Step 3: Cleanup
+                                    loadingDialog.setMessage("Membersihkan file temp...")
+                                    cleanupTempFiles(offlineMapDir, mergedZipFile)
+
+                                    // Step 4: Save preference
+                                    prefManager!!.isDownloadedMapOffline = true
+
+                                    // ✅ Step 5: UPDATE THE MAP TILES!
+                                    loadingDialog.setMessage("Memperbarui peta...")
+                                    updateMapTileSource()
+
+                                    loadingDialog.dismiss()
+
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Peta offline berhasil diproses!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    AppLogger.d("Offline map processing completed successfully")
+
+                                } catch (e: Exception) {
+                                    loadingDialog.dismiss()
+
+                                    AppLogger.e("Error processing offline map: ${e.message}")
+                                    e.printStackTrace()
+
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Error memproses peta: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
                         } else {
                             // Some or all failed
                             titleTV.text = "Terjadi Kesalahan Download"
@@ -3652,36 +4016,36 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
                         }
 
-                        datasetViewModel.getDistinctMasterDeptInfoCopy()
-                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
+                        // Check if downloading offline map or regular dataset
+                        val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
 
-                        delay(
-                            1000
-                        )
-                        datasetViewModel.distinctDeptInfoListCopy.observe(this@FeaturePanenTBSActivity) { list ->
-                            Log.d("DepartmentInfo", "Observed list size: ${list?.size}")
-                            val distinctDeptInfos = list ?: emptyList()
-                            val deptInfoMap =
-                                distinctDeptInfos.associate { it.dept to it.dept_abbr }
+                        if (!isDownloadingMap) {
+                            // Only run department info logic for regular dataset downloads
+                            datasetViewModel.getDistinctMasterDeptInfoCopy()
+                            val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
 
-                            Log.d("DepartmentInfo", "Department Map: $deptInfoMap")
+                            delay(1000)
 
-                            masterDeptInfoMap = deptInfoMap
-                            departmentInfoDeferred.complete(deptInfoMap)
+                            datasetViewModel.distinctDeptInfoListCopy.observe(this@FeaturePanenTBSActivity) { list ->
+                                val distinctDeptInfos = list ?: emptyList()
+                                val deptInfoMap =
+                                    distinctDeptInfos.associate { it.dept to it.dept_abbr }
+
+                                masterDeptInfoMap = deptInfoMap
+                                departmentInfoDeferred.complete(deptInfoMap)
+                            }
+
+                            // Wait for the deferred to complete
+                            val fullDeptInfoMap = departmentInfoDeferred.await()
+
+                            val masterDeptAbbrList = fullDeptInfoMap.values.toList()
+
+                            val layoutEstate = findViewById<LinearLayout>(R.id.layoutEstate)
+                            setupSpinnerView(layoutEstate, masterDeptAbbrList)
+                        } else {
+                            // For offline map downloads, don't need to update estate spinner
+                            AppLogger.d("Offline map download completed - skipping estate spinner update")
                         }
-
-
-                        // Wait for the deferred to complete
-                        val fullDeptInfoMap = departmentInfoDeferred.await()
-
-                        val masterDeptAbbrList = fullDeptInfoMap.values.toList()
-
-                        Log.d("DepartmentInfo", "Master Dept Abbr List: $masterDeptAbbrList")
-
-                        val layoutEstate = findViewById<LinearLayout>(R.id.layoutEstate)
-
-                        Log.d("DepartmentInfo", "Setting up spinner with list")
-                        setupSpinnerView(layoutEstate, masterDeptAbbrList)
                     }
                 }
             }
@@ -3833,6 +4197,62 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         if (progressBarScanTPHAuto.visibility == View.VISIBLE) {
             progressBarScanTPHAuto.visibility = View.GONE
         }
+    }
+
+    private suspend fun mergeChunksToZip(offlineMapDir: File): File = withContext(Dispatchers.IO) {
+        val chunkFiles = offlineMapDir.listFiles { file ->
+            file.name.startsWith("chunk_") && file.extension == "bin"
+        }?.sortedBy { it.name } ?: emptyList()
+
+        if (chunkFiles.isEmpty()) {
+            throw Exception("No chunk files found")
+        }
+
+        val mergedZipFile = File(offlineMapDir, "merged_map.zip")
+
+        AppLogger.d("Merging ${chunkFiles.size} chunks...")
+
+        mergedZipFile.outputStream().use { output ->
+            chunkFiles.forEach { chunkFile ->
+                chunkFile.inputStream().use { input ->
+                    input.copyTo(output)
+                }
+                AppLogger.d("Merged ${chunkFile.name}")
+            }
+        }
+
+        AppLogger.d("Merged ZIP: ${mergedZipFile.length()} bytes")
+        mergedZipFile
+    }
+
+    private suspend fun extractZipToTiles(zipFile: File, baseDir: File) = withContext(Dispatchers.IO) {
+        val tilesDir = File(baseDir, "tiles")
+        if (!tilesDir.exists()) {
+            tilesDir.mkdirs()
+        }
+
+        AppLogger.d("Extracting ZIP to ${tilesDir.absolutePath}")
+
+        val zip = net.lingala.zip4j.ZipFile(zipFile)
+        zip.extractAll(tilesDir.absolutePath)
+
+        AppLogger.d("Extraction completed")
+    }
+
+    private suspend fun cleanupTempFiles(offlineMapDir: File, mergedZipFile: File) = withContext(Dispatchers.IO) {
+        AppLogger.d("Cleaning up temp files...")
+
+        // Delete chunks
+        val chunkFiles = offlineMapDir.listFiles { file ->
+            file.name.startsWith("chunk_") && file.extension == "bin"
+        } ?: emptyArray()
+
+        chunkFiles.forEach { it.delete() }
+
+        // Delete merged ZIP
+        mergedZipFile.delete()
+
+        AppLogger.d("Cleanup completed")
     }
 
     private fun setupFormulasView() {
@@ -5571,7 +5991,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                             val limit = defaultLimit
 
-                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
+//                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
 
                             when (selectionCount) {
                                 0 -> tph.nomor
@@ -6540,17 +6960,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
     private fun setupScanTPHTrigger() {
-        AppLogger.d("tess bro ")
-        val alertCardScanRadius =
-            findViewById<MaterialCardView>(R.id.alertCardScanRadius)
+        AppLogger.d("=== setupScanTPHTrigger called ===")
+        AppLogger.d("prefManager.isDownloadedMapOffline: ${prefManager!!.isDownloadedMapOffline}")
+        AppLogger.d("mapViewPanenBlok null? ${mapViewPanenBlok == null}")
+        AppLogger.d("overlays size: ${mapViewPanenBlok?.overlays?.size}")
+
+        val alertCardScanRadius = findViewById<MaterialCardView>(R.id.alertCardScanRadius)
         alertCardScanRadius.visibility = View.VISIBLE
 
-        val alertTvScannedRadius =
-            findViewById<TextView>(R.id.alertTvScannedRadius)
+        val alertTvScannedRadius = findViewById<TextView>(R.id.alertTvScannedRadius)
         alertTvScannedRadius.visibility = View.VISIBLE
 
-        val btnScanTPHRadius =
-            findViewById<MaterialButton>(R.id.btnScanTPHRadius)
+        val btnScanTPHRadius = findViewById<MaterialButton>(R.id.btnScanTPHRadius)
 
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
@@ -6560,52 +6981,35 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             btnScanTPHRadius.visibility = View.VISIBLE
         }
 
-        // Show auto scan switch when scanning is available
         layoutAutoScan.visibility = View.VISIBLE
-
         titleLiveMapPanen.visibility = View.VISIBLE
         descTitleLiveMapPanen.visibility = View.VISIBLE
-        // Show map card
         cardMapPanenBlok?.visibility = View.VISIBLE
 
-        // Initialize map if not already done
+        // Initialize or update map
         if (mapViewPanenBlok?.overlays?.isEmpty() == true) {
+            AppLogger.d("First time - calling initializeMapView()")
             initializeMapView()
+        } else {
+            AppLogger.d("Already initialized - calling updateMapTileSource()")
+            updateMapTileSource()
         }
 
         val radiusText = "${radiusMinimum.toInt()} m"
-        val text =
-            "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
+        val text = "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
         val asterisk = "*"
 
-        val spannableScanTPHTitle =
-            SpannableString("$text $asterisk").apply {
-                val startIndex = text.indexOf(radiusText)
-                val endIndex = startIndex + radiusText.length
+        val spannableScanTPHTitle = SpannableString("$text $asterisk").apply {
+            val startIndex = text.indexOf(radiusText)
+            val endIndex = startIndex + radiusText.length
 
-                setSpan(
-                    StyleSpan(Typeface.BOLD), // Make text bold
-                    startIndex,
-                    endIndex,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-
-                setSpan(
-                    StyleSpan(Typeface.ITALIC), // Make text bold
-                    startIndex,
-                    endIndex,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-
-                setSpan(
-                    ForegroundColorSpan(Color.RED), // Make asterisk red
-                    text.length,
-                    length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
+            setSpan(StyleSpan(Typeface.BOLD), startIndex, endIndex, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(StyleSpan(Typeface.ITALIC), startIndex, endIndex, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(ForegroundColorSpan(Color.RED), text.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
 
         alertTvScannedRadius.text = spannableScanTPHTitle
+        AppLogger.d("=== setupScanTPHTrigger completed ===")
     }
 
     /**

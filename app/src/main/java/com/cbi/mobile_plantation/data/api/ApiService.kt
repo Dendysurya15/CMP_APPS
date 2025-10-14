@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.api
 
 import androidx.room.Query
+import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
 import com.cbi.mobile_plantation.data.model.DownloadMapResponse
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
@@ -177,6 +178,17 @@ interface ApiService {
     @GET("cmpmain/maps/downloads")
     @Headers("Accept: application/json")
     suspend fun getDownloadMapList(): Response<DownloadMapResponse>
+
+    @GET("cmpmain/maps/progress/{downloadId}")
+    @Headers("Accept: application/json")
+    suspend fun getDownloadMapProgress(@Path("downloadId") downloadId: String): Response<DownloadMapProgressResponse>
+
+    @GET("cmpmain/maps/download-chunk/{downloadId}/{chunkIndex}")
+    @Streaming
+    suspend fun downloadMapChunk(
+        @Path("downloadId") downloadId: String,
+        @Path("chunkIndex") chunkIndex: Int
+    ): Response<ResponseBody>
 
     @POST("check_duplicates/")
     suspend fun checkTPHDuplicates(@Body requestBody: RequestBody): Response<CheckDuplicateResponse>

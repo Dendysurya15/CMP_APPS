@@ -29,6 +29,7 @@ import com.cbi.mobile_plantation.data.database.DepartmentInfo
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
 import com.cbi.mobile_plantation.data.model.DownloadMapResponse
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
@@ -146,6 +147,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _downloadMapList = MutableLiveData<Result<DownloadMapResponse>>()
     val downloadMapList: LiveData<Result<DownloadMapResponse>> = _downloadMapList
+
+    private val _downloadMapProgress = MutableLiveData<Result<DownloadMapProgressResponse>>()
+    val downloadMapProgress: LiveData<Result<DownloadMapProgressResponse>> = _downloadMapProgress
 
 
     private val _fetchStatusUploadCMPLiveData = MutableLiveData<List<FetchResponseItem>>()
@@ -795,6 +799,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
+
     fun getDownloadMapList() {
         viewModelScope.launch {
             try {
@@ -805,6 +810,22 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 _downloadMapList.postValue(Result.failure(e))
             }
         }
+    }
+
+    fun getDownloadMapProgress(downloadId: String) {
+        viewModelScope.launch {
+            try {
+                val result = downloadMapRepository.getDownloadMapProgress(downloadId)
+                _downloadMapProgress.postValue(result)
+            } catch (e: Exception) {
+                AppLogger.e("Error in getDownloadMapProgress: ${e.message}")
+                _downloadMapProgress.postValue(Result.failure<DownloadMapProgressResponse>(e))
+            }
+        }
+    }
+
+    suspend fun downloadMapChunk(downloadId: String, chunkIndex: Int): Response<ResponseBody> {
+        return downloadMapRepository.downloadMapChunk(downloadId, chunkIndex)
     }
 
     fun updateLocalUploadCMP(
@@ -1289,7 +1310,116 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
-                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                    } else if (request.downloadIdMap != null && request.totalChunks != null) {
+                        // Handle offline map download
+                        try {
+                             // Use fields directly - no need to parse data
+                            val downloadId = request.downloadIdMap!!
+                            val totalChunks = request.totalChunks!!
+
+                            AppLogger.d("Starting offline map download - ID: $downloadId, Chunks: $totalChunks")
+
+                            // Create map offline directory
+                            val mapOfflineDir = File(
+                                getApplication<Application>().getExternalFilesDir(null),
+                                "map_offline/${request.estateAbbr}"
+                            )
+
+                            if (!mapOfflineDir.exists()) {
+                                mapOfflineDir.mkdirs()
+                            }
+
+                            AppLogger.d("Map offline directory: ${mapOfflineDir.absolutePath}")
+
+                            // Download each chunk with progress
+                            var downloadedChunks = 0
+                            val chunkFiles = mutableListOf<File>()
+
+                            for (chunkIndex in 0 until totalChunks) {
+                                try {
+                                    // Calculate progress (0-100%)
+                                    val progress = ((chunkIndex.toFloat() / totalChunks) * 100).toInt()
+                                    progressMap[itemId] = progress
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
+                                    _itemProgressMap.postValue(progressMap.toMap())
+                                    _itemStatusMap.postValue(statusMap.toMap())
+
+                                    // Log with 1-based indexing for readability (chunk 1 of 10)
+                                    AppLogger.d("Downloading chunk ${chunkIndex + 1}/$totalChunks (${progress}%)")
+
+                                    // Download chunk using 0-based index for API
+                                    val chunkResponse = downloadMapRepository.downloadMapChunk(downloadId, chunkIndex)
+
+                                    if (chunkResponse.isSuccessful) {
+                                        val chunkFile = File(mapOfflineDir, "chunk_${String.format("%03d", chunkIndex)}.bin")
+
+                                        // Save chunk to file
+                                        withContext(Dispatchers.IO) {
+                                            chunkResponse.body()?.byteStream()?.use { input ->
+                                                chunkFile.outputStream().use { output ->
+                                                    input.copyTo(output)
+                                                }
+                                            }
+                                        }
+
+                                        chunkFiles.add(chunkFile)
+                                        downloadedChunks++
+
+                                        AppLogger.d("Chunk ${chunkIndex + 1}/$totalChunks saved: ${chunkFile.name} (${chunkFile.length()} bytes)")
+                                    } else {
+                                        throw Exception("Failed to download chunk ${chunkIndex + 1}/$totalChunks: ${chunkResponse.code()}")
+                                    }
+
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error downloading chunk ${chunkIndex + 1}/$totalChunks: ${e.message}")
+                                    throw e
+                                }
+                            }
+
+                            // All chunks downloaded successfully
+                            if (downloadedChunks == totalChunks) {
+                                progressMap[itemId] = 100
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                errorMap[itemId] = null
+
+                                AppLogger.d("Map download completed - ${downloadedChunks} chunks saved to ${mapOfflineDir.absolutePath}")
+
+                                // Save metadata
+                                val metadataFile = File(mapOfflineDir, "metadata.json")
+                                val metadata = JSONObject().apply {
+                                    put("downloadId", downloadId)
+                                    put("estateAbbr", request.estateAbbr)
+                                    put("totalChunks", totalChunks)
+                                    put("downloadedAt", System.currentTimeMillis())
+                                }
+
+                                withContext(Dispatchers.IO) {
+                                    metadataFile.writeText(metadata.toString())
+                                }
+
+                            } else {
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] = "Downloaded $downloadedChunks/$totalChunks chunks"
+                            }
+
+                            _itemProgressMap.postValue(progressMap.toMap())
+                            _itemStatusMap.postValue(statusMap.toMap())
+                            _itemErrorMap.postValue(errorMap.toMap())
+
+                            incrementCompletedCount()
+                            continue // Skip normal response processing
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in offline map download: ${e.message}")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "Map download error: ${e.message}"
+                            _itemStatusMap.postValue(statusMap.toMap())
+                            _itemErrorMap.postValue(errorMap.toMap())
+                            incrementCompletedCount()
+                            continue
+                        }
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
