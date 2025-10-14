@@ -2058,6 +2058,159 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
     }
 
+    private fun loadOfflineMapTileSourceForFullscreen(mapView: MapView): ITileSource {
+        try {
+            val userEstate = prefManager!!.estateUserLogin
+            val tilesDir = File(
+                getExternalFilesDir(null),
+                "map_offline/$userEstate/tiles"
+            )
+
+            AppLogger.d("🗺️ [FULLSCREEN] Loading offline tiles from: ${tilesDir.absolutePath}")
+
+            if (!tilesDir.exists()) {
+                AppLogger.e("❌ [FULLSCREEN] Tiles directory doesn't exist")
+                return createOnlineTileSource()
+            }
+
+            val metadataFile = File(tilesDir, "region_metadata.json")
+            if (!metadataFile.exists()) {
+                AppLogger.e("❌ [FULLSCREEN] region_metadata.json not found")
+                return createOnlineTileSource()
+            }
+
+            val metadata = JSONObject(metadataFile.readText())
+            val minZoom = metadata.getInt("minZoom")
+            val maxZoom = metadata.getInt("maxZoom")
+            val estatePath = metadata.getString("path")
+            val estateName = metadata.getString("name")
+
+            AppLogger.d("✅ [FULLSCREEN] Estate: $estateName")
+            AppLogger.d("✅ [FULLSCREEN] Zoom range: $minZoom - $maxZoom")
+
+            val estateFolder = File(tilesDir, estatePath)
+            AppLogger.d("📁 [FULLSCREEN] Estate folder: ${estateFolder.absolutePath}")
+            AppLogger.d("📁 [FULLSCREEN] Estate folder exists: ${estateFolder.exists()}")
+
+            if (!estateFolder.exists()) {
+                AppLogger.e("❌ [FULLSCREEN] Estate folder doesn't exist")
+                return createOnlineTileSource()
+            }
+
+            // List some sample files to verify structure
+            val zoomFolders = estateFolder.listFiles()?.filter { it.isDirectory }
+            AppLogger.d("📂 [FULLSCREEN] Found zoom folders: ${zoomFolders?.map { it.name }}")
+            zoomFolders?.firstOrNull()?.let { zoomFolder ->
+                val sampleTiles = zoomFolder.listFiles()?.take(3)?.map { it.name }
+                AppLogger.d("📄 [FULLSCREEN] Sample tiles in ${zoomFolder.name}: $sampleTiles")
+            }
+
+            // Create custom tile source
+            val offlineTileSource = object : BitmapTileSourceBase(
+                "OfflineMapFullscreen",
+                minZoom,
+                maxZoom,
+                256,
+                ".png"
+            ) {
+                override fun getDrawable(aFilePath: String?): Drawable? {
+                    return try {
+                        if (aFilePath == null) return null
+                        val file = File(aFilePath)
+                        if (!file.exists()) {
+                            return null
+                        }
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        if (bitmap != null) {
+                            BitmapDrawable(resources, bitmap)
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("❌ [FULLSCREEN] Error loading tile: ${e.message}")
+                        null
+                    }
+                }
+
+                override fun getDrawable(aFileInputStream: InputStream?): Drawable? {
+                    return try {
+                        if (aFileInputStream == null) return null
+                        val bitmap = BitmapFactory.decodeStream(aFileInputStream)
+                        if (bitmap != null) {
+                            BitmapDrawable(resources, bitmap)
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("❌ [FULLSCREEN] Error decoding stream: ${e.message}")
+                        null
+                    }
+                }
+            }
+
+            // ✅ CREATE THE TILE PROVIDER WITH CUSTOM ARCHIVE
+            AppLogger.d("🔧 [FULLSCREEN] Setting up tile provider with custom archive")
+
+            val archiveProvider = MapTileFileArchiveProvider(
+                SimpleRegisterReceiver(this@FeaturePanenTBSActivity),
+                offlineTileSource,
+                arrayOf(object : IArchiveFile {
+                    override fun init(pFile: File?) {
+                        AppLogger.d("🔧 [FULLSCREEN] IArchiveFile init called")
+                    }
+
+                    override fun getInputStream(
+                        pTileSource: ITileSource?,
+                        pTile: Long
+                    ): InputStream? {
+                        val zoom = org.osmdroid.util.MapTileIndex.getZoom(pTile)
+                        val x = org.osmdroid.util.MapTileIndex.getX(pTile)
+                        val y = org.osmdroid.util.MapTileIndex.getY(pTile)
+
+                        val tileFile = File(estateFolder, "$zoom/$x-$y.png")
+
+                        AppLogger.d("🔍 [FULLSCREEN] Requesting tile: $zoom/$x-$y.png")
+                        AppLogger.d("📍 [FULLSCREEN] Full path: ${tileFile.absolutePath}")
+                        AppLogger.d("✓ [FULLSCREEN] File exists: ${tileFile.exists()}")
+
+                        return if (tileFile.exists()) {
+                            AppLogger.d("✅ [FULLSCREEN] Loading tile: $zoom/$x-$y.png")
+                            FileInputStream(tileFile)
+                        } else {
+                            AppLogger.w("⚠️ [FULLSCREEN] Tile not found: $zoom/$x-$y.png")
+                            null
+                        }
+                    }
+
+                    override fun close() {
+                        AppLogger.d("🔧 [FULLSCREEN] IArchiveFile close called")
+                    }
+
+                    override fun getTileSources(): MutableSet<String> {
+                        return mutableSetOf("OfflineMapFullscreen")
+                    }
+
+                    override fun setIgnoreTileSource(pIgnoreTileSource: Boolean) {}
+                })
+            )
+
+            // Set the tile provider on the map view
+            mapView.tileProvider = MapTileProviderArray(
+                offlineTileSource,
+                SimpleRegisterReceiver(this@FeaturePanenTBSActivity),
+                arrayOf<MapTileModuleProviderBase>(archiveProvider)
+            )
+
+            AppLogger.d("✅ [FULLSCREEN] Tile provider configured successfully")
+            return offlineTileSource
+
+        } catch (e: Exception) {
+            AppLogger.e("❌ [FULLSCREEN] Error loading offline map: ${e.message}")
+            e.printStackTrace()
+            return createOnlineTileSource()
+        }
+    }
+
     private fun loadOfflineMapTileSource(): ITileSource {
         try {
             val userEstate = prefManager!!.estateUserLogin
@@ -2369,7 +2522,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             // ✅ USE OFFLINE OR ONLINE TILE SOURCE
                             val tileSource = if (prefManager!!.isDownloadedMapOffline) {
                                 AppLogger.d("Using offline tiles for fullscreen map")
-                                loadOfflineMapTileSource()
+                                loadOfflineMapTileSourceForFullscreen(this)
                             } else {
                                 AppLogger.d("Using online tiles for fullscreen map")
                                 object : OnlineTileSourceBase(
