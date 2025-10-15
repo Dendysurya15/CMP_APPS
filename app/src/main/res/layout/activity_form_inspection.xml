@@ -585,26 +585,33 @@
 
                                 </LinearLayout>
 
-                                <!-- Buttons (Right Side) -->
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:orientation="vertical">
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
 
-                                    <!-- Refresh Location Button -->
-<!--                                    <com.google.android.material.button.MaterialButton-->
-<!--                                        android:id="@+id/btnRefreshLocation"-->
-<!--                                        android:layout_width="wrap_content"-->
-<!--                                        android:layout_height="wrap_content"-->
-<!--                                        android:layout_marginBottom="4dp"-->
-<!--                                        android:minWidth="140dp"-->
-<!--                                        android:backgroundTint="@color/bluedarklight"-->
-<!--                                        android:fontFamily="@font/manrope_medium"-->
-<!--                                        android:text="Refresh Lokasi"-->
-<!--                                        android:textAllCaps="false"-->
-<!--                                        android:textSize="@dimen/s" />-->
+                                    <!-- Download Button -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnDownloadMapPanenOffline"
+                                        android:layout_width="40dp"
+                                        android:layout_height="40dp"
+                                        android:layout_marginEnd="8dp"
+                                        android:backgroundTint="@color/bluedarklight"
+                                        android:insetLeft="0dp"
+                                        android:insetTop="0dp"
+                                        android:insetRight="0dp"
+                                        android:insetBottom="0dp"
+                                        android:minWidth="0dp"
+                                        android:minHeight="0dp"
+                                        android:padding="0dp"
+                                        app:cornerRadius="20dp"
+                                        app:icon="@drawable/map_offline"
+                                        app:iconGravity="textStart"
+                                        app:iconPadding="0dp"
+                                        app:iconSize="28dp" />
 
-                                    <!-- Fullscreen Map Button -->
+                                    <!-- Map Penuh Button -->
                                     <com.google.android.material.button.MaterialButton
                                         android:id="@+id/btnDetailMapPanen"
                                         android:layout_width="wrap_content"

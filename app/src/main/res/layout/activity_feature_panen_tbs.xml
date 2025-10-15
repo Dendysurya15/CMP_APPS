@@ -249,7 +249,7 @@
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="left"
                         android:layout_marginTop="10dp"
-                        android:text="Fitur Live Map Panen"
+                        android:text="Fitur Live Map Titik TPH"
                         android:textColor="@color/black"
                         android:textSize="@dimen/xl"
                         android:visibility="gone"
@@ -401,10 +401,10 @@
                                         android:minHeight="0dp"
                                         android:padding="0dp"
                                         app:cornerRadius="20dp"
-                                        app:icon="@drawable/baseline_download_24"
+                                        app:icon="@drawable/map_offline"
                                         app:iconGravity="textStart"
                                         app:iconPadding="0dp"
-                                        app:iconSize="20dp" />
+                                        app:iconSize="28dp" />
 
                                     <!-- Map Penuh Button -->
                                     <com.google.android.material.button.MaterialButton

@@ -4,6 +4,7 @@ import PulsingUserLocationOverlay
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
@@ -118,7 +119,6 @@ import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.InputType
-import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity.LegendItem
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
 import com.cbi.mobile_plantation.ui.viewModel.InspectionViewModel.InspectionParameterItem
@@ -189,6 +189,14 @@ import com.google.android.gms.location.*
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.tasks.Task
 import android.content.IntentSender
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
+import com.cbi.mobile_plantation.data.model.DownloadMapItem
+import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
+import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
+import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
+import com.cbi.mobile_plantation.utils.MapUtils
 
 @Suppress("UNCHECKED_CAST")
 open class FormInspectionActivity : AppCompatActivity(),
@@ -216,6 +224,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var selectionScreen: LinearLayout
     private lateinit var mainContentWrapper: ConstraintLayout
     private lateinit var headerFormInspection: View
+    private lateinit var btnDownloadMapPanenOffline: MaterialButton
     private var prefManager: PrefManager? = null
     var selectedKemandoranId = 0
     private var radiusMinimum = 0F
@@ -473,6 +482,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         lyKemandoran = findViewById(R.id.lyKemandoran)
         lyPemuat = findViewById(R.id.lyPemuat)
         lyBaris2Inspect = findViewById(R.id.lyBaris2Inspect)
+        btnDownloadMapPanenOffline = findViewById(R.id.btnDownloadMapPanenOffline)
 
         labelFollowUpNow = findViewById(R.id.labelFollowUpNow)
         fabNextToFormAncak = findViewById(R.id.fabNextToFormAncak)
@@ -1014,8 +1024,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         })
 
         initializeMapView()
-        
-
+        setupDownloadOfflineMap()
     }
 
     private fun hasExistingData(): Boolean {
@@ -1729,7 +1738,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
 
-            tileFileSystemCacheMaxBytes = 50L * 1024 * 1024 // 50MB instead of default
+            tileFileSystemCacheMaxBytes = 50L * 1024 * 1024
             tileFileSystemCacheTrimBytes = 40L * 1024 * 1024
         }
 
@@ -1737,35 +1746,22 @@ open class FormInspectionActivity : AppCompatActivity(),
         mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
         btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
 
-        // Setup legend
         setupLegend(
             findViewById(android.R.id.content),
             listOf(
                 LegendItem(R.color.orange, "Lokasi Anda"),
                 LegendItem(R.color.bluedarklight, "TPH dengan Transaksi Panen"),
-                LegendItem(R.color.colorRedDark, "TPH tanpa Transaksi Panen")
+                LegendItem(R.color.colorRedDark,  "TPH tanpa Transaksi Panen", isVisible = true)
             )
         )
 
         mapViewPanenBlok?.apply {
-            val tileSource = if (AppUtils.isNetworkAvailable(this@FormInspectionActivity)) {
-                object : OnlineTileSourceBase(
-                    "GoogleSatellite",
-                    0, 18, 256, ".png",
-                    arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
-                ) {
-                    override fun getTileURLString(pMapTileIndex: Long): String {
-                        val zoom = MapTileIndex.getZoom(pMapTileIndex)
-                        val x = MapTileIndex.getX(pMapTileIndex)
-                        val y = MapTileIndex.getY(pMapTileIndex)
-                        return baseUrl.replace("{x}", x.toString())
-                            .replace("{y}", y.toString())
-                            .replace("{z}", zoom.toString())
-                    }
-                }
-            } else {
-                TileSourceFactory.MAPNIK
-            }
+            // ✅ Use when expression that calls the right function
+            val tileSource = MapUtils.getTileSource(
+                context = this@FormInspectionActivity,
+                prefManager = prefManager!!,
+                mapView = this
+            )
 
             setTileSource(tileSource)
             setMultiTouchControls(true)
@@ -1774,7 +1770,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             maxZoomLevel = 20.0
             controller.setZoom(15.0)
 
-            // Add zoom change listener
             addMapListener(object : MapListener {
                 override fun onScroll(event: ScrollEvent?): Boolean = false
 
@@ -1783,13 +1778,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val newZoom = it.zoomLevel
                         if (newZoom != currentZoomLevel) {
                             currentZoomLevel = newZoom
-
-                            // Debounce - wait 300ms after zoom stops
-                            zoomUpdateJob?.cancel()
-                            zoomUpdateJob = lifecycleScope.launch {
-                                delay(300)
-                                updateMarkerVisibility()
-                            }
+                            updateMarkerVisibility()
                         }
                     }
                     return false
@@ -1815,6 +1804,615 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         btnDetailMapPanen?.setOnClickListener {
             showDetailPokokDialog()
+        }
+    }
+
+    private fun setupDownloadOfflineMap(){
+        btnDownloadMapPanenOffline.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Check if offline map already downloaded
+                val isMapAlreadyDownloaded = prefManager!!.isDownloadedMapOffline
+
+                val dialogMessage = if (isMapAlreadyDownloaded) {
+                    "Peta offline sudah pernah diunduh sebelumnya.\n\nApakah Anda yakin ingin memperbarui data peta offline CMP?"
+                } else {
+                    getString(R.string.al_confirm_download_offline_map)
+                }
+
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    dialogMessage,
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { getDownloadIdMap() },
+                    cancelFunction = { }
+                )
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@FormInspectionActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_cmp),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+            }
+        }
+    }
+
+    private fun getDownloadIdMap() {
+        lifecycleScope.launch {
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang memproses data...")
+
+            try {
+                // Call API through datasetViewModel
+                datasetViewModel.getDownloadMapList()
+
+                // Observe ONCE - auto-removes after first trigger
+                datasetViewModel.downloadMapList.observeOnce(this@FormInspectionActivity) { result ->
+                    result.onSuccess { response ->
+                        if (response.success && response.data.downloads.isNotEmpty()) {
+                            AppLogger.d("Download map list: ${response.data.downloads.size} items")
+                            startDownloadOfflineMap(response.data.downloads)
+                        } else {
+                            loadingDialog.dismiss()
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Tidak ada data peta offline tersedia",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }.onFailure { error ->
+                        loadingDialog.dismiss()
+                        AppLogger.e("Error getting download map list: ${error.message}")
+                        Toast.makeText(
+                            this@FormInspectionActivity,
+                            "Gagal mengambil data: ${error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+
+            } catch (e: Exception) {
+                loadingDialog.dismiss()
+                AppLogger.e("Error in getDownloadIdMap: ${e.message}")
+                Toast.makeText(
+                    this@FormInspectionActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun startDownloadOfflineMap(downloadList: List<DownloadMapItem>) {
+        val userEstate = prefManager!!.estateUserLogin
+        val matchedDownload = downloadList.find { it.estateAbbr == userEstate }
+
+        if (matchedDownload != null) {
+            val downloadId = matchedDownload.downloadId
+
+            AppLogger.d("Matched estate: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
+            AppLogger.d("Download ID: $downloadId")
+            AppLogger.d("Status: ${matchedDownload.status}")
+            AppLogger.d("Total Size: ${matchedDownload.totalSize}")
+
+            loadingDialog.setMessage("Mengambil detail peta...")
+            datasetViewModel.getDownloadMapProgress(downloadId)
+
+            // Observe ONCE - auto-removes after first trigger
+            datasetViewModel.downloadMapProgress.observeOnce(this@FormInspectionActivity) { progressResult ->
+                loadingDialog.dismiss()
+
+                progressResult.onSuccess { progressResponse ->
+                    if (progressResponse.success) {
+                        val progressData = progressResponse.data
+
+                        AppLogger.d("Chunks count: ${progressData.chunksCount}")
+                        AppLogger.d("Total tiles: ${progressData.totalTiles}")
+                        AppLogger.d("Size bytes: ${progressData.sizeBytesRaw}")
+                        AppLogger.d("Total chunks: ${progressData.chunks.size}")
+
+                        val datasetRequests = mutableListOf<DatasetRequest>()
+
+                        datasetRequests.add(
+                            DatasetRequest(
+                                estate = estateId,
+                                estateAbbr = progressData.estateAbbr,
+                                lastModified = null,
+                                dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
+                                isDownloadMasterTPHAsistensi = false,
+                                downloadIdMap = downloadId,
+                                totalChunks = progressData.chunksCount
+                            )
+                        )
+
+                        setupDownloadDialog(datasetRequests)
+                    } else {
+                        Toast.makeText(
+                            this@FormInspectionActivity,
+                            "Gagal mendapatkan detail peta",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }.onFailure { error ->
+                    AppLogger.e("Error getting download map progress: ${error.message}")
+                    Toast.makeText(
+                        this@FormInspectionActivity,
+                        "Gagal mengambil detail: ${error.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
+        } else {
+            loadingDialog.dismiss()
+            AppLogger.e("No matching estate found for: $userEstate")
+
+            AlertDialogUtility.withSingleAction(
+                this@FormInspectionActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_map_offline),
+                "Estate $userEstate tidak ditemukan dalam daftar download map",
+                "warning.json",
+                R.color.colorRedDark
+            ) { }
+        }
+    }
+
+    private fun <T> LiveData<T>.observeOnce(owner: LifecycleOwner, observer: (T) -> Unit) {
+        observe(owner, object : Observer<T> {
+            override fun onChanged(value: T) {
+                removeObserver(this)
+                observer(value)
+            }
+        })
+    }
+
+    fun setupDownloadDialog(datasetRequests: List<DatasetRequest>) {
+
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
+        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
+
+
+        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
+        val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
+        counterSizeFile.visibility = View.VISIBLE
+
+        // Get all buttons
+        val closeDialogBtn = dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
+        val btnDownloadDataset = dialogView.findViewById<MaterialButton>(R.id.btnUploadDataCMP)
+        val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
+
+        // Update button text to reflect download operation
+
+        btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
+
+        val containerDownloadDataset =
+            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
+        containerDownloadDataset.visibility = View.VISIBLE
+
+        // Initially show only close and download buttons
+        closeDialogBtn.visibility = View.VISIBLE
+        btnDownloadDataset.visibility = View.VISIBLE
+        btnRetryDownload.visibility = View.GONE
+
+        // Create upload items from dataset requests (we'll reuse the existing adapter)
+        val downloadItems = mutableListOf<UploadCMPItem>()
+
+        var itemId = 0
+        datasetRequests.forEach { request ->
+            // Check if downloadIdMap exists and set button text accordingly
+            val itemTitle = if (request.downloadIdMap != null) {
+                titleTV.text = "Download Offline Map"
+                btnDownloadDataset.text = "Download Map"
+                request.dataset
+            } else {
+                btnDownloadDataset.text = "Download Dataset"
+                titleTV.text = "Download Dataset"
+                "Master TPH ${request.estateAbbr}"
+            }
+
+            datasetRequests.forEach { request ->
+                // Check if downloadIdMap exists and set button text accordingly
+                val itemTitle = if (request.downloadIdMap != null) {
+                    titleTV.text = "Download Offline Map"
+                    btnDownloadDataset.text = "Download Map"
+                    request.dataset
+                } else {
+                    btnDownloadDataset.text = "Download Dataset"
+                    titleTV.text = "Download Dataset"
+                    "Master TPH ${request.estateAbbr}"
+                }
+
+                // Create JSON string for data field
+                val dataJson = if (request.downloadIdMap != null && request.totalChunks != null) {
+                    JSONObject().apply {
+                        put("downloadId", request.downloadIdMap)
+                        put("totalChunks", request.totalChunks)
+                    }.toString()
+                } else {
+                    ""
+                }
+
+                downloadItems.add(
+                    UploadCMPItem(
+                        id = itemId++,
+                        title = itemTitle,
+                        fullPath = "",
+                        baseFilename = request.estateAbbr ?: "",
+                        data = dataJson,
+                        type = "",
+                        databaseTable = ""
+                    )
+                )
+            }
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (counterTV.text == "0/0" && downloadItems.size > 0) {
+                counterTV.text = "0/${downloadItems.size}"
+            }
+        }, 100)
+
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        val adapter = UploadProgressCMPDataAdapter(downloadItems)
+        recyclerView.adapter = adapter
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        fun startDownload(
+            requestsToDownload: List<DatasetRequest> = datasetRequests,
+            itemsToShow: List<UploadCMPItem> = downloadItems
+        ) {
+            // Check network connectivity first
+            if (!AppUtils.isNetworkAvailable(this)) {
+                AlertDialogUtility.withSingleAction(
+                    this@FormInspectionActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+                return
+            }
+
+            // Disable buttons during download
+            btnDownloadDataset.isEnabled = false
+            closeDialogBtn.isEnabled = false
+            btnRetryDownload.isEnabled = false
+            btnDownloadDataset.alpha = 0.7f
+            closeDialogBtn.alpha = 0.7f
+            btnRetryDownload.alpha = 0.7f
+            btnDownloadDataset.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.parseColor("#80FFFFFF"))
+
+            // Reset title color
+            titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+            datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
+        }
+
+        btnDownloadDataset.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Check if downloading offline map or dataset
+                val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                val confirmMessage = if (isDownloadingMap) {
+                    getString(R.string.al_confirm_download_offline_map)
+                } else {
+                    getString(R.string.al_confirm_upload)
+                }
+
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    confirmMessage,
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { startDownload() },
+                    cancelFunction = { }
+                )
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@FormInspectionActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) {
+                    // Do nothing
+                }
+            }
+        }
+
+        var failedRequests: List<DatasetRequest> = listOf()
+        btnRetryDownload.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Create new download items only for failed requests
+                val retryDownloadItems = mutableListOf<UploadCMPItem>()
+                var itemId = 0
+
+                AppLogger.d("failedRequests $failedRequests")
+
+                failedRequests.forEach { request ->
+                    // Check if downloadIdMap exists and set title accordingly
+                    val itemTitle = if (request.downloadIdMap != null) {
+                        request.dataset
+                    } else {
+                        "Master TPH ${request.estateAbbr}"
+                    }
+
+                    retryDownloadItems.add(
+                        UploadCMPItem(
+                            id = itemId++,
+                            title = itemTitle,
+                            fullPath = "",
+                            baseFilename = request.estateAbbr ?: "",
+                            data = request.downloadIdMap ?: "",
+                            type = "",
+                            databaseTable = ""
+                        )
+                    )
+                }
+
+                // Clear and update the RecyclerView with only failed items
+                adapter.updateItems(retryDownloadItems)
+
+                // Reset adapter state (progress bars, status icons, etc.)
+                adapter.resetState()
+
+                // Reset view model state
+                datasetViewModel.resetState()
+
+                // Update UI elements
+                counterTV.text = "0/${retryDownloadItems.size}"
+
+                // Check if retrying offline map or dataset
+                val isDownloadingMap = failedRequests.any { it.downloadIdMap != null }
+                titleTV.text = if (isDownloadingMap) "Download Offline Map" else "Download Dataset"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
+
+                // Hide retry button, show download button
+                btnRetryDownload.visibility = View.GONE
+                btnDownloadDataset.visibility = View.VISIBLE
+
+                // Start download with only failed requests
+                startDownload(failedRequests, retryDownloadItems)
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@FormInspectionActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+            }
+        }
+
+
+        closeDialogBtn.setOnClickListener {
+            datasetViewModel.processingComplete.removeObservers(this)
+            datasetViewModel.itemProgressMap.removeObservers(this)
+            datasetViewModel.completedCount.removeObservers(this)
+            datasetViewModel.itemStatusMap.removeObservers(this)
+            datasetViewModel.itemErrorMap.removeObservers(this)
+
+            datasetViewModel.resetState()
+            dialog.dismiss()
+        }
+
+        // Observe completed count (connect this to your actual download view model)
+        datasetViewModel.completedCount.observe(this) { completed ->
+            val total = datasetViewModel.totalCount.value ?: downloadItems.size
+            counterTV.text = "$completed/$total"
+        }
+
+        // Observe download progress
+        datasetViewModel.itemProgressMap.observe(this) { progressMap ->
+            // Update progress for each item
+            for ((id, progress) in progressMap) {
+                AppLogger.d("Progress update for item $id: $progress%")
+                adapter.updateProgress(id, progress)
+            }
+
+            // Update title if any download is in progress
+            if (progressMap.values.any { it in 1..99 }) {
+                // Check if downloading offline map or dataset
+                val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                titleTV.text = if (isDownloadingMap) {
+                    "Sedang Download Peta Offline..."
+                } else {
+                    "Sedang Download Dataset..."
+                }
+            }
+        }
+
+
+        datasetViewModel.processingComplete.observe(this) { isComplete ->
+            if (isComplete) {
+                val currentStatusMap = datasetViewModel.itemStatusMap.value ?: emptyMap()
+
+                // Separate successful and failed downloads
+                val successfulIds = mutableListOf<Int>()
+                val failedIds = mutableListOf<Int>()
+
+                currentStatusMap.forEach { (id, status) ->
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED) {
+                        successfulIds.add(id)
+                    } else {
+                        failedIds.add(id)
+                    }
+                }
+
+                // Get successful estate abbreviations
+                val successfulEstates = datasetRequests.filterIndexed { index, _ ->
+                    index in successfulIds
+                }.mapNotNull { it.estateAbbr }
+
+                // Store failed requests for retry
+                failedRequests = datasetRequests.filterIndexed { index, _ ->
+                    index in failedIds
+                }
+
+                // Refresh master data
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        // Update UI based on download results
+                        if (failedIds.isEmpty()) {
+                            // All successful
+                            titleTV.text = "Download Berhasil"
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.greenDarker
+                                )
+                            )
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.GONE
+                            // Enable close button
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                            // ✅ Process offline map if it's a map download
+                            val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                            if (isDownloadingMap) {
+                                AppLogger.d("Starting offline map processing...")
+
+                                // Show processing dialog
+                                loadingDialog.show()
+                                loadingDialog.setMessage("Memproses peta offline...")
+
+                                try {
+                                    // Get estate abbreviation
+                                    val estateAbbr = datasetRequests.first().estateAbbr
+                                    val userEstate = prefManager!!.estateUserLogin
+
+                                    val offlineMapDir = File(
+                                        getExternalFilesDir(null),
+                                        "map_offline/$userEstate"
+                                    )
+
+                                    // Step 1: Merge chunks
+                                    loadingDialog.setMessage("Menggabungkan file peta...")
+                                    val mergedZipFile = MapUtils.mergeChunksToZip(offlineMapDir)
+
+                                    // Step 2: Extract tiles
+                                    loadingDialog.setMessage("Mengekstrak tiles peta...")
+                                    MapUtils.extractZipToTiles(mergedZipFile, offlineMapDir)
+
+                                    // Step 3: Cleanup
+                                    loadingDialog.setMessage("Membersihkan file temp...")
+                                    MapUtils.cleanupTempFiles(offlineMapDir, mergedZipFile)
+
+                                    // Step 4: Save preference
+                                    prefManager!!.isDownloadedMapOffline = true
+
+                                    // ✅ Step 5: UPDATE THE MAP TILES!
+                                    loadingDialog.setMessage("Memperbarui peta...")
+                                    updateMapTileSource()
+
+                                    loadingDialog.dismiss()
+
+                                    Toast.makeText(
+                                        this@FormInspectionActivity,
+                                        "Peta offline berhasil diproses!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    AppLogger.d("Offline map processing completed successfully")
+
+                                } catch (e: Exception) {
+                                    loadingDialog.dismiss()
+
+                                    AppLogger.e("Error processing offline map: ${e.message}")
+                                    e.printStackTrace()
+
+                                    Toast.makeText(
+                                        this@FormInspectionActivity,
+                                        "Error memproses peta: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
+                        } else {
+                            // Some or all failed
+                            titleTV.text = "Terjadi Kesalahan Download"
+                            titleTV.setTextColor(
+                                ContextCompat.getColor(
+                                    titleTV.context,
+                                    R.color.colorRedDark
+                                )
+                            )
+                            btnDownloadDataset.visibility = View.GONE
+                            btnRetryDownload.visibility = View.VISIBLE
+                            btnRetryDownload.isEnabled = true
+                            btnRetryDownload.alpha = 1f
+                            btnRetryDownload.iconTint = ColorStateList.valueOf(Color.WHITE)
+                            // Enable close button
+                            closeDialogBtn.isEnabled = true
+                            closeDialogBtn.alpha = 1f
+                            closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+                        }
+                    }
+                }
+            }
+        }
+
+        datasetViewModel.itemStatusMap.observe(this) { statusMap ->
+            // Update status for each item
+            for ((id, status) in statusMap) {
+                // No need for mapping - just pass the status directly to adapter
+                adapter.updateStatus(id, status)
+            }
+        }
+
+        // Observe errors for each item
+        datasetViewModel.itemErrorMap.observe(this) { errorMap ->
+            for ((id, error) in errorMap) {
+                if (!error.isNullOrEmpty()) {
+                    adapter.updateError(id, error)
+                }
+            }
+
+            if (errorMap.values.any { !it.isNullOrEmpty() }) {
+                titleTV.text = "Terjadi Kesalahan Download"
+                titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.colorRedDark))
+            }
+        }
+    }
+
+    private fun updateMapTileSource() {
+        AppLogger.d("updateMapTileSource called")
+        AppLogger.d("isDownloadedMapOffline: ${prefManager!!.isDownloadedMapOffline}")
+
+        mapViewPanenBlok?.apply {
+            // ✅ Use the utility helper
+            val tileSource = MapUtils.getTileSource(
+                context = this@FormInspectionActivity,
+                prefManager = prefManager!!,
+                mapView = this
+            )
+
+            setTileSource(tileSource)
+            invalidate()
+            AppLogger.d("Tile source updated and map invalidated")
+        } ?: run {
+            AppLogger.e("mapViewPanenBlok is null, cannot update tile source")
         }
     }
 
@@ -1962,22 +2560,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 FrameLayout.LayoutParams.MATCH_PARENT
                             )
 
-                            val googleSatellite = object : OnlineTileSourceBase(
-                                "GoogleSatelliteFullscreen",
-                                0, 18, 256, ".png",
-                                arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
-                            ) {
-                                override fun getTileURLString(pMapTileIndex: Long): String {
-                                    val zoom = MapTileIndex.getZoom(pMapTileIndex)
-                                    val x = MapTileIndex.getX(pMapTileIndex)
-                                    val y = MapTileIndex.getY(pMapTileIndex)
-                                    return baseUrl.replace("{x}", x.toString())
-                                        .replace("{y}", y.toString())
-                                        .replace("{z}", zoom.toString())
-                                }
+                            val tileSource = if (prefManager!!.isDownloadedMapOffline) {
+                                AppLogger.d("🗺️ [FULLSCREEN] Using offline map tiles")
+                                MapUtils.loadOfflineMapTileSourceForFullscreen(
+                                    context = this@FormInspectionActivity,
+                                    prefManager = prefManager!!,
+                                    mapView = this
+                                )
+                            } else {
+                                AppLogger.d("🗺️ [FULLSCREEN] Using online map tiles")
+                                MapUtils.createOnlineTileSource(this@FormInspectionActivity)
                             }
 
-                            setTileSource(googleSatellite)
+                            setTileSource(tileSource)
                             setMultiTouchControls(true)
                             setBuiltInZoomControls(false)
                             minZoomLevel = 10.0
