@@ -7046,6 +7046,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (!isGM) {
             if (linearLayout.id == R.id.lyEstInspect) {
                 spinner.isEnabled = false
+                lyEstInspect.visibility = View.GONE
             }
         }
 
