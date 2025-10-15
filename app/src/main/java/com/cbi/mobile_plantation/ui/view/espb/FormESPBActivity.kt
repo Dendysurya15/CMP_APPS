@@ -924,6 +924,7 @@ class FormESPBActivity : AppCompatActivity() {
                                 transporter_id = transporter_id,
                                 mill_id = selectedMillId,
                                 created_by_id = idPetugas,
+                                created_name = userName!!,
                                 creator_info = creatorInfo.toString(),
                                 noESPB = noESPBStr,
                                 created_at = getCurrentDateTime(),
@@ -932,6 +933,7 @@ class FormESPBActivity : AppCompatActivity() {
                                 status_draft = statusDraft,
                                 status_mekanisasi = mekanisasi,
                                 pemuat_nik = uniqueNikPemanen,
+                                pemuat_nama = uniqueNamaPemuat,
                                 kemandoran_id = uniqueKemandoranId
                             )
 
@@ -1395,7 +1397,7 @@ class FormESPBActivity : AppCompatActivity() {
         // Set close button background color to green
         val closeCardLinearLayout = closeZoomCard.getChildAt(0) as LinearLayout
 
-// Set the LinearLayout background to green instead of the card
+        // Set the LinearLayout background to green instead of the card
         closeCardLinearLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.greenDarker))
 
         // Change the text color to white
@@ -2171,11 +2173,13 @@ class FormESPBActivity : AppCompatActivity() {
     private fun saveESPB(
         blok_jjg: String,
         created_by_id: Int,
+        created_name : String,
         created_at: String,
         nopol: String,
         driver: String,
         transporter_id: Int,
         pemuat_id: String,
+        pemuat_nama:String,
         kemandoran_id: String,
         pemuat_nik: String,
         mill_id: Int,
@@ -2192,6 +2196,7 @@ class FormESPBActivity : AppCompatActivity() {
                 val espbEntity = ESPBEntity(
                     blok_jjg = blok_jjg,
                     created_by_id = created_by_id,
+                    created_name = created_name,
                     created_at = created_at,
                     nopol = nopol,
                     driver = driver,
@@ -2207,6 +2212,7 @@ class FormESPBActivity : AppCompatActivity() {
                     status_mekanisasi = status_mekanisasi,
                     kemandoran_id = kemandoran_id,
                     pemuat_nik = pemuat_nik,
+                    pemuat_nama = pemuat_nama,
                     ids_to_update = idsToUpdate.joinToString(","),
                     date_scan = ""
                 )
