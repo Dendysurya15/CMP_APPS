@@ -3428,24 +3428,24 @@ class HomePageActivity : AppCompatActivity() {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
 
-                                try {
-                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-                                        if (!exists()) mkdirs()
-                                    }
-
-                                    val tempFilename =
-                                        "panen_data_${System.currentTimeMillis()}.json"
-                                    val tempFile = File(tempDir, tempFilename)
-
-                                    FileOutputStream(tempFile).use { fos ->
-                                        fos.write(batchJson.toByteArray())
-                                    }
-
-                                    AppLogger.d("Saved raw panen data to temp file: ${tempFile.absolutePath}")
-                                } catch (e: Exception) {
-                                    AppLogger.e("Failed to save panen data to temp file: ${e.message}")
-                                    e.printStackTrace()
-                                }
+//                                try {
+//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
+//
+//                                    val tempFilename =
+//                                        "panen_data_${System.currentTimeMillis()}.json"
+//                                    val tempFile = File(tempDir, tempFilename)
+//
+//                                    FileOutputStream(tempFile).use { fos ->
+//                                        fos.write(batchJson.toByteArray())
+//                                    }
+//
+//                                    AppLogger.d("Saved raw panen data to temp file: ${tempFile.absolutePath}")
+//                                } catch (e: Exception) {
+//                                    AppLogger.e("Failed to save panen data to temp file: ${e.message}")
+//                                    e.printStackTrace()
+//                                }
 
                                 panenBatchMap[batchKey] = mapOf(
                                     "data" to batchJson,
@@ -5213,25 +5213,6 @@ class HomePageActivity : AppCompatActivity() {
                         val wrappedInspeksiData = mapOf(
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
                         )
-                        val inspeksiJson = Gson().toJson(wrappedInspeksiData)
-//                        AppUtils.clearTempJsonFiles(this@HomePageActivity)
-//                        try {
-//                            val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                if (!exists()) mkdirs()
-//                            }
-//
-//                            val filename = "inspeksi_data_${System.currentTimeMillis()}.json"
-//                            val tempFile = File(tempDir, filename)
-//
-//                            FileOutputStream(tempFile).use { fos ->
-//                                fos.write(inspeksiJson.toByteArray())
-//                            }
-//
-//                            AppLogger.d("Saved raw inspeksi data to temp file: ${tempFile.absolutePath}")
-//                        } catch (e: Exception) {
-//                            AppLogger.e("Failed to save inspeksi data to temp file: ${e.message}")
-//                            e.printStackTrace()
-//                        }
 
                         val inspeksiDataToUpload = mappedInspeksiData.filter { inspeksiMap ->
                             val statusUpload = inspeksiMap["status_upload"] as? String
@@ -5312,6 +5293,25 @@ class HomePageActivity : AppCompatActivity() {
                                     "Data Inspeksi ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
 
+//                                try {
+//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+//                                        if (!exists()) mkdirs()
+//                                    }
+//
+//                                    val tempFilename =
+//                                        "panen_data_${System.currentTimeMillis()}.json"
+//                                    val tempFile = File(tempDir, tempFilename)
+//
+//                                    FileOutputStream(tempFile).use { fos ->
+//                                        fos.write(batchJson.toByteArray())
+//                                    }
+//
+//                                    AppLogger.d("Saved raw panen data to temp file: ${tempFile.absolutePath}")
+//                                } catch (e: Exception) {
+//                                    AppLogger.e("Failed to save panen data to temp file: ${e.message}")
+//                                    e.printStackTrace()
+//                                }
+
                                 inspeksiBatchMap[batchKey] = mapOf(
                                     "data" to batchJson,
                                     "filename" to filename,
@@ -5345,6 +5345,9 @@ class HomePageActivity : AppCompatActivity() {
                         globalInspeksiIds = unzippedInspeksiData.mapNotNull { item ->
                             item["id"] as? Int
                         }
+
+                        AppLogger.d("unzippedInspeksiData $unzippedInspeksiData")
+                        AppLogger.d("globalInspeksiIds $globalInspeksiIds")
                     }
 
                     if (mutuBuahList.isNotEmpty()) {
@@ -5728,6 +5731,7 @@ class HomePageActivity : AppCompatActivity() {
                         uploadDataList.add(AppUtils.DatabaseTables.MUTU_BUAH to unzippedMutuBuah)
                     }
 
+                    AppLogger.d("uploadDataList $uploadDataList")
                     if (uploadDataList.isNotEmpty()) {
 
                         lifecycleScope.launch(Dispatchers.IO) {

@@ -680,7 +680,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     lon = location.longitude
                     currentAccuracy = location.accuracy
 
-                    AppLogger.d("Location updated - Lat: $lat, Lon: $lon, Accuracy: $currentAccuracy m")
+//                    AppLogger.d("Location updated - Lat: $lat, Lon: $lon, Accuracy: $currentAccuracy m")
 
                     // Update UI if needed
                     runOnUiThread {
