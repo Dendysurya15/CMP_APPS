@@ -346,8 +346,51 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//        return 5000F
+//        return prefManager?.radiusMinimum ?:15F
+        return 5000F
+    }
+
+    val listRadioItems: Map<String, Map<String, String>> = mapOf(
+        "YesOrNoOrTitikKosong" to mapOf(
+            "1" to "Ya",
+            "2" to "Tidak",
+            "3" to "Titik Kosong"
+        ),
+        "YesOrNo" to mapOf(
+            "1" to "Ya",
+            "2" to "Tidak"
+        ),
+        "HighOrLow" to mapOf(
+            "1" to "Tinggi",
+            "2" to "Rendah"
+        ),
+        "ExistsOrNot" to mapOf(
+            "1" to "Ada",
+            "2" to "Tidak"
+        ),
+        "NeatOrNot" to mapOf(
+            "1" to "Standar",
+            "2" to "Tidak Standar"
+        ),
+        "PelepahType" to mapOf(
+            "1" to "Tidak ada",
+            "2" to "Ada"
+        ),
+        "PruningType" to mapOf(
+            "1" to "Normal",
+            "2" to "Over Pruning",
+            "3" to "Under Pruning"
+        )
+    )
+
+    // Helper function to get radio items by key
+    fun getRadioItems(key: String): Map<String, String> {
+        return listRadioItems[key] ?: emptyMap()
+    }
+
+    // Helper function to get label by key and value
+    fun getRadioLabel(key: String, value: String): String {
+        return listRadioItems[key]?.get(value) ?: ""
     }
 
     const val MAX_QR_SIZE_KB = 2.5
@@ -425,6 +468,8 @@ object AppUtils {
         const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
         const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
+
+        const val CheckMissingPhotos  = "Cek & Upload Ulang Foto"
     }
 
     object ExemptFeatures {

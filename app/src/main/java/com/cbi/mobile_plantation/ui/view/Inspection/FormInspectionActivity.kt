@@ -6844,51 +6844,23 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Add detail rows dynamically (only show non-zero values)
         var hasData = false
 
+        // Helper function to get radio text using FormInputUtils
         fun getRadioText(category: String, value: Int): String {
-            val listRadioItems: Map<String, Map<String, String>> = mapOf(
-                "YesOrNoOrTitikKosong" to mapOf(
-                    "1" to "Ya",
-                    "2" to "Tidak",
-                    "3" to "Titik Kosong"
-                ),
-                "YesOrNo" to mapOf(
-                    "1" to "Ya",
-                    "2" to "Tidak"
-                ),
-                "HighOrLow" to mapOf(
-                    "1" to "Tinggi",
-                    "2" to "Rendah"
-                ),
-                "ExistsOrNot" to mapOf(
-                    "1" to "Ada",
-                    "2" to "Tidak"
-                ),
-                "NeatOrNot" to mapOf(
-                    "1" to "Standar",
-                    "2" to "Tidak Standar"
-                ),
-                "PelepahType" to mapOf(
-                    "1" to "Ada",
-                    "2" to "Tidak ada"
-                ),
-                "PruningType" to mapOf(
-                    "1" to "Standard",
-                    "2" to "Overpruning",
-                    "3" to "Underpruning"
-                )
-            )
-
-            val categoryMap = when (category) {
-                "harvestTree" -> listRadioItems["YesOrNo"]
-                "neatPelepah" -> listRadioItems["NeatOrNot"]
-                "pelepahSengkleh" -> listRadioItems["PelepahType"]
-                "overPruning" -> listRadioItems["PelepahType"]
-                "underPruning" -> listRadioItems["PelepahType"]
+            val categoryKey = when (category) {
+                "harvestTree" -> "YesOrNo"
+                "neatPelepah" -> "NeatOrNot"
+                "pelepahSengkleh" -> "PelepahType"
+                "overPruning" -> "PelepahType"
+                "underPruning" -> "PelepahType"
+                "kondisiPruning" -> "PruningType"
                 else -> null
             }
 
-            val result = categoryMap?.get(value.toString()) ?: value.toString()
-            return result
+            return if (categoryKey != null) {
+                AppUtils.getRadioLabel(categoryKey, value.toString())
+            } else {
+                value.toString()
+            }
         }
 
         if (pageData.harvestTree > 0) {
@@ -6931,14 +6903,14 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (pageData.kondisiPruning > 0) {
             llDetailsList.addView(
                 createDetailRow(
-                    "Over Pruning",
+                    "Kondisi Pruning",
                     ": ${getRadioText("kondisiPruning", pageData.kondisiPruning)}"
                 )
             )
             hasData = true
         }
 
-// Check if any numeric field has data > 0
+        // Check if any numeric field has data > 0
         val hasNumericData = (pageData.buahMasakTdkDipotong > 0) ||
                 (pageData.btPiringanGawangan > 0) ||
                 (pageData.brdKtpGawangan > 0) ||

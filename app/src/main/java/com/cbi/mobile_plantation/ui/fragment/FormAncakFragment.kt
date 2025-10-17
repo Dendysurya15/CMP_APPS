@@ -58,39 +58,6 @@ class FormAncakFragment : Fragment() {
     private val errorViewsMap = mutableMapOf<Int, TextView>()
     private var isFragmentInitializing = false // Add this flag
     private var isUpdatingData = false
-    private val listRadioItems: Map<String, Map<String, String>> = mapOf(
-        "YesOrNoOrTitikKosong" to mapOf(
-            "1" to "Ya",
-            "2" to "Tidak",
-            "3" to "Titik Kosong"
-        ),
-        "YesOrNo" to mapOf(
-            "1" to "Ya",
-            "2" to "Tidak"
-        ),
-        "HighOrLow" to mapOf(
-            "1" to "Tinggi",
-            "2" to "Rendah"
-        ),
-            "ExistsOrNot" to mapOf(
-            "1" to "Ada",
-            "2" to "Tidak"
-        ),
-        "NeatOrNot" to mapOf(
-            "1" to "Standar",
-            "2" to "Tidak Standar"
-        ),
-        "PelepahType" to mapOf(
-            "1" to "Tidak ada",
-            "2" to "Ada"
-        ),
-        "PruningType" to mapOf(
-            "1" to "Normal",
-            "2" to "Over Pruning",
-            "3" to "Under Pruning"
-        )
-    )
-
     private var pageNumber: Int = 1
     private var featureName: String? = null
 
@@ -556,7 +523,7 @@ class FormAncakFragment : Fragment() {
                 InputType.RADIO -> setupRadioGroup(
                     layoutId = layoutId,
                     titleText = label,
-                    itemList = listRadioItems[itemListMapping[layoutId] ?: "YesOrNo"] ?: emptyMap(),
+                    itemList = AppUtils.listRadioItems[itemListMapping[layoutId] ?: "YesOrNo"] ?: emptyMap(),
                     dataField = dataField,
                     currentValue = valueForThisPage
                 )
