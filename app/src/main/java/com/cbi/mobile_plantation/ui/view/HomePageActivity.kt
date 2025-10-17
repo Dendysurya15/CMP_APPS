@@ -2856,10 +2856,10 @@ class HomePageActivity : AppCompatActivity() {
                     val inspeksiList = inspeksiDeferred.await()
                     val panenESPBMandor1Asisten = mutableListOf<PanenEntityWithRelations>()
                     // Prepare to search for photo files in CMP directories
-                    val picturesDirs = listOf(
+                    val picturesDirs = listOfNotNull(
                         getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                         File(getExternalFilesDir(null)?.parent ?: "", "Pictures")
-                    ).filterNotNull()
+                    )
 
                     // Find all CMP directories upfront
                     val cmpDirectories = mutableListOf<File>()
@@ -3083,18 +3083,19 @@ class HomePageActivity : AppCompatActivity() {
                             panenList
                         }
 
-                        val uniquePhotos = mutableMapOf<String, Map<String, String>>()
+                        val photosByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+
 
                         // Only process photos if we're working with regular panenList
                         if (panenList.isNotEmpty()) {
                             // Prepare to search for photo files in CMP directories
-                            val picturesDirs = listOf(
+                            val picturesDirs = listOfNotNull(
                                 getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                                 File(
                                     getExternalFilesDir(null)?.parent ?: "",
                                     "Pictures"
                                 )
-                            ).filterNotNull()
+                            )
 
                             // Find all CMP directories upfront
                             val cmpDirectories = mutableListOf<File>()
@@ -3118,19 +3119,47 @@ class HomePageActivity : AppCompatActivity() {
 
                             AppLogger.d("Found ${cmpDirectories.size} CMP directories")
 
+
                             // Process regular panenList with photos
                             mappedPanenData = panenList.map { panenWithRelations ->
-                                // Your existing photo processing code here...
-                                val photoNames =
-                                    panenWithRelations.panen.foto?.split(";") ?: listOf()
+
+                                val photoNames = panenWithRelations.panen.foto?.split(";") ?: listOf()
+
+                                // Calculate base path ONCE per record
+                                val createdDate = panenWithRelations.panen.date_created ?: ""
+                                val formattedDate = try {
+                                    val dateFormat = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    )
+                                    val date = dateFormat.parse(createdDate)
+                                    val outputFormat = SimpleDateFormat(
+                                        "yyyy/MM/dd/",
+                                        Locale.getDefault()
+                                    )
+                                    outputFormat.format(date ?: Date())
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error formatting date: ${e.message}")
+                                    val outputFormat = SimpleDateFormat(
+                                        "yyyy/MM/dd/",
+                                        Locale.getDefault()
+                                    )
+                                    outputFormat.format(Date())
+                                }
+
+                                val basePathImage = formattedDate + prefManager!!.estateUserLogin
 
                                 for (photoName in photoNames) {
                                     val trimmedName = photoName.trim()
                                     if (trimmedName.isEmpty()) continue
-                                    if (trimmedName in uniquePhotos) continue
 
-                                    val uploadStatusImage =
-                                        panenWithRelations.panen.status_uploaded_image
+                                    // Check if photo already added to ANY group
+                                    val alreadyAdded = photosByBasePath.values.any { photoList ->
+                                        photoList.any { it["name"] == trimmedName }
+                                    }
+                                    if (alreadyAdded) continue
+
+                                    val uploadStatusImage = panenWithRelations.panen.status_uploaded_image
 
                                     if (uploadStatusImage == "200") {
                                         AppLogger.d("Skipping photo $trimmedName - record ${panenWithRelations.panen.id} fully uploaded (status 200)")
@@ -3154,8 +3183,7 @@ class HomePageActivity : AppCompatActivity() {
                                                         uploadStatusImage,
                                                         JsonObject::class.java
                                                     )
-                                                    val errorArray =
-                                                        errorJson?.get("error")?.asJsonArray
+                                                    val errorArray = errorJson?.get("error")?.asJsonArray
 
                                                     errorArray?.forEach { errorItem ->
                                                         if (errorItem.asString == trimmedName) {
@@ -3168,41 +3196,24 @@ class HomePageActivity : AppCompatActivity() {
                                                 }
                                             }
 
-                                            val createdDate =
-                                                panenWithRelations.panen.date_created ?: ""
-                                            val formattedDate = try {
-                                                val dateFormat = SimpleDateFormat(
-                                                    "yyyy-MM-dd HH:mm:ss",
-                                                    Locale.getDefault()
-                                                )
-                                                val date = dateFormat.parse(createdDate)
-                                                val outputFormat = SimpleDateFormat(
-                                                    "yyyy/MM/dd/",
-                                                    Locale.getDefault()
-                                                )
-                                                outputFormat.format(date ?: Date())
-                                            } catch (e: Exception) {
-                                                AppLogger.e("Error formatting date: ${e.message}")
-                                                val outputFormat = SimpleDateFormat(
-                                                    "yyyy/MM/dd/",
-                                                    Locale.getDefault()
-                                                )
-                                                outputFormat.format(Date())
-                                            }
-
-                                            val basePathImage =
-                                                formattedDate + prefManager!!.estateUserLogin
-
                                             if (shouldAdd) {
-                                                uniquePhotos[trimmedName] = mapOf(
-                                                    "name" to trimmedName,
-                                                    "path" to photoFile.absolutePath,
-                                                    "size" to photoFile.length().toString(),
-                                                    "table_ids" to panenWithRelations.panen.id.toString(),
-                                                    "base_path" to basePathImage,
-                                                    "database" to AppUtils.DatabaseTables.PANEN
+                                                // Initialize the list for this base_path if not exists
+                                                if (!photosByBasePath.containsKey(basePathImage)) {
+                                                    photosByBasePath[basePathImage] = mutableListOf()
+                                                }
+
+                                                // Add photo to the group
+                                                photosByBasePath[basePathImage]!!.add(
+                                                    mapOf(
+                                                        "name" to trimmedName,
+                                                        "path" to photoFile.absolutePath,
+                                                        "size" to photoFile.length().toString(),
+                                                        "table_ids" to panenWithRelations.panen.id.toString(),
+                                                        "base_path" to basePathImage,
+                                                        "database" to AppUtils.DatabaseTables.PANEN
+                                                    )
                                                 )
-                                                AppLogger.d("Added photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                                AppLogger.d("Added photo $trimmedName to group '$basePathImage' at ${photoFile.absolutePath}")
                                             } else {
                                                 AppLogger.d("Skipping photo $trimmedName - no upload needed")
                                             }
@@ -3260,26 +3271,7 @@ class HomePageActivity : AppCompatActivity() {
                                 val kemandoranJsonString = Gson().toJson(kemandoranJson)
                                 val jumlahPemanen = pemanen.size
 
-                                val createdDate = panenWithRelations.panen.date_created ?: ""
-                                val formattedDate = try {
-                                    val dateFormat = SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        Locale.getDefault()
-                                    )
-                                    val date = dateFormat.parse(createdDate)
-                                    val outputFormat = SimpleDateFormat(
-                                        "yyyy/MM/dd",
-                                        Locale.getDefault()
-                                    )
-                                    outputFormat.format(date ?: Date())
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error formatting date: ${e.message}")
-                                    val outputFormat = SimpleDateFormat(
-                                        "yyyy/MM/dd",
-                                        Locale.getDefault()
-                                    )
-                                    outputFormat.format(Date())
-                                }
+
 
                                 val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
 
@@ -3356,7 +3348,6 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         } else if (panenESPBMandor1Asisten.isNotEmpty()) {
 
-                            AppLogger.d(",masuk gesss")
                             mappedPanenData = panenESPBMandor1Asisten.map { panenWithRelations ->
                                 mapOf(
                                     "id" to panenWithRelations.panen.id,
@@ -3459,13 +3450,22 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }
 
-// ✅ CHANGED: Check panenList directly instead of listToProcess
+
                         if (panenList.isNotEmpty()) {
-                            // Only process photos if we used regular panenList
-                            allPhotosPanen = uniquePhotos.values.toMutableList()
-                            if (allPhotosPanen.isNotEmpty()) {
-                                AppLogger.d("Adding ${allPhotosPanen.size} unique photos to upload data")
-                                combinedUploadData["foto_panen"] = allPhotosPanen
+
+                            if (photosByBasePath.isNotEmpty()) {
+                                AppLogger.d("Found ${photosByBasePath.size} photo groups")
+
+                                // Add each group with a unique key
+                                photosByBasePath.forEach { (basePath, photoList) ->
+                                    val sanitizedPath = basePath.replace("/", "_")
+                                    val key = "foto_panen_$sanitizedPath"
+                                    combinedUploadData[key] = photoList
+                                    AppLogger.d("Adding group '$key' with ${photoList.size} photos (path: $basePath)")
+                                }
+
+                                allPhotosPanen = photosByBasePath.values.flatten().toMutableList()
+
                             } else {
                                 AppLogger.w("No photos found to upload")
                             }
@@ -3485,12 +3485,11 @@ class HomePageActivity : AppCompatActivity() {
                             AppLogger.d("unzippedPanenData $unzippedPanenData")
                         } else {
                             // No photos for panenESPBMandor1Asisten
-                            allPhotosPanen = mutableListOf()
                             globalPanenIds = panenDataToUpload.mapNotNull { it["id"] as? Int }
                             unzippedPanenData = panenDataToUpload
                         }
                     }
-//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+
                     if (hektarPanenList.isNotEmpty()) {
                         val hektarPanenToUpload = hektarPanenList.filter { data ->
                             data.status_upload == 0
@@ -3817,7 +3816,7 @@ class HomePageActivity : AppCompatActivity() {
                             unzippedHektaranData = emptyList()
                         }
                     }
-//                                    AppUtils.clearTempJsonFiles(this@HomePageActivity)
+
                     if (absensiList.isNotEmpty()) {
                         // First, process photos/images regardless of status_upload
                         val absensiWithPendingImages = absensiList.filter { data ->
@@ -3841,17 +3840,16 @@ class HomePageActivity : AppCompatActivity() {
                                     }))
                         }
 
-                        val uniquePhotos =
-                            mutableMapOf<String, Map<String, String>>()
+                        val photosAbsensiByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
 
                         // Prepare to search for photo files in CMP directories
-                        val picturesDirs = listOf(
+                        val picturesDirs = listOfNotNull(
                             getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                             File(
                                 getExternalFilesDir(null)?.parent ?: "",
                                 "Pictures"
                             )
-                        ).filterNotNull()
+                        )
 
                         val cmpDirectories = mutableListOf<File>()
                         for (picturesDir in picturesDirs) {
@@ -3877,33 +3875,58 @@ class HomePageActivity : AppCompatActivity() {
                             cmpDirectories.addAll(otherCmpDirs)
                         }
 
-                        // Process photos for absensi with pending images
                         if (absensiWithPendingImages.isNotEmpty()) {
                             for (absensiRelation in absensiWithPendingImages) {
                                 val absensi = absensiRelation.absensi
 
+                                // Calculate base path ONCE per record
+                                val createdDate = absensi.date_absen ?: ""
+                                val formattedDate = try {
+                                    val dateFormat = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    )
+                                    val date = dateFormat.parse(createdDate)
+                                    val outputFormat = SimpleDateFormat(
+                                        "yyyy/MM/dd/",
+                                        Locale.getDefault()
+                                    )
+                                    outputFormat.format(date ?: Date())
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error formatting date: ${e.message}")
+                                    val outputFormat = SimpleDateFormat(
+                                        "yyyy/MM/dd/",
+                                        Locale.getDefault()
+                                    )
+                                    outputFormat.format(Date())
+                                }
+
+                                val basePathImage = formattedDate + prefManager!!.estateUserLogin
+
                                 // Process photo for upload
                                 val photoName = absensi.foto.trim()
-                                if (photoName.isNotEmpty() && photoName !in uniquePhotos) {
-                                    val uploadStatusImage =
-                                        absensi.status_uploaded_image
+                                if (photoName.isNotEmpty()) {
+                                    // Check if photo already added to ANY group
+                                    val alreadyAdded = photosAbsensiByBasePath.values.any { photoList ->
+                                        photoList.any { it["name"] == photoName }
+                                    }
+                                    if (alreadyAdded) continue
+
+                                    val uploadStatusImage = absensi.status_uploaded_image
 
                                     // Determine if photo needs uploading
                                     var shouldAddPhoto = false
 
                                     if (uploadStatusImage == "0") {
-                                        // Default status - hasn't been uploaded yet
                                         shouldAddPhoto = true
                                         AppLogger.d("Photo $photoName hasn't been uploaded (status 0)")
                                     } else if (uploadStatusImage.startsWith("{")) {
                                         try {
-                                            // Using Gson to parse the JSON
                                             val errorJson = Gson().fromJson(
                                                 uploadStatusImage,
                                                 JsonObject::class.java
                                             )
-                                            val errorArray =
-                                                errorJson?.get("error")?.asJsonArray
+                                            val errorArray = errorJson?.get("error")?.asJsonArray
 
                                             errorArray?.forEach { errorItem ->
                                                 if (errorItem.asString == photoName) {
@@ -3924,50 +3947,24 @@ class HomePageActivity : AppCompatActivity() {
                                             val photoFile = File(cmpDir, photoName)
 
                                             if (photoFile.exists() && photoFile.isFile) {
-                                                val createdDate =
-                                                    absensi.date_absen ?: ""
-                                                val formattedDate = try {
-                                                    val dateFormat =
-                                                        SimpleDateFormat(
-                                                            "yyyy-MM-dd HH:mm:ss",
-                                                            Locale.getDefault()
-                                                        )
-                                                    val date =
-                                                        dateFormat.parse(createdDate)
-                                                    val outputFormat =
-                                                        SimpleDateFormat(
-                                                            "yyyy/MM/dd/",
-                                                            Locale.getDefault()
-                                                        )
-                                                    outputFormat.format(
-                                                        date ?: Date()
-                                                    )
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error formatting date: ${e.message}")
-                                                    // Default to current date if parsing fails
-                                                    val outputFormat =
-                                                        SimpleDateFormat(
-                                                            "yyyy/MM/dd/",
-                                                            Locale.getDefault()
-                                                        )
-                                                    outputFormat.format(Date())
+                                                // Initialize the list for this base_path if not exists
+                                                if (!photosAbsensiByBasePath.containsKey(basePathImage)) {
+                                                    photosAbsensiByBasePath[basePathImage] = mutableListOf()
                                                 }
 
-                                                // Create the base path by appending the estate code or other identifier
-                                                val basePathImage =
-                                                    formattedDate + prefManager!!.estateUserLogin
-
-                                                uniquePhotos[photoName] = mapOf(
-                                                    "name" to photoName,
-                                                    "path" to photoFile.absolutePath,
-                                                    "size" to photoFile.length()
-                                                        .toString(),
-                                                    "table_ids" to absensi.id.toString(),
-                                                    "base_path" to basePathImage,
-                                                    "database" to AppUtils.DatabaseTables.ABSENSI
+                                                // Add photo to the group
+                                                photosAbsensiByBasePath[basePathImage]!!.add(
+                                                    mapOf(
+                                                        "name" to photoName,
+                                                        "path" to photoFile.absolutePath,
+                                                        "size" to photoFile.length().toString(),
+                                                        "table_ids" to absensi.id.toString(),
+                                                        "base_path" to basePathImage,
+                                                        "database" to AppUtils.DatabaseTables.ABSENSI
+                                                    )
                                                 )
 
-                                                AppLogger.d("Added absensi photo for upload: $photoName at ${photoFile.absolutePath}")
+                                                AppLogger.d("Added absensi photo $photoName to group '$basePathImage' at ${photoFile.absolutePath}")
                                                 photoFound = true
                                                 break
                                             }
@@ -3982,15 +3979,26 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
 
-                            // Add photos to the combined upload data if we found any
-                            allPhotosAbsensi = uniquePhotos.values.toMutableList()
-                            if (allPhotosAbsensi.isNotEmpty()) {
-                                AppLogger.d("Adding ${allPhotosAbsensi.size} absensi photos to upload data")
-                                combinedUploadData["foto_absensi"] =
-                                    allPhotosAbsensi
+                            // NEW: Add grouped photos to upload data
+                            if (photosAbsensiByBasePath.isNotEmpty()) {
+                                AppLogger.d("Found ${photosAbsensiByBasePath.size} Absensi photo groups")
+
+                                photosAbsensiByBasePath.forEach { (basePath, photoList) ->
+                                    val sanitizedPath = basePath.replace("/", "_")
+                                    val key = "foto_absensi_$sanitizedPath"
+                                    combinedUploadData[key] = photoList
+                                    AppLogger.d("Adding group '$key' with ${photoList.size} photos (path: $basePath)")
+                                }
+
+                                // Collect all photos into global list
+                                allPhotosAbsensi = photosAbsensiByBasePath.values.flatten().toMutableList()
+                                AppLogger.d("Total photos in allPhotosAbsensi: ${allPhotosAbsensi.size}")
                             } else {
                                 AppLogger.w("No absensi photos found to upload")
+                                allPhotosAbsensi = mutableListOf()
                             }
+                        } else {
+                            allPhotosAbsensi = mutableListOf()
                         }
 
                         // Now process data with status_upload == 0, completely separate from the photo logic
@@ -4428,16 +4436,20 @@ class HomePageActivity : AppCompatActivity() {
 
                     if (inspeksiList.isNotEmpty()) {
 
-                        AppLogger.d("${inspeksiList.size}")
-                        val uniquePhotos = mutableMapOf<String, Map<String, String>>()
+                        val photosSelfieByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+                        val photosSelfiePemulihanByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+                        val photosInspeksiTphByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+                        val photosInspeksiPokokByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+                        val photosFollowUpTphByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+                        val photosFollowUpPokokByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
 
-                        val picturesDirs = listOf(
+                        val picturesDirs = listOfNotNull(
                             getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                             File(
                                 getExternalFilesDir(null)?.parent ?: "",
                                 "Pictures"
                             )
-                        ).filterNotNull()
+                        )
 
                         val cmpDirectories = mutableListOf<File>()
                         val expectedCmpDirectories = listOf(
@@ -4507,7 +4519,6 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
 
-                            // Search in target directories first
                             for (cmpDir in targetDirectories) {
                                 val photoFile = File(cmpDir, photoName)
                                 if (photoFile.exists() && photoFile.isFile) {
@@ -4516,7 +4527,6 @@ class HomePageActivity : AppCompatActivity() {
                                 }
                             }
 
-                            // If not found in expected directories, search all directories as fallback
                             if (targetDirectories.size < cmpDirectories.size) {
                                 AppLogger.w("Photo $photoName not found in expected directories, searching all CMP directories")
                                 for (cmpDir in cmpDirectories) {
@@ -4533,7 +4543,65 @@ class HomePageActivity : AppCompatActivity() {
                             return null
                         }
 
+                        // NEW: Helper function to add photo to grouped map
+                        fun addPhotoToGroup(
+                            photoName: String,
+                            photoFile: File,
+                            tableId: Int,
+                            basePath: String,
+                            database: String,
+                            photoType: String,
+                            noPokok: Int,
+                            targetMap: MutableMap<String, MutableList<Map<String, String>>>,
+                            table: String
+                        ) {
+                            // Initialize the list for this base_path if not exists
+                            if (!targetMap.containsKey(basePath)) {
+                                targetMap[basePath] = mutableListOf()
+                            }
+
+                            // Add photo to the group
+                            targetMap[basePath]!!.add(
+                                mapOf(
+                                    "name" to photoName,
+                                    "path" to photoFile.absolutePath,
+                                    "size" to photoFile.length().toString(),
+                                    "table_ids" to tableId.toString(),
+                                    "table" to table,
+                                    "base_path" to basePath,
+                                    "database" to database,
+                                    "photo_type" to photoType,
+                                    "no_pokok" to noPokok.toString()
+                                )
+                            )
+                            AppLogger.d("Added $photoType photo $photoName to group '$basePath'")
+                        }
+
                         mappedInspeksiData = inspeksiList.mapNotNull { inspeksiWithRelations ->
+
+                            // Calculate base path ONCE per inspection record
+                            val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd/",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd/",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            val basePathImage = formattedDate + prefManager!!.estateUserLogin
 
                             // Process selfie photos from the main inspection
                             val inspeksiSelfiePhotoNames =
@@ -4543,15 +4611,13 @@ class HomePageActivity : AppCompatActivity() {
                                 val trimmedName = photoName.trim()
                                 if (trimmedName.isEmpty()) continue
 
-                                if (trimmedName in uniquePhotos) continue
-
-                                // Check inspection status
-                                var shouldSkip = false
-                                if (inspeksiWithRelations.inspeksi.status_uploaded_image == "200") {
-                                    shouldSkip = true
+                                // Check if photo already added to ANY group
+                                val alreadyAdded = photosSelfieByBasePath.values.any { photoList ->
+                                    photoList.any { it["name"] == trimmedName }
                                 }
+                                if (alreadyAdded) continue
 
-                                if (shouldSkip) {
+                                if (inspeksiWithRelations.inspeksi.status_uploaded_image == "200") {
                                     AppLogger.d("Skipping selfie photo $trimmedName - fully uploaded (status 200)")
                                     continue
                                 }
@@ -4560,14 +4626,10 @@ class HomePageActivity : AppCompatActivity() {
                                 if (photoFile != null) {
                                     var shouldAdd = false
 
-                                    // Check if selfie photo needs upload
                                     if (inspeksiWithRelations.inspeksi.status_uploaded_image == "0") {
                                         shouldAdd = true
                                         AppLogger.d("Selfie photo $trimmedName hasn't been uploaded (status 0)")
-                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith(
-                                            "{"
-                                        )
-                                    ) {
+                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image.startsWith("{")) {
                                         try {
                                             val errorJson = Gson().fromJson(
                                                 inspeksiWithRelations.inspeksi.status_uploaded_image,
@@ -4578,79 +4640,47 @@ class HomePageActivity : AppCompatActivity() {
                                             errorArray?.forEach { errorItem ->
                                                 if (errorItem.asString == trimmedName) {
                                                     shouldAdd = true
-                                                    AppLogger.d("Selfie photo $trimmedName is marked as error in inspection ${inspeksiWithRelations.inspeksi.id}")
+                                                    AppLogger.d("Selfie photo $trimmedName is marked as error")
                                                 }
                                             }
                                         } catch (e: Exception) {
-                                            AppLogger.e("Error parsing inspection upload status JSON: ${e.message}")
+                                            AppLogger.e("Error parsing JSON: ${e.message}")
                                         }
                                     }
 
-                                    val createdDate =
-                                        inspeksiWithRelations.inspeksi.created_date ?: ""
-                                    val formattedDate = try {
-                                        val dateFormat = SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        )
-                                        val date = dateFormat.parse(createdDate)
-                                        val outputFormat = SimpleDateFormat(
-                                            "yyyy/MM/dd/",
-                                            Locale.getDefault()
-                                        )
-                                        outputFormat.format(date ?: Date())
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error formatting date: ${e.message}")
-                                        val outputFormat = SimpleDateFormat(
-                                            "yyyy/MM/dd/",
-                                            Locale.getDefault()
-                                        )
-                                        outputFormat.format(Date())
-                                    }
-
-                                    val basePathImage =
-                                        formattedDate + prefManager!!.estateUserLogin
-
                                     if (shouldAdd) {
-                                        uniquePhotos[trimmedName] = mapOf(
-                                            "name" to trimmedName,
-                                            "path" to photoFile.absolutePath,
-                                            "size" to photoFile.length().toString(),
-                                            "table_ids" to (inspeksiWithRelations.inspeksi.id
-                                                ?: 0).toString(),
-                                            "table" to AppUtils.DatabaseTables.INSPEKSI,
-                                            "base_path" to basePathImage,
-                                            "database" to AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser,
-                                            "photo_type" to "selfie",
-                                            "no_pokok" to "0"
+                                        addPhotoToGroup(
+                                            trimmedName,
+                                            photoFile,
+                                            inspeksiWithRelations.inspeksi.id ?: 0,
+                                            basePathImage,
+                                            AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser,
+                                            "selfie",
+                                            0,
+                                            photosSelfieByBasePath,
+                                            AppUtils.DatabaseTables.INSPEKSI
                                         )
-
-                                        AppLogger.d("Added selfie photo for upload: $trimmedName at ${photoFile.absolutePath} (inspection id: ${inspeksiWithRelations.inspeksi.id})")
                                     }
                                 } else {
                                     AppLogger.w("Selfie photo not found: $trimmedName")
                                 }
                             }
 
-                            //process selfie pemulihan
+                            // Process selfie pemulihan
                             val inspeksiSelfiePemulihanPhotoNames =
-                                inspeksiWithRelations.inspeksi.foto_user_pemulihan?.split(";")
-                                    ?: listOf()
+                                inspeksiWithRelations.inspeksi.foto_user_pemulihan?.split(";") ?: listOf()
 
                             for (photoName in inspeksiSelfiePemulihanPhotoNames) {
                                 val trimmedName = photoName.trim()
                                 if (trimmedName.isEmpty()) continue
 
-                                if (trimmedName in uniquePhotos) continue
-
-                                // Check inspection status
-                                var shouldSkip = false
-                                if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan == "200") {
-                                    shouldSkip = true
+                                val alreadyAdded = photosSelfiePemulihanByBasePath.values.any { photoList ->
+                                    photoList.any { it["name"] == trimmedName }
                                 }
+                                if (alreadyAdded) continue
 
-                                if (shouldSkip) {
-                                    AppLogger.d("Skipping selfie photo $trimmedName - fully uploaded (status 200)")
+                                if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan == "200") {
+                                    AppLogger.d("Skipping selfie pemulihan photo $trimmedName - fully uploaded")
                                     continue
                                 }
 
@@ -4658,101 +4688,56 @@ class HomePageActivity : AppCompatActivity() {
                                 if (photoFile != null) {
                                     var shouldAdd = false
 
-                                    // Check if selfie photo needs upload
                                     if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan == "0") {
                                         shouldAdd = true
-                                        AppLogger.d("Selfie photo $trimmedName hasn't been uploaded (status 0)")
-                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan?.startsWith(
-                                            "{"
-                                        ) == true
-                                    ) {
+                                    } else if (inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan?.startsWith("{") == true) {
                                         try {
                                             val errorJson = Gson().fromJson(
                                                 inspeksiWithRelations.inspeksi.status_uploaded_image_pemulihan,
                                                 JsonObject::class.java
                                             )
                                             val errorArray = errorJson?.get("error")?.asJsonArray
-
                                             errorArray?.forEach { errorItem ->
-                                                if (errorItem.asString == trimmedName) {
-                                                    shouldAdd = true
-                                                    AppLogger.d("Selfie photo $trimmedName is marked as error in inspection ${inspeksiWithRelations.inspeksi.id}")
-                                                }
+                                                if (errorItem.asString == trimmedName) shouldAdd = true
                                             }
                                         } catch (e: Exception) {
-                                            AppLogger.e("Error parsing inspection upload status JSON: ${e.message}")
+                                            AppLogger.e("Error parsing JSON: ${e.message}")
                                         }
                                     }
 
-                                    val createdDate =
-                                        inspeksiWithRelations.inspeksi.created_date ?: ""
-                                    val formattedDate = try {
-                                        val dateFormat = SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        )
-                                        val date = dateFormat.parse(createdDate)
-                                        val outputFormat = SimpleDateFormat(
-                                            "yyyy/MM/dd/",
-                                            Locale.getDefault()
-                                        )
-                                        outputFormat.format(date ?: Date())
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error formatting date: ${e.message}")
-                                        val outputFormat = SimpleDateFormat(
-                                            "yyyy/MM/dd/",
-                                            Locale.getDefault()
-                                        )
-                                        outputFormat.format(Date())
-                                    }
-
-                                    val basePathImage =
-                                        formattedDate + prefManager!!.estateUserLogin
-
                                     if (shouldAdd) {
-                                        uniquePhotos[trimmedName] = mapOf(
-                                            "name" to trimmedName,
-                                            "path" to photoFile.absolutePath,
-                                            "size" to photoFile.length().toString(),
-                                            "table_ids" to (inspeksiWithRelations.inspeksi.id
-                                                ?: 0).toString(),
-                                            "table" to AppUtils.DatabaseTables.INSPEKSI,
-                                            "base_path" to basePathImage,
-                                            "database" to AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser,
-                                            "photo_type" to "selfie_pemulihan",
-                                            "no_pokok" to "0"
+                                        addPhotoToGroup(
+                                            trimmedName,
+                                            photoFile,
+                                            inspeksiWithRelations.inspeksi.id ?: 0,
+                                            basePathImage,
+                                            AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser,
+                                            "selfie_pemulihan",
+                                            0,
+                                            photosSelfiePemulihanByBasePath,
+                                            AppUtils.DatabaseTables.INSPEKSI
                                         )
-
-                                        AppLogger.d("Added selfie pemulihan photo for upload: $trimmedName at ${photoFile.absolutePath} (inspection id: ${inspeksiWithRelations.inspeksi.id})")
                                     }
-                                } else {
-                                    AppLogger.w("Selfie pemulihan photo not found: $trimmedName")
                                 }
                             }
 
                             // Process detail inspection photos
-                            // Build lookup map for already uploaded photos (status 200)
-                            val alreadyUploadedPhotosMap =
-                                mutableMapOf<Pair<Int, String>, Boolean>()
+                            val alreadyUploadedPhotosMap = mutableMapOf<Pair<Int, String>, Boolean>()
 
                             inspeksiWithRelations.detailInspeksi.forEach { detail ->
                                 val noPokok = detail.no_pokok
-                                val fotoNames =
-                                    detail.foto?.split(";")?.map { it.trim() } ?: listOf()
-                                val followUpNames =
-                                    detail.foto_pemulihan?.split(";")?.map { it.trim() } ?: listOf()
+                                val fotoNames = detail.foto?.split(";")?.map { it.trim() } ?: listOf()
+                                val followUpNames = detail.foto_pemulihan?.split(";")?.map { it.trim() } ?: listOf()
 
                                 if (detail.status_uploaded_image == "200") {
                                     fotoNames.forEach { name ->
-                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] =
-                                            true
+                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] = true
                                     }
                                 }
 
                                 if (detail.status_uploaded_image_pemulihan == "200") {
                                     followUpNames.forEach { name ->
-                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] =
-                                            true
+                                        if (name.isNotEmpty()) alreadyUploadedPhotosMap[noPokok to name] = true
                                     }
                                 }
                             }
@@ -4760,26 +4745,27 @@ class HomePageActivity : AppCompatActivity() {
                             inspeksiWithRelations.detailInspeksi.forEach { detail ->
                                 val noPokok = detail.no_pokok
 
-                                // ✅ Regular Photos
+                                // ✅ Regular Photos (TPH or Pokok)
                                 val detailPhotoNames = detail.foto?.split(";") ?: listOf()
+                                val targetMapRegular = if (noPokok == 0) photosInspeksiTphByBasePath else photosInspeksiPokokByBasePath
+
                                 for (photoName in detailPhotoNames) {
                                     val trimmedName = photoName.trim()
-                                    if (trimmedName.isEmpty() || trimmedName in uniquePhotos) continue
+                                    if (trimmedName.isEmpty()) continue
 
-                                    if ((noPokok to trimmedName) in alreadyUploadedPhotosMap) {
-                                        AppLogger.d("⏩ Skipping regular photo $trimmedName for no_pokok $noPokok - already uploaded elsewhere")
-                                        continue
-                                    }
+                                    val alreadyAddedInAnyGroup =
+                                        photosInspeksiTphByBasePath.values.any { it.any { p -> p["name"] == trimmedName } } ||
+                                                photosInspeksiPokokByBasePath.values.any { it.any { p -> p["name"] == trimmedName } }
+
+                                    if (alreadyAddedInAnyGroup) continue
+                                    if ((noPokok to trimmedName) in alreadyUploadedPhotosMap) continue
 
                                     var shouldAdd = false
                                     if (detail.status_uploaded_image == "0") {
                                         shouldAdd = true
                                     } else if (detail.status_uploaded_image?.startsWith("{") == true) {
                                         try {
-                                            val errorJson = Gson().fromJson(
-                                                detail.status_uploaded_image,
-                                                JsonObject::class.java
-                                            )
+                                            val errorJson = Gson().fromJson(detail.status_uploaded_image, JsonObject::class.java)
                                             val errorArray = errorJson?.get("error")?.asJsonArray
                                             errorArray?.forEach {
                                                 if (it.asString == trimmedName) shouldAdd = true
@@ -4789,131 +4775,75 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    val photoFile =
-                                        findPhotoInDirectories(trimmedName, "regular", noPokok)
+                                    val photoFile = findPhotoInDirectories(trimmedName, "regular", noPokok)
                                     if (shouldAdd && photoFile != null) {
-                                        val formattedDate = try {
-                                            val input = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            )
-                                            val output =
-                                                SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
-                                            output.format(
-                                                input.parse(inspeksiWithRelations.inspeksi.created_date)
-                                                    ?: Date()
-                                            )
-                                        } catch (e: Exception) {
-                                            SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            ).format(Date())
-                                        }
+                                        val database = if (noPokok == 0) AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH
+                                        else AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok
 
-                                        uniquePhotos[trimmedName] = mapOf(
-                                            "name" to trimmedName,
-                                            "path" to photoFile.absolutePath,
-                                            "size" to photoFile.length().toString(),
-                                            "table_ids" to (detail.id ?: 0).toString(),
-                                            "table" to AppUtils.DatabaseTables.INSPEKSI_DETAIL,
-                                            "base_path" to formattedDate + prefManager!!.estateUserLogin,
-                                            "database" to if (noPokok == 0) AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH else AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok,
-                                            "photo_type" to "regular",
-                                            "no_pokok" to noPokok.toString()
+                                        addPhotoToGroup(
+                                            trimmedName,
+                                            photoFile,
+                                            detail.id ?: 0,
+                                            basePathImage,
+                                            database,
+                                            "regular",
+                                            noPokok,
+                                            targetMapRegular,
+                                            AppUtils.DatabaseTables.INSPEKSI_DETAIL
                                         )
-                                        AppLogger.d("✅ Added regular photo: $trimmedName for detail ${detail.id}")
                                     }
                                 }
 
-                                // ✅ Follow-up Photos
-                                val followUpPhotoNames =
-                                    detail.foto_pemulihan?.split(";") ?: listOf()
+                                // ✅ Follow-up Photos (TPH or Pokok)
+                                val followUpPhotoNames = detail.foto_pemulihan?.split(";") ?: listOf()
+                                val targetMapFollowup = if (noPokok == 0) photosFollowUpTphByBasePath else photosFollowUpPokokByBasePath
+
                                 for (photoName in followUpPhotoNames) {
                                     val trimmedName = photoName.trim()
-                                    if (trimmedName.isEmpty() || trimmedName in uniquePhotos) continue
+                                    if (trimmedName.isEmpty()) continue
 
-                                    if ((noPokok to trimmedName) in alreadyUploadedPhotosMap) {
-                                        AppLogger.d("⏩ Skipping follow-up photo $trimmedName for no_pokok $noPokok - already uploaded elsewhere")
-                                        continue
-                                    }
+                                    val alreadyAddedInAnyGroup =
+                                        photosFollowUpTphByBasePath.values.any { it.any { p -> p["name"] == trimmedName } } ||
+                                                photosFollowUpPokokByBasePath.values.any { it.any { p -> p["name"] == trimmedName } }
+
+                                    if (alreadyAddedInAnyGroup) continue
+                                    if ((noPokok to trimmedName) in alreadyUploadedPhotosMap) continue
 
                                     var shouldAdd = false
                                     if (detail.status_uploaded_image_pemulihan == "0" || detail.status_uploaded_image_pemulihan == null) {
                                         shouldAdd = true
                                     } else if (detail.status_uploaded_image_pemulihan?.startsWith("{") == true) {
                                         try {
-                                            val errorJson = Gson().fromJson(
-                                                detail.status_uploaded_image_pemulihan,
-                                                JsonObject::class.java
-                                            )
+                                            val errorJson = Gson().fromJson(detail.status_uploaded_image_pemulihan, JsonObject::class.java)
                                             val errorArray = errorJson?.get("error")?.asJsonArray
                                             errorArray?.forEach {
                                                 if (it.asString == trimmedName) shouldAdd = true
                                             }
                                         } catch (e: Exception) {
-                                            AppLogger.e("Error parsing JSON (follow-up): ${e.message}")
+                                            AppLogger.e("Error parsing JSON: ${e.message}")
                                         }
                                     }
 
-                                    val photoFile =
-                                        findPhotoInDirectories(trimmedName, "followup", noPokok)
+                                    val photoFile = findPhotoInDirectories(trimmedName, "followup", noPokok)
                                     if (shouldAdd && photoFile != null) {
-                                        val formattedDate = try {
-                                            val input = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            )
-                                            val output =
-                                                SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
-                                            output.format(
-                                                input.parse(inspeksiWithRelations.inspeksi.created_date)
-                                                    ?: Date()
-                                            )
-                                        } catch (e: Exception) {
-                                            SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            ).format(Date())
-                                        }
+                                        val database = if (noPokok == 0) AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH
+                                        else AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok
 
-                                        uniquePhotos[trimmedName] = mapOf(
-                                            "name" to trimmedName,
-                                            "path" to photoFile.absolutePath,
-                                            "size" to photoFile.length().toString(),
-                                            "table_ids" to (detail.id ?: 0).toString(),
-                                            "table" to AppUtils.DatabaseTables.INSPEKSI_DETAIL,
-                                            "base_path" to formattedDate + prefManager!!.estateUserLogin,
-                                            "database" to if (noPokok == 0) AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH else AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok,
-                                            "photo_type" to "followup",
-                                            "no_pokok" to noPokok.toString()
+                                        addPhotoToGroup(
+                                            trimmedName,
+                                            photoFile,
+                                            detail.id ?: 0,
+                                            basePathImage,
+                                            database,
+                                            "followup",
+                                            noPokok,
+                                            targetMapFollowup,
+                                            AppUtils.DatabaseTables.INSPEKSI_DETAIL
                                         )
-                                        AppLogger.d("✅ Added follow-up photo: $trimmedName for detail ${detail.id}")
                                     }
                                 }
                             }
 
-
-                            // Continue with the rest of your existing code for building mappedInspeksiData...
-                            val createdDate = inspeksiWithRelations.inspeksi.created_date ?: ""
-                            val formattedDate = try {
-                                val dateFormat = SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                )
-                                val date = dateFormat.parse(createdDate)
-                                val outputFormat = SimpleDateFormat(
-                                    "yyyy/MM/dd",
-                                    Locale.getDefault()
-                                )
-                                outputFormat.format(date ?: Date())
-                            } catch (e: Exception) {
-                                AppLogger.e("Error formatting date: ${e.message}")
-                                val outputFormat = SimpleDateFormat(
-                                    "yyyy/MM/dd",
-                                    Locale.getDefault()
-                                )
-                                outputFormat.format(Date())
-                            }
 
                             val basePath = "$formattedDate/${prefManager!!.estateUserLogin}/"
 
@@ -5020,7 +4950,7 @@ class HomePageActivity : AppCompatActivity() {
                                 ""
                             }
 
-// Process foto_user_pemulihan (selfie pemulihan photos)
+                        // Process foto_user_pemulihan (selfie pemulihan photos)
                             val originalFotoUserPemulihanString =
                                 inspeksiWithRelations.inspeksi.foto_user_pemulihan ?: ""
                             val modifiedFotoUserPemulihanString =
@@ -5117,98 +5047,78 @@ class HomePageActivity : AppCompatActivity() {
                             }
                         }.toMutableList()
 
-// Now categorize all photos into 5 different lists
-                        val allPhotosInspeksiTph = mutableListOf<Map<String, String>>()
-                        val allPhotosInspeksiPokok = mutableListOf<Map<String, String>>()
-                        val selfiePhotos = mutableListOf<Map<String, String>>()
-                        val selfiePhotosPemulihan = mutableListOf<Map<String, String>>()
-                        val allPhotosFollowUpTPH = mutableListOf<Map<String, String>>()
-                        val allPhotosFollowUpPokok = mutableListOf<Map<String, String>>()
 
-                        uniquePhotos.values.forEach { photoMap ->
-                            val databaseField = photoMap["database"] ?: ""
-                            val photoType = photoMap["photo_type"] ?: ""
-                            val noPokokStr = photoMap["no_pokok"] ?: "0"
-                            val noPokok = noPokokStr.toIntOrNull() ?: 0
-
-                            when {
-                                // Selfie photos from main inspection
-                                databaseField == AppUtils.DatabaseTables.INSPEKSI && photoType == "selfie" -> {
-                                    selfiePhotos.add(photoMap)
-                                }
-
-                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
-                                    selfiePhotosPemulihan.add(photoMap)
-                                }
-
-                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
-                                    allPhotosInspeksiTph.add(photoMap)
-                                }
-
-                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
-                                    allPhotosInspeksiPokok.add(photoMap)
-                                }
-
-                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
-                                    allPhotosFollowUpTPH.add(photoMap)
-                                }
-
-                                databaseField == AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
-                                    allPhotosFollowUpPokok.add(photoMap)
-                                }
-
-                                else -> {
-                                    // Default fallback - treat as selfie
-                                    selfiePhotos.add(photoMap)
-                                    AppLogger.w("Unknown photo categorization: database=$databaseField, type=$photoType, no_pokok=$noPokok - adding to selfie category")
-                                }
+                        // NEW: Add grouped photos to upload data
+                        if (photosSelfieByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosSelfieByBasePath.size} selfie photo groups")
+                            photosSelfieByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_selfie_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} selfie photos")
                             }
                         }
 
-                        if (selfiePhotos.isNotEmpty()) {
-                            AppLogger.d("Adding ${selfiePhotos.size} unique selfie photos to upload data")
-                            combinedUploadData["foto_selfie"] = selfiePhotos
-                        } else {
-                            AppLogger.w("No selfie photos found to upload")
+                        if (photosSelfiePemulihanByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosSelfiePemulihanByBasePath.size} selfie pemulihan photo groups")
+                            photosSelfiePemulihanByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_selfie_pemulihan_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} selfie pemulihan photos")
+                            }
                         }
 
-                        if (selfiePhotosPemulihan.isNotEmpty()) {
-                            AppLogger.d("Adding ${selfiePhotosPemulihan.size} unique selfie pemulihan photos to upload data")
-                            combinedUploadData["foto_selfie_pemulihan"] = selfiePhotosPemulihan
-                        } else {
-                            AppLogger.w("No selfie pemulihan photos found to upload")
+                        if (photosInspeksiTphByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosInspeksiTphByBasePath.size} inspeksi TPH photo groups")
+                            photosInspeksiTphByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_inspeksi_tph_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} inspeksi TPH photos")
+                            }
                         }
 
-                        if (allPhotosInspeksiTph.isNotEmpty()) {
-                            AppLogger.d("Adding ${allPhotosInspeksiTph.size} unique inspeksi TPH photos to upload data")
-                            combinedUploadData["foto_inspeksi_tph"] = allPhotosInspeksiTph
-                        } else {
-                            AppLogger.w("No inspeksi TPH photos found to upload")
+                        if (photosInspeksiPokokByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosInspeksiPokokByBasePath.size} inspeksi Pokok photo groups")
+                            photosInspeksiPokokByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_inspeksi_pokok_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} inspeksi Pokok photos")
+                            }
                         }
 
-                        if (allPhotosInspeksiPokok.isNotEmpty()) {
-                            AppLogger.d("Adding ${allPhotosInspeksiPokok.size} unique inspeksi Pokok photos to upload data")
-                            combinedUploadData["foto_inspeksi_pokok"] = allPhotosInspeksiPokok
-                        } else {
-                            AppLogger.w("No inspeksi Pokok photos found to upload")
+                        if (photosFollowUpTphByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosFollowUpTphByBasePath.size} follow-up TPH photo groups")
+                            photosFollowUpTphByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_followup_tph_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} follow-up TPH photos")
+                            }
                         }
 
-                        if (allPhotosFollowUpTPH.isNotEmpty()) {
-                            AppLogger.d("Adding ${allPhotosFollowUpTPH.size} unique follow-up TPH photos to upload data")
-                            combinedUploadData["foto_followup_tph"] = allPhotosFollowUpTPH
-                        } else {
-                            AppLogger.w("No follow-up TPH photos found to upload")
+                        if (photosFollowUpPokokByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosFollowUpPokokByBasePath.size} follow-up Pokok photo groups")
+                            photosFollowUpPokokByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_followup_pokok_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} follow-up Pokok photos")
+                            }
                         }
 
-                        if (allPhotosFollowUpPokok.isNotEmpty()) {
-                            AppLogger.d("Adding ${allPhotosFollowUpPokok.size} unique follow-up Pokok photos to upload data")
-                            combinedUploadData["foto_followup_pokok"] = allPhotosFollowUpPokok
-                        } else {
-                            AppLogger.w("No follow-up Pokok photos found to upload")
-                        }
+                        // Collect all photos into global list
+                        allPhotosInspeksi = (
+                                photosSelfieByBasePath.values.flatten() +
+                                        photosSelfiePemulihanByBasePath.values.flatten() +
+                                        photosInspeksiTphByBasePath.values.flatten() +
+                                        photosInspeksiPokokByBasePath.values.flatten() +
+                                        photosFollowUpTphByBasePath.values.flatten() +
+                                        photosFollowUpPokokByBasePath.values.flatten()
+                                ).toMutableList()
 
-                        allPhotosInspeksi =
-                            (selfiePhotos + selfiePhotosPemulihan + allPhotosInspeksiTph + allPhotosInspeksiPokok + allPhotosFollowUpTPH + allPhotosFollowUpPokok).toMutableList()
 
                         val wrappedInspeksiData = mapOf(
                             AppUtils.DatabaseTables.INSPEKSI to mappedInspeksiData
@@ -5351,8 +5261,10 @@ class HomePageActivity : AppCompatActivity() {
                     }
 
                     if (mutuBuahList.isNotEmpty()) {
-                        val uniquePhotosMutuBuah = mutableMapOf<String, Map<String, String>>()
-                        val uniqueSelfiesMutuBuah = mutableMapOf<String, Map<String, String>>()
+
+                        val photosMutuBuahByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+                        val selfiesMutuBuahByBasePath = mutableMapOf<String, MutableList<Map<String, String>>>()
+
 
                         // Prepare to search for photo files in CMP directories
                         val picturesDirs = listOf(
@@ -5384,27 +5296,53 @@ class HomePageActivity : AppCompatActivity() {
 
                         AppLogger.d("Found ${cmpDirectories.size} CMP directories for MutuBuah")
 
-                        // Helper function to process photos
-                        // Helper function to process photos
                         fun processMutuBuahPhotos(
                             photoString: String?,
                             mutuBuah: MutuBuahEntity,
                             photoType: String, // "foto" or "foto_selfie"
-                            targetMap: MutableMap<String, Map<String, String>>
+                            targetMap: MutableMap<String, MutableList<Map<String, String>>>
                         ) {
                             val photoNames = photoString?.split(";") ?: listOf()
+
+                            // Calculate base path ONCE per record
+                            val createdDate = mutuBuah.createdDate
+                            val formattedDate = try {
+                                val dateFormat = SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    Locale.getDefault()
+                                )
+                                val date = dateFormat.parse(createdDate)
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd/",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(date ?: Date())
+                            } catch (e: Exception) {
+                                AppLogger.e("Error formatting date: ${e.message}")
+                                val outputFormat = SimpleDateFormat(
+                                    "yyyy/MM/dd/",
+                                    Locale.getDefault()
+                                )
+                                outputFormat.format(Date())
+                            }
+
+                            val basePathImage = formattedDate + prefManager!!.estateUserLogin
 
                             for (photoName in photoNames) {
                                 val trimmedName = photoName.trim()
                                 if (trimmedName.isEmpty()) continue
 
-                                if (trimmedName in targetMap) continue
+                                // Check if photo already added to ANY group
+                                val alreadyAdded = targetMap.values.any { photoList ->
+                                    photoList.any { it["name"] == trimmedName }
+                                }
+                                if (alreadyAdded) continue
 
                                 // Get the appropriate status based on photo type
                                 val uploadStatusImage = when (photoType) {
                                     "foto" -> mutuBuah.status_uploaded_image
                                     "foto_selfie" -> mutuBuah.status_uploaded_image_selfie
-                                    else -> mutuBuah.status_uploaded_image // fallback
+                                    else -> mutuBuah.status_uploaded_image
                                 }
 
                                 val folderServer = when (photoType) {
@@ -5436,8 +5374,7 @@ class HomePageActivity : AppCompatActivity() {
                                                     uploadStatusImage,
                                                     JsonObject::class.java
                                                 )
-                                                val errorArray =
-                                                    errorJson?.get("error")?.asJsonArray
+                                                val errorArray = errorJson?.get("error")?.asJsonArray
 
                                                 errorArray?.forEach { errorItem ->
                                                     if (errorItem.asString == trimmedName) {
@@ -5450,41 +5387,25 @@ class HomePageActivity : AppCompatActivity() {
                                             }
                                         }
 
-                                        val createdDate = mutuBuah.createdDate
-                                        val formattedDate = try {
-                                            val dateFormat = SimpleDateFormat(
-                                                "yyyy-MM-dd HH:mm:ss",
-                                                Locale.getDefault()
-                                            )
-                                            val date = dateFormat.parse(createdDate)
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(date ?: Date())
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error formatting date: ${e.message}")
-                                            val outputFormat = SimpleDateFormat(
-                                                "yyyy/MM/dd/",
-                                                Locale.getDefault()
-                                            )
-                                            outputFormat.format(Date())
-                                        }
-
-                                        val basePathImage =
-                                            formattedDate + prefManager!!.estateUserLogin
-
                                         if (shouldAdd) {
-                                            targetMap[trimmedName] = mapOf(
-                                                "name" to trimmedName,
-                                                "path" to photoFile.absolutePath,
-                                                "size" to photoFile.length().toString(),
-                                                "table_ids" to mutuBuah.id.toString(),
-                                                "table" to folderServer,
-                                                "base_path" to basePathImage,
-                                                "database" to AppUtils.DatabaseTables.MUTU_BUAH,
+                                            // Initialize the list for this base_path if not exists
+                                            if (!targetMap.containsKey(basePathImage)) {
+                                                targetMap[basePathImage] = mutableListOf()
+                                            }
+
+                                            // Add photo to the group
+                                            targetMap[basePathImage]!!.add(
+                                                mapOf(
+                                                    "name" to trimmedName,
+                                                    "path" to photoFile.absolutePath,
+                                                    "size" to photoFile.length().toString(),
+                                                    "table_ids" to mutuBuah.id.toString(),
+                                                    "table" to folderServer,
+                                                    "base_path" to basePathImage,
+                                                    "database" to AppUtils.DatabaseTables.MUTU_BUAH,
+                                                )
                                             )
-                                            AppLogger.d("Added $photoType photo for upload: $trimmedName at ${photoFile.absolutePath}")
+                                            AppLogger.d("Added $photoType photo $trimmedName to group '$basePathImage' at ${photoFile.absolutePath}")
                                         } else {
                                             AppLogger.d("Skipping $photoType photo $trimmedName - no upload needed")
                                         }
@@ -5506,13 +5427,13 @@ class HomePageActivity : AppCompatActivity() {
                                 mutuBuah.foto,
                                 mutuBuah,
                                 "foto",
-                                uniquePhotosMutuBuah
+                                photosMutuBuahByBasePath
                             )
                             processMutuBuahPhotos(
                                 mutuBuah.foto_selfie,
                                 mutuBuah,
                                 "foto_selfie",
-                                uniqueSelfiesMutuBuah
+                                selfiesMutuBuahByBasePath
                             )
                         }
 
@@ -5677,21 +5598,40 @@ class HomePageActivity : AppCompatActivity() {
 
 
                         // Add photos to upload data
-                        val allPhotosMutuBuah = uniquePhotosMutuBuah.values.toMutableList()
-                        val allSelfiesMutuBuah = uniqueSelfiesMutuBuah.values.toMutableList()
+                        if (photosMutuBuahByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${photosMutuBuahByBasePath.size} MutuBuah photo groups")
 
-                        if (allPhotosMutuBuah.isNotEmpty()) {
-                            AppLogger.d("Adding ${allPhotosMutuBuah.size} unique MutuBuah photos to upload data")
-                            combinedUploadData["foto_mutu_buah"] = allPhotosMutuBuah
+                            photosMutuBuahByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_mutu_buah_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} photos (path: $basePath)")
+                            }
+
+                            // Collect all photos into global list
+                            allPhotosMutuBuah = photosMutuBuahByBasePath.values.flatten().toMutableList()
+                            AppLogger.d("Total photos in allPhotosMutuBuah: ${allPhotosMutuBuah.size}")
                         } else {
                             AppLogger.w("No MutuBuah photos found to upload")
+                            allPhotosMutuBuah = mutableListOf()
                         }
 
-                        if (allSelfiesMutuBuah.isNotEmpty()) {
-                            AppLogger.d("Adding ${allSelfiesMutuBuah.size} unique MutuBuah selfies to upload data")
-                            combinedUploadData["foto_selfie_mutu_buah"] = allSelfiesMutuBuah
+                        if (selfiesMutuBuahByBasePath.isNotEmpty()) {
+                            AppLogger.d("Found ${selfiesMutuBuahByBasePath.size} MutuBuah selfie groups")
+
+                            selfiesMutuBuahByBasePath.forEach { (basePath, photoList) ->
+                                val sanitizedPath = basePath.replace("/", "_")
+                                val key = "foto_selfie_mutu_buah_$sanitizedPath"
+                                combinedUploadData[key] = photoList
+                                AppLogger.d("Adding group '$key' with ${photoList.size} selfies (path: $basePath)")
+                            }
+
+                            // Collect all selfies into global list
+                            allSelfiesMutuBuah = selfiesMutuBuahByBasePath.values.flatten().toMutableList()
+                            AppLogger.d("Total selfies in allSelfiesMutuBuah: ${allSelfiesMutuBuah.size}")
                         } else {
                             AppLogger.w("No MutuBuah selfies found to upload")
+                            allSelfiesMutuBuah = mutableListOf()
                         }
 
                         unzippedMutuBuah = mappedMutuBuahData.filter { item ->
@@ -5970,6 +5910,7 @@ class HomePageActivity : AppCompatActivity() {
 
                 AppLogger.d("hasPhotosMutuBuahToUpload $hasPhotosMutuBuahToUpload")
                 AppLogger.d("hasSelfiesMutuBuahToUpload $hasSelfiesMutuBuahToUpload")
+                AppLogger.d("hasPhotosPanenToUpload $hasPhotosPanenToUpload")
                 val hasItemsToUpload = panenToUpload.isNotEmpty() ||
                         espbToUpload.isNotEmpty() ||
                         hasPhotosPanenToUpload ||
@@ -6185,14 +6126,17 @@ class HomePageActivity : AppCompatActivity() {
                 // Extract the data for panen, espb, and photo files
                 val panenFilePath = dataMap[AppUtils.DatabaseTables.PANEN] as? String
                 val espbFilePath = dataMap[AppUtils.DatabaseTables.ESPB] as? String
-                val fotoPanen = dataMap["foto_panen"] as? List<*>
-                val fotoAbsensi = dataMap["foto_absensi"] as? List<*>
 
                 AppLogger.d("Panen file path: $panenFilePath")
                 AppLogger.d("ESPB file path: $espbFilePath")
-                AppLogger.d("Photo file path: $fotoPanen")
 
                 var itemId = 0
+
+                val fotoPanenGroups = dataMap.filterKeys { key ->
+                    key.toString().startsWith("foto_panen_")
+                }
+                AppLogger.d("Found ${fotoPanenGroups.size} photo groups")
+
 
                 // Process ESPB batches
                 val espbInfo = dataMap[AppUtils.DatabaseTables.ESPB] as? Map<*, *>
@@ -6279,8 +6223,6 @@ class HomePageActivity : AppCompatActivity() {
                         }
                     }
                 }
-
-
 
                 // Process Hektar Panen
                 val hektarPanenInfo = dataMap[AppUtils.DatabaseTables.HEKTAR_PANEN] as? Map<*, *>
@@ -6438,420 +6380,486 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                // Process foto_mutu_buah (regular photos)
-                val fotoMutuBuah = dataMap["foto_mutu_buah"] as? List<*>
-                if (fotoMutuBuah != null && fotoMutuBuah.isNotEmpty()) {
-                    AppLogger.d("Processing MutuBuah photo data: ${fotoMutuBuah.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoMutuBuah.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("MutuBuah Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing MutuBuah photo data: ${e.message}")
-                            false
+                val fotoMutuBuahGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_mutu_buah_") == true
+                }
+                fotoMutuBuahGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoMutuBuahList = photoData as? List<*>
+
+                    if (fotoMutuBuahList != null && fotoMutuBuahList.isNotEmpty()) {
+                        AppLogger.d("Processing MutuBuah photo group '$groupKeyStr' with ${fotoMutuBuahList.size} photos")
+
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoMutuBuahList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val name = photoMap["name"] as? String ?: ""
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    AppLogger.d("MutuBuah Photo: $name, size: $size")
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                AppLogger.e("Error processing MutuBuah photo data: ${e.message}")
+                                false
+                            }
+                        }
+
+                        AppLogger.d("Found $foundPhotoCount MutuBuah photos with total size of $totalPhotoSize bytes")
+
+                        if (foundPhotoCount > 0) {
+                            // Extract base_path from the first photo
+                            val firstPhoto = (fotoMutuBuahList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
+
+                            val photoTitle = "Foto Mutu Buah - $basePath ($foundPhotoCount file)"
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = photoTitle,
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoMutuBuahList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
+                            )
+
+                            uploadItems.add(uploadItem)
+                            AppLogger.d("Adding MutuBuah photo upload item with ID ${uploadItem.id} for group $groupKeyStr")
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        } else {
+                            AppLogger.w("No valid MutuBuah photo files found in group $groupKeyStr")
                         }
                     }
+                }
+                val fotoSelfieMutuBuahGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_selfie_mutu_buah_") == true
+                }
+                AppLogger.d("Found ${fotoSelfieMutuBuahGroups.size} MutuBuah selfie groups")
+                fotoSelfieMutuBuahGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoSelfieList = photoData as? List<*>
 
-                    AppLogger.d("Found $foundPhotoCount MutuBuah photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Mutu Buah ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_mutu_buah",
-                            baseFilename = "",
-                            data = gson.toJson(fotoMutuBuah),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
-                        )
+                    if (fotoSelfieList != null && fotoSelfieList.isNotEmpty()) {
+                        AppLogger.d("Processing MutuBuah selfie group '$groupKeyStr' with ${fotoSelfieList.size} selfies")
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding MutuBuah photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No MutuBuah photo files found for upload")
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoSelfieList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val name = photoMap["name"] as? String ?: ""
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    AppLogger.d("MutuBuah Selfie: $name, size: $size")
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                AppLogger.e("Error processing MutuBuah selfie data: ${e.message}")
+                                false
+                            }
+                        }
+
+                        AppLogger.d("Found $foundPhotoCount MutuBuah selfies with total size of $totalPhotoSize bytes")
+
+                        if (foundPhotoCount > 0) {
+                            // Extract base_path from the first photo
+                            val firstPhoto = (fotoSelfieList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
+
+                            val photoTitle = "Foto Selfie Mutu Buah - $basePath ($foundPhotoCount file)"
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = photoTitle,
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoSelfieList),
+                                type = "image",
+                                databaseTable = "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie"
+                            )
+
+                            uploadItems.add(uploadItem)
+                            AppLogger.d("Adding MutuBuah selfie upload item with ID ${uploadItem.id} for group $groupKeyStr")
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        } else {
+                            AppLogger.w("No valid MutuBuah selfie files found in group $groupKeyStr")
+                        }
                     }
                 }
 
-// Process foto_selfie_mutu_buah (selfie photos)
-                val fotoSelfieMutuBuah = dataMap["foto_selfie_mutu_buah"] as? List<*>
-                if (fotoSelfieMutuBuah != null && fotoSelfieMutuBuah.isNotEmpty()) {
-                    AppLogger.d("Processing MutuBuah selfie photo data: ${fotoSelfieMutuBuah.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoSelfieMutuBuah.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("MutuBuah Selfie Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing MutuBuah selfie photo data: ${e.message}")
-                            false
+                fotoPanenGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoPanenList = photoData as? List<*>
+
+                    if (fotoPanenList != null && fotoPanenList.isNotEmpty()) {
+                        AppLogger.d("Processing photo group '$groupKey' with ${fotoPanenList.size} photos")
+
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoPanenList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val name = photoMap["name"] as? String ?: ""
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    AppLogger.d("Photo: $name, size: $size")
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                AppLogger.e("Error processing photo data: ${e.message}")
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount MutuBuah selfie photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Selfie Mutu Buah ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_selfie_mutu_buah",
-                            baseFilename = "",
-                            data = gson.toJson(fotoSelfieMutuBuah),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.MUTU_BUAH
-                        )
+                        AppLogger.d("Found $foundPhotoCount photos with total size of $totalPhotoSize bytes")
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding MutuBuah selfie photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No MutuBuah selfie photo files found for upload")
+                        if (foundPhotoCount > 0) {
+                            // Extract base_path from the first photo
+                            val firstPhoto = (fotoPanenList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
+
+                            val photoTitle = "Foto Panen - $basePath ($foundPhotoCount file)"
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = photoTitle,
+                                fullPath = groupKeyStr,  // Use the group key
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoPanenList),
+                                type = "image",
+                                databaseTable = ""
+                            )
+
+                            uploadItems.add(uploadItem)
+                            AppLogger.d("Adding photo upload item with ID ${uploadItem.id} for group $groupKey")
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        } else {
+                            AppLogger.w("No valid photo files found in group $groupKey")
+                        }
                     }
                 }
 
-                if (fotoPanen != null && fotoPanen.isNotEmpty()) {
-                    AppLogger.d("Processing photo data: ${fotoPanen.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoPanen.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing photo data: ${e.message}")
-                            false
+                val fotoAbsensiGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_absensi_") == true
+                }
+                AppLogger.d("Found ${fotoAbsensiGroups.size} Absensi photo groups")
+
+                fotoAbsensiGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoAbsensiList = photoData as? List<*>
+
+                    if (fotoAbsensiList != null && fotoAbsensiList.isNotEmpty()) {
+                        AppLogger.d("Processing Absensi photo group '$groupKeyStr' with ${fotoAbsensiList.size} photos")
+
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoAbsensiList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val name = photoMap["name"] as? String ?: ""
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    AppLogger.d("Absensi Photo: $name, size: $size")
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                AppLogger.e("Error processing Absensi photo data: ${e.message}")
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Panen ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_panen",
-                            baseFilename = "",
-                            data = gson.toJson(fotoPanen),
-                            type = "image",
-                            databaseTable = ""
-                        )
+                        AppLogger.d("Found $foundPhotoCount Absensi photos with total size of $totalPhotoSize bytes")
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No photo files found for upload")
+                        if (foundPhotoCount > 0) {
+                            // Extract base_path from the first photo
+                            val firstPhoto = (fotoAbsensiList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
+
+                            val photoTitle = "Foto Absensi - $basePath ($foundPhotoCount file)"
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = photoTitle,
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoAbsensiList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.ABSENSI
+                            )
+
+                            uploadItems.add(uploadItem)
+                            AppLogger.d("Adding Absensi photo upload item with ID ${uploadItem.id} for group $groupKeyStr")
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        } else {
+                            AppLogger.w("No valid Absensi photo files found in group $groupKeyStr")
+                        }
                     }
                 }
 
-                if (fotoAbsensi != null && fotoAbsensi.isNotEmpty()) {
-                    AppLogger.d("Processing photo data: ${fotoAbsensi.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoAbsensi.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing photo data: ${e.message}")
-                            false
+                // Process foto_selfie groups (INSPEKSI ONLY - exclude mutu_buah and pemulihan)
+                val fotoSelfieGroups = dataMap.filter { (key, _) ->
+                    val keyStr = key as? String
+                    keyStr?.startsWith("foto_selfie_") == true &&
+                            !keyStr.contains("pemulihan") &&
+                            !keyStr.contains("mutu_buah") // Also exclude mutu_buah
+                }
+                AppLogger.d("Found ${fotoSelfieGroups.size} selfie photo groups (Inspeksi)")
+
+
+                fotoSelfieGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoSelfieList = photoData as? List<*>
+
+                    if (fotoSelfieList != null && fotoSelfieList.isNotEmpty()) {
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoSelfieList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Absensi ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_absensi",
-                            baseFilename = "",
-                            data = gson.toJson(fotoAbsensi),
-                            type = "image",
-                            databaseTable = ""
-                        )
+                        if (foundPhotoCount > 0) {
+                            val firstPhoto = (fotoSelfieList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No photo files found for upload")
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = "Foto Selfie - $basePath ($foundPhotoCount file)",
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoSelfieList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
+                            )
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        }
                     }
                 }
 
-                // Process foto_inspeksi_tph
-                val fotoInspeksiTph = dataMap["foto_inspeksi_tph"] as? List<*>
-                if (fotoInspeksiTph != null && fotoInspeksiTph.isNotEmpty()) {
-                    AppLogger.d("Processing inspeksi TPH photo data: ${fotoInspeksiTph.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoInspeksiTph.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Inspeksi TPH Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing inspeksi TPH photo data: ${e.message}")
-                            false
+                // Process all foto_selfie_pemulihan groups
+                val fotoSelfiePemulihanGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_selfie_pemulihan_") == true
+                }
+                AppLogger.d("Found ${fotoSelfiePemulihanGroups.size} selfie pemulihan photo groups")
+
+                fotoSelfiePemulihanGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoSelfiePemulihanList = photoData as? List<*>
+
+                    if (fotoSelfiePemulihanList != null && fotoSelfiePemulihanList.isNotEmpty()) {
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoSelfiePemulihanList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount inspeksi TPH photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Inspeksi TPH ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_inspeksi_tph",
-                            baseFilename = "",
-                            data = gson.toJson(fotoInspeksiTph),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.INSPEKSI
-                        )
+                        if (foundPhotoCount > 0) {
+                            val firstPhoto = (fotoSelfiePemulihanList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding inspeksi TPH photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No inspeksi TPH photo files found for upload")
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = "Foto Selfie Pemulihan - $basePath ($foundPhotoCount file)",
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoSelfiePemulihanList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
+                            )
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        }
                     }
                 }
 
-                // Process foto_inspeksi_pokok
-                val fotoInspeksiPokok = dataMap["foto_inspeksi_pokok"] as? List<*>
-                if (fotoInspeksiPokok != null && fotoInspeksiPokok.isNotEmpty()) {
-                    AppLogger.d("Processing inspeksi Pokok photo data: ${fotoInspeksiPokok.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoInspeksiPokok.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Inspeksi Pokok Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing inspeksi Pokok photo data: ${e.message}")
-                            false
+// Process all foto_inspeksi_tph groups
+                val fotoInspeksiTphGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_inspeksi_tph_") == true
+                }
+                AppLogger.d("Found ${fotoInspeksiTphGroups.size} inspeksi TPH photo groups")
+
+                fotoInspeksiTphGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoInspeksiTphList = photoData as? List<*>
+
+                    if (fotoInspeksiTphList != null && fotoInspeksiTphList.isNotEmpty()) {
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoInspeksiTphList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount inspeksi Pokok photos with a total size of $totalPhotoSize bytes")
+                        if (foundPhotoCount > 0) {
+                            val firstPhoto = (fotoInspeksiTphList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
 
-                    AppLogger.d("gson.toJson(fotoInspeksiPokok) ${gson.toJson(fotoInspeksiPokok)}")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Inspeksi Pokok ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_inspeksi_pokok",
-                            baseFilename = "",
-                            data = gson.toJson(fotoInspeksiPokok),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
-                        )
-
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding inspeksi Pokok photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No inspeksi Pokok photo files found for upload")
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = "Foto Inspeksi TPH - $basePath ($foundPhotoCount file)",
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoInspeksiTphList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI
+                            )
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        }
                     }
                 }
 
-                // Process foto_selfie
-                val fotoSelfie = dataMap["foto_selfie"] as? List<*>
-                if (fotoSelfie != null && fotoSelfie.isNotEmpty()) {
-                    AppLogger.d("Processing selfie photo data: ${fotoSelfie.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoSelfie.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Selfie Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing selfie photo data: ${e.message}")
-                            false
+// Process all foto_inspeksi_pokok groups
+                val fotoInspeksiPokokGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_inspeksi_pokok_") == true
+                }
+                AppLogger.d("Found ${fotoInspeksiPokokGroups.size} inspeksi Pokok photo groups")
+
+                fotoInspeksiPokokGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoInspeksiPokokList = photoData as? List<*>
+
+                    if (fotoInspeksiPokokList != null && fotoInspeksiPokokList.isNotEmpty()) {
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoInspeksiPokokList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount selfie photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Selfie ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_selfie",
-                            baseFilename = "",
-                            data = gson.toJson(fotoSelfie),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.INSPEKSI
-                        )
+                        if (foundPhotoCount > 0) {
+                            val firstPhoto = (fotoInspeksiPokokList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding selfie photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No selfie photo files found for upload")
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = "Foto Inspeksi Pokok - $basePath ($foundPhotoCount file)",
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoInspeksiPokokList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
+                            )
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        }
                     }
                 }
 
-                val fotoSelfiePemulihan = dataMap["foto_selfie_pemulihan"] as? List<*>
-                if (fotoSelfiePemulihan != null && fotoSelfiePemulihan.isNotEmpty()) {
-                    AppLogger.d("Processing selfie pemulihan photo data: ${fotoSelfiePemulihan.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoSelfiePemulihan.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Selfie Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing selfie photo data: ${e.message}")
-                            false
+// Process all foto_followup_tph groups
+                val fotoFollowupTphGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_followup_tph_") == true
+                }
+                AppLogger.d("Found ${fotoFollowupTphGroups.size} follow-up TPH photo groups")
+
+                fotoFollowupTphGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoFollowupTphList = photoData as? List<*>
+
+                    if (fotoFollowupTphList != null && fotoFollowupTphList.isNotEmpty()) {
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoFollowupTphList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount selfie photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Selfie Pemulihan ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_selfie_pemulihan",
-                            baseFilename = "",
-                            data = gson.toJson(fotoSelfie),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.INSPEKSI
-                        )
+                        if (foundPhotoCount > 0) {
+                            val firstPhoto = (fotoFollowupTphList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding selfie photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No selfie photo files found for upload")
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = "Foto Follow-up TPH - $basePath ($foundPhotoCount file)",
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoFollowupTphList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
+                            )
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        }
                     }
                 }
 
-// Process foto_followup_tph
-                val fotoFollowUpTPH = dataMap["foto_followup_tph"] as? List<*>
-                if (fotoFollowUpTPH != null && fotoFollowUpTPH.isNotEmpty()) {
-                    AppLogger.d("Processing follow-up TPH photo data: ${fotoFollowUpTPH.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoFollowUpTPH.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Follow-up TPH Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing follow-up TPH photo data: ${e.message}")
-                            false
-                        }
-                    }
-
-                    AppLogger.d("Found $foundPhotoCount follow-up TPH photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Follow-up TPH ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_followup_tph",
-                            baseFilename = "",
-                            data = gson.toJson(fotoFollowUpTPH),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
-                        )
-
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding follow-up TPH photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No follow-up TPH photo files found for upload")
-                    }
+// Process all foto_followup_pokok groups
+                val fotoFollowupPokokGroups = dataMap.filter { (key, _) ->
+                    (key as? String)?.startsWith("foto_followup_pokok_") == true
                 }
+                AppLogger.d("Found ${fotoFollowupPokokGroups.size} follow-up Pokok photo groups")
 
-// Process foto_followup_pokok
-                val fotoFollowUpPokok = dataMap["foto_followup_pokok"] as? List<*>
-                if (fotoFollowUpPokok != null && fotoFollowUpPokok.isNotEmpty()) {
-                    AppLogger.d("Processing follow-up Pokok photo data: ${fotoFollowUpPokok.size} photos")
-                    var totalPhotoSize = 0L
-                    val foundPhotoCount = fotoFollowUpPokok.count { photoData ->
-                        try {
-                            (photoData as? Map<*, *>)?.let { photoMap ->
-                                val name = photoMap["name"] as? String ?: ""
-                                val sizeStr = photoMap["size"] as? String
-                                val size = sizeStr?.toLongOrNull() ?: 0L
-                                totalPhotoSize += size
-                                AppLogger.d("Follow-up Pokok Photo: $name, size: $size")
-                                size > 0
-                            } ?: false
-                        } catch (e: Exception) {
-                            AppLogger.e("Error processing follow-up Pokok photo data: ${e.message}")
-                            false
+                fotoFollowupPokokGroups.forEach { (groupKey, photoData) ->
+                    val groupKeyStr = groupKey.toString()
+                    val fotoFollowupPokokList = photoData as? List<*>
+
+                    if (fotoFollowupPokokList != null && fotoFollowupPokokList.isNotEmpty()) {
+                        var totalPhotoSize = 0L
+                        val foundPhotoCount = fotoFollowupPokokList.count { photo ->
+                            try {
+                                (photo as? Map<*, *>)?.let { photoMap ->
+                                    val sizeStr = photoMap["size"] as? String
+                                    val size = sizeStr?.toLongOrNull() ?: 0L
+                                    totalPhotoSize += size
+                                    size > 0
+                                } ?: false
+                            } catch (e: Exception) {
+                                false
+                            }
                         }
-                    }
 
-                    AppLogger.d("Found $foundPhotoCount follow-up Pokok photos with a total size of $totalPhotoSize bytes")
-                    if (foundPhotoCount > 0) {
-                        val photoTitle = "Foto Follow-up Pokok ($foundPhotoCount file)"
-                        val uploadItem = UploadCMPItem(
-                            id = itemId++,
-                            title = photoTitle,
-                            fullPath = "foto_followup_pokok",
-                            baseFilename = "",
-                            data = gson.toJson(fotoFollowUpPokok),
-                            type = "image",
-                            databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
-                        )
+                        if (foundPhotoCount > 0) {
+                            val firstPhoto = (fotoFollowupPokokList.firstOrNull() as? Map<*, *>)
+                            val basePath = firstPhoto?.get("base_path") as? String ?: ""
 
-                        uploadItems.add(uploadItem)
-                        AppLogger.d("Adding follow-up Pokok photo upload item with ID ${uploadItem.id}")
-                        adapter.setFileSize(uploadItem.id, totalPhotoSize)
-                    } else {
-                        AppLogger.w("No follow-up Pokok photo files found for upload")
+                            val uploadItem = UploadCMPItem(
+                                id = itemId++,
+                                title = "Foto Follow-up Pokok - $basePath ($foundPhotoCount file)",
+                                fullPath = groupKeyStr,
+                                baseFilename = basePath,
+                                data = gson.toJson(fotoFollowupPokokList),
+                                type = "image",
+                                databaseTable = AppUtils.DatabaseTables.INSPEKSI_DETAIL
+                            )
+                            uploadItems.add(uploadItem)
+                            adapter.setFileSize(uploadItem.id, totalPhotoSize)
+                        }
                     }
                 }
 

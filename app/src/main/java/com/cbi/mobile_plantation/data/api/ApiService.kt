@@ -7,7 +7,6 @@ import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoUploadResponse
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
@@ -120,22 +119,6 @@ interface ApiService {
         @SerializedName("created_at") val created_at: String,
         @SerializedName("no_espb") val no_espb: String,
     )
-
-    @Multipart
-    @POST("cmpmain/upload")
-    suspend fun uploadZip(
-        @Part zipFile: MultipartBody.Part
-    ): Response<UploadWBCMPResponse>
-
-    //for testing
-    @Multipart
-    @POST("cmpmain/uploadv2")
-    suspend fun uploadZipV2(
-        @Part zipFile: MultipartBody.Part,
-        @Part("uuid") uuid: RequestBody,
-        @Part("part") part: RequestBody,
-        @Part("total") total: RequestBody
-    ): Response<UploadCMPResponse>
 
     @Multipart
     @POST("cmpmain/uploadv3")

@@ -22,7 +22,6 @@ interface MutuBuahDao {
     @Query("""
     SELECT * FROM mutu_buah 
     WHERE  date(createdDate) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
-    AND status_upload = 0
     ORDER BY tanggal DESC
 """)
     abstract suspend fun getAllMutuBuah(): List<MutuBuahEntity>
