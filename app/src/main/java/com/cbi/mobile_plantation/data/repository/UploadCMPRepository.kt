@@ -62,6 +62,18 @@ class UploadCMPRepository(context: Context) {
         return uploadCMPDao.getAllData() // Calls the DAO function
     }
 
+    fun getIntString(jsonData: Map<String, Any?>, key: String, default: Int = 0): String {
+        return when (val value = jsonData[key]) {
+            is Double -> value.toInt().toString()
+            is Float -> value.toInt().toString()
+            is Int -> value.toString()
+            is Long -> value.toString()
+            is String -> value
+            else -> default.toString()
+        }
+    }
+
+
     class ProgressRequestBody(
         private val file: File,
         private val contentType: String,
@@ -904,8 +916,8 @@ class UploadCMPRepository(context: Context) {
                         // Extract the item ID for database update
                         val itemId =
                             (jsonData["id"] as? Double)?.toInt() ?: (jsonData["id"] as? Int) ?: 0
-                        val ipMill =
-                            (jsonData["ip"] as? Double)?.toInt() ?: (jsonData["ip"] as? Int) ?: 0
+                        val ipMill = jsonData["ip"]?.toString() ?: ""
+
 
                         // Extract the uploader info for database update
                         val uploaderInfo = jsonData["uploader_info"]?.toString() ?: ""
@@ -916,6 +928,8 @@ class UploadCMPRepository(context: Context) {
                             else -> 0
                         }
 
+
+                        AppLogger.d("PPRO: $ipMill")
                         AppLogger.d("PPRO: Item ID: $itemId")
                         AppLogger.d("PPRO: Uploader info: $uploaderInfo")
                         AppLogger.d("PPRO: Uploaded at: $uploadedAt")
@@ -926,21 +940,21 @@ class UploadCMPRepository(context: Context) {
                             onProgressUpdate(10, false, null)
                         }
 
-                        // Extract data for API call
+                        val jsonMap = jsonData as Map<String, Any?>
                         val apiData = try {
                             val result = ApiService.dataUploadEspbKraniTimbangPPRO(
-                                dept_ppro = (jsonData["dept_ppro"] ?: "0").toString(),
-                                divisi_ppro = (jsonData["divisi_ppro"] ?: "0").toString(),
-                                commodity = (jsonData["commodity"] ?: "2").toString(),
-                                blok_jjg = (jsonData["blok_jjg"] ?: "").toString(),
-                                nopol = (jsonData["nopol"] ?: "").toString(),
-                                driver = (jsonData["driver"] ?: "").toString(),
-                                pemuat_id = (jsonData["pemuat_id"] ?: "").toString(),
-                                transporter_id = (jsonData["transporter_id"] ?: "0").toString(),
-                                mill_id = (jsonData["mill_id"] ?: "0").toString(),
-                                created_by_id = (jsonData["created_by_id"] ?: "0").toString(),
-                                created_at = (jsonData["created_at"] ?: "").toString(),
-                                no_espb = (jsonData["no_espb"] ?: "").toString()
+                                dept_ppro = getIntString(jsonMap, "dept_ppro"),
+                                divisi_ppro = getIntString(jsonMap, "divisi_ppro"),
+                                commodity = getIntString(jsonMap, "commodity", 2),
+                                blok_jjg = (jsonMap["blok_jjg"] ?: "").toString(),
+                                nopol = (jsonMap["nopol"] ?: "").toString(),
+                                driver = (jsonMap["driver"] ?: "").toString(),
+                                pemuat_id = (jsonMap["pemuat_id"] ?: "").toString(),
+                                transporter_id = getIntString(jsonMap, "transporter_id"),
+                                mill_id = getIntString(jsonMap, "mill_id"),
+                                created_by_id = getIntString(jsonMap, "created_by_id"),
+                                created_at = (jsonMap["created_at"] ?: "").toString(),
+                                no_espb = (jsonMap["no_espb"] ?: "").toString()
                             )
                             AppLogger.d("PPRO: Data prepared successfully")
                             result
