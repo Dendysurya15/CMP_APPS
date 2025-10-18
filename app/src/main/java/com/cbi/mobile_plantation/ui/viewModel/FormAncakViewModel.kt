@@ -271,47 +271,28 @@ class FormAncakViewModel : ViewModel() {
         val currentData = getPageData(pokokNumber) ?: PageData()
         val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-
         AppLogger.d("lat $lat")
         AppLogger.d("lon $lon")
+
+        // 🟡 Check if photo already exists (photo field is not null or empty)
+        val hasPhoto = !currentData.photo.isNullOrEmpty()
+
+        // ✅ NEW: If this pokok already has a photo, skip updating lat/lon
+        if (hasPhoto) {
+            AppLogger.d("Pokok $pokokNumber already has a photo, skipping lat/lon update")
+
+            // Still update metadata (user info, time) without touching lat/lon
+            val updatedData = currentData.copy(
+                createdDate = currentDate,
+                createdBy = prefManager.idUserLogin,
+                createdName = prefManager.nameUserLogin
+            )
+            savePageData(pokokNumber, updatedData)
+            return true // Keep tracking as is
+        }
+
+        // 🧭 If no photo yet, update lat/lon like normal
         if (shouldSetLatLonIssue(currentData)) {
-            // ✅ NEW: Check if location already exists
-            if (currentData.latIssue != null && currentData.lonIssue != null) {
-                AppLogger.d("Location already exists for pokok $pokokNumber, keeping existing location")
-
-                // Just update metadata without changing location
-                val updatedData = currentData.copy(
-                    latIssue =  lat,
-                    lonIssue = lon,
-                    createdDate = currentDate,
-                    createdBy = prefManager.idUserLogin,
-                    createdName = prefManager.nameUserLogin
-                )
-                savePageData(pokokNumber, updatedData)
-
-                // Show toast with existing location
-//                Toasty.info(context, "Lokasi sudah tersimpan: Lat:${currentData.latIssue} Lon:${currentData.lonIssue}", Toast.LENGTH_SHORT, true).show()
-
-                return true // Still should track this location
-            } else {
-                // Set new location since none exists
-                val updatedData = currentData.copy(
-                    latIssue = lat,
-                    lonIssue = lon,
-                    createdDate = currentDate,
-                    createdBy = prefManager.idUserLogin,
-                    createdName = prefManager.nameUserLogin
-                )
-                savePageData(pokokNumber, updatedData)
-                AppLogger.d("Saved new location data for pokok $pokokNumber")
-
-                // Show success toast with new location
-//                Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
-
-                return true // Should track this location
-            }
-        } else {
-            // Conditions are NOT met: Save metadata but clear location
             val updatedData = currentData.copy(
                 latIssue = lat,
                 lonIssue = lon,
@@ -320,11 +301,23 @@ class FormAncakViewModel : ViewModel() {
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
+            AppLogger.d("Saved new location data for pokok $pokokNumber")
+            return true
+        } else {
+            // If issue not set, clear lat/lon
+            val updatedData = currentData.copy(
+                latIssue = null,
+                lonIssue = null,
+                createdDate = currentDate,
+                createdBy = prefManager.idUserLogin,
+                createdName = prefManager.nameUserLogin
+            )
+            savePageData(pokokNumber, updatedData)
             AppLogger.d("Cleared location data for pokok $pokokNumber (no issues)")
-
-            return false // Should remove tracking for this location
+            return false
         }
     }
+
 
     fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1

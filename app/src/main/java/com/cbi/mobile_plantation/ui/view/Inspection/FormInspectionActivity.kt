@@ -600,7 +600,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         locationCheckRunnable = object : Runnable {
             override fun run() {
                 if (isLocationMonitoringActive) {
-                    AppLogger.d("Periodic location check running...")
+
                     checkLocationSettings()
                     locationCheckHandler.postDelayed(this, LOCATION_CHECK_INTERVAL)
                 }
@@ -628,7 +628,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
 
         task.addOnSuccessListener { locationSettingsResponse ->
-            AppLogger.d("Location settings are satisfied")
             locationEnable = true
             hideLocationLostWarning() // Add this
             startLocationUpdates()
@@ -696,13 +695,13 @@ open class FormInspectionActivity : AppCompatActivity(),
             Looper.getMainLooper()
         )
 
-        AppLogger.d("Started location updates")
+
     }
 
     private fun stopLocationUpdates() {
         locationCallback?.let {
             fusedLocationClient.removeLocationUpdates(it)
-            AppLogger.d("Stopped location updates")
+
         }
     }
 
@@ -3689,16 +3688,33 @@ open class FormInspectionActivity : AppCompatActivity(),
                 } else {
                     val currentDate =
                         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                    val updatedData = data.copy(
-                        createdDate = currentDate,
-                        createdBy = prefManager!!.idUserLogin,
-                        createdName = prefManager!!.nameUserLogin,
-                        latIssue = lat,
-                        lonIssue = lon
-                    )
+
+                    val hasPhoto = !data.photo.isNullOrEmpty() // ✅ check if pokok already has photo
+
+                    val updatedData = if (hasPhoto) {
+                        AppLogger.d("Pokok $currentPokok already has photo, keeping existing lat/lon")
+
+                        // Don’t update lat/lon, only update metadata
+                        data.copy(
+                            createdDate = currentDate,
+                            createdBy = prefManager!!.idUserLogin,
+                            createdName = prefManager!!.nameUserLogin
+                        )
+                    } else {
+                        // Update metadata + new lat/lon
+                        data.copy(
+                            createdDate = currentDate,
+                            createdBy = prefManager!!.idUserLogin,
+                            createdName = prefManager!!.nameUserLogin,
+                            latIssue = lat,
+                            lonIssue = lon
+                        )
+                    }
+
                     formAncakViewModel.savePageData(currentPokok, updatedData)
-                    AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
+                    AppLogger.d("Updated pokok $currentPokok (hasPhoto=$hasPhoto)")
                 }
+
             }
 
             if (nextPokok <= totalPokok) {
@@ -3812,19 +3828,35 @@ open class FormInspectionActivity : AppCompatActivity(),
                         this@FormInspectionActivity
                     )
                 } else {
-                    // Just update metadata without location
                     val currentDate =
                         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                    val updatedData = data.copy(
-                        createdDate = currentDate,
-                        createdBy = prefManager!!.idUserLogin,
-                        createdName = prefManager!!.nameUserLogin,
-                        latIssue = lat,
-                        lonIssue = lon
-                    )
+
+                    val hasPhoto = !data.photo.isNullOrEmpty() // ✅ check if pokok already has photo
+
+                    val updatedData = if (hasPhoto) {
+                        AppLogger.d("Pokok $currentPokok already has photo, keeping existing lat/lon")
+
+                        // Don’t update lat/lon, only update metadata
+                        data.copy(
+                            createdDate = currentDate,
+                            createdBy = prefManager!!.idUserLogin,
+                            createdName = prefManager!!.nameUserLogin
+                        )
+                    } else {
+                        // Update metadata + new lat/lon
+                        data.copy(
+                            createdDate = currentDate,
+                            createdBy = prefManager!!.idUserLogin,
+                            createdName = prefManager!!.nameUserLogin,
+                            latIssue = lat,
+                            lonIssue = lon
+                        )
+                    }
+
                     formAncakViewModel.savePageData(currentPokok, updatedData)
-                    AppLogger.d("Updated metadata only for pokok $currentPokok (no location update needed)")
+                    AppLogger.d("Updated pokok $currentPokok (hasPhoto=$hasPhoto)")
                 }
+
             }
 
             if (prevPage >= 1) {
@@ -10641,7 +10673,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("Saving regular photo: $fname")
                     formAncakViewModel.savePageData(
                         currentPage,
-                        currentData.copy(photo = fname)
+                        currentData.copy(
+                            photo = fname,
+                            latIssue = latitude,
+                            lonIssue = longitude
+                        )
                     )
                 }
             }
