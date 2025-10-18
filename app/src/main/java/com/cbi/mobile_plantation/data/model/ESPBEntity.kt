@@ -9,11 +9,13 @@ data class ESPBEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val blok_jjg: String, // jjg kirim pabrik X
     val created_by_id: Int, //X
+    val created_name:String,
     val created_at: String,//X
     val nopol: String, //X
     val driver: String, //X
     val transporter_id: Int, //X
     val pemuat_id: String, // "1,3,4" //X
+    val pemuat_nama: String, // "1,3,4" //X
     val kemandoran_id: String, // "1,3,4" //X
     val pemuat_nik: String, // "1,3,4" //X
     val mill_id: Int, //X

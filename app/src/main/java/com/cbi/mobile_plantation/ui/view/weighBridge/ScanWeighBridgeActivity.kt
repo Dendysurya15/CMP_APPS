@@ -79,10 +79,16 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalWilayah: String = ""
     var globalCompany: Int = 0
     var globalDept: Int = 0
+    var globalDeptAbbr: String = ""
+    var globalDeptName: String = ""
     var globalDivisi: Int = 0
+    var globalDivisiAbbr: String = ""
+    var globalDivisiName: String = ""
     var globalBlokId: String = ""
     var globalTotalJjg: String = ""
     var globalCreatedById: Int? = null
+    var globalCreatedName: String = ""
+    var globalPemuatNama: String = ""
     var globalNopol: String = ""
     var globalDriver: String = ""
     var globalTransporterId: Int? = null
@@ -216,11 +222,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     weightBridgeViewModel.saveDataLocalKraniTimbangESPB(
                         blok_jjg = globalBlokJjg,
                         created_by_id = globalCreatedById ?: 0,
+                        created_name = globalCreatedName,
                         created_at = globalCreatedAt,
                         nopol = globalNopol,
                         driver = globalDriver,
                         transporter_id = globalTransporterId ?: 0,
                         pemuat_id = globalPemuatId,
+                        pemuat_nama = globalPemuatNama,
                         kemandoran_id = globalKemandoranId,
                         pemuat_nik = globalPemuatNik,
                         mill_id = globalMillId!!,
@@ -304,13 +312,19 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "wilayah" to globalWilayah,
                                     "company" to globalCompany,
                                     "dept" to globalDept,
+                                    "dept_abbr" to globalDeptAbbr,
+                                    "dept_nama" to globalDeptName,
                                     "divisi" to globalDivisi,
+                                    "divisi_abbr" to globalDivisiAbbr,
+                                    "divisi_nama" to globalDivisiName,
                                     "blok_id" to globalBlokId,
                                     "blok_jjg" to globalBlokJjg,
                                     "jjg" to globalTotalJjg,
                                     "created_by_id" to (globalCreatedById ?: 0),
                                     "created_at" to globalCreatedAt,
+                                    "created_name" to globalCreatedName,
                                     "pemuat_id" to globalPemuatId,
+                                    "pemuat_nama" to globalPemuatNama,
                                     "pemuat_nik" to globalPemuatNik,
                                     "kemandoran_id" to globalKemandoranId,
                                     "nopol" to globalNopol,
@@ -329,6 +343,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "jabatan" to prefManager!!.jabatanUserLogin
                                 )
 
+
+                                AppLogger.d("espbdata $espbData")
                                 val espbDataList = listOf(espbData)
 
                                 // Wrap the data in a structure as requested
@@ -843,11 +859,15 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 // Convert reconstructed data back to JSON string for processing
                                         val reconstructedJsonStr = Gson().toJson(reconstructedData)
 
+
+                                        AppLogger.d("reconstructedJsonStr $reconstructedJsonStr")
 // Get the basic data needed for TPH check using reconstructed data
                                         val basicProcessingResult = withContext(Dispatchers.IO) {
                                             processBasicQRData(reconstructedJsonStr) // Use reconstructed JSON
                                         }
 
+
+                                        AppLogger.d("basicProcessingResult $basicProcessingResult ")
 // Create TPH duplicate check data
                                         val espbData = mapOf(
                                             "num" to 1,
@@ -857,13 +877,19 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             "wilayah" to basicProcessingResult.wilayah,
                                             "company" to basicProcessingResult.company,
                                             "dept" to basicProcessingResult.dept,
+                                            "dept_abbr" to basicProcessingResult.dept_abbr,
+                                            "dept_nama" to basicProcessingResult.dept_nama,
                                             "divisi" to basicProcessingResult.divisi,
+                                            "divisi_abbr" to basicProcessingResult.divisi_abbr,
+                                            "divisi_nama" to basicProcessingResult.divisi_nama,
                                             "blok_id" to basicProcessingResult.blokId,
                                             "blok_jjg" to basicProcessingResult.blokJjg,
                                             "jjg" to basicProcessingResult.totalJjg,
                                             "created_by_id" to (prefManager!!.idUserLogin ?: 0),
                                             "created_at" to basicProcessingResult.createdAt,
+                                            "created_name" to basicProcessingResult.createdName,
                                             "pemuat_id" to basicProcessingResult.pemuatId,
+                                            "pemuat_nama" to basicProcessingResult.pemuatNama,
                                             "kemandoran_id" to basicProcessingResult.kemandoranId,
                                             "pemuat_nik" to basicProcessingResult.pemuatNik,
                                             "nopol" to basicProcessingResult.nopol,
@@ -1328,6 +1354,19 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val deptAbbr = firstBlok?.dept_abbr ?: "-"
                     val divisiAbbr = firstBlok?.divisi_abbr ?: "-"
 
+
+                    val afdelingDeffered = async {
+                        try {
+                            datasetViewModel.getAfdelingById(firstBlok?.divisi ?: 0)
+                        } catch (e: Exception) {
+                            AppLogger.e("Gagal mendapatkan data afdeling")
+                            null
+                        }
+                    }
+
+                    val afdeling = afdelingDeffered.await()
+                    val divisiName = afdeling?.nama
+
                     try {
                         // Check if first item exists and has dept_ppro and divisi_ppro
                         val validFirstBlok = firstBlok ?: throw Exception("Terjadi kesalahan. Blok tidak ditemukan.")
@@ -1427,17 +1466,24 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalWilayah = firstBlok?.wilayah.toString() ?: ""
                     globalCompany = firstBlok?.company ?: 0
                     globalDept = firstBlok?.dept ?: 0
+                    globalDeptAbbr = firstBlok?.dept_abbr ?: ""
+                    globalDeptName = firstBlok?.kode ?: ""
+                    globalDivisi = firstBlok?.divisi ?: 0
+                    globalDivisiAbbr = firstBlok?.divisi_abbr ?: ""
+                    globalDivisiName = divisiName ?: ""
                     globalDivisi = firstBlok?.divisi ?: 0
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
-                    globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: "-"
-                    globalCreatedById = prefManager!!.idUserLogin
-                    globalNopol = modifiedParsedData?.espb?.nopol ?: "-"
-                    globalDriver = modifiedParsedData?.espb?.driver ?: "-"
+                    globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: ""
+                    globalCreatedById = modifiedParsedData?.espb?.createdById ?: 0
+                    globalCreatedName = modifiedParsedData?.espb?.createdName ?: ""
+                    globalNopol = modifiedParsedData?.espb?.nopol ?: ""
+                    globalDriver = modifiedParsedData?.espb?.driver ?: ""
                     globalTransporterId = transporterId
-                    globalPemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-"
-                    globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-"
+                    globalPemuatId = modifiedParsedData?.espb?.pemuat_id ?: ""
+                    globalPemuatNama = modifiedParsedData?.espb?.pemuat_nama ?: ""
+                    globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: ""
                     globalPemuatNik = nikValues
                     globalMillId = millId
                     globalTph0 = modifiedParsedData?.tph0 ?: "-"
@@ -1555,12 +1601,18 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         val wilayah: String,
         val company: Int,
         val dept: Int,
+        val dept_abbr: String,
+        val dept_nama: String,
         val divisi: Int,
+        val divisi_abbr: String,
+        val divisi_nama : String,
         val blokId: String,
         val blokJjg: String,
         val totalJjg: String,
         val createdAt: String,
+        val createdName: String,
         val pemuatId: String,
+        val pemuatNama: String,
         val kemandoranId: String,
         val pemuatNik: String,
         val nopol: String,
@@ -1662,12 +1714,18 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             wilayah = tphData?.wilayah ?: "",
             company = tphData?.company ?: 0,
             dept = tphData?.dept ?: 0,
+            dept_abbr = tphData?.dept_abbr ?: "",
+            dept_nama = tphData?.dept_nama ?: "",
             divisi = tphData?.divisi ?: 0,
+            divisi_abbr = tphData?.divisi_abbr ?: "",
+            divisi_nama = tphData?.divisi_nama ?: "",
             blokId = idBlokString,
             blokJjg = modifiedParsedData?.espb?.blokJjg ?: "-",
             totalJjg = totalJjg.toString(),
             createdAt = modifiedParsedData?.espb?.createdAt.toString() ?: "-",
+            createdName = modifiedParsedData?.espb?.createdName ?: "-",
             pemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-",
+            pemuatNama = modifiedParsedData?.espb?.pemuat_nama ?: "-",
             kemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-",
             pemuatNik = nikValues,
             nopol = modifiedParsedData?.espb?.nopol ?: "-",

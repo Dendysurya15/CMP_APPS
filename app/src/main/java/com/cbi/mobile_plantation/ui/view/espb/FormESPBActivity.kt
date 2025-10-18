@@ -921,6 +921,7 @@ class FormESPBActivity : AppCompatActivity() {
                                 transporter_id = transporter_id,
                                 mill_id = selectedMillId,
                                 created_by_id = idPetugas,
+                                created_name = userName!!,
                                 creator_info = creatorInfo.toString(),
                                 noESPB = noESPBStr,
                                 created_at = getCurrentDateTime(),
@@ -929,7 +930,8 @@ class FormESPBActivity : AppCompatActivity() {
                                 status_draft = statusDraft,
                                 status_mekanisasi = mekanisasi,
                                 pemuat_nik = uniqueNikPemanen,
-                                kemandoran_id = uniqueKemandoranId
+                                pemuat_nama = uniqueNamaPemuat,
+                                kemandoran_id = uniqueKemandoranId,
                             )
 
                             btnPreviewFullQR.visibility = View.VISIBLE
@@ -2149,28 +2151,31 @@ class FormESPBActivity : AppCompatActivity() {
 
     private fun saveESPB(
         blok_jjg: String,
-        created_by_id: Int,
-        created_at: String,
         nopol: String,
         driver: String,
-        transporter_id: Int,
         pemuat_id: String,
-        kemandoran_id: String,
-        pemuat_nik: String,
+        transporter_id: Int,
         mill_id: Int,
-        tph0: String,
-        tph1: String,
+        created_by_id: Int,
+        created_name: String,
         creator_info: String,
         noESPB: String,
+        created_at: String,
+        tph0: String,
+        tph1: String,
         status_draft: Int,
         status_mekanisasi: Int,
+        pemuat_nik: String,
+        pemuat_nama: String,
+        kemandoran_id: String,
     ) {
-        lifecycleScope.launch(Dispatchers.IO) {
+    lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Create ESPB entity
                 val espbEntity = ESPBEntity(
                     blok_jjg = blok_jjg,
                     created_by_id = created_by_id,
+                    created_name = created_name,
                     created_at = created_at,
                     nopol = nopol,
                     driver = driver,
@@ -2186,6 +2191,7 @@ class FormESPBActivity : AppCompatActivity() {
                     status_mekanisasi = status_mekanisasi,
                     kemandoran_id = kemandoran_id,
                     pemuat_nik = pemuat_nik,
+                    pemuat_nama = pemuat_nama,
                     ids_to_update = idsToUpdate.joinToString(","),
                     date_scan = ""
                 )
