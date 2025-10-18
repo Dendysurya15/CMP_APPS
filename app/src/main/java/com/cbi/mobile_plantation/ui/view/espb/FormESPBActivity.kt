@@ -880,6 +880,7 @@ class FormESPBActivity : AppCompatActivity() {
                             transporter_id = transporter_id,
                             mill_id = selectedMillId,
                             created_by_id = idPetugas!!,
+                            created_name = userName!!,
                             no_espb = noESPBStr,
                             tph0 = "",
                             tph1 = tph1,
@@ -887,14 +888,13 @@ class FormESPBActivity : AppCompatActivity() {
                             osVersion = osVersion,
                             phoneModel = phoneModel,
                             pemuat_nik = uniqueNikPemanen,
+                            pemuat_nama = uniqueNamaPemuat,
                             kemandoran_id = uniqueKemandoranId
                         )
 
 
 
                         val encodedData = ListPanenTBSActivity().encodeJsonToBase64ZipQR(json)
-
-
 
                         if (encodedData != null) {
                             // Data is valid size, proceed with QR generation
@@ -1941,6 +1941,7 @@ class FormESPBActivity : AppCompatActivity() {
         transporter_id: Int,
         mill_id: Int,
         created_by_id: Int,
+        created_name: String,
         no_espb: String,
         tph0: String,
         tph1: String,
@@ -1948,7 +1949,8 @@ class FormESPBActivity : AppCompatActivity() {
         osVersion: String,
         phoneModel: String,
         kemandoran_id: String,
-        pemuat_nik: String
+        pemuat_nik: String,
+        pemuat_nama: String
     ): String {
         val gson = Gson()
 
@@ -2006,7 +2008,9 @@ class FormESPBActivity : AppCompatActivity() {
             addProperty("mill_id", mill_id)
             addProperty("kemandoran_id", kemandoran_id)
             addProperty("pemuat_nik", nikList.toString()) // Use the extracted NIKs only
+            addProperty("pemuat_nama", pemuat_nama)
             addProperty("created_by_id", created_by_id)
+            addProperty("created_name", created_name)
             add("creator_info", createCreatorInfo(appVersion, osVersion, phoneModel))
             addProperty("no_espb", no_espb)
             addProperty("created_at", getCurrentDateTime())
