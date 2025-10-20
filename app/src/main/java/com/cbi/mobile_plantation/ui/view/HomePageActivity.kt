@@ -6916,8 +6916,7 @@ class HomePageActivity : AppCompatActivity() {
             val itemsToUpload = uploadItems.toList()
             processedTrackingIds.clear()
             // Start the upload process
-            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
-
+            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload, prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
         }
 
         btnUploadDataCMP.setOnClickListener {
@@ -7502,7 +7501,8 @@ class HomePageActivity : AppCompatActivity() {
                                 globalInspeksiDetailPanenIdsByPart[keyJsonName] = emptyList()
                                 globalMutuBuahIdsByPart[keyJsonName] = emptyList()
                             }
-                        } else if (response.type == "image") {
+                        }
+                        else if (response.type == "image") {
                             globalResponseJsonUploadList.add(
                                 ResponseJsonUpload(
                                     trackingId = 0,

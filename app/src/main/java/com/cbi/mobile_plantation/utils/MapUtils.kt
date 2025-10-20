@@ -98,7 +98,7 @@ object MapUtils {
                 minZoom,
                 maxZoom,
                 256,
-                ".png"
+                ".webp"
             ) {
                 override fun getDrawable(aFilePath: String?): Drawable? {
                     return try {
@@ -137,7 +137,7 @@ object MapUtils {
                 }
             }
 
-            // Create custom archive file for x-y.png format
+            // Create custom archive file for x-y.webp format
             val archiveProvider = MapTileFileArchiveProvider(
                 SimpleRegisterReceiver(context),
                 offlineTileSource,
@@ -152,7 +152,7 @@ object MapUtils {
                         val x = MapTileIndex.getX(pTile)
                         val y = MapTileIndex.getY(pTile)
 
-                        val tileFile = File(estateFolder, "$zoom/$x-$y.png")
+                        val tileFile = File(estateFolder, "$zoom/$x-$y.webp")
 
                         return if (tileFile.exists()) {
                             FileInputStream(tileFile)
@@ -247,7 +247,7 @@ object MapUtils {
                 minZoom,
                 maxZoom,
                 256,
-                ".png"
+                ".webp"
             ) {
                 override fun getDrawable(aFilePath: String?): Drawable? {
                     return try {
@@ -303,17 +303,17 @@ object MapUtils {
                         val x = MapTileIndex.getX(pTile)
                         val y = MapTileIndex.getY(pTile)
 
-                        val tileFile = File(estateFolder, "$zoom/$x-$y.png")
+                        val tileFile = File(estateFolder, "$zoom/$x-$y.webp")
 
-                        AppLogger.d("🔍 [FULLSCREEN] Requesting tile: $zoom/$x-$y.png")
+                        AppLogger.d("🔍 [FULLSCREEN] Requesting tile: $zoom/$x-$y.webp")
                         AppLogger.d("📍 [FULLSCREEN] Full path: ${tileFile.absolutePath}")
                         AppLogger.d("✓ [FULLSCREEN] File exists: ${tileFile.exists()}")
 
                         return if (tileFile.exists()) {
-                            AppLogger.d("✅ [FULLSCREEN] Loading tile: $zoom/$x-$y.png")
+                            AppLogger.d("✅ [FULLSCREEN] Loading tile: $zoom/$x-$y.webp")
                             FileInputStream(tileFile)
                         } else {
-                            AppLogger.w("⚠️ [FULLSCREEN] Tile not found: $zoom/$x-$y.png")
+                            AppLogger.w("⚠️ [FULLSCREEN] Tile not found: $zoom/$x-$y.webp")
                             null
                         }
                     }
@@ -352,7 +352,7 @@ object MapUtils {
             AppLogger.d("Using online Google Satellite")
             object : OnlineTileSourceBase(
                 "GoogleSatellite",
-                0, 18, 256, ".png",
+                0, 18, 256, ".webp",
                 arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
             ) {
                 override fun getTileURLString(pMapTileIndex: Long): String {

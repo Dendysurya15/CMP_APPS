@@ -503,9 +503,7 @@
                                         android:layout_height="wrap_content"
                                         android:layout_marginBottom="5dp"
                                         android:fontFamily="@font/manrope_bold"
-
                                         android:text="Simbol Map:"
-
                                         android:textColor="@color/black"
                                         android:textSize="@dimen/m" />
 
@@ -524,7 +522,6 @@
                                             android:background="@drawable/legend_circle" />
 
                                         <TextView
-
                                             android:layout_width="wrap_content"
                                             android:layout_height="wrap_content"
                                             android:layout_marginStart="4dp"
@@ -585,37 +582,19 @@
 
                                 </LinearLayout>
 
+                                <!-- Buttons (Right Side) - Stacked Vertically -->
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
+                                    android:orientation="vertical"
                                     android:gravity="center_vertical">
 
-                                    <!-- Download Button -->
-                                    <com.google.android.material.button.MaterialButton
-                                        android:id="@+id/btnDownloadMapPanenOffline"
-                                        android:layout_width="40dp"
-                                        android:layout_height="40dp"
-                                        android:layout_marginEnd="8dp"
-                                        android:backgroundTint="@color/bluedarklight"
-                                        android:insetLeft="0dp"
-                                        android:insetTop="0dp"
-                                        android:insetRight="0dp"
-                                        android:insetBottom="0dp"
-                                        android:minWidth="0dp"
-                                        android:minHeight="0dp"
-                                        android:padding="0dp"
-                                        app:cornerRadius="20dp"
-                                        app:icon="@drawable/map_offline"
-                                        app:iconGravity="textStart"
-                                        app:iconPadding="0dp"
-                                        app:iconSize="28dp" />
-
-                                    <!-- Map Penuh Button -->
+                                    <!-- Map Penuh Button (Top) -->
                                     <com.google.android.material.button.MaterialButton
                                         android:id="@+id/btnDetailMapPanen"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
+                                        android:layout_marginBottom="8dp"
                                         android:minWidth="140dp"
                                         android:backgroundTint="@color/greenDarker"
                                         android:fontFamily="@font/manrope_medium"
@@ -623,6 +602,21 @@
                                         android:textAllCaps="false"
                                         android:textSize="@dimen/s"
                                         app:icon="@drawable/baseline_fullscreen_24"
+                                        app:iconGravity="start"
+                                        app:iconSize="20dp" />
+
+                                    <!-- Download Map Button (Bottom) -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnDownloadMapPanenOffline"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:minWidth="140dp"
+                                        android:backgroundTint="@color/bluedarklight"
+                                        android:fontFamily="@font/manrope_medium"
+                                        android:text="Download Map"
+                                        android:textAllCaps="false"
+                                        android:textSize="@dimen/s"
+                                        app:icon="@drawable/map_offline"
                                         app:iconGravity="start"
                                         app:iconSize="20dp" />
 

@@ -27,8 +27,12 @@ import okhttp3.RequestBody
 import okio.BufferedSink
 import org.json.JSONArray
 import org.json.JSONObject
+import retrofit2.Response
 import java.io.File
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 sealed class SaveResultNewUploadDataCMP {
@@ -124,7 +128,20 @@ class UploadCMPRepository(context: Context) {
         val anotherDatabaseTable: String
     )
 
+    data class UploadResponse(
+        val success: Boolean,
+        val message: String,
+        val data: UploadResponseData
+    )
+
+    data class UploadResponseData(
+        val successful: Int,
+        val failed: Int
+    )
+
     suspend fun uploadJsonToServerV3(
+        idUserLogin: Int,
+        estateAbbrUser: String,
         jsonFilePath: String,
         filename: String,
         data: String,
@@ -330,7 +347,6 @@ class UploadCMPRepository(context: Context) {
                                 onProgressUpdate(50, false, "Sending ${photoParts.size} images to server...")
                             }
 
-                            // ✅ Make ONE API call with ALL photos
                             val response = TestingAPIClient.instance.uploadPhotos(
                                 photos = photoParts,
                                 datasetType = datasetTypeRequestBody,
@@ -348,128 +364,204 @@ class UploadCMPRepository(context: Context) {
 
                             val failedImagePaths = mutableListOf<String>()
                             val failedImageNames = mutableListOf<String>()
+                            val failedPhotos = mutableListOf<String>() // collect failed photo names
                             var successCount = 0
                             var failureCount = failedFiles.size
 
                             if (response.isSuccessful) {
                                 val responseBody = response.body()
                                 if (responseBody != null) {
-                                    AppLogger.d("Success response: ${responseBody.message}")
+                                    AppLogger.d("✅ Success response: ${responseBody.message}")
                                     successCount = responseBody.data.successful
                                     failureCount += responseBody.data.failed
 
-                                    // Update all table IDs to status 200
-                                    validImageFiles.forEach { fileInfo ->
-                                        val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
-                                        if (tableIdInt != -1) {
-                                            val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) {
-                                                fileInfo.anotherDatabaseTable
-                                            } else {
-                                                fileInfo.databaseTable
-                                            }
+                                    try {
+                                        AppLogger.d("====== RUNNING MISSING PHOTO CHECK AFTER UPLOAD ======")
 
-                                            when (targetTable) {
-                                                AppUtils.DatabaseTables.PANEN -> {
-                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
-                                                }
-                                                AppUtils.DatabaseTables.ABSENSI -> {
-                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
-                                                }
-                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
-                                                    mutuBuahDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
-                                                }
-                                                "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
-                                                    mutuBuahDao.updateStatusUploadedImageSelfie(listOf(tableIdInt), "200")
-                                                }
-                                                AppUtils.DatabaseTables.INSPEKSI, AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
-                                                    when (fileInfo.databaseTable) {
-                                                        AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> {
-                                                            inspeksiDao.updateStatusUploadedImageFotoUser(listOf(tableIdInt), "200")
+                                        val firstBasePath = validImageFiles.firstOrNull()?.basePath ?: ""
+                                        AppLogger.d("First basePathImage (raw): $firstBasePath")
+
+                                        val extractedDatePart = firstBasePath.split("/").take(3).joinToString("/")
+                                        val formattedTanggal = extractedDatePart.replace("/", "-")
+                                        AppLogger.d("Formatted tanggal for API: $formattedTanggal")
+
+                                        val checkRepo = CheckPhotoRepository()
+                                        val missingPhotosResult = checkRepo.getMissingPhotos(
+                                            tanggal = formattedTanggal,
+                                            deptAbbr = estateAbbrUser,
+                                            createdBy = idUserLogin
+                                        )
+
+                                        if (missingPhotosResult.isSuccess) {
+                                            val response = missingPhotosResult.getOrNull()
+
+                                            response?.let { res ->
+                                                AppLogger.d("====== SERVER MISSING PHOTO CHECK ======")
+                                                AppLogger.d("Success: ${res.success}")
+                                                AppLogger.d("Message: ${res.message}")
+                                                AppLogger.d("Total missing photos: ${res.summary.missingPhotosCount}")
+
+                                                val missingFiles = mutableListOf<String>()
+
+                                                if (res.missingPhotos.isEmpty()) {
+                                                    AppLogger.d("✅ No missing photos found on server.")
+                                                } else {
+                                                    // 🔥 New grouped update logic starts here
+
+                                                    // 1️⃣ Group valid image files by tableId
+                                                    val groupedFiles = validImageFiles.groupBy { it.tableId }
+
+                                                    // 2️⃣ Prepare map for DB updates
+                                                    val tableErrorMap = mutableMapOf<Int, String>()
+
+                                                    groupedFiles.forEach { (tableId, filesInTable) ->
+                                                        val matchedErrors = mutableListOf<String>()
+
+                                                        filesInTable.forEach { fileInfo ->
+                                                            val matchedPhoto = res.missingPhotos.find { photo ->
+                                                                fileInfo.imageName.contains(photo.filename, ignoreCase = true) ||
+                                                                        photo.filename.contains(fileInfo.imageName, ignoreCase = true)
+                                                            }
+
+                                                            if (matchedPhoto != null) {
+                                                                AppLogger.d("❌ Matched missing photo: ${fileInfo.imageName} for tableId: $tableId")
+
+                                                                // ✅ still push to tracking lists
+                                                                failedImageNames.add(fileInfo.imageName)
+                                                                failedImagePaths.add(fileInfo.file.absolutePath)
+                                                                failedPhotos.add(fileInfo.imageName)
+                                                                missingFiles.add(fileInfo.imageName)
+
+                                                                matchedErrors.add(fileInfo.imageName)
+                                                            }
                                                         }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
-                                                            inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(listOf(tableIdInt), "200")
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
-                                                            inspeksiDao.updateStatusUploadedImageInspeksi(listOf(tableIdInt), "200")
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
-                                                            inspeksiDao.updateStatusUploadedImageInspeksi(listOf(tableIdInt), "200")
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
-                                                            inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(listOf(tableIdInt), "200")
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
-                                                            inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(listOf(tableIdInt), "200")
+
+                                                        // If any errors for this table, group them together
+                                                        if (matchedErrors.isNotEmpty()) {
+                                                            val errorJson = JsonObject().apply {
+                                                                add("error", JsonArray().apply {
+                                                                    matchedErrors.forEach { add(it) }
+                                                                })
+                                                            }.toString()
+
+                                                            tableErrorMap[tableId.toIntOrNull() ?: -1] = errorJson
                                                         }
                                                     }
-                                                }
-                                            }
-                                            AppLogger.d("Updated ${fileInfo.imageName} status to 200 for ID $tableIdInt")
-                                        }
-                                    }
-                                } else {
-                                    AppLogger.e("Null response body")
-                                    failureCount += validImageFiles.size
 
-                                    // Mark all as failed
-                                    validImageFiles.forEach { fileInfo ->
-                                        failedImagePaths.add(fileInfo.file.absolutePath)
-                                        failedImageNames.add(fileInfo.imageName)
+                                                    // 3️⃣ Update DB once per tableId (not per image)
+                                                    tableErrorMap.forEach { (tableIdInt, errorJson) ->
+                                                        if (tableIdInt == -1) return@forEach
 
-                                        val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
-                                        if (tableIdInt != -1) {
-                                            val errorJson = JsonObject().apply {
-                                                add("error", JsonArray().apply {
-                                                    add(fileInfo.imageName)
-                                                })
-                                            }.toString()
+                                                        val sampleFile = validImageFiles.find { it.tableId.toIntOrNull() == tableIdInt } ?: return@forEach
 
-                                            val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) {
-                                                fileInfo.anotherDatabaseTable
-                                            } else {
-                                                fileInfo.databaseTable
-                                            }
+                                                        val targetTable = if (!sampleFile.anotherDatabaseTable.isNullOrEmpty()) {
+                                                            sampleFile.anotherDatabaseTable
+                                                        } else {
+                                                            sampleFile.databaseTable
+                                                        }
 
-                                            when (targetTable) {
-                                                AppUtils.DatabaseTables.PANEN -> {
-                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                        when (targetTable) {
+                                                            AppUtils.DatabaseTables.PANEN -> {
+                                                                panenDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                            }
+                                                            AppUtils.DatabaseTables.ABSENSI -> {
+                                                                absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                            }
+                                                            AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                                mutuBuahDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
+                                                            }
+                                                            "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                                                mutuBuahDao.updateStatusUploadedImageSelfie(listOf(tableIdInt), errorJson)
+                                                            }
+                                                            AppUtils.DatabaseTables.INSPEKSI,
+                                                            AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                                when (sampleFile.databaseTable) {
+                                                                    AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> {
+                                                                        inspeksiDao.updateStatusUploadedImageFotoUser(listOf(tableIdInt), errorJson)
+                                                                    }
+                                                                    AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
+                                                                        inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(listOf(tableIdInt), errorJson)
+                                                                    }
+                                                                    AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH,
+                                                                    AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
+                                                                        inspeksiDao.updateStatusUploadedImageInspeksi(listOf(tableIdInt), errorJson)
+                                                                    }
+                                                                    AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH,
+                                                                    AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
+                                                                        inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(listOf(tableIdInt), errorJson)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        AppLogger.d("⚠️ Saved grouped error JSON for tableId=$tableIdInt: $errorJson")
+                                                    }
+
+                                                    failureCount += missingFiles.size
                                                 }
-                                                AppUtils.DatabaseTables.ABSENSI -> {
-                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
-                                                }
-                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
-                                                    mutuBuahDao.updateStatusUploadedImage(listOf(tableIdInt), errorJson)
-                                                }
-                                                "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
-                                                    mutuBuahDao.updateStatusUploadedImageSelfie(listOf(tableIdInt), errorJson)
-                                                }
-                                                AppUtils.DatabaseTables.INSPEKSI, AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
-                                                    when (fileInfo.databaseTable) {
-                                                        AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> {
-                                                            inspeksiDao.updateStatusUploadedImageFotoUser(listOf(tableIdInt), errorJson)
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
-                                                            inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(listOf(tableIdInt), errorJson)
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH -> {
-                                                            inspeksiDao.updateStatusUploadedImageInspeksi(listOf(tableIdInt), errorJson)
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
-                                                            inspeksiDao.updateStatusUploadedImageInspeksi(listOf(tableIdInt), errorJson)
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH -> {
-                                                            inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(listOf(tableIdInt), errorJson)
-                                                        }
-                                                        AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
-                                                            inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(listOf(tableIdInt), errorJson)
+
+                                                // ✅ Update remaining (non-missing) photos as success (same as before)
+                                                validImageFiles
+                                                    .filterNot { file -> missingFiles.any { file.imageName.contains(it, ignoreCase = true) } }
+                                                    .forEach { fileInfo ->
+                                                        val tableIdInt = fileInfo.tableId.toIntOrNull() ?: -1
+                                                        if (tableIdInt != -1) {
+                                                            val targetTable = if (!fileInfo.anotherDatabaseTable.isNullOrEmpty()) {
+                                                                fileInfo.anotherDatabaseTable
+                                                            } else {
+                                                                fileInfo.databaseTable
+                                                            }
+
+                                                            when (targetTable) {
+                                                                AppUtils.DatabaseTables.PANEN -> {
+                                                                    panenDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                                }
+                                                                AppUtils.DatabaseTables.ABSENSI -> {
+                                                                    absensiDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                                }
+                                                                AppUtils.DatabaseTables.MUTU_BUAH -> {
+                                                                    mutuBuahDao.updateStatusUploadedImage(listOf(tableIdInt), "200")
+                                                                }
+                                                                "${AppUtils.DatabaseTables.MUTU_BUAH}_selfie" -> {
+                                                                    mutuBuahDao.updateStatusUploadedImageSelfie(listOf(tableIdInt), "200")
+                                                                }
+                                                                AppUtils.DatabaseTables.INSPEKSI,
+                                                                AppUtils.DatabaseTables.INSPEKSI_DETAIL -> {
+                                                                    when (fileInfo.databaseTable) {
+                                                                        AppUtils.WaterMarkFotoDanFolder.WMBuktiInspeksiUser -> {
+                                                                            inspeksiDao.updateStatusUploadedImageFotoUser(listOf(tableIdInt), "200")
+                                                                        }
+                                                                        AppUtils.WaterMarkFotoDanFolder.WMBuktiFUInspeksiUser -> {
+                                                                            inspeksiDao.updateStatusUploadedImageFotoUserPemulihan(listOf(tableIdInt), "200")
+                                                                        }
+                                                                        AppUtils.WaterMarkFotoDanFolder.WMInspeksiTPH,
+                                                                        AppUtils.WaterMarkFotoDanFolder.WMInspeksiPokok -> {
+                                                                            inspeksiDao.updateStatusUploadedImageInspeksi(listOf(tableIdInt), "200")
+                                                                        }
+                                                                        AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiTPH,
+                                                                        AppUtils.WaterMarkFotoDanFolder.WMFUInspeksiPokok -> {
+                                                                            inspeksiDao.updateStatusUploadedImagePemulihanInspeksi(listOf(tableIdInt), "200")
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            AppLogger.d("✅ Marked ${fileInfo.imageName} as uploaded (200)")
                                                         }
                                                     }
-                                                }
                                             }
+
+
+                                        } else {
+                                            AppLogger.e("❌ Failed to check missing photos: ${missingPhotosResult.exceptionOrNull()?.message}")
                                         }
+
+                                    } catch (e: Exception) {
+                                        AppLogger.e("❌ Exception during missing photo check: ${e.message}")
                                     }
                                 }
-                            } else {
+                            }
+                            else {
                                 val errorBody = response.errorBody()?.string()
                                 AppLogger.e("Upload failed - Code: ${response.code()}, Error: $errorBody")
                                 failureCount += validImageFiles.size
@@ -534,11 +626,28 @@ class UploadCMPRepository(context: Context) {
                             }
 
                             val isSuccess = failureCount == 0
-                            val finalMessage = if (isSuccess) {
-                                "All $successCount images uploaded successfully"
-                            } else {
-                                "Upload completed: $successCount successful, $failureCount failed"
+                            val finalMessage = buildString {
+                                if (isSuccess) {
+                                    append("All $successCount images uploaded successfully")
+                                } else {
+                                    append("Upload selesai: $successCount sukses, $failureCount gagal")
+
+                                    // 🟡 Check if failures are from missing photos
+                                    if (failureCount > 0 && failedPhotos.isNotEmpty()) {
+                                        append("\n\nFoto Gagal tersimpan di server:\n")
+                                        failedPhotos.forEach { photoName ->
+                                            append("• $photoName\n")
+                                        }
+
+                                        // optional: flag for missing photos error
+                                        val hasMissingPhotos = failedPhotos.any { it.contains("MISSING", ignoreCase = true) }
+                                        if (hasMissingPhotos) {
+                                            append("\n⚠️ Lakukan Re-upload photo tersebut")
+                                        }
+                                    }
+                                }
                             }
+
 
                             AppLogger.d("====== COMPLETE UPLOAD RESULTS ======")
                             AppLogger.d("Summary: $finalMessage")
@@ -547,6 +656,9 @@ class UploadCMPRepository(context: Context) {
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(100, isSuccess, if (isSuccess) null else finalMessage)
                             }
+
+                            AppLogger.d("failedImagePaths $failedImagePaths")
+                            AppLogger.d("failedImageNames $failedImageNames")
 
                             val uploadV3Response = UploadV3Response(
                                 success = isSuccess,
@@ -815,8 +927,7 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                }
-                else if (type == AppUtils.DatabaseServer.PPRO) {
+                } else if (type == AppUtils.DatabaseServer.PPRO) {
                     // Handle PPRO upload
                     try {
                         AppLogger.d("PPRO: Processing data payload")
@@ -1183,8 +1294,7 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                }
-                else {
+                } else {
                     AppLogger.d("Starting JSON data upload for: $filename")
 
                     AppLogger.d("databaseTable $databaseTable")
@@ -1278,53 +1388,67 @@ class UploadCMPRepository(context: Context) {
                                         responseBody.results.skipped > 0
 
                                 // Filter table_ids for mutu_buah if there are skipped records
-                                val filteredTableIds = if (isMutuBuahWithSkipped && tableIds != null) {
-                                    try {
-                                        // Parse the tableIds JSON string
-                                        val originalTableIdsJson = JSONObject(tableIds)
+                                val filteredTableIds =
+                                    if (isMutuBuahWithSkipped && tableIds != null) {
+                                        try {
+                                            // Parse the tableIds JSON string
+                                            val originalTableIdsJson = JSONObject(tableIds)
 
-                                        // Get the skipped record IDs from skipErrorDetails
-                                        val skippedIds = mutableSetOf<Int>()
-                                        responseBody.results?.skipErrorDetails?.forEach { skipDetail ->
-                                            skipDetail.data?.let { data ->
-                                                // Extract the ID from the data object
-                                                val dataJson = JSONObject(data.toString())
-                                                if (dataJson.has("id")) {
-                                                    skippedIds.add(dataJson.getInt("id"))
+                                            // Get the skipped record IDs from skipErrorDetails
+                                            val skippedIds = mutableSetOf<Int>()
+                                            responseBody.results?.skipErrorDetails?.forEach { skipDetail ->
+                                                skipDetail.data?.let { data ->
+                                                    // Extract the ID from the data object
+                                                    val dataJson = JSONObject(data.toString())
+                                                    if (dataJson.has("id")) {
+                                                        skippedIds.add(dataJson.getInt("id"))
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        // Filter mutu_buah IDs by removing skipped ones
-                                        if (originalTableIdsJson.has("mutu_buah")) {
-                                            val originalMutuBuahIdsArray = originalTableIdsJson.getJSONArray("mutu_buah")
-                                            val originalMutuBuahIds = (0 until originalMutuBuahIdsArray.length()).map {
-                                                originalMutuBuahIdsArray.getInt(it)
+                                            // Filter mutu_buah IDs by removing skipped ones
+                                            if (originalTableIdsJson.has("mutu_buah")) {
+                                                val originalMutuBuahIdsArray =
+                                                    originalTableIdsJson.getJSONArray("mutu_buah")
+                                                val originalMutuBuahIds =
+                                                    (0 until originalMutuBuahIdsArray.length()).map {
+                                                        originalMutuBuahIdsArray.getInt(it)
+                                                    }
+
+                                                val filteredMutuBuahIds =
+                                                    originalMutuBuahIds.filter { id ->
+                                                        !skippedIds.contains(id)
+                                                    }
+
+                                                AppLogger.d("Original mutu_buah IDs: $originalMutuBuahIds")
+                                                AppLogger.d("Skipped IDs: $skippedIds")
+                                                AppLogger.d("Filtered mutu_buah IDs: $filteredMutuBuahIds")
+
+                                                // Create new JSON with filtered IDs
+                                                val filteredTableIdsJson =
+                                                    JSONObject(tableIds) // Copy original
+                                                val filteredIdsArray = JSONArray()
+                                                filteredMutuBuahIds.forEach {
+                                                    filteredIdsArray.put(
+                                                        it
+                                                    )
+                                                }
+                                                filteredTableIdsJson.put(
+                                                    "mutu_buah",
+                                                    filteredIdsArray
+                                                )
+
+                                                filteredTableIdsJson.toString()
+                                            } else {
+                                                tableIds
                                             }
-
-                                            val filteredMutuBuahIds = originalMutuBuahIds.filter { id -> !skippedIds.contains(id) }
-
-                                            AppLogger.d("Original mutu_buah IDs: $originalMutuBuahIds")
-                                            AppLogger.d("Skipped IDs: $skippedIds")
-                                            AppLogger.d("Filtered mutu_buah IDs: $filteredMutuBuahIds")
-
-                                            // Create new JSON with filtered IDs
-                                            val filteredTableIdsJson = JSONObject(tableIds) // Copy original
-                                            val filteredIdsArray = JSONArray()
-                                            filteredMutuBuahIds.forEach { filteredIdsArray.put(it) }
-                                            filteredTableIdsJson.put("mutu_buah", filteredIdsArray)
-
-                                            filteredTableIdsJson.toString()
-                                        } else {
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error filtering table_ids: ${e.message}")
                                             tableIds
                                         }
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error filtering table_ids: ${e.message}")
+                                    } else {
                                         tableIds
                                     }
-                                } else {
-                                    tableIds
-                                }
 
                                 // Determine final message, status, and success
                                 val finalMessage = if (isMutuBuahWithSkipped) {
@@ -1334,7 +1458,8 @@ class UploadCMPRepository(context: Context) {
                                 }
 
                                 val finalStatus = responseBody.status
-                                val finalSuccess = if (isMutuBuahWithSkipped) false else responseBody.success
+                                val finalSuccess =
+                                    if (isMutuBuahWithSkipped) false else responseBody.success
 
 
                                 AppLogger.d("filteredTableIds $filteredTableIds")
