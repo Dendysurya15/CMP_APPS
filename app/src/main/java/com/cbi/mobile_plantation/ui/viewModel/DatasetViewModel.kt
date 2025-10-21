@@ -3908,7 +3908,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         hasValidData = true
                         val dateObj = inputFormatter.parse(date)
                         val dateDisplay = displayFormatter.format(dateObj!!)
-                        resultBuilder.append("$dateDisplay - $inspeksiCount Inspeksi\n")
+                        resultBuilder.append("$dateDisplay - $inspeksiCount Transaksi\n")
                     }
                 }
 
@@ -4032,7 +4032,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             hasValidData = true
                             val dateObj = inputFormatter.parse(date)
                             val dateDisplay = displayFormatter.format(dateObj!!)
-                            resultBuilder.append("$dateDisplay - $tphCount TPH\n")
+                            resultBuilder.append("$dateDisplay - $tphCount Transaksi\n")
                         }
 
                         if (!hasValidData) {
@@ -4320,7 +4320,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     val dateObj = inputFormatter.parse(date)
                     val dateDisplay = displayFormatter.format(dateObj!!)
 
-                    resultBuilder.append("$dateDisplay: $jjgKirimCount jjg dari $tphCount TPH\n")
+                    resultBuilder.append("$dateDisplay: $jjgKirimCount jjg dari $tphCount Transaksi\n")
                 }
 
                 // If no valid restan data found

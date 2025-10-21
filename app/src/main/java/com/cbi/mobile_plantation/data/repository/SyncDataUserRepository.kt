@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
@@ -16,8 +17,7 @@ import java.util.Locale
 
 class SyncDataUserRepository(
     context: Context,
-    private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
+    private val ApiService: ApiService = ApiProvider.currentApiService
 ){
 
     suspend fun getDataUser(idUser: Int): Response<ResponseBody> {
@@ -32,7 +32,7 @@ class SyncDataUserRepository(
             })
         }
         val checkRequestBody = checkKemandoranQuery.toString().toRequestBody("application/json".toMediaType())
-        val checkResponse = apiService.getDataRaw(checkRequestBody)
+        val checkResponse = ApiService.getDataRaw(checkRequestBody)
 
         var hasKemandoranPpro = false
 
@@ -116,6 +116,6 @@ class SyncDataUserRepository(
 
         AppLogger.d("User Data API Request (with kemandoran JOIN: $hasKemandoranPpro): ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return ApiService.getDataRaw(requestBody)
     }
 }

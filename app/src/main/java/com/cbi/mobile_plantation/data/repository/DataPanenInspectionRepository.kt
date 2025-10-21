@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.ParameterDao
 import com.cbi.mobile_plantation.data.network.CMPApiClient
@@ -17,8 +18,7 @@ import java.util.Locale
 
 class DataPanenInspectionRepository(
     context: Context,
-    private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
+    private val ApiService: ApiService = ApiProvider.currentApiService
 ){
 
     suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
@@ -111,7 +111,7 @@ class DataPanenInspectionRepository(
         AppLogger.d("jsonObject $jsonObject")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return ApiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
@@ -308,6 +308,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return apiService.getDataRaw(requestBody)
+        return ApiService.getDataRaw(requestBody)
     }
 }

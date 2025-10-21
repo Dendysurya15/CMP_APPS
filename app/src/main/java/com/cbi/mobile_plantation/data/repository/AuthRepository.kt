@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.data.repository
 
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.model.LoginResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
@@ -22,7 +23,7 @@ class AuthRepository {
                 val request = ApiService.LoginRequest(username, password)
                 AppLogger.d("Login Request Body: ${Gson().toJson(request)}")
 
-                val response = CMPApiClient.instance.login(request)
+                val response =  ApiProvider.currentApiService.login(request)
 
                 if (!response.isSuccessful) {
                     val errorBody = response.errorBody()?.string()

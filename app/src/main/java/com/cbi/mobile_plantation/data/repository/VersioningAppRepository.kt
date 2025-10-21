@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
@@ -16,8 +17,7 @@ import java.util.Locale
 
 class VersioningAppRepository(
     context: Context,
-    private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
+    private val ApiService: ApiService = ApiProvider.currentApiService
 ){
 
     suspend fun getDataAppVersion(userId:Int): Response<ResponseBody> {
@@ -54,6 +54,6 @@ class VersioningAppRepository(
         AppLogger.d("User App Requirements API Request: ${jsonObject.toString()}")
 
         // Make the API call
-        return apiService.getDataRaw(requestBody)
+        return ApiService.getDataRaw(requestBody)
     }
 }

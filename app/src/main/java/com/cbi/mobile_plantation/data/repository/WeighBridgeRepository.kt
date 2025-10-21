@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
@@ -579,8 +580,7 @@ class WeighBridgeRepository(context: Context) {
                                 AppLogger.d("CMP Upload - Starting upload for data with size: ${data.length} characters")
 
                                 try {
-                                    // Use the direct method for uploading JSON data
-                                    val response = CMPApiClient.instance.uploadJsonV3Raw(
+                                    val response = ApiProvider.currentApiService.uploadJsonV3Raw(
                                         jsonData = jsonRequestBody
                                     )
 

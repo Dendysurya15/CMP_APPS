@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.data.repository
 
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
 import com.cbi.mobile_plantation.data.model.DownloadMapResponse
@@ -10,13 +11,12 @@ import okhttp3.ResponseBody
 import retrofit2.Response
 
 class DownloadIDMapRepository(
-    private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance
+    private val ApiService: ApiService = ApiProvider.currentApiService
 ) {
 
     suspend fun getDownloadMapList(): Result<DownloadMapResponse> {
         return try {
-            val response = apiService.getDownloadMapList()
+            val response = ApiService.getDownloadMapList()
             if (response.isSuccessful) {
                 response.body()?.let {
                     Result.success(it)
@@ -32,7 +32,7 @@ class DownloadIDMapRepository(
 
     suspend fun getDownloadMapProgress(downloadId: String): Result<DownloadMapProgressResponse> {
         return try {
-            val response = apiService.getDownloadMapProgress(downloadId)
+            val response = ApiService.getDownloadMapProgress(downloadId)
             if (response.isSuccessful) {
                 response.body()?.let {
                     Result.success(it)
@@ -48,7 +48,7 @@ class DownloadIDMapRepository(
 
     suspend fun downloadMapChunk(downloadId: String, chunkIndex: Int): Response<ResponseBody> {
         return try {
-            apiService.downloadMapChunk(downloadId, chunkIndex)
+            ApiService.downloadMapChunk(downloadId, chunkIndex)
         } catch (e: Exception) {
             AppLogger.e("Error downloading map chunk $chunkIndex: ${e.message}")
             throw e
