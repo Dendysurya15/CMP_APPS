@@ -1765,7 +1765,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             setTileSource(tileSource)
             setMultiTouchControls(true)
             setBuiltInZoomControls(false)
-            minZoomLevel = 10.0
+            minZoomLevel = 17.0
             maxZoomLevel = 20.0
             controller.setZoom(15.0)
 
@@ -2574,7 +2574,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                             setTileSource(tileSource)
                             setMultiTouchControls(true)
                             setBuiltInZoomControls(false)
-                            minZoomLevel = 10.0
+                            minZoomLevel = 17.0
                             maxZoomLevel = 20.0
 
                             // Prevent parent from intercepting touch events

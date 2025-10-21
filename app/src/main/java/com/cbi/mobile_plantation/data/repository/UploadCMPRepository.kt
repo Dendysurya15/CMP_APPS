@@ -6,10 +6,7 @@ import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
-import com.cbi.mobile_plantation.data.network.TestingAPIClient
 
 import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -152,6 +149,8 @@ class UploadCMPRepository(context: Context) {
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadV3Response> {
         return try {
+//            ApiProvider.switchToTesting()
+//            ApiProvider.switchToProduction()
             withContext(Dispatchers.IO) {
                 withContext(Dispatchers.Main) {
                     onProgressUpdate(0, false, null)
@@ -638,7 +637,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = ApiProvider.currentApiService.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -817,7 +816,8 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                } else if (type == AppUtils.DatabaseServer.PPRO) {
+                }
+                else if (type == AppUtils.DatabaseServer.PPRO) {
                     // Handle PPRO upload
                     try {
                         AppLogger.d("PPRO: Processing data payload")
@@ -1184,7 +1184,8 @@ class UploadCMPRepository(context: Context) {
 
                         return@withContext Result.success(errorResponse)
                     }
-                } else {
+                }
+                else {
                     AppLogger.d("Starting JSON data upload for: $filename")
 
                     AppLogger.d("databaseTable $databaseTable")
@@ -1218,7 +1219,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV3Raw(
+                        val response = ApiProvider.currentApiService.uploadJsonV3Raw(
                             jsonData = jsonRequestBody
                         )
 

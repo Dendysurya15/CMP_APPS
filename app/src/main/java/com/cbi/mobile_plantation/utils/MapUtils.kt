@@ -98,19 +98,18 @@ object MapUtils {
                 minZoom,
                 maxZoom,
                 256,
-                ".webp"
+                ".webp"  // This is just a label, actual loading supports both formats
             ) {
                 override fun getDrawable(aFilePath: String?): Drawable? {
                     return try {
                         if (aFilePath == null) return null
                         val file = File(aFilePath)
                         if (!file.exists()) {
-                            AppLogger.d("Tile not found: ${file.name}")
                             return null
                         }
+                        // BitmapFactory.decodeFile works with both .webp and .png
                         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
                         if (bitmap != null) {
-                            AppLogger.d("✅ Loaded: ${file.name}")
                             BitmapDrawable(context.resources, bitmap)
                         } else {
                             null
@@ -124,6 +123,7 @@ object MapUtils {
                 override fun getDrawable(aFileInputStream: InputStream?): Drawable? {
                     return try {
                         if (aFileInputStream == null) return null
+                        // BitmapFactory.decodeStream works with both .webp and .png
                         val bitmap = BitmapFactory.decodeStream(aFileInputStream)
                         if (bitmap != null) {
                             BitmapDrawable(context.resources, bitmap)
@@ -152,13 +152,24 @@ object MapUtils {
                         val x = MapTileIndex.getX(pTile)
                         val y = MapTileIndex.getY(pTile)
 
-                        val tileFile = File(estateFolder, "$zoom/$x-$y.webp")
+                        // Try .webp first
+                        var tileFile = File(estateFolder, "$zoom/$x-$y.webp")
 
-                        return if (tileFile.exists()) {
-                            FileInputStream(tileFile)
-                        } else {
-                            null
+                        if (tileFile.exists()) {
+                            AppLogger.d("✅ Loading tile (webp): $zoom/$x-$y.webp")
+                            return FileInputStream(tileFile)
                         }
+
+                        // Fallback to .png
+                        tileFile = File(estateFolder, "$zoom/$x-$y.png")
+
+                        if (tileFile.exists()) {
+                            AppLogger.d("✅ Loading tile (png): $zoom/$x-$y.png")
+                            return FileInputStream(tileFile)
+                        }
+
+                        AppLogger.w("⚠️ Tile not found: $zoom/$x-$y (tried .webp and .png)")
+                        return null
                     }
 
                     override fun close() {}
@@ -247,7 +258,7 @@ object MapUtils {
                 minZoom,
                 maxZoom,
                 256,
-                ".webp"
+                ".webp"  // Label only, supports both .webp and .png
             ) {
                 override fun getDrawable(aFilePath: String?): Drawable? {
                     return try {
@@ -303,19 +314,26 @@ object MapUtils {
                         val x = MapTileIndex.getX(pTile)
                         val y = MapTileIndex.getY(pTile)
 
-                        val tileFile = File(estateFolder, "$zoom/$x-$y.webp")
+                        // Try .webp first
+                        var tileFile = File(estateFolder, "$zoom/$x-$y.webp")
 
-                        AppLogger.d("🔍 [FULLSCREEN] Requesting tile: $zoom/$x-$y.webp")
-                        AppLogger.d("📍 [FULLSCREEN] Full path: ${tileFile.absolutePath}")
-                        AppLogger.d("✓ [FULLSCREEN] File exists: ${tileFile.exists()}")
+                        AppLogger.d("🔍 [FULLSCREEN] Requesting tile: $zoom/$x-$y")
 
-                        return if (tileFile.exists()) {
-                            AppLogger.d("✅ [FULLSCREEN] Loading tile: $zoom/$x-$y.webp")
-                            FileInputStream(tileFile)
-                        } else {
-                            AppLogger.w("⚠️ [FULLSCREEN] Tile not found: $zoom/$x-$y.webp")
-                            null
+                        if (tileFile.exists()) {
+                            AppLogger.d("✅ [FULLSCREEN] Loading tile (webp): $zoom/$x-$y.webp")
+                            return FileInputStream(tileFile)
                         }
+
+                        // Fallback to .png
+                        tileFile = File(estateFolder, "$zoom/$x-$y.png")
+
+                        if (tileFile.exists()) {
+                            AppLogger.d("✅ [FULLSCREEN] Loading tile (png): $zoom/$x-$y.png")
+                            return FileInputStream(tileFile)
+                        }
+
+                        AppLogger.w("⚠️ [FULLSCREEN] Tile not found: $zoom/$x-$y (tried .webp and .png)")
+                        return null
                     }
 
                     override fun close() {
