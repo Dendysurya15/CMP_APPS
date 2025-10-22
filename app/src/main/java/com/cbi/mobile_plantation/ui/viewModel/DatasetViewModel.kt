@@ -414,6 +414,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getTphOtomatisByEstate(estateAbbr)
     }
 
+    suspend fun getEstateById(estateId: Int): EstateModel? {
+        return repository.getEstateById(estateId)
+    }
+
 
     // Modified parseTPHJsonToList function to handle both formats
     private fun parseTPHJsonToList(jsonContent: String): List<TPHNewModel> {

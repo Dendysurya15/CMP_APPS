@@ -1364,6 +1364,19 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }
 
+                    val estateDeferred = async {
+                        try {
+                            datasetViewModel.getEstateById(firstBlok?.dept ?: 0)
+                        } catch (e: Exception) {
+                            AppLogger.e("Gagal mendapatkan data afdeling: ${e.message}")
+                            null
+                        }
+                    }
+
+                    val estate = estateDeferred.await()
+                    val estateName = estate?.nama ?: ""
+
+
                     val afdeling = afdelingDeffered.await()
                     val divisiName = afdeling?.nama
 
@@ -1467,11 +1480,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalCompany = firstBlok?.company ?: 0
                     globalDept = firstBlok?.dept ?: 0
                     globalDeptAbbr = firstBlok?.dept_abbr ?: ""
-                    globalDeptName = firstBlok?.kode ?: ""
+                    globalDeptName = estateName
                     globalDivisi = firstBlok?.divisi ?: 0
                     globalDivisiAbbr = firstBlok?.divisi_abbr ?: ""
                     globalDivisiName = divisiName ?: ""
-                    globalDivisi = firstBlok?.divisi ?: 0
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg

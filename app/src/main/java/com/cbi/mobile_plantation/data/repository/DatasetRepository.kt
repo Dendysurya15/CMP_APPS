@@ -119,6 +119,11 @@ class DatasetRepository(
         return estateDao.getTphOtomatisByAbbr(estateAbbr)
     }
 
+    suspend fun getEstateById(estateId: Int): EstateModel? {
+        return estateDao.getEstateById(estateId)
+    }
+
+
 //    suspend fun getDeptByRegionalAndEstate(estateId: String): List<DeptModel> {
 //        // Fetch dept data by regionalId and estateId
 //        return deptDao.getDeptByCriteria(estateId)
