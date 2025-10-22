@@ -175,8 +175,6 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
     private val selectedKemandoranIdsLain = mutableSetOf<Int>()
     private val filteredKemandoranIdLain = mutableListOf<Int>()
 
-
-
     private var selectedKemandoranIdLainAbsensi: Int? = null
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -261,6 +259,7 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         val mbSaveDataAbsensi = findViewById<MaterialButton>(R.id.mbSaveDataAbsensi)
+
         mbSaveDataAbsensi.setOnClickListener {
             if (validateAndShowErrors()) {
                 AlertDialogUtility.withTwoActions(
@@ -278,70 +277,263 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                     // Group by kemandoranId first
                                     val groupedByKemandoran = absensiList.groupBy { it.kemandoranId }
 
+                                    // Maps untuk setiap status
                                     val hadirIdMap = mutableMapOf<String, List<String>>()
                                     val mangkirIdMap = mutableMapOf<String, List<String>>()
+                                    val sakitIdMap = mutableMapOf<String, List<String>>()
+                                    val izinIdMap = mutableMapOf<String, List<String>>()
+                                    val cutiIdMap = mutableMapOf<String, List<String>>()
+                                    val tidakAbsenIdMap = mutableMapOf<String, List<String>>()
+
                                     val hadirNikMap = mutableMapOf<String, List<String>>()
                                     val mangkirNikMap = mutableMapOf<String, List<String>>()
+                                    val sakitNikMap = mutableMapOf<String, List<String>>()
+                                    val izinNikMap = mutableMapOf<String, List<String>>()
+                                    val cutiNikMap = mutableMapOf<String, List<String>>()
+                                    val tidakAbsenNikMap = mutableMapOf<String, List<String>>()
+
                                     val hadirNamaMap = mutableMapOf<String, List<String>>()
                                     val mangkirNamaMap = mutableMapOf<String, List<String>>()
+                                    val sakitNamaMap = mutableMapOf<String, List<String>>()
+                                    val izinNamaMap = mutableMapOf<String, List<String>>()
+                                    val cutiNamaMap = mutableMapOf<String, List<String>>()
+                                    val tidakAbsenNamaMap = mutableMapOf<String, List<String>>()
+
+                                    val hadirAlokasiMap = mutableMapOf<String, List<String>>()
+                                    val mangkirAlokasiMap = mutableMapOf<String, List<String>>()
+                                    val sakitAlokasiMap = mutableMapOf<String, List<String>>()
+                                    val izinAlokasiMap = mutableMapOf<String, List<String>>()
+                                    val cutiAlokasiMap = mutableMapOf<String, List<String>>()
+                                    val tidakAbsenAlokasiMap = mutableMapOf<String, List<String>>()
 
                                     // Process each kemandoran group
                                     groupedByKemandoran.forEach { (kemandoranId, karyawanList) ->
-                                        val (karyawanMasuk, karyawanTidakMasuk) = karyawanList.partition { it.isChecked }
-
                                         val kemandoranIdStr = kemandoranId.toString()
 
-                                        // Store hadir (present) employees
-                                        if (karyawanMasuk.isNotEmpty()) {
-                                            hadirIdMap[kemandoranIdStr] = karyawanMasuk.map { it.id.toString() }
-                                            hadirNikMap[kemandoranIdStr] = karyawanMasuk.map { it.nik }
-                                            hadirNamaMap[kemandoranIdStr] = karyawanMasuk.map { it.namaOnly }
+                                        // Group by keterangan
+                                        val hadirList = karyawanList.filter { it.keterangan == "Hadir" || it.keterangan == "H" }
+                                        val mangkirList = karyawanList.filter { it.keterangan == "Mangkir" || it.keterangan == "M" }
+                                        val sakitList = karyawanList.filter { it.keterangan == "Sakit" || it.keterangan == "S" }
+                                        val izinList = karyawanList.filter { it.keterangan == "Izin" || it.keterangan == "I" }
+                                        val cutiList = karyawanList.filter { it.keterangan == "Cuti" || it.keterangan == "C" }
+                                        val tidakAbsenList = karyawanList.filter { it.keterangan == "TA" }
+
+                                        // Store Hadir
+                                        if (hadirList.isNotEmpty()) {
+                                            hadirIdMap[kemandoranIdStr] = hadirList.map { it.id.toString() }
+                                            hadirNikMap[kemandoranIdStr] = hadirList.map { it.nik }
+                                            hadirNamaMap[kemandoranIdStr] = hadirList.map { it.namaOnly }
+                                            hadirAlokasiMap[kemandoranIdStr] = hadirList.map { it.alokasiKerja ?: "Panen" }
                                         }
 
-                                        // Store mangkir (absent) employees
-                                        if (karyawanTidakMasuk.isNotEmpty()) {
-                                            mangkirIdMap[kemandoranIdStr] = karyawanTidakMasuk.map { it.id.toString() }
-                                            mangkirNikMap[kemandoranIdStr] = karyawanTidakMasuk.map { it.nik }
-                                            mangkirNamaMap[kemandoranIdStr] = karyawanTidakMasuk.map { it.namaOnly }
+                                        // Store Mangkir
+                                        if (mangkirList.isNotEmpty()) {
+                                            mangkirIdMap[kemandoranIdStr] = mangkirList.map { it.id.toString() }
+                                            mangkirNikMap[kemandoranIdStr] = mangkirList.map { it.nik }
+                                            mangkirNamaMap[kemandoranIdStr] = mangkirList.map { it.namaOnly }
+                                            mangkirAlokasiMap[kemandoranIdStr] = mangkirList.map { it.alokasiKerja ?: "Panen" }
+                                        }
+
+                                        // Store Sakit
+                                        if (sakitList.isNotEmpty()) {
+                                            sakitIdMap[kemandoranIdStr] = sakitList.map { it.id.toString() }
+                                            sakitNikMap[kemandoranIdStr] = sakitList.map { it.nik }
+                                            sakitNamaMap[kemandoranIdStr] = sakitList.map { it.namaOnly }
+                                            sakitAlokasiMap[kemandoranIdStr] = sakitList.map { it.alokasiKerja ?: "Panen" }
+                                        }
+
+                                        // Store Izin
+                                        if (izinList.isNotEmpty()) {
+                                            izinIdMap[kemandoranIdStr] = izinList.map { it.id.toString() }
+                                            izinNikMap[kemandoranIdStr] = izinList.map { it.nik }
+                                            izinNamaMap[kemandoranIdStr] = izinList.map { it.namaOnly }
+                                            izinAlokasiMap[kemandoranIdStr] = izinList.map { it.alokasiKerja ?: "Panen" }
+                                        }
+
+                                        // Store Cuti
+                                        if (cutiList.isNotEmpty()) {
+                                            cutiIdMap[kemandoranIdStr] = cutiList.map { it.id.toString() }
+                                            cutiNikMap[kemandoranIdStr] = cutiList.map { it.nik }
+                                            cutiNamaMap[kemandoranIdStr] = cutiList.map { it.namaOnly }
+                                            cutiAlokasiMap[kemandoranIdStr] = cutiList.map { it.alokasiKerja ?: "Panen" }
+                                        }
+
+                                        // Store Tidak Absen
+                                        if (tidakAbsenList.isNotEmpty()) {
+                                            tidakAbsenIdMap[kemandoranIdStr] = tidakAbsenList.map { it.id.toString() }
+                                            tidakAbsenNikMap[kemandoranIdStr] = tidakAbsenList.map { it.nik }
+                                            tidakAbsenNamaMap[kemandoranIdStr] = tidakAbsenList.map { it.namaOnly }
+                                            tidakAbsenAlokasiMap[kemandoranIdStr] = tidakAbsenList.map { it.alokasiKerja ?: "Panen" }
                                         }
                                     }
 
-                                    // Create JSON for MSK (Present) - using "h" key for hadir
-                                    val karyawanMskIdJson = createAttendanceJson(hadirEmployees = hadirIdMap)
-                                    val karyawanMskNikJson = createAttendanceJson(hadirEmployees = hadirNikMap)
-                                    val karyawanMskNamaJson = createAttendanceJson(hadirEmployees = hadirNamaMap)
+                                    // Create JSON menggunakan fungsi createAttendanceJson yang sudah ada
+                                    val karyawanMskIdJson = createAttendanceJson(
+                                        hadirEmployees = hadirIdMap
+                                    )
 
-                                    // Create JSON for TDK_MSK (Absent) - using "m" key for mangkir
-                                    val karyawanTdkMskIdJson = createAttendanceJson(mangkirEmployees = mangkirIdMap)
-                                    val karyawanTdkMskNikJson = createAttendanceJson(mangkirEmployees = mangkirNikMap)
-                                    val karyawanTdkMskNamaJson = createAttendanceJson(mangkirEmployees = mangkirNamaMap)
+                                    val karyawanTdkMskIdJson = createAttendanceJson(
+                                        mangkirEmployees = mangkirIdMap,
+                                        sakitEmployees = sakitIdMap,
+                                        izinEmployees = izinIdMap,
+                                        cutiEmployees = cutiIdMap,
+                                        tidakAbsenEmployees = tidakAbsenIdMap
+                                    )
+
+                                    val karyawanMskNikJson = createAttendanceJson(
+                                        hadirEmployees = hadirNikMap
+                                    )
+
+                                    val karyawanTdkMskNikJson = createAttendanceJson(
+                                        mangkirEmployees = mangkirNikMap,
+                                        sakitEmployees = sakitNikMap,
+                                        izinEmployees = izinNikMap,
+                                        cutiEmployees = cutiNikMap,
+                                        tidakAbsenEmployees = tidakAbsenNikMap
+                                    )
+
+                                    val karyawanMskNamaJson = createAttendanceJson(
+                                        hadirEmployees = hadirNamaMap
+                                    )
+
+                                    val karyawanTdkMskNamaJson = createAttendanceJson(
+                                        mangkirEmployees = mangkirNamaMap,
+                                        sakitEmployees = sakitNamaMap,
+                                        izinEmployees = izinNamaMap,
+                                        cutiEmployees = cutiNamaMap,
+                                        tidakAbsenEmployees = tidakAbsenNamaMap
+                                    )
+
+                                    // Create Work Location JSON
+                                    val karyawanMskWorkLocationJson = createAttendanceJson(
+                                        hadirEmployees = hadirAlokasiMap
+                                    )
+
+                                    val karyawanTdkMskWorkLocationJson = createAttendanceJson(
+                                        mangkirEmployees = mangkirAlokasiMap,
+                                        sakitEmployees = sakitAlokasiMap,
+                                        izinEmployees = izinAlokasiMap,
+                                        cutiEmployees = cutiAlokasiMap,
+                                        tidakAbsenEmployees = tidakAbsenAlokasiMap
+                                    )
 
                                     val dateAbsen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                                    // Here's an example checking all present employees across all kemandoran
-                                    val allKaryawanMasuk = absensiList.filter { it.isChecked }
+                                    // Get all karyawan yang masuk (hadir, sakit, izin, cuti)
+                                    val allKaryawanMasuk = absensiList.filter {
+                                        it.keterangan in listOf("Hadir", "H", "Sakit", "S", "Izin", "I", "Cuti", "C")
+                                    }
                                     val allKaryawanMskIdList = allKaryawanMasuk.map { it.id.toString() }
 
-                                    val karyawanMskWorkLocationJson = JSONObject().apply {
-                                        if (hadirIdMap.isNotEmpty()) {
-                                            val hadirJson = JSONObject()
-                                            hadirIdMap.forEach { (kemandoran, employeeList) ->
-                                                hadirJson.put(kemandoran, List(employeeList.size) { "1" }.joinToString(","))
+                                    // ============= LOGGING DATA YANG AKAN DISIMPAN =============
+                                    AppLogger.d("==================== DATA ABSENSI ====================")
+                                    AppLogger.d("Tanggal Absen: $dateAbsen")
+                                    AppLogger.d("Total Karyawan di Adapter: ${absensiList.size}")
+
+                                    // Log summary per status
+                                    AppLogger.d("\n--- SUMMARY PER STATUS ---")
+                                    val hadirCount = absensiList.count { it.keterangan in listOf("Hadir", "H") }
+                                    val mangkirCount = absensiList.count { it.keterangan in listOf("Mangkir", "M") }
+                                    val sakitCount = absensiList.count { it.keterangan in listOf("Sakit", "S") }
+                                    val izinCount = absensiList.count { it.keterangan in listOf("Izin", "I") }
+                                    val cutiCount = absensiList.count { it.keterangan in listOf("Cuti", "C") }
+                                    val tidakAbsenCount = absensiList.count { it.keterangan == "TA" }
+
+                                    AppLogger.d("Hadir (H): $hadirCount orang")
+                                    AppLogger.d("Mangkir (M): $mangkirCount orang")
+                                    AppLogger.d("Sakit (S): $sakitCount orang")
+                                    AppLogger.d("Izin (I): $izinCount orang")
+                                    AppLogger.d("Cuti (C): $cutiCount orang")
+                                    AppLogger.d("Tidak Absen (TA): $tidakAbsenCount orang")
+
+                                    // Log detail per kemandoran
+                                    AppLogger.d("\n--- DETAIL PER KEMANDORAN ---")
+                                    groupedByKemandoran.forEach { (kemandoranId, karyawanList) ->
+                                        val kemandoranName = kemandoranList.firstOrNull()?.let {
+                                            kemandoranList.find { it.id == kemandoranId }
+                                        } ?: "Unknown"
+
+                                        AppLogger.d("\nKemandoran ID: $kemandoranId")
+                                        AppLogger.d("Total Karyawan: ${karyawanList.size}")
+
+                                        val hadirListLocal = karyawanList.filter { it.keterangan in listOf("Hadir", "H") }
+                                        val mangkirListLocal = karyawanList.filter { it.keterangan in listOf("Mangkir", "M") }
+                                        val sakitListLocal = karyawanList.filter { it.keterangan in listOf("Sakit", "S") }
+                                        val izinListLocal = karyawanList.filter { it.keterangan in listOf("Izin", "I") }
+                                        val cutiListLocal = karyawanList.filter { it.keterangan in listOf("Cuti", "C") }
+                                        val tidakAbsenListLocal = karyawanList.filter { it.keterangan == "TA" }
+
+                                        if (hadirListLocal.isNotEmpty()) {
+                                            AppLogger.d("  Hadir (${hadirListLocal.size}):")
+                                            hadirListLocal.forEach {
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
                                             }
-                                            put("h", hadirJson)
+                                        }
+
+                                        if (sakitListLocal.isNotEmpty()) {
+                                            AppLogger.d("  Sakit (${sakitListLocal.size}):")
+                                            sakitListLocal.forEach {
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                            }
+                                        }
+
+                                        if (izinListLocal.isNotEmpty()) {
+                                            AppLogger.d("  Izin (${izinListLocal.size}):")
+                                            izinListLocal.forEach {
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                            }
+                                        }
+
+                                        if (cutiListLocal.isNotEmpty()) {
+                                            AppLogger.d("  Cuti (${cutiListLocal.size}):")
+                                            cutiListLocal.forEach {
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                            }
+                                        }
+
+                                        if (mangkirListLocal.isNotEmpty()) {
+                                            AppLogger.d("  Mangkir (${mangkirListLocal.size}):")
+                                            mangkirListLocal.forEach {
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                            }
+                                        }
+
+                                        if (tidakAbsenListLocal.isNotEmpty()) {
+                                            AppLogger.d("  Tidak Absen (${tidakAbsenListLocal.size}):")
+                                            tidakAbsenListLocal.forEach {
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                            }
                                         }
                                     }
 
-                                    val karyawanTdkMskWorkLocationJson = JSONObject().apply {
-                                        if (mangkirIdMap.isNotEmpty()) {
-                                            val mangkirJson = JSONObject()
-                                            mangkirIdMap.forEach { (kemandoran, employeeList) ->
-                                                mangkirJson.put(kemandoran, List(employeeList.size) { "1" }.joinToString(","))
-                                            }
-                                            put("m", mangkirJson)
-                                        }
-                                    }
+                                    // Log JSON Structure
+                                    AppLogger.d("\n--- JSON STRUCTURE ---")
+                                    AppLogger.d("karyawanMskIdJson: $karyawanMskIdJson")
+                                    AppLogger.d("karyawanTdkMskIdJson: $karyawanTdkMskIdJson")
+                                    AppLogger.d("karyawanMskNikJson: $karyawanMskNikJson")
+                                    AppLogger.d("karyawanTdkMskNikJson: $karyawanTdkMskNikJson")
+                                    AppLogger.d("karyawanMskNamaJson: $karyawanMskNamaJson")
+                                    AppLogger.d("karyawanTdkMskNamaJson: $karyawanTdkMskNamaJson")
+                                    AppLogger.d("karyawanMskWorkLocationJson: $karyawanMskWorkLocationJson")
+                                    AppLogger.d("karyawanTdkMskWorkLocationJson: $karyawanTdkMskWorkLocationJson")
 
+                                    // Log parameters
+                                    AppLogger.d("\n--- PARAMETERS YANG DIKIRIM ---")
+//                                    AppLogger.d("kemandoran_id: $listKemandoran")
+                                    AppLogger.d("date_absen: $dateAbsen")
+                                    AppLogger.d("created_by: $userId")
+                                    AppLogger.d("dept: ${prefManager!!.estateIdUserLogin}")
+                                    AppLogger.d("dept_abbr: ${prefManager!!.estateUserLogin}")
+                                    AppLogger.d("divisi: $selectedDivisiValue")
+                                    AppLogger.d("divisi_abbr: $selectedAfdeling")
+                                    AppLogger.d("asistensi: $asistensi")
+                                    AppLogger.d("lat: $lat")
+                                    AppLogger.d("lon: $lon")
+//                                    AppLogger.d("foto: $photoFilesString")
+//                                    AppLogger.d("komentar: ${komentarFotoString ?: ""}")
+                                    AppLogger.d("info: $infoApp")
+                                    AppLogger.d("======================================================")
+                                    // ============= END LOGGING =============
 
                                     val isDuplicate = absensiViewModel.isAbsensiExist(dateAbsen, allKaryawanMskIdList)
                                     if (isDuplicate) {
@@ -370,14 +562,14 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         dept_abbr = prefManager!!.estateUserLogin!!,
                                         divisi = selectedDivisiValue.toString(),
                                         divisi_abbr = selectedAfdeling,
-                                        karyawan_msk_id = karyawanMskIdJson.toString(),      // JSON with "h" key
-                                        karyawan_tdk_msk_id = karyawanTdkMskIdJson.toString(), // JSON with "m" key
-                                        karyawan_msk_nik = karyawanMskNikJson.toString(),    // JSON with "h" key
+                                        karyawan_msk_id = karyawanMskIdJson.toString(),
+                                        karyawan_tdk_msk_id = karyawanTdkMskIdJson.toString(),
+                                        karyawan_msk_nik = karyawanMskNikJson.toString(),
                                         karyawan_msk_work_location = karyawanMskWorkLocationJson.toString(),
                                         karyawan_tdk_msk_work_location = karyawanTdkMskWorkLocationJson.toString(),
-                                        karyawan_tdk_msk_nik = karyawanTdkMskNikJson.toString(), // JSON with "m" key
-                                        karyawan_msk_nama = karyawanMskNamaJson.toString(),    // JSON with "h" key
-                                        karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(), // JSON with "m" key
+                                        karyawan_tdk_msk_nik = karyawanTdkMskNikJson.toString(),
+                                        karyawan_msk_nama = karyawanMskNamaJson.toString(),
+                                        karyawan_tdk_msk_nama = karyawanTdkMskNamaJson.toString(),
                                         foto = photoFilesString,
                                         komentar = komentarFotoString ?: "",
                                         asistensi = asistensi ?: 0,
@@ -387,7 +579,6 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         archive = 0
                                     )
                                 }
-
 
                                 when (result) {
                                     is SaveDataAbsensiState.Success -> {
@@ -404,7 +595,6 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                                 this@FeatureAbsensiActivity,
                                                 ListAbsensiActivity::class.java
                                             )
-                                            // Add the FEATURE_NAME extra to match the homepage behavior
                                             intent.putExtra("FEATURE_NAME", AppUtils.ListFeatureNames.RekapAbsensiPanen)
                                             intent.flags =
                                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -439,23 +629,24 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                 ) { }
                             }
                         }
-
-//                        mbSaveDataAbsensi.isEnabled = true
                     },
                     cancelFunction = {
-//                        mbSaveDataAbsensi.isEnabled = true
+                        // Cancel action
                     }
                 )
             }
         }
     }
 
+    // Replace fungsi createAttendanceJson yang ada (sekitar baris 367) dengan ini:
+
     fun createAttendanceJson(
         hadirEmployees: Map<String, List<String>> = emptyMap(),
         mangkirEmployees: Map<String, List<String>> = emptyMap(),
         sakitEmployees: Map<String, List<String>> = emptyMap(),
         izinEmployees: Map<String, List<String>> = emptyMap(),
-        cutiEmployees: Map<String, List<String>> = emptyMap()
+        cutiEmployees: Map<String, List<String>> = emptyMap(),
+        tidakAbsenEmployees: Map<String, List<String>> = emptyMap()
     ): JSONObject {
         val attendanceJson = JSONObject()
 
@@ -502,6 +693,15 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                 cutiJson.put(kemandoran, employeeList.joinToString(","))
             }
             attendanceJson.put("c", cutiJson)
+        }
+
+        // Add Tidak Absen (ta)
+        if (tidakAbsenEmployees.isNotEmpty()) {
+            val tidakAbsenJson = JSONObject()
+            tidakAbsenEmployees.forEach { (kemandoran, employeeList) ->
+                tidakAbsenJson.put(kemandoran, employeeList.joinToString(","))
+            }
+            attendanceJson.put("ta", tidakAbsenJson)
         }
 
         return attendanceJson
@@ -1089,15 +1289,15 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
 
             R.id.layoutkemandoranAbsensi -> {
                 selectedKemandoran = selectedItem.toString()
-//                val selectedNama = selectedKemandoran.substringAfter(" - ")
 
                 val selectedKemandoranObject = kemandoranList.find { it.nama == selectedKemandoran }
 
-                // Now you can get both the id and kode
+                // Get both id and kode
                 val selectedKemandoranId = selectedKemandoranObject?.id
-                selectedKemandoranKode = selectedKemandoranObject?.kode!!
+                selectedKemandoranKode = selectedKemandoranObject?.nama ?: ""
+
                 if (selectedKemandoranId != null) {
-                    selectedKemandoranIds.add(selectedKemandoranId) // Tambahkan ke Set agar tidak duplikat
+                    selectedKemandoranIds.add(selectedKemandoranId)
 
                     val worker = Worker(selectedKemandoranId.toString(), selectedKemandoran)
                     selectedKemandoranAdapter.addWorker(worker)
@@ -1107,25 +1307,11 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                     if (availableWorkers.isNotEmpty()) {
                         setupSpinnerView(
                             linearLayout,
-                            availableWorkers.map { it.name })  // Extract names
+                            availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedKemandoran, ID: $selectedKemandoranId")
+                    AppLogger.d("Selected Worker: $selectedKemandoran, ID: $selectedKemandoranId, Kode: $selectedKemandoranKode")
                 }
-
-                AppLogger.d(estateId.toString())
-                AppLogger.d(selectedDivisiValue.toString())
-
-//                filteredKemandoranId = try {
-//                    kemandoranList.find {
-//                        it.dept == estateId?.toIntOrNull() && // Avoids force unwrap (!!)
-//                                it.divisi == selectedDivisiValue &&
-//                                it.nama == selectedKemandoran
-//                    }?.id
-//                } catch (e: Exception) {
-//                    AppLogger.e("Error finding Kemandoran ID: ${e.message}")
-//                    null
-//                }
 
                 filteredKemandoranId.addAll(
                     kemandoranList.filter {
@@ -1137,36 +1323,35 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                 filteredKemandoranId.clear()
                 filteredKemandoranId.addAll(selectedKemandoranIds)
 
-                if (filteredKemandoranId != null) {
+                if (filteredKemandoranId.isNotEmpty()) {
                     AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
-                            delay(1000) // 1 second delay
+                            delay(1000)
                         }
 
                         try {
-//
                             val karyawanDeferred = async {
                                 filteredKemandoranId.map { id ->
                                     async { datasetViewModel.getKaryawanList(id) }
                                 }.awaitAll().flatten()
                             }
 
-
                             karyawanList = karyawanDeferred.await()
 
                             AppLogger.d(karyawanList.toString())
-                            // When adding items to the adapter, include the kemandoran name
-                            val kemandoranName = selectedKemandoran // This should be the name of the selected kemandoran
+
+                            val kemandoranName = selectedKemandoran
                             val absensiList = karyawanList.sortedBy { it.nama }.map { karyawan ->
                                 AbsensiDataList(
                                     id = karyawan.id!!,
                                     nama = "${karyawan.nik}\n${karyawan.nama}",
                                     namaOnly = karyawan.nama!!,
                                     nik = karyawan.nik!!,
-                                    kemandoranId = selectedKemandoranId!!
+                                    kemandoranId = selectedKemandoranId!!,
+                                    kemandoranName = selectedKemandoranKode // Pass kode kemandoran
                                 )
                             }
 
@@ -1191,18 +1376,20 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                         }
                     }
                 } else {
-                    AppLogger.e("Filtered Kemandoran ID is null, skipping data fetch.")
+                    AppLogger.e("Filtered Kemandoran ID is empty, skipping data fetch.")
                 }
             }
 
             R.id.layoutKemandoranLainAbsensi -> {
                 selectedKemandoranLain = selectedItem.toString()
 
-                val kemandoranMap = kemandoranLainList.associateBy({ it.nama }, { it.id })
-                val selecteKemandoranLainId = kemandoranMap[selectedKemandoranLain]
+                val kemandoranMap = kemandoranLainList.associateBy({ it.nama }, { it })
+                val selectedKemandoranLainObject = kemandoranMap[selectedKemandoranLain]
+                val selecteKemandoranLainId = selectedKemandoranLainObject?.id
+                val selectedKemandoranLainKode = selectedKemandoranLainObject?.kode ?: ""
 
                 if (selecteKemandoranLainId != null) {
-                    selectedKemandoranIdsLain.add(selecteKemandoranLainId) // Tambahkan ke set agar unik
+                    selectedKemandoranIdsLain.add(selecteKemandoranLainId)
 
                     val worker = Worker(selecteKemandoranLainId.toString(), selectedKemandoranLain)
                     selectedKemandoranLainAdapter.addWorker(worker)
@@ -1212,21 +1399,19 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                         setupSpinnerView(linearLayout, availableWorkers.map { it.name })
                     }
 
-                    AppLogger.d("Selected Worker: $selectedKemandoranLain, ID: $selecteKemandoranLainId")
+                    AppLogger.d("Selected Worker: $selectedKemandoranLain, ID: $selecteKemandoranLainId, Kode: $selectedKemandoranLainKode")
                 }
 
-                // Hapus isi sebelumnya agar tidak menumpuk
                 filteredKemandoranIdLain.clear()
                 filteredKemandoranIdLain.addAll(selectedKemandoranIdsLain)
 
                 AppLogger.d("Filtered Kemandoran Lain ID: $filteredKemandoranIdLain")
 
-                // Ambil data karyawan hanya jika ada ID kemandoran lain yang dipilih
                 if (filteredKemandoranIdLain.isNotEmpty()) {
                     lifecycleScope.launch(Dispatchers.IO) {
                         withContext(Dispatchers.Main) {
                             animateLoadingDots(linearLayout)
-                            delay(1000) // Simulasi loading
+                            delay(1000)
                         }
                         try {
                             val karyawanDeferred = async {
@@ -1237,24 +1422,22 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
 
                             karyawanLainList = karyawanDeferred.await()
 
-                            val karyawanLainNames = karyawanLainList.map { it.nama }
-                            val kemandoranName = selectedKemandoranLain // This should be the name of the selected kemandoran
+                            val kemandoranName = selectedKemandoranLain
                             val absensiLainList = karyawanLainList.sortedBy { it.nama }.map { karyawan ->
                                 AbsensiDataList(
                                     id = karyawan.id!!,
                                     nama = "${karyawan.nik}\n${karyawan.nama}",
                                     namaOnly = karyawan.nama!!,
                                     nik = karyawan.nik!!,
-                                    kemandoranId = selecteKemandoranLainId!!
+                                    kemandoranId = selecteKemandoranLainId!!,
+                                    kemandoranName = selectedKemandoranLainKode // Pass kode kemandoran
                                 )
                             }
 
                             withContext(Dispatchers.Main) {
                                 AppLogger.d(absensiLainList.toString())
-                                absensiAdapter.updateList(absensiLainList, append = true,kemandoranName = kemandoranName)
+                                absensiAdapter.updateList(absensiLainList, append = true, kemandoranName = kemandoranName)
                             }
-
-
 
                             AppLogger.d("Jumlah data di adapter: ${absensiAdapter.itemCount}")
                         } catch (e: Exception) {
