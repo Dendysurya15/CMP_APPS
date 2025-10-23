@@ -15,5 +15,7 @@ data class DatasetRequest(
     @SerializedName("data") val data: List<String>? = null,
     @SerializedName("isDownloadMasterTPHAsistensi") val isDownloadMasterTPHAsistensi: Boolean = false,
     @SerializedName("downloadIdMap") val downloadIdMap: String? = null,
-    @SerializedName("totalChunks") val totalChunks: Int? = null
+    @SerializedName("totalChunks") val totalChunks: Int? = null,
+    @SerializedName("createdBy") val createdBy: Int? = null,
+    @SerializedName("creatorInfo") val creatorInfo: String? = null
 )

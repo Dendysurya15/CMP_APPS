@@ -7175,7 +7175,7 @@ class HomePageActivity : AppCompatActivity() {
                 it == AppUtils.UploadStatusUtils.WAITING || it == AppUtils.UploadStatusUtils.UPLOADING
             }
 
-            val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS }
+            val allSuccess = statusMap.values.all { it == AppUtils.UploadStatusUtils.SUCCESS || it == AppUtils.UploadStatusUtils.DUPLICATE || it ==  AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL || it == AppUtils.UploadStatusUtils.SAVED}
 
             AppLogger.d("statusMap $statusMap")
 
@@ -7686,22 +7686,6 @@ class HomePageActivity : AppCompatActivity() {
         return successfullyProcessedCount > 0
     }
 
-    private fun formatDateString(dateStr: String): String {
-        if (!dateStr.contains("T")) return dateStr
-
-        return try {
-            // Use built-in API to parse ISO date
-            val instant = Instant.parse(dateStr)
-            // Format to desired pattern
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                .withZone(ZoneId.systemDefault())
-                .format(instant)
-        } catch (e: Exception) {
-            AppLogger.e("Error formatting date: ${e.message}")
-            dateStr
-        }
-    }
-
     private fun setupDownloadDialog() {
 
         dialog = Dialog(this)
@@ -8122,7 +8106,8 @@ class HomePageActivity : AppCompatActivity() {
                 val failedIds = mutableListOf<Int>()
 
                 currentStatusMap.forEach { (id, status) ->
-                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED || status == AppUtils.UploadStatusUtils.DONE_CHECK) {
+                    if (status == AppUtils.UploadStatusUtils.DOWNLOADED || status == AppUtils.UploadStatusUtils.UPTODATE || status == AppUtils.UploadStatusUtils.UPDATED || status == AppUtils.UploadStatusUtils.DONE_CHECK ||
+                        status == AppUtils.UploadStatusUtils.DUPLICATE || status == AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL || status == AppUtils.UploadStatusUtils.SAVED) {
                         successfulIds.add(id)
                     } else {
                         failedIds.add(id)
@@ -8381,8 +8366,12 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("estateIds $estateIds")
             AppLogger.d("afdelingIds $afdelingIds")
 
+            val creatorInfo = AppUtils.createCreatorInfo(this).toString()
+            val createdBy = prefManager!!.idUserLogin?: 0
 
             val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
+                creatorInfo,
+                createdBy,
                 regionalIdString!!.toInt(),
                 estateIds,
                 afdelingIdString,
@@ -8427,8 +8416,6 @@ class HomePageActivity : AppCompatActivity() {
                     )
                 } else {
                     dialog.show()
-
-                    AppLogger.d("Masuk gesssssssssssssssssssssssss")
                     datasetViewModel.downloadMultipleDatasets(filteredRequests)
                 }
             } else {
@@ -9138,27 +9125,49 @@ class HomePageActivity : AppCompatActivity() {
             return
         }
 
-        lifecycleScope.launch {
-            try {
-                // Create a deferred result for the count operation
-                val afdelingId = prefManager!!.afdelingIdUserLogin
-                val countDeferred =
-                    async { panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt()) }
-                val newCount = countDeferred.await()
 
-                // Update the UI with the new count
+        AppLogger.d("afdeling bro ${prefManager!!.afdelingIdUserLogin}")
+        lifecycleScope.launch(Dispatchers.IO) { // ✅ Explicitly use IO dispatcher
+            try {
+                val afdelingId = prefManager!!.afdelingIdUserLogin
+
+                // Run both database operations in parallel on IO thread
+                val newCount = async {
+                    panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt())
+                }
+
+                val countHektarZero = async {
+                    hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateToday()
+                }
+
+
+
+                // Wait for both to complete
+                val panenCount = newCount.await()
+                val hektarCount = countHektarZero.await()
+
+                // ✅ Switch to Main thread ONLY for UI updates
                 withContext(Dispatchers.Main) {
                     featureAdapter.updateCount(
                         "Rekap panen dan restan",
-                        newCount.toString()
+                        panenCount.toString()
                     )
                     featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
 
-                    // Optionally log the updated count
-                    AppLogger.d("Panen count refreshed: $newCount")
+                    featureAdapter.updateCount(
+                        AppUtils.ListFeatureNames.DaftarHektarPanen,
+                        hektarCount.toString()
+                    )
+                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error refreshing panen count: ${e.message}")
+
+                // Update UI on error
+                withContext(Dispatchers.Main) {
+                    featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
+                }
             }
         }
     }

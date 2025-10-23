@@ -287,7 +287,7 @@ class AppRepository(context: Context) {
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
         creatorInfo: String? = null,
-        context: Context
+        context: Context? = null
     ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
         try {
             database.withTransaction {
@@ -569,14 +569,18 @@ class AppRepository(context: Context) {
                         val blokId = try {
                             blokIdDate.split("$")[0].toInt()
                         } catch (e: Exception) {
-                            Toasty.error(context, "Error parsing blokId: ${e.message}").show()
+                            context?.let {
+                                Toasty.error(it, "Error parsing blokId: ${blokIdDate}").show()
+                            }
                             0
                         }
 
                         val date = try {
                             blokIdDate.split("$")[1]
                         } catch (e: Exception) {
-                            Toasty.error(context, "Error parsing date: ${e.message}").show()
+                            context?.let {
+                                Toasty.error(it, "Error parsing date from blokIdDate: ${blokIdDate}").show()
+                            }
                             ""
                         }
 

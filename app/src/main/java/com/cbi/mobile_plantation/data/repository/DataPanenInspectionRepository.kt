@@ -18,7 +18,9 @@ import java.util.Locale
 
 class DataPanenInspectionRepository(
     context: Context,
-    private val ApiService: ApiService = ApiProvider.currentApiService
+//    private val apiService: ApiService = ApiProvider.currentApiService
+    private val apiService: ApiService = TestingAPIClient.instance,
+//    private val apiService: ApiService = CMPApiClient.instance,
 ){
 
     suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
@@ -59,6 +61,12 @@ class DataPanenInspectionRepository(
                 put("tipe")
                 put("dept_abbr")
                 put("jjg_kirim")
+                put("jjg_masak")
+                put("jjg_mentah")
+                put("jjg_lewat_masak")
+                put("jjg_kosong")
+                put("jjg_abnormal")
+                put("jjg_bayar")
                 put("spb_kode")
                 put("status_espb")
                 put("created_date")
@@ -111,7 +119,7 @@ class DataPanenInspectionRepository(
         AppLogger.d("jsonObject $jsonObject")
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return ApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 
     suspend fun getDataInspeksi(
@@ -308,6 +316,6 @@ class DataPanenInspectionRepository(
 
         AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
 
-        return ApiService.getDataRaw(requestBody)
+        return apiService.getDataRaw(requestBody)
     }
 }

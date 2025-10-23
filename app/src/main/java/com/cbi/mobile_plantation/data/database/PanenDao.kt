@@ -427,6 +427,23 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     @Query("UPDATE panen_table SET status_scan_inspeksi = :status WHERE id = :id")
     abstract suspend fun updateScanInspeksiStatus(id: Int, status: Int): Int
 
+
+    @Transaction
+    @Query("""
+    SELECT * FROM panen_table 
+    WHERE tph_id IN (
+        SELECT id FROM tph WHERE divisi = :idAfdeling
+    )
+    AND date_created BETWEEN :startDate AND :endDate
+    ORDER BY date_created DESC
+""")
+    abstract suspend fun findPanenLast3DaysByAfdeling(
+        startDate: String,
+        endDate: String,
+        idAfdeling: Int
+    ): List<PanenEntityWithRelations>
+
+
     @Transaction
     @Query("""
     SELECT * FROM panen_table 

@@ -88,7 +88,10 @@ object AppUtils {
         const val UPDATED = "Berhasil diperbarui"
         const val DONE_CHECK = "Sudah diperiksa"
         const val FAILED = "Gagal Upload!"
-        const val ERROR = "ERROR!"
+        const val ERROR = "Error %s!"
+        const val SAVED = "Data %s baru berhasil tersimpan!"
+        const val DUPLICATE_PARTIAL = "Sebagian data berhasil disimpan (%s duplikat))"
+        const val DUPLICATE = "Semua data duplikat, tidak ada hektaran baru tersimpan!"
     }
 
     @SuppressLint("MissingPermission", "ServiceCast")
@@ -346,8 +349,8 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//        return 5000F
+//        return prefManager?.radiusMinimum ?:15F
+        return 5000F
     }
 
     val listRadioItems: Map<String, Map<String, String>> = mapOf(
@@ -524,6 +527,8 @@ object AppUtils {
         const val blok = "blok"
         const val parameter = "parameter"
         const val estate = "estate"
+        const val hektaran = "hektaran"
+
         const val jenisTPH = "jenis_tph"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
@@ -1282,6 +1287,33 @@ object AppUtils {
 
         // If we have network and automatic time is on, assume time is correct
         return true
+    }
+
+    fun createCreatorInfo(context: Context): JSONObject {
+        val appVersion = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        val osVersion = try {
+            Build.VERSION.RELEASE
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        val phoneModel = try {
+            "${Build.MANUFACTURER} ${Build.MODEL}"
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        return JSONObject().apply {
+            put("app_version", appVersion)
+            put("os_version", osVersion)
+            put("phone_model", phoneModel)
+            put("created_at", System.currentTimeMillis())
+        }
     }
 
     /**
