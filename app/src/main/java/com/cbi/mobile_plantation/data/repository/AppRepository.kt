@@ -287,7 +287,9 @@ class AppRepository(context: Context) {
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
         creatorInfo: String? = null,
-        context: Context? = null
+        context: Context? = null,
+        mustCreateHektaran: Boolean = false  // 👈 NEW PARAMETER
+
     ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
         try {
             database.withTransaction {
@@ -304,6 +306,44 @@ class AppRepository(context: Context) {
                 // Step 1: Process each PanenEntity record
                 // Step 1: Process each PanenEntity record
                 for (tphData in tphDataList) {
+
+                    if (mustCreateHektaran) {
+                        // Force insert without checking for duplicates
+                        val result = panenDao.insertWithTransaction(tphData)
+                        result.fold(
+                            onSuccess = { id ->
+                                savedIds.add(id)
+                                Log.d("AppRepository", "Force inserted: TPH=${tphData.tph_id}, Date=${tphData.date_created}")
+                            },
+                            onFailure = {
+                                // If constraint violation, just update instead
+                                try {
+                                    val existing = panenDao.existsModel(tphData.tph_id, tphData.date_created)
+                                    if (existing != null) {
+                                        val updatedRecord = existing.copy(
+                                            panen = existing.panen.copy(
+                                                jjg_json = tphData.jjg_json,
+                                                status_scan_mpanen = tphData.status_scan_mpanen,
+                                                jumlah_pemanen = tphData.jumlah_pemanen
+                                            )
+                                        )
+                                        panenDao.update(listOf(updatedRecord.panen))
+                                        updated.add(updatedRecord.panen)
+                                        Log.d("AppRepository", "Force updated: TPH=${tphData.tph_id}, Date=${tphData.date_created}")
+                                    }
+                                    else {
+                                        // Existing record not found, log error
+                                        Log.e("AppRepository", "Failed to insert and couldn't find existing record: TPH=${tphData.tph_id}, Date=${tphData.date_created}")
+                                        throw it  // Re-throw the original error
+                                    }
+                                } catch (updateEx: Exception) {
+                                    Log.e("AppRepository", "Failed to force save: ${updateEx.message}")
+                                }
+                            }
+                        )
+                        continue  // Skip the rest of the duplicate checking logic
+                    }
+
                     // Check if this specific item exists in local database
                     val existingRecord = panenDao.existsModel(tphData.tph_id, tphData.date_created)
 
