@@ -39,7 +39,7 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="Hadir"
+                android:text="Alokasi Kerja"
                 android:fontFamily="@font/manrope_extrabold"
                 android:gravity="center"
                 android:padding="5dp"

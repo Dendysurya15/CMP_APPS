@@ -8,55 +8,96 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingVertical="10dp"
         android:background="@drawable/border_bottom_light"
-        android:gravity="center_vertical"
         tools:ignore="MissingConstraints">
 
-        <!-- Name column (1/3 width) -->
-        <TextView
-            android:id="@+id/tvItemNama"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@color/black"
-            android:fontFamily="@font/manrope_semibold"
-            android:padding="5dp"
-            android:gravity="center"
-            android:textSize="@dimen/m"
-            android:textStyle="bold" />
-
-        <!-- Position column (1/3 width) -->
-<!--        <TextView-->
-<!--            android:id="@+id/tvItemJabatan"-->
-<!--            android:layout_width="0dp"-->
-<!--            android:layout_weight="1"-->
-<!--            android:textColor="@color/black"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:gravity="center"-->
-<!--            android:fontFamily="@font/manrope_semibold"-->
-<!--            android:padding="5dp"-->
-<!--            android:textSize="@dimen/m"-->
-<!--            android:textStyle="bold" />-->
-
-        <!-- Checkbox column (1/3 width) -->
+        <!-- Baris pertama: Nama + Spinner -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <CheckBox
-                android:id="@+id/checkBoxAbsensi"
+            <TextView
+                android:id="@+id/tvItemNama"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/black"
+                android:fontFamily="@font/manrope_semibold"
+                android:padding="5dp"
+                android:gravity="center"
+                android:textSize="@dimen/m"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center">
+
+                <Spinner
+                    android:id="@+id/spinnerAbsensiAlokasiKerja"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:spinnerMode="dropdown"
+                    android:padding="5dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Baris kedua: Radio Button -->
+        <RadioGroup
+            android:id="@+id/radioGroupKeterangan"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingTop="5dp">
+
+            <RadioButton
+                android:id="@+id/rbHadir"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:visibility="visible"
-                style="@style/defaultBoxColor"
-                android:minWidth="48dp"
-                android:minHeight="48dp"/>
-        </LinearLayout>
+                android:text="H"
+                android:textColor="@color/black" />
+
+            <RadioButton
+                android:id="@+id/rbSakit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="S"
+                android:textColor="@color/black" />
+
+            <RadioButton
+                android:id="@+id/rbIzin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="I"
+                android:textColor="@color/black" />
+
+            <RadioButton
+                android:id="@+id/rbCuti"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="C"
+                android:textColor="@color/black" />
+
+            <RadioButton
+                android:id="@+id/rbMangkir"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="M"
+                android:textColor="@color/black" />
+
+            <RadioButton
+                android:id="@+id/rbTidakAbsen"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TA"
+                android:textColor="@color/black" />
+        </RadioGroup>
 
     </LinearLayout>
 

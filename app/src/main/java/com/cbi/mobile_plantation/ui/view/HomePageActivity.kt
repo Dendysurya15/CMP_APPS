@@ -4236,9 +4236,22 @@ class HomePageActivity : AppCompatActivity() {
                                     val statusMap = mapOf(
                                         "h" to 1, // Hadir
                                         "m" to 0, // Mangkir
-                                        "s" to 0, // Sakit
-                                        "i" to 0, // Izin
-                                        "c" to 0  // Cuti
+                                        "s" to 2, // Sakit
+                                        "i" to 3, // Izin
+                                        "c" to 4,  // Cuti
+                                        "ta" to 5  // Cuti
+                                    )
+
+                                    val alokasiKerjaMap = mapOf(
+                                        "Panen" to 1,
+                                        "Potong Buah" to 2,
+                                        "Gardan" to 3,
+                                        "Supir" to 4,
+                                        "Rawat Jalan" to 5,
+                                        "Pruning" to 6,
+                                        "Perbaikan Unit" to 7,
+                                        "Jangkos" to 8,
+                                        "Perawatan" to 9
                                     )
 
                                     // Extract categorized data by status - PRESENT employees
@@ -4308,55 +4321,52 @@ class HomePageActivity : AppCompatActivity() {
 
                                     // MODIFIED: Generate detail records with status_kehadiran and alokasi_kerja
                                     for ((statusCode, nikList) in allNikByCategory) {
+                                        // FIXED: Gunakan statusMap yang sudah diperbaiki
                                         val statusInt = statusMap[statusCode] ?: 0
                                         val nameList = allNameByCategory[statusCode] ?: emptyList()
-                                        val workLocationList =
-                                            allWorkLocationByCategory[statusCode] ?: emptyList()
-
-                                        // Replace this section in your code (around line where you create detailRecord)
+                                        val workLocationList = allWorkLocationByCategory[statusCode] ?: emptyList()
 
                                         nikList.forEachIndexed { index, nik ->
                                             val karyawan = karyawanMap[nik]
-                                            val employeeName =
-                                                karyawan?.nama ?: nameList.getOrNull(index)
-                                                    .orEmpty()
+                                            val employeeName = karyawan?.nama ?: nameList.getOrNull(index).orEmpty()
 
                                             // Get work location for this employee
-                                            val workLocationValue =
-                                                workLocationList.getOrNull(index)?.trim() ?: ""
+                                            val workLocationValue = workLocationList.getOrNull(index)?.trim() ?: ""
 
                                             // Create detail record
                                             val detailRecord = mutableMapOf<String, Any>(
                                                 "nik" to nik,
                                                 "nama" to employeeName,
-                                                "status_kehadiran" to statusInt,
+                                                "status_kehadiran" to statusInt, // ✅ Sekarang akan sesuai: Hadir=1, Mangkir=0, Sakit=2, Izin=3, Cuti=4, TA=5
                                                 "date_created" to (absensi.date_absen ?: "")
                                             )
 
-                                            // FIXED: Always add alokasi_kerja, ensure it's always an integer
-                                            if (statusCode == "h" && statusInt == 1) { // Present employees
-                                                // Convert work location to integer, default to 1 (Panen) if invalid
-                                                val alokasiKerja = try {
-                                                    val workLocInt = workLocationValue.toIntOrNull()
-                                                    if (workLocInt != null && workLocInt in 1..9) {
-                                                        workLocInt
-                                                    } else {
-                                                        1 // Default to Panen
-                                                    }
-                                                } catch (e: Exception) {
-                                                    AppLogger.e("Error parsing work location '$workLocationValue' for employee $nik: ${e.message}")
-                                                    1 // Default to Panen
+                                            // FIXED: Handle alokasi_kerja properly
+                                            if (statusCode == "h" && statusInt == 1) { // Present employees only
+                                                // Convert work location string to integer
+                                                val alokasiKerja = alokasiKerjaMap[workLocationValue] ?: run {
+                                                    // If not found in map, try to parse as integer
+                                                    workLocationValue.toIntOrNull() ?: 1 // Default to Panen (1)
                                                 }
                                                 detailRecord["alokasi_kerja"] = alokasiKerja
+
+                                                AppLogger.d("Employee $employeeName - Status: Hadir ($statusInt) - Work Location: $workLocationValue ($alokasiKerja)")
                                             } else {
-                                                // FIXED: Explicitly set alokasi_kerja to 0 as Integer for absent employees
+                                                // Absent employees always have alokasi_kerja = 0
                                                 detailRecord["alokasi_kerja"] = 0
+
+                                                val statusName = when(statusCode) {
+                                                    "m" -> "Mangkir"
+                                                    "s" -> "Sakit"
+                                                    "i" -> "Izin"
+                                                    "c" -> "Cuti"
+                                                    "ta" -> "Tidak Absen"
+                                                    else -> "Unknown"
+                                                }
+                                                AppLogger.d("Employee $employeeName - Status: $statusName ($statusInt) - Alokasi Kerja: 0")
                                             }
 
-                                            AppLogger.d("Final detail record: $detailRecord")
                                             detailRecords.add(detailRecord)
-
-                                            AppLogger.d("Employee: $employeeName ($nik) - Status: $statusInt - Work Location: $workLocationValue - Alokasi Kerja: ${detailRecord["alokasi_kerja"]}")
                                         }
                                     }
 

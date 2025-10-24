@@ -63,6 +63,7 @@ class ListAbsensiAdapter(private val context: Context,
     private var onSelectionChangeListener: ((Int) -> Unit)? = null
     private var prefManager: PrefManager? = null
     private var userName: String? = null
+    private var jabatan: String? = null
 
     class ListAbsensiViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val td1: TextView = view.findViewById(R.id.td1ListAbsensi)
@@ -86,6 +87,7 @@ class ListAbsensiAdapter(private val context: Context,
         holder.td3.visibility = View.VISIBLE
         prefManager = PrefManager(context)
         userName = prefManager!!.nameUserLogin
+        jabatan = prefManager!!.jabatanUserLogin
 
         // Use new JSON-aware counting method
         val jmlhKaryawanMskDetail = calculateAttendanceCounts(item.karyawan_msk_id)
@@ -186,7 +188,7 @@ class ListAbsensiAdapter(private val context: Context,
     ) : RecyclerView.Adapter<EditAttendanceAdapter.EditAttendanceViewHolder>() {
 
         // Attendance statuses with their corresponding values
-        private val attendanceStatuses = listOf("Hadir", "Mangkir", "Sakit", "Izin", "Cuti")
+        private val attendanceStatuses = listOf("Hadir", "Mangkir", "Sakit", "Izin", "Cuti", "Tidak Absen")
 
         // Work locations with their corresponding numeric values
         private val workLocations = listOf("Panen", "Potong Buah", "Gardan", "Supir", "Rawat Jalan", "Pruning", "Perbaikan Unit", "Jangkos", "Perawatan")
@@ -291,7 +293,7 @@ class ListAbsensiAdapter(private val context: Context,
                     cardView.strokeColor = ContextCompat.getColor(context, R.color.greenDarker)
                     cardView.strokeWidth = 5
                 }
-                "Mangkir" -> {
+                "Mangkir", "Tidak Absen" -> {
                     cardView.strokeColor = ContextCompat.getColor(context, R.color.colorRedDark)
                     cardView.strokeWidth = 5
                 }
@@ -375,7 +377,8 @@ class ListAbsensiAdapter(private val context: Context,
                 "m" to "Mangkir",
                 "s" to "Sakit",
                 "i" to "Izin",
-                "c" to "Cuti"
+                "c" to "Cuti",
+                "ta" to "Tidak Absen"
             )
 
             // Process each status that exists in the JSON
@@ -515,7 +518,8 @@ class ListAbsensiAdapter(private val context: Context,
                 "Mangkir" to "m",
                 "Sakit" to "s",
                 "Izin" to "i",
-                "Cuti" to "c"
+                "Cuti" to "c",
+                "Tidak Absen" to "ta"
             )
 
             // Separate present (Hadir) and absent (non-Hadir) employees
@@ -726,7 +730,8 @@ class ListAbsensiAdapter(private val context: Context,
                 "Sakit" -> 2
                 "Izin" -> 3
                 "Cuti" -> 4
-                else -> 5
+                "Tidak Absen" -> 5
+                else -> 6
             }
         }.thenBy { it.name })
 
@@ -811,7 +816,7 @@ class ListAbsensiAdapter(private val context: Context,
             .inflate(R.layout.layout_bottom_sheet_detail_table_absensi, null)
 
         view.findViewById<TextView>(R.id.titleDialogDetailTableAbsensi).text =
-            "Detail Kehadiran ${userName}"
+            "Detail Kehadiran ${jabatan}"
 
         // Add archive state information to the bottom sheet
         val stateText = if (currentArchiveState == 0) "Aktif" else "Diarsipkan"
