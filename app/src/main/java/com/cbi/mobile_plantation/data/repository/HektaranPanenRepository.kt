@@ -20,7 +20,7 @@ class HektaranPanenRepository(
     private val apiService: ApiService = CMPApiClient.instance
 ) {
 
-    suspend fun getDataHektaranHektarDetail(estateId: Int): Response<ResponseBody> {
+    suspend fun getDataHektaranHektarDetail(estateId: Int, afdelingId:Int): Response<ResponseBody> {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val calendar = Calendar.getInstance()
         val today = dateFormat.format(calendar.time)
@@ -51,6 +51,14 @@ class HektaranPanenRepository(
                         put("kemandoran_nama")
                         put("pemanen_nik")
                         put("pemanen_nama")
+                        put("jjg_panen")
+                        put("jjg_masak")
+                        put("jjg_mentah")
+                        put("jjg_lewat_masak")
+                        put("jjg_kosong")
+                        put("jjg_abnormal")
+                        put("jjg_bayar")
+                        put("jjg_kirim")
                     })
                     put("on", "hektaran.id = hektaran_detail.header")
                 })
@@ -64,6 +72,7 @@ class HektaranPanenRepository(
                     })
                 })
                 put("dept", estateId)
+                put("divisi", afdelingId)
             })
         }
 

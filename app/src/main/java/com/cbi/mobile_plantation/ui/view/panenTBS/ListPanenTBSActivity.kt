@@ -1423,62 +1423,6 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return match?.groupValues?.get(1) ?: ""
     }
 
-    fun convertToFormattedString(input: String, tphFilter: String): String {
-        try {
-            // Parse TPH filter string into a list of IDs
-            val tphIds = tphFilter
-                .trim()
-                .removeSurrounding("{", "}")
-                .substringAfter("\"tph\":\"")  // Get content after "tph":"
-                .substringBefore("\"")         // Get content before the closing quote
-                .split(";")
-                .map { it.trim() }
-                .toSet()
-
-            Log.d("ListPanenTBSActivityESPB", "tphIds: $tphIds")
-
-            // Remove the outer brackets
-            val content = input.trim().removeSurrounding("[", "]")
-
-            // Split into individual objects
-            val objects = content.split("}, {")
-
-            return objects
-                .filter { objStr ->
-                    // Extract tph_id from each object and check if it's in our filter list
-                    val cleanObj = objStr.trim()
-                        .removePrefix("{")
-                        .removeSuffix("}")
-                    val map = cleanObj.split(", ").associate { pair ->
-                        val (key, value) = pair.split("=", limit = 2)
-                        key to value
-                    }
-                    tphIds.contains(map["tph_id"])
-                }
-                .joinToString(";") { objStr ->
-                    // Clean up the object string
-                    val cleanObj = objStr.trim()
-                        .removePrefix("{")
-                        .removeSuffix("}")
-
-                    // Split into key-value pairs
-                    val map = cleanObj.split(", ").associate { pair ->
-                        val (key, value) = pair.split("=", limit = 2)
-                        key to value
-                    }
-
-                    // Extract jjg_json value
-                    val jjgJson = map["jjg_json"]?.trim() ?: "{}"
-
-                    // Construct the formatted string
-                    "${map["tph_id"]},${map["date_created"]},${jjgJson},1"
-                }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return ""
-        }
-    }
-
     data class Entry(
         val id: String,
         val timestamp: String,

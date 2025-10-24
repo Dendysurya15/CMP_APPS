@@ -435,6 +435,9 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
         SELECT id FROM tph WHERE divisi = :idAfdeling
     )
     AND date_created BETWEEN :startDate AND :endDate
+    AND kemandoran_id IS NOT NULL AND TRIM(kemandoran_id) <> ''
+    AND karyawan_nama IS NOT NULL AND TRIM(karyawan_nama) <> ''
+    AND karyawan_nik IS NOT NULL AND TRIM(karyawan_nik) <> ''
     ORDER BY date_created DESC
 """)
     abstract suspend fun findPanenLast3DaysByAfdeling(
@@ -442,6 +445,7 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
         endDate: String,
         idAfdeling: Int
     ): List<PanenEntityWithRelations>
+
 
 
     @Transaction

@@ -19,8 +19,8 @@ import java.util.Locale
 class DataPanenInspectionRepository(
     context: Context,
 //    private val apiService: ApiService = ApiProvider.currentApiService
-    private val apiService: ApiService = TestingAPIClient.instance,
-//    private val apiService: ApiService = CMPApiClient.instance,
+//    private val apiService: ApiService = TestingAPIClient.instance,
+    private val apiService: ApiService = CMPApiClient.instance,
 ){
 
     suspend fun getDataPanen(estate: Any): Response<ResponseBody> {

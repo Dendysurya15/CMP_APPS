@@ -1328,7 +1328,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             is List<*> -> (estate.firstOrNull() as? Int) ?: 0
                             else -> 0
                         }
-                        response = hektarPanenRepository.getDataHektaranHektarDetail(estateId)
+
+                        val afdelingId: Int = when (val estate = request.afdeling) {
+                            is Int -> estate
+                            is String -> estate.toIntOrNull() ?: 0
+                            is List<*> -> (estate.firstOrNull() as? Int) ?: 0
+                            else -> 0
+                        }
+                        response =
+                            hektarPanenRepository.getDataHektaranHektarDetail(estateId, afdelingId)
 
                     } else if (request.downloadIdMap != null && request.totalChunks != null) {
                         // Handle offline map download
@@ -1446,8 +1454,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             incrementCompletedCount()
                             continue
                         }
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
@@ -1552,8 +1559,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         incrementCompletedCount()
                         continue // Skip the normal response processing since we handled everything here
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         AppLogger.d("Starting TPH regional download for ${request.estateAbbr}")
 
                         // Get all estates first
@@ -3041,149 +3047,375 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 val dataArray = jsonObject.optJSONArray("data")
                                 if (dataArray != null && dataArray.length() > 0) {
 
-                                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                    val today = LocalDate.now()
-                                    val startDate = today.minusDays(2).format(formatter) + " 00:00:00"
-                                    val endDate = today.format(formatter) + " 23:59:59"
-
-
-                                    val afdelingId = request.afdeling.toString().toIntOrNull() ?: 0
-                                    val panenList = panenDao.findPanenLast3DaysByAfdeling(startDate, endDate, afdelingId)
-
-                                    // Prepare lists
-                                    val matchedList = mutableListOf<PanenEntityWithRelations>()
-                                    val mismatchList = mutableListOf<PanenEntityWithRelations>()
-                                    val unmatchedList = mutableListOf<PanenEntityWithRelations>()
-
-                                    // Keep track of matched panen IDs
-                                    val matchedPanenIds = mutableSetOf<Int>()
+                                    val validHektaranArray = JSONArray()
+                                    var skippedCount = 0
 
                                     for (i in 0 until dataArray.length()) {
-                                        val hektaranItem = dataArray.getJSONObject(i)
-                                        val hektaranDetails = hektaranItem.optJSONArray("HektaranDetails") ?: continue
+                                        val item = dataArray.getJSONObject(i)
+                                        val blokKode = item.optString("blok_kode", "")
+                                        val details = item.optJSONArray("HektaranDetails")
 
-                                        for (j in 0 until hektaranDetails.length()) {
-                                            val detail = hektaranDetails.getJSONObject(j)
-                                            val rawDatePanen = detail.optString("date_panen", "[]")
-                                            val dateList = try { JSONArray(rawDatePanen) } catch (e: Exception) { continue }
+                                        // Find valid date_panen entries
+                                        val validDates = mutableListOf<String>()
+                                        if (details != null) {
+                                            for (j in 0 until details.length()) {
+                                                val d = details.getJSONObject(j)
+                                                val datePanenRaw =
+                                                    d.opt("date_panen") // this keeps it as nullable Any
+                                                val datePanen =
+                                                    if (datePanenRaw != null && datePanenRaw != JSONObject.NULL) {
+                                                        datePanenRaw.toString().trim()
+                                                    } else {
+                                                        ""
+                                                    }
 
-                                            if (dateList.length() == 0) continue
+                                                // ✅ Exclude blank, "null", and null values
+                                                if (datePanen.isNotBlank() && !datePanen.equals(
+                                                        "null",
+                                                        ignoreCase = true
+                                                    )
+                                                ) {
+                                                    validDates.add(datePanen)
+                                                }
+                                            }
+                                        }
 
-                                            val kemandoranId = detail.optInt("kemandoran_ppro")
-                                            val pemanenNik = detail.optString("pemanen_nik").trim()
-                                            val pemanenNama = detail.optString("pemanen_nama").trim()
+                                        if (validDates.isEmpty()) {
+                                            skippedCount++
+//                                            AppLogger.d("⏩ Skipped Hektaran id=${item.optInt("id")} blok=$blokKode → all date_panen=null")
+                                        } else {
+                                            AppLogger.d(
+                                                "✅ Valid Hektaran id=${item.optInt("id")} blok=$blokKode → date_panen=${
+                                                    validDates.joinToString(
+                                                        ","
+                                                    )
+                                                }"
+                                            )
+//                                            validHektaranArray.put(item)
+                                        }
+                                    }
 
-                                            for (k in 0 until dateList.length()) {
-                                                val hektaranDateStr = dateList.getString(k)
-                                                val hektaranDateTime = try {
-                                                    LocalDateTime.parse(hektaranDateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    AppLogger.d("📦 Raw Server Hektaran: ${dataArray.length()}")
+                                    AppLogger.d("📊 Filtered Hektaran (valid date_panen): ${validHektaranArray.length()}")
+                                    AppLogger.d("⏩ Skipped Hektaran (no valid date_panen): $skippedCount")
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+
+                                    val filteredDataArray = validHektaranArray
+
+
+                                    // =============================================
+// 🔹 STEP 1: Setup Date Range and Load Local Panen
+// =============================================
+
+                                    // =============================================
+// 🔹 STEP 2: Flatten and Group Hektaran Details
+// =============================================
+                                    // ======================
+// 🔹 Helper Data Classes
+// ======================
+
+
+
+                                    data class HektaranDetailRecord(
+                                        val datePanen: LocalDate,
+                                        val blokKode: String,
+                                        val kemandoranId: Int,
+                                        val nik: String,
+                                        val nama: String,
+                                        val jjgMasak: Double,
+                                        val jjgMentah: Double,
+                                        val jjgLewatMasak: Double,
+                                        val jjgKosong: Double,
+                                        val jjgAbnormal: Double,
+                                        val jjgBayar: Double,
+                                        val jjgKirim: Double
+                                    )
+// ======================
+// 🔹 MAIN LOGIC STARTS
+// ======================
+
+                                    val formatterDate = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+                                    val today = LocalDate.now()
+                                    val startDate =
+                                        today.minusDays(2).format(formatterDate) + " 00:00:00"
+                                    val endDate = today.format(formatterDate) + " 23:59:59"
+
+                                    val afdelingId = request.afdeling.toString().toIntOrNull() ?: 0
+                                    val panenList = panenDao.findPanenLast3DaysByAfdeling(
+                                        startDate,
+                                        endDate,
+                                        afdelingId
+                                    )
+
+                                    AppLogger.d("📦 Loaded Local Panen (with relations): ${panenList.size}")
+
+// ======================
+// 🔹 Parse Server Hektaran
+// ======================
+
+                                    val gson = Gson()
+                                    val dateArrayType = object : TypeToken<List<String>>() {}.type
+
+                                    val hektaranRecords = mutableListOf<HektaranDetailRecord>()
+
+                                    for (i in 0 until filteredDataArray.length()) {
+                                        val header = filteredDataArray.getJSONObject(i)
+                                        val blokKode = header.optString("blok_kode", "")
+                                        val details = header.optJSONArray("HektaranDetails") ?: continue
+
+                                        for (j in 0 until details.length()) {
+                                            val d = details.getJSONObject(j)
+
+                                            // Parse "date_panen" (string that looks like ["2025-10-22 08:42:55", ...])
+                                            val rawDatePanen = d.optString("date_panen", "")
+                                            val dateList: List<String> = try {
+                                                gson.fromJson(rawDatePanen, dateArrayType)
+                                            } catch (e: Exception) {
+                                                emptyList()
+                                            }
+
+                                            for (dateStr in dateList) {
+                                                val dateParsed = try {
+                                                    LocalDate.parse(dateStr.substring(0, 10), formatterDate)
                                                 } catch (e: Exception) {
                                                     continue
                                                 }
 
-                                                var foundMatch = false
-
-                                                for (panen in panenList) {
-                                                    val panenDateTime = try {
-                                                        LocalDateTime.parse(panen.panen.date_created, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                                                    } catch (e: Exception) {
-                                                        continue
-                                                    }
-
-                                                    if (panenDateTime == hektaranDateTime) {
-                                                        val panenKemandoranId = panen.panen.kemandoran_id?.toIntOrNull() ?: 0
-                                                        val panenNikList = (panen.panen.karyawan_nik ?: "").split(",").map { it.trim() }
-                                                        val panenNamaList = (panen.panen.karyawan_nama ?: "").split(",").map { it.trim() }
-
-                                                        var detailMatched = false
-                                                        for (idx in panenNikList.indices) {
-                                                            val nik = panenNikList.getOrNull(idx) ?: ""
-                                                            val nama = panenNamaList.getOrNull(idx) ?: ""
-
-                                                            if (panenKemandoranId == kemandoranId &&
-                                                                nik == pemanenNik &&
-                                                                nama.equals(pemanenNama, ignoreCase = true)
-                                                            ) {
-                                                                detailMatched = true
-                                                                break
-                                                            }
-                                                        }
-
-                                                        if (detailMatched) {
-                                                            matchedList.add(panen)
-                                                            matchedPanenIds.add(panen.panen.id)
-                                                            AppLogger.d("✅ Matched full: $pemanenNama / $pemanenNik at $hektaranDateTime")
-                                                        } else {
-                                                            mismatchList.add(panen)
-                                                            AppLogger.d("❌ Date matched but detail mismatch for $pemanenNama / $pemanenNik at $hektaranDateTime")
-                                                        }
-
-                                                        foundMatch = true
-                                                        break
-                                                    }
-                                                }
-
-                                                // If no panen found for that hektaran date
-                                                if (!foundMatch) {
-                                                    AppLogger.d("⚠️ No Panen found for $pemanenNama / $pemanenNik at $hektaranDateTime")
-                                                }
+                                                val record = HektaranDetailRecord(
+                                                    datePanen = dateParsed,
+                                                    blokKode = blokKode,
+                                                    kemandoranId = d.optInt("kemandoran_ppro", 0),
+                                                    nik = d.optString("pemanen_nik", ""),
+                                                    nama = d.optString("pemanen_nama", ""),
+                                                    jjgMasak = d.optDouble("jjg_masak", 0.0),
+                                                    jjgMentah = d.optDouble("jjg_mentah", 0.0),
+                                                    jjgLewatMasak = d.optDouble("jjg_lewat_masak", 0.0),
+                                                    jjgKosong = d.optDouble("jjg_kosong", 0.0),
+                                                    jjgAbnormal = d.optDouble("jjg_abnormal", 0.0),
+                                                    jjgBayar = d.optDouble("jjg_panen", 0.0),
+                                                    jjgKirim = d.optDouble("jjg_kirim", 0.0)
+                                                )
+                                                hektaranRecords.add(record)
                                             }
                                         }
                                     }
 
-                                    val unmatchedPanen = panenList.filter { it.panen.id !in matchedPanenIds }
-                                    unmatchedList.addAll(unmatchedPanen)
+                                    AppLogger.d("📊 Flattened Server Hektaran Records: ${hektaranRecords.size}")
+                                    AppLogger.d("👥 Unique Names in Hektaran: ${hektaranRecords.map { it.nama }.distinct().joinToString()}")
 
-                                    AppLogger.d("──────────── SUMMARY ────────────")
-                                    AppLogger.d("📋 Panen list size: ${panenList.size}")
-                                    AppLogger.d("✅ Fully matched count: ${matchedList.size}")
-                                    AppLogger.d("❌ Mismatch (detail/date) count: ${mismatchList.size}")
-                                    AppLogger.d("⚠️ Unmatched panen count: ${unmatchedList.size}")
+
+                                    // ✅ ADD THIS RIGHT HERE — AFTER the loops above:
+                                    val targetNama = "MUHAMAD ROHIM"
+                                    val filteredByName = hektaranRecords.filter {
+                                        it.nama.trim().equals(targetNama, ignoreCase = true)
+                                    }
+
+                                    AppLogger.d("🔍 Found ${filteredByName.size} hektaran detail(s) for '$targetNama':")
+                                    filteredByName.forEach { rec ->
+                                        AppLogger.d(
+                                            "   🧾 ${rec.nama} (${rec.nik}) | blok=${rec.blokKode} | date=${rec.datePanen} | jjgMasak=${rec.jjgMasak}"
+                                        )
+                                    }
+
+                                    AppLogger.d("📊 Flattened Server Hektaran Records: ${hektaranRecords.size}")
+
+// ======================
+// 🔹 Prepare Matching
+// ======================
+                                    val matchedList = mutableListOf<PanenEntityWithRelations>()
+                                    val unmatchedList = mutableListOf<PanenEntityWithRelations>()
+                                    val matchedPanenIds = mutableListOf<Int>()
+
+                                    fun Double.eq(other: Double) =
+                                        kotlin.math.abs(this - other) < 0.001
+
+                                    for (hekt in hektaranRecords) {
+                                        val match = panenList.find { panen ->
+                                            val panenNama =
+                                                panen.panen.karyawan_nama?.trim()?.uppercase() ?: ""
+                                            val hektNama = hekt.nama?.trim()?.uppercase() ?: ""
+
+                                            // 🧠 only log if the name matches the target
+                                            val shouldLog =
+                                                hektNama.contains(targetNama, ignoreCase = true) ||
+                                                        panenNama.contains(
+                                                            targetNama,
+                                                            ignoreCase = true
+                                                        )
+
+                                            val panenDate = try {
+                                                LocalDate.parse(
+                                                    panen.panen.date_created.substring(
+                                                        0,
+                                                        10
+                                                    ), formatterDate
+                                                )
+                                            } catch (_: Exception) {
+                                                LocalDate.MIN
+                                            }
+
+                                            val jjgJson = try {
+                                                JSONObject(panen.panen.jjg_json ?: "{}")
+                                            } catch (_: Exception) {
+                                                JSONObject()
+                                            }
+
+                                            val jjgMasak = jjgJson.optDouble("TO", 0.0)
+                                            val jjgMentah = jjgJson.optDouble("UN", 0.0)
+                                            val jjgLewatMasak = jjgJson.optDouble("OV", 0.0)
+                                            val jjgKosong = jjgJson.optDouble("EM", 0.0)
+                                            val jjgAbnormal = jjgJson.optDouble("AB", 0.0)
+                                            val jjgBayar = jjgJson.optDouble("PA", 0.0)
+                                            val jjgKirim = jjgJson.optDouble("KP", 0.0)
+
+                                            val sameBlok = panen.tph?.blok_kode == hekt.blokKode
+                                            val sameMandor =
+                                                panen.panen.kemandoran_id == hekt.kemandoranId.toString()
+                                            val sameNik = panen.panen.karyawan_nik == hekt.nik
+                                            val sameNama = panen.panen.karyawan_nama == hekt.nama
+                                            val sameDate = panenDate == hekt.datePanen
+
+                                            if (shouldLog) {
+                                                AppLogger.d(
+                                                    """
+                🧩 [TRACE ${targetNama}] Comparing PanenID=${panen.panen.id}
+                   Blok: local=${panen.tph?.blok_kode}, server=${hekt.blokKode}
+                   Nama: local=${panen.panen.karyawan_nama}, server=${hekt.nama}
+                   NIK:  local=${panen.panen.karyawan_nik}, server=${hekt.nik}
+                   Date: local=${
+                                                        panen.panen.date_created.substring(
+                                                            0,
+                                                            10
+                                                        )
+                                                    }, server=${hekt.datePanen}
+                   JJG:  local=[TO=$jjgMasak, UN=$jjgMentah, OV=$jjgLewatMasak, EM=$jjgKosong, AB=$jjgAbnormal, PA=$jjgBayar, KP=$jjgKirim]
+                         server=[TO=${hekt.jjgMasak}, UN=${hekt.jjgMentah}, OV=${hekt.jjgLewatMasak}, EM=${hekt.jjgKosong}, AB=${hekt.jjgAbnormal}, PA=${hekt.jjgBayar}, KP=${hekt.jjgKirim}]
+                   => sameDate=$sameDate, sameBlok=$sameBlok, sameMandor=$sameMandor, sameNik=$sameNik, sameNama=$sameNama
+                """.trimIndent()
+                                                )
+                                            }
+                                            val jjgSame =
+                                                jjgMasak.eq(hekt.jjgMasak) &&
+                                                        jjgMentah.eq(hekt.jjgMentah) &&
+                                                        jjgLewatMasak.eq(hekt.jjgLewatMasak) &&
+                                                        jjgKosong.eq(hekt.jjgKosong) &&
+                                                        jjgAbnormal.eq(hekt.jjgAbnormal) &&
+                                                        jjgBayar.eq(hekt.jjgBayar) &&
+                                                        jjgKirim.eq(hekt.jjgKirim)
+
+                                            sameDate && sameBlok && sameMandor && sameNik && sameNama && jjgSame
+                                        }
+
+                                        // log results only for that person
+                                        val hektNama = hekt.nama?.trim()?.uppercase() ?: ""
+                                        if (hektNama.contains(targetNama, ignoreCase = true)) {
+                                            if (match != null) {
+                                                AppLogger.d("✅ [TRACE ${targetNama}] MATCH FOUND — PanenID=${match.panen.id} | ${match.panen.karyawan_nama} (${match.panen.karyawan_nik}) | blok=${match.tph?.blok_kode} | date=${match.panen.date_created}")
+                                            } else {
+                                                AppLogger.d("❌ [TRACE ${targetNama}] UNMATCHED — ${hekt.nama} (${hekt.nik}) | blok=${hekt.blokKode} | date=${hekt.datePanen}")
+                                            }
+                                        }
+
+                                        if (match != null) {
+                                            matchedList.add(match)
+                                            matchedPanenIds.add(match.panen.id) // ✅ Save the matched Panen ID here
+                                            AppLogger.d("✅ MATCH FOUND — PanenID=${match.panen.id} | ${match.panen.karyawan_nama} (${match.panen.karyawan_nik}) | blok=${match.tph?.blok_kode} | date=${match.panen.date_created}")
+                                        } else {
+                                            // find partial match (same blok, date, etc) to log mismatch
+                                            val similar = panenList.find { panen ->
+                                                val date = try {
+                                                    LocalDate.parse(
+                                                        panen.panen.date_created.substring(
+                                                            0,
+                                                            10
+                                                        ), formatterDate
+                                                    )
+                                                } catch (_: Exception) {
+                                                    LocalDate.MIN
+                                                }
+                                                date == hekt.datePanen &&
+                                                        panen.tph?.blok_kode == hekt.blokKode &&
+                                                        panen.panen.karyawan_nik == hekt.nik
+                                            }
+
+                                            if (similar != null) unmatchedList.add(similar)
+
+                                            AppLogger.d("❌ Unmatched — ${hekt.nama} (${hekt.nik}) | blok=${hekt.blokKode} | date=${hekt.datePanen}")
+                                        }
+                                    }
+
+
+// ======================
+// 🔹 Summary Logs
+// ======================
+                                    AppLogger.d("─────────────────────────────────")
+                                    AppLogger.d(
+                                        "✅ Matched Panen IDs: ${
+                                            matchedPanenIds.joinToString(
+                                                ", "
+                                            )
+                                        }"
+                                    )
                                     AppLogger.d("─────────────────────────────────")
 
-                                    progressMap[itemId] = 60
-                                    _itemProgressMap.postValue(progressMap.toMap())
-                                    statusMap[itemId] = "Sedang mempersiapkan data panen"
-                                    _itemStatusMap.postValue(statusMap.toMap())
+                                    AppLogger.d("──────────── SUMMARY ────────────")
+                                    AppLogger.d("📋 Total Local Panen: ${panenList.size}")
+                                    AppLogger.d("✅ Matched (same jjg_json): ${matchedList.size}")
+                                    AppLogger.d("⚠️ Unmatched (not same): ${unmatchedList.size}")
+                                    AppLogger.d("─────────────────────────────────")
+
+                                    if (unmatchedList.isNotEmpty()) {
+                                        unmatchedList.forEachIndexed { index, panen ->
+                                            AppLogger.d("  ${index + 1}. ${panen.panen.karyawan_nama} (${panen.panen.karyawan_nik}) | blok=${panen.tph?.blok_kode} | date=${panen.panen.date_created}")
+                                            AppLogger.d("     🔸 local_jjg_json=${panen.panen.jjg_json}")
+                                        }
+                                    }
 
 
-                                    val saveDataMPanenList = mutableListOf<PanenEntity>()
-                                    val toRecreateList = mismatchList + unmatchedList
-
-                                    for (panenRelation in toRecreateList) {
-                                        val panen = panenRelation.panen
-                                        val newPanenEntity = PanenEntity(
-                                            tph_id = panen.tph_id ?: "0",
-                                            date_created = panen.date_created,
-                                            karyawan_nik = panen.karyawan_nik ?: "",
-                                            jjg_json = panen.jjg_json ?: "",
-                                            foto = panen.foto ?: "",
-                                            komentar = panen.komentar ?: "",
-                                            asistensi = panen.asistensi ?: 0,
-                                            lat = panen.lat ?: 0.0,
-                                            lon = panen.lon ?: 0.0,
-                                            jenis_panen = panen.jenis_panen ?: 0,
-                                            ancak = panen.ancak ?: 0,
-                                            info = panen.info ?: "NULL",
-                                            scan_status = panen.scan_status ?: 0,
-                                            nomor_pemanen = panen.nomor_pemanen ?: 0,
-                                            dataIsZipped = panen.dataIsZipped ?: 0,
-                                            created_by = panen.created_by ?: 0,
-                                            karyawan_id = panen.karyawan_id ?: "NULL",
-                                            kemandoran_id = panen.kemandoran_id ?: "",
-                                            karyawan_nama = panen.karyawan_nama ?: "NULL",
-                                            jumlah_pemanen = panen.jumlah_pemanen ?: 1,
+                                    val saveDataMPanenList = unmatchedList.map { relation ->
+                                        val p = relation.panen
+                                        PanenEntity(
+                                            tph_id = p.tph_id ?: "0",
+                                            date_created = p.date_created,
+                                            karyawan_nik = p.karyawan_nik ?: "",
+                                            jjg_json = p.jjg_json ?: "",
+                                            foto = p.foto ?: "",
+                                            komentar = p.komentar ?: "",
+                                            asistensi = p.asistensi ?: 0,
+                                            lat = p.lat ?: 0.0,
+                                            lon = p.lon ?: 0.0,
+                                            jenis_panen = p.jenis_panen ?: 0,
+                                            ancak = p.ancak ?: 0,
+                                            info = p.info ?: "NULL",
+                                            scan_status = p.scan_status ?: 0,
+                                            nomor_pemanen = p.nomor_pemanen ?: 0,
+                                            dataIsZipped = p.dataIsZipped ?: 0,
+                                            created_by = p.created_by ?: 0,
+                                            karyawan_id = p.karyawan_id ?: "NULL",
+                                            kemandoran_id = p.kemandoran_id ?: "",
+                                            karyawan_nama = p.karyawan_nama ?: "NULL",
+                                            jumlah_pemanen = p.jumlah_pemanen ?: 1,
                                             status_scan_mpanen = 1
                                         )
-                                        saveDataMPanenList.add(newPanenEntity)
                                     }
+
+                                    AppLogger.d("💾 Ready to save new Panen count: ${saveDataMPanenList.size}")
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
 
                                     progressMap[itemId] = 75
                                     _itemProgressMap.postValue(progressMap.toMap())
                                     statusMap[itemId] = "Sedang menyimpan data hektaran baru"
                                     _itemStatusMap.postValue(statusMap.toMap())
 
-                                    val result =  appRepository.saveScanMPanen(saveDataMPanenList, request.createdBy.toString(), request.creatorInfo)
+                                    val result = appRepository.saveScanMPanen(
+                                        saveDataMPanenList,
+                                        request.createdBy.toString(),
+                                        request.creatorInfo
+                                    )
 
                                     result.fold(
                                         onSuccess = { saveResult ->
@@ -3191,21 +3423,26 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 is SaveTPHResult.AllSuccess -> {
                                                     progressMap[itemId] = 100
                                                     _itemProgressMap.postValue(progressMap.toMap())
-                                                    statusMap[itemId] = AppUtils.UploadStatusUtils.SAVED.format("Hektaran")
+                                                    statusMap[itemId] =
+                                                        AppUtils.UploadStatusUtils.SAVED.format("Hektaran")
                                                     _itemStatusMap.postValue(statusMap.toMap())
                                                 }
 
                                                 is SaveTPHResult.PartialSuccess -> {
                                                     progressMap[itemId] = 100
                                                     _itemProgressMap.postValue(progressMap.toMap())
-                                                    statusMap[itemId] = AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL.format(saveResult.duplicateCount)
+                                                    statusMap[itemId] =
+                                                        AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL.format(
+                                                            saveResult.duplicateCount
+                                                        )
                                                     _itemStatusMap.postValue(statusMap.toMap())
                                                 }
 
                                                 is SaveTPHResult.AllDuplicate -> {
                                                     progressMap[itemId] = 100
                                                     _itemProgressMap.postValue(progressMap.toMap())
-                                                    statusMap[itemId] = AppUtils.UploadStatusUtils.DUPLICATE
+                                                    statusMap[itemId] =
+                                                        AppUtils.UploadStatusUtils.DUPLICATE
                                                     _itemStatusMap.postValue(statusMap.toMap())
                                                 }
                                             }
@@ -4821,8 +5058,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             else -> 0
                         }
 
+                        val afdelingId: Int = when (val estate = request.afdeling) {
+                            is Int -> estate
+                            is String -> estate.toIntOrNull() ?: 0
+                            is List<*> -> (estate.firstOrNull() as? Int) ?: 0
+                            else -> 0
+                        }
                         response =
-                            hektarPanenRepository.getDataHektaranHektarDetail(estateId)
+                            hektarPanenRepository.getDataHektaranHektarDetail(estateId, afdelingId)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         AppLogger.d("sinkronisasi data panen")
                         response = dataPanenInspectionRepository.getDataPanen(
@@ -5492,8 +5735,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                                } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())
@@ -5771,8 +6013,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing panen data: ${e.message}")
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                                     AppLogger.d("Processing settingJSON dataset")
 
                                     if (responseBodyString.isBlank()) {
@@ -6006,11 +6247,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.hektaran) {
+                                } else if (request.dataset == AppUtils.DatasetNames.hektaran) {
                                     if (responseBodyString.isBlank()) {
                                         AppLogger.e("Received empty JSON response for hektaran")
-                                        results[request.dataset] = Resource.Error("Empty JSON response")
+                                        results[request.dataset] =
+                                            Resource.Error("Empty JSON response")
                                         _downloadStatuses.postValue(results.toMap())
                                     }
 
@@ -6037,44 +6278,71 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val statusMap = mutableMapOf<String, String>()
 
                                                 progressMap[itemId] = 50
-                                                statusMap[itemId] = "Sedang Mempersiapkan data Hektaran"
+                                                statusMap[itemId] =
+                                                    "Sedang Mempersiapkan data Hektaran"
                                                 // You might want to post these to LiveData if you have them
 
-                                                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                                val formatter =
+                                                    DateTimeFormatter.ofPattern("yyyy-MM-dd")
                                                 val today = LocalDate.now()
-                                                val startDate = today.minusDays(2).format(formatter) + " 00:00:00"
+                                                val startDate = today.minusDays(2)
+                                                    .format(formatter) + " 00:00:00"
                                                 val endDate = today.format(formatter) + " 23:59:59"
 
-                                                val afdelingId = request.afdeling.toString().toIntOrNull() ?: 0
-                                                val panenList = panenDao.findPanenLast3DaysByAfdeling(startDate, endDate, afdelingId)
+                                                val afdelingId =
+                                                    request.afdeling.toString().toIntOrNull() ?: 0
+                                                val panenList =
+                                                    panenDao.findPanenLast3DaysByAfdeling(
+                                                        startDate,
+                                                        endDate,
+                                                        afdelingId
+                                                    )
 
                                                 // Prepare lists
-                                                val matchedList = mutableListOf<PanenEntityWithRelations>()
-                                                val mismatchList = mutableListOf<PanenEntityWithRelations>()
-                                                val unmatchedList = mutableListOf<PanenEntityWithRelations>()
+                                                val matchedList =
+                                                    mutableListOf<PanenEntityWithRelations>()
+                                                val mismatchList =
+                                                    mutableListOf<PanenEntityWithRelations>()
+                                                val unmatchedList =
+                                                    mutableListOf<PanenEntityWithRelations>()
 
                                                 // Keep track of matched panen IDs
                                                 val matchedPanenIds = mutableSetOf<Int>()
 
                                                 for (i in 0 until dataArray.length()) {
                                                     val hektaranItem = dataArray.getJSONObject(i)
-                                                    val hektaranDetails = hektaranItem.optJSONArray("HektaranDetails") ?: continue
+                                                    val hektaranDetails =
+                                                        hektaranItem.optJSONArray("HektaranDetails")
+                                                            ?: continue
 
                                                     for (j in 0 until hektaranDetails.length()) {
-                                                        val detail = hektaranDetails.getJSONObject(j)
-                                                        val rawDatePanen = detail.optString("date_panen", "[]")
-                                                        val dateList = try { JSONArray(rawDatePanen) } catch (e: Exception) { continue }
+                                                        val detail =
+                                                            hektaranDetails.getJSONObject(j)
+                                                        val rawDatePanen =
+                                                            detail.optString("date_panen", "[]")
+                                                        val dateList = try {
+                                                            JSONArray(rawDatePanen)
+                                                        } catch (e: Exception) {
+                                                            continue
+                                                        }
 
                                                         if (dateList.length() == 0) continue
 
-                                                        val kemandoranId = detail.optInt("kemandoran_ppro")
-                                                        val pemanenNik = detail.optString("pemanen_nik").trim()
-                                                        val pemanenNama = detail.optString("pemanen_nama").trim()
+                                                        val kemandoranId =
+                                                            detail.optInt("kemandoran_ppro")
+                                                        val pemanenNik =
+                                                            detail.optString("pemanen_nik").trim()
+                                                        val pemanenNama =
+                                                            detail.optString("pemanen_nama").trim()
 
                                                         for (k in 0 until dateList.length()) {
-                                                            val hektaranDateStr = dateList.getString(k)
+                                                            val hektaranDateStr =
+                                                                dateList.getString(k)
                                                             val hektaranDateTime = try {
-                                                                LocalDateTime.parse(hektaranDateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                                                LocalDateTime.parse(
+                                                                    hektaranDateStr,
+                                                                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                                                                )
                                                             } catch (e: Exception) {
                                                                 continue
                                                             }
@@ -6083,24 +6351,46 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                                             for (panen in panenList) {
                                                                 val panenDateTime = try {
-                                                                    LocalDateTime.parse(panen.panen.date_created, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                                                    LocalDateTime.parse(
+                                                                        panen.panen.date_created,
+                                                                        DateTimeFormatter.ofPattern(
+                                                                            "yyyy-MM-dd HH:mm:ss"
+                                                                        )
+                                                                    )
                                                                 } catch (e: Exception) {
                                                                     continue
                                                                 }
 
                                                                 if (panenDateTime == hektaranDateTime) {
-                                                                    val panenKemandoranId = panen.panen.kemandoran_id?.toIntOrNull() ?: 0
-                                                                    val panenNikList = (panen.panen.karyawan_nik ?: "").split(",").map { it.trim() }
-                                                                    val panenNamaList = (panen.panen.karyawan_nama ?: "").split(",").map { it.trim() }
+                                                                    val panenKemandoranId =
+                                                                        panen.panen.kemandoran_id?.toIntOrNull()
+                                                                            ?: 0
+                                                                    val panenNikList =
+                                                                        (panen.panen.karyawan_nik
+                                                                            ?: "").split(",")
+                                                                            .map { it.trim() }
+                                                                    val panenNamaList =
+                                                                        (panen.panen.karyawan_nama
+                                                                            ?: "").split(",")
+                                                                            .map { it.trim() }
 
                                                                     var detailMatched = false
                                                                     for (idx in panenNikList.indices) {
-                                                                        val nik = panenNikList.getOrNull(idx) ?: ""
-                                                                        val nama = panenNamaList.getOrNull(idx) ?: ""
+                                                                        val nik =
+                                                                            panenNikList.getOrNull(
+                                                                                idx
+                                                                            ) ?: ""
+                                                                        val nama =
+                                                                            panenNamaList.getOrNull(
+                                                                                idx
+                                                                            ) ?: ""
 
                                                                         if (panenKemandoranId == kemandoranId &&
                                                                             nik == pemanenNik &&
-                                                                            nama.equals(pemanenNama, ignoreCase = true)
+                                                                            nama.equals(
+                                                                                pemanenNama,
+                                                                                ignoreCase = true
+                                                                            )
                                                                         ) {
                                                                             detailMatched = true
                                                                             break
@@ -6129,7 +6419,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     }
                                                 }
 
-                                                val unmatchedPanen = panenList.filter { it.panen.id !in matchedPanenIds }
+                                                val unmatchedPanen =
+                                                    panenList.filter { it.panen.id !in matchedPanenIds }
                                                 unmatchedList.addAll(unmatchedPanen)
 
                                                 AppLogger.d("──────────── SUMMARY ────────────")
@@ -6140,9 +6431,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 AppLogger.d("─────────────────────────────────")
 
                                                 progressMap[itemId] = 60
-                                                statusMap[itemId] = "Sedang mempersiapkan data panen"
+                                                statusMap[itemId] =
+                                                    "Sedang mempersiapkan data panen"
 
-                                                val saveDataMPanenList = mutableListOf<PanenEntity>()
+                                                val saveDataMPanenList =
+                                                    mutableListOf<PanenEntity>()
                                                 val toRecreateList = mismatchList + unmatchedList
 
                                                 for (panenRelation in toRecreateList) {
@@ -6166,7 +6459,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         created_by = panen.created_by ?: 0,
                                                         karyawan_id = panen.karyawan_id ?: "NULL",
                                                         kemandoran_id = panen.kemandoran_id ?: "",
-                                                        karyawan_nama = panen.karyawan_nama ?: "NULL",
+                                                        karyawan_nama = panen.karyawan_nama
+                                                            ?: "NULL",
                                                         jumlah_pemanen = panen.jumlah_pemanen ?: 1,
                                                         status_scan_mpanen = 1
                                                     )
@@ -6174,7 +6468,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 }
 
                                                 progressMap[itemId] = 75
-                                                statusMap[itemId] = "Sedang menyimpan data hektaran baru"
+                                                statusMap[itemId] =
+                                                    "Sedang menyimpan data hektaran baru"
 
                                                 // Save to database
                                                 val saveResult = appRepository.saveScanMPanen(
@@ -6188,50 +6483,57 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         when (result) {
                                                             is SaveTPHResult.AllSuccess -> {
                                                                 progressMap[itemId] = 100
-                                                                statusMap[itemId] = "Data Hektaran baru berhasil tersimpan!"
+                                                                statusMap[itemId] =
+                                                                    "Data Hektaran baru berhasil tersimpan!"
 
                                                                 prefManager?.addDataset(request.dataset)
-                                                                results[request.dataset] = Resource.Success(
-                                                                    response,
-                                                                    "Data Hektaran baru berhasil tersimpan!"
-                                                                )
+                                                                results[request.dataset] =
+                                                                    Resource.Success(
+                                                                        response,
+                                                                        "Data Hektaran baru berhasil tersimpan!"
+                                                                    )
                                                                 _downloadStatuses.postValue(results.toMap())
                                                             }
 
                                                             is SaveTPHResult.PartialSuccess -> {
                                                                 progressMap[itemId] = 100
-                                                                statusMap[itemId] = "Sebagian data berhasil disimpan (${result.duplicateCount} duplikat)"
+                                                                statusMap[itemId] =
+                                                                    "Sebagian data berhasil disimpan (${result.duplicateCount} duplikat)"
 
                                                                 // Log duplicate info
                                                                 AppLogger.d("Partial duplicates:\n${result.duplicateInfo}")
 
                                                                 prefManager?.addDataset(request.dataset)
-                                                                results[request.dataset] = Resource.Success(
-                                                                    response,
-                                                                    "Sebagian data berhasil disimpan (${result.duplicateCount} duplikat)"
-                                                                )
+                                                                results[request.dataset] =
+                                                                    Resource.Success(
+                                                                        response,
+                                                                        "Sebagian data berhasil disimpan (${result.duplicateCount} duplikat)"
+                                                                    )
                                                                 _downloadStatuses.postValue(results.toMap())
                                                             }
 
                                                             is SaveTPHResult.AllDuplicate -> {
                                                                 progressMap[itemId] = 100
-                                                                statusMap[itemId] = "Semua data duplikat, tidak ada hektaran baru tersimpan!"
+                                                                statusMap[itemId] =
+                                                                    "Semua data duplikat, tidak ada hektaran baru tersimpan!"
 
                                                                 // Log duplicate info
                                                                 AppLogger.d("All duplicates:\n${result.duplicateInfo}")
 
                                                                 prefManager?.addDataset(request.dataset)
-                                                                results[request.dataset] = Resource.Success(
-                                                                    response,
-                                                                    "Semua data duplikat, tidak ada hektaran baru tersimpan!"
-                                                                )
+                                                                results[request.dataset] =
+                                                                    Resource.Success(
+                                                                        response,
+                                                                        "Semua data duplikat, tidak ada hektaran baru tersimpan!"
+                                                                    )
                                                                 _downloadStatuses.postValue(results.toMap())
                                                             }
                                                         }
                                                     },
                                                     onFailure = { exception ->
                                                         progressMap[itemId] = 100
-                                                        statusMap[itemId] = "Semua data duplikat, tidak ada hektaran baru tersimpan!"
+                                                        statusMap[itemId] =
+                                                            "Semua data duplikat, tidak ada hektaran baru tersimpan!"
                                                         prefManager?.addDataset(request.dataset)
 
                                                         results[request.dataset] = Resource.Success(
@@ -6245,22 +6547,29 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                             } else {
                                                 AppLogger.w("No data array or empty data in response")
-                                                results[request.dataset] = Resource.Error("No data in response")
+                                                results[request.dataset] =
+                                                    Resource.Error("No data in response")
                                                 _downloadStatuses.postValue(results.toMap())
                                             }
                                         } else {
                                             AppLogger.w("API response success is false")
-                                            results[request.dataset] = Resource.Error("API response failed")
+                                            results[request.dataset] =
+                                                Resource.Error("API response failed")
                                             _downloadStatuses.postValue(results.toMap())
                                         }
 
                                     } catch (e: JSONException) {
-                                        AppLogger.e("Error parsing hektaran JSON: ${e.message}", e.toString())
-                                        results[request.dataset] = Resource.Error("Error parsing JSON: ${e.message}")
+                                        AppLogger.e(
+                                            "Error parsing hektaran JSON: ${e.message}",
+                                            e.toString()
+                                        )
+                                        results[request.dataset] =
+                                            Resource.Error("Error parsing JSON: ${e.message}")
                                         _downloadStatuses.postValue(results.toMap())
                                     } catch (e: Exception) {
                                         AppLogger.e("Error processing hektaran response: ${e.message}")
-                                        results[request.dataset] = Resource.Error("Error processing: ${e.message}")
+                                        results[request.dataset] =
+                                            Resource.Error("Error processing: ${e.message}")
                                         _downloadStatuses.postValue(results.toMap())
                                     }
                                 } else if (request.dataset == AppUtils.DatasetNames.estate) {
