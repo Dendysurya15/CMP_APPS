@@ -44,21 +44,21 @@ class DownloadDatasetUtility(
 
         AppLogger.d("$TAG - User role: $userRole")
 
-//        addRoleSpecificDatasets(
-//            creatorInfo, createdBy,datasets, userRole, regionalId, estateId, afdelingId, regionalUser,lastModifiedDatasetKemandoran,
-//            lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
-//            lastModifiedDatasetPemanen
-//        )
-//////         Handle special triggers first (these override normal role-based logic)
-//        if (handleSpecialTriggers(datasets, userRole, estateId, afdelingId)) {
-//            return datasets
-//        }
-////
-//        addCommonDatasets(
-//            datasets,userRole, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
-//            lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
-//            lastModifiedDatasetKendaraan, lastModifiedSettingJSON
-//        )
+        addRoleSpecificDatasets(
+            creatorInfo, createdBy,datasets, userRole, regionalId, estateId, afdelingId, regionalUser,lastModifiedDatasetKemandoran,
+            lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
+            lastModifiedDatasetPemanen
+        )
+////         Handle special triggers first (these override normal role-based logic)
+        if (handleSpecialTriggers(datasets, userRole, estateId, afdelingId)) {
+            return datasets
+        }
+//
+        addCommonDatasets(
+            datasets,userRole, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
+            lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
+            lastModifiedDatasetKendaraan, lastModifiedSettingJSON
+        )
 
         addLateLoadingDatasets(
             creatorInfo, createdBy, datasets, userRole, estateId, afdelingId

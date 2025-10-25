@@ -86,10 +86,14 @@ object ValidationSyncHelper {
      * Checks if user should skip afdeling validation based on jabatan
      */
     fun shouldSkipAfdelingCheck(jabatanUser: String?): Boolean {
+
+        AppLogger.d("$jabatanUser")
         return jabatanUser?.lowercase()?.let { jabatan ->
-                    jabatan.contains(AppUtils.ListFeatureByRoleUser.GM)
+            jabatan.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase()) ||
+                    jabatan.contains(AppUtils.ListFeatureByRoleUser.Manager.lowercase())
         } ?: false
     }
+
 
     /**
      * Validates present karyawan for PanenTBS feature

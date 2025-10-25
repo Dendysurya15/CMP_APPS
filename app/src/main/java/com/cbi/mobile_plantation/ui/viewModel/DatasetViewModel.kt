@@ -3370,7 +3370,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     AppLogger.d("─────────────────────────────────")
 
                                     if (notInHektaranList.isNotEmpty()) {
-                                        notInHektaranList.forEachIndexed { index, panen ->
+                                        notInHektaranList.take(20).forEachIndexed { index, panen ->
                                             AppLogger.d("  ${index + 1}. ${panen.panen.karyawan_nama} (${panen.panen.karyawan_nik}) | blok=${panen.tph?.blok_kode} | date=${panen.panen.date_created}")
                                             AppLogger.d("     🔸 local_jjg_json=${panen.panen.jjg_json}")
                                         }
@@ -3419,7 +3419,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             request.createdBy.toString(),
                                             request.creatorInfo,
                                             null,
-                                            true
                                         )
 
                                     result.fold(
@@ -3454,7 +3453,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         },
                                         onFailure = { exception ->
                                             progressMap[itemId] = 100
-                                            AppLogger.d("masuk gesss")
                                             _itemProgressMap.postValue(progressMap.toMap())
                                             statusMap[itemId] = AppUtils.UploadStatusUtils.DUPLICATE
                                             _itemStatusMap.postValue(statusMap.toMap())
@@ -6643,8 +6641,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     saveDataMPanenList,
                                                     request.createdBy.toString(),
                                                     request.creatorInfo,
-                                                    null,
-                                                    true  // 👈 mustCreateHektaran = true (force create without duplicate check)
+                                                    null
                                                 )
 
                                                 result.fold(
