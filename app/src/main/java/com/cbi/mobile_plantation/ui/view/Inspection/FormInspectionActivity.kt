@@ -197,6 +197,7 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.utils.MapUtils
+import com.cbi.mobile_plantation.utils.awaitValue
 
 @Suppress("UNCHECKED_CAST")
 open class FormInspectionActivity : AppCompatActivity(),
@@ -459,6 +460,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val LOCATION_CHECK_INTERVAL = 3000L // Check every 3 seconds
     private var isLocationMonitoringActive = false
     private var locationCheckRunnable: Runnable? = null
+    private var selectedDivisiId: Int? = null
 
     // Add this as a class property
     private var selectedKaryawanList: List<KaryawanInfo> = emptyList()
@@ -770,19 +772,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
         boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
 
-        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
-        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
-        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
-        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
-        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
-        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
-        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
-        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
-        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
-        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
-        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
-        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
-
         initializeLocationServices()
         initViewModel()
         initUI()
@@ -834,13 +823,11 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 val estateIdsList = if (!estateIdStr.isNullOrEmpty()) {
                     if (estateIdStr.contains(",")) {
-                        // Multiple estates: "112,116,118,135"
                         estateIdStr.split(",")
                             .map { it.trim() }
                             .filter { it.isNotEmpty() }
                             .mapNotNull { it.toIntOrNull() }
                     } else {
-                        // Single estate
                         listOfNotNull(estateIdStr.toIntOrNull())
                     }
                 } else {
@@ -854,6 +841,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     throw Exception("Estate ID tidak valid")
                 }
 
+                val jabatanUser = prefManager!!.jabatanUserLogin?.lowercase() ?: ""
+                val isGMUser = jabatanUser.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase())
+                val isRHUser = jabatanUser.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase())
+
                 val parameterInspeksiDeferred = async {
                     try {
                         inspectionViewModel.getParameterInspeksiJson()
@@ -866,30 +857,35 @@ open class FormInspectionActivity : AppCompatActivity(),
                 parameterInspeksi = parameterInspeksiDeferred.await()
 
                 if (parameterInspeksi.isEmpty()) {
-                    throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
+                    throw Exception("Parameter Inspeksi kosong! Harap untuk melakukan sinkronisasi data")
                 }
 
-                val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+                var panenTPH: List<PanenEntityWithRelations> = emptyList()
 
-                panenViewModel.getAllTPHinWeek(estateIdsList)  // ✅ Pass list instead of single Int
-                delay(100)
+                if (!isGMUser && !isRHUser) {
+                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+                    panenViewModel.getAllTPHinWeek(estateIdsList)
+                    delay(100)
 
-                withContext(Dispatchers.Main) {
-                    panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-                        AppLogger.d("panenTPH raw size: ${list?.size}")
+                    withContext(Dispatchers.Main) {
+                        panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                            AppLogger.d("panenTPH raw size: ${list?.size}")
 
-                        // Filter by isPushedToServer == 1 OR status_scan_inspeksi == 1
-                        val filteredList = list?.filter { panenWithRelations ->
-                            val panen = panenWithRelations.panen
-                            panen.isPushedToServer == 1 || panen.status_scan_inspeksi == 1
-                        } ?: emptyList()
+                            val filteredList = list?.filter { panenWithRelations ->
+                                val panen = panenWithRelations.panen
+                                panen.isPushedToServer == 1 || panen.status_scan_inspeksi == 1
+                            } ?: emptyList()
 
-                        AppLogger.d("panenTPH filtered size: ${filteredList.size}")
-                        panenTPH = filteredList
-                        panenDeferred.complete(filteredList)
+                            AppLogger.d("panenTPH filtered size: ${filteredList.size}")
+                            panenTPH = filteredList
+                            panenDeferred.complete(filteredList)
+                        }
                     }
+
+                    panenDeferred.await()
+                } else {
+                    AppLogger.d("🧭 Skipping panenTPH for GM/RH user: $jabatanUser")
                 }
-                panenDeferred.await()
 
                 if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
                     if (!inspectionId.isNullOrEmpty()) {
@@ -906,16 +902,14 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val afdelingId = prefManager!!.afdelingIdUserLogin
                         inspectionViewModel.getAfdelingName(afdelingId!!.toInt())
                     } catch (e: Exception) {
-                        null // Return null if error
+                        null
                     }
                 }
                 delay(100)
-
                 AppLogger.d("afdelingNameDeferred $afdelingNameDeferred")
                 afdelingNameUser = afdelingNameDeferred.await()
 
                 val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
-
                 panenViewModel.getAllJenisTPH()
                 delay(100)
 
@@ -926,14 +920,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
                 }
 
+                // --- Setup divisi list (only for non-GM/RH) ---
+                if (!isGMUser && !isRHUser) {
+                    divisiList = panenTPH
+                        .mapNotNull { it.tph }
+                        .distinctBy { it.divisi_abbr }
+                        .sortedBy { it.divisi_nama }
 
-                divisiList = panenTPH
-                    .mapNotNull { it.tph }
-                    .distinctBy { it.divisi_abbr }
-                    .sortedBy { it.divisi_nama }
-
-                if (divisiList.isEmpty()) {
-                    throw Exception("Divisi tidak ditemukan, Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
+                    if (divisiList.isEmpty()) {
+                        throw Exception("Divisi tidak ditemukan, periksa kembali dataset dengan melakukan Sinkronisasi Data!")
+                    }
+                } else {
+                    divisiList = emptyList()
+                    AppLogger.d("🧭 Skipping divisiList setup for GM/RH user")
                 }
 
                 withContext(Dispatchers.Main) {
@@ -941,7 +940,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     loadingDialog.dismiss()
                 }
             } catch (e: Exception) {
-
                 AppLogger.d("error $e")
                 withContext(Dispatchers.Main) {
                     val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
@@ -4101,9 +4099,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                     val afdResult = selectedAfdeling.replaceFirst("AFD-", "")
 
-                    val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+                    val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                    val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
 
-                    val estateAbbrLocal = if (isGM) estateAbbr else estateName
+                    val estateAbbrLocal = if (isGM || isRH) estateAbbr else estateName
 
                     formAncakViewModel.updateInfoFormAncak(
                         estateAbbrLocal ?: "",
@@ -5881,10 +5880,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
                                 AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
 
-                                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+                                val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                                val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
 
-                                if (isGM) {
-                                    // Split the estate names into a list for GM
+                                if (isGM || isRH) {
                                     val estateList =
                                         namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
                                     AppLogger.d("GM detected - Estate list: $estateList")
@@ -7157,9 +7156,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         spinner.setItems(data)
 
-        val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+        val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+        val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
 
-        if (!isGM) {
+        if (!isGM || !isRH) {
             if (linearLayout.id == R.id.lyEstInspect) {
                 spinner.isEnabled = false
                 lyEstInspect.visibility = View.GONE
@@ -7659,23 +7659,22 @@ open class FormInspectionActivity : AppCompatActivity(),
     ) {
         when (linearLayout.id) {
 
-            R.id.lyEstInspect -> { // Add this case for estate selection
+            R.id.lyEstInspect -> {
                 AppLogger.d("Estate selected: $selectedItem at position $position")
 
-                // Reset related data when estate changes
                 selectedEstate = selectedItem
                 selectedEstateIdSpinner = position
 
-                // Get the estate ID from the estate list
+
+                setupSpinnerView(lyAfdInspect, emptyList())
+                setupSpinnerView(lyBlokInspect, emptyList())
+                divisiList = emptyList()
+                panenTPH = emptyList()
+                blokList = emptyList()
+
                 val selectedEstateId = try {
-                    // Assuming you have an estate list with IDs corresponding to positions
-                    // You might need to adjust this based on your estate data structure
-                    val estateIds =
-                        prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() }
-                            ?: emptyList()
-                    if (position < estateIds.size) {
-                        estateIds[position]
-                    } else {
+                    val estateIds = prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
+                    if (position < estateIds.size) estateIds[position] else {
                         AppLogger.e("Invalid estate position: $position")
                         return
                     }
@@ -7684,21 +7683,12 @@ open class FormInspectionActivity : AppCompatActivity(),
                     return
                 }
 
-                val estateAbbrList = prefManager!!.estateUserLogin
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?: emptyList()
-
-                val selectedEstateAbbr = if (position < estateAbbrList.size) {
-                    estateAbbrList[position]
-                } else {
+                val estateAbbrList = prefManager!!.estateUserLogin?.split(",")?.map { it.trim() } ?: emptyList()
+                estateAbbr = estateAbbrList.getOrNull(position) ?: run {
                     AppLogger.e("Invalid estate position: $position")
                     return
                 }
 
-                estateAbbr = selectedEstateAbbr
-
-                // Update current estate
                 estateId = selectedEstateId.toString()
                 AppLogger.d("Updated estateId to: $estateId")
 
@@ -7709,6 +7699,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
 
                     try {
+                        // 🔹 Step 1: Load Divisi list from DB
                         val divisiDeferred = async {
                             try {
                                 datasetViewModel.getDivisiList(selectedEstateId)
@@ -7718,10 +7709,50 @@ open class FormInspectionActivity : AppCompatActivity(),
                             }
                         }
 
-                        divisiList = divisiDeferred.await()
+                        // 🔹 Step 2: Load Panen TPH for this estate
+                        val estateIdsList = listOf(selectedEstateId)
+                        val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
                         withContext(Dispatchers.Main) {
+                            panenViewModel.getAllTPHinWeek(estateIdsList)
+                            panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                                if (list != null) {
+                                    val filteredList = list.filter {
+                                        val panen = it.panen
+                                        panen.isPushedToServer == 1 || panen.status_scan_inspeksi == 1
+                                    }
+
+                                    AppLogger.d("✅ panenTPH loaded: ${filteredList.size} items")
+                                    panenTPH = filteredList
+
+                                    // Complete only once
+                                    if (!panenDeferred.isCompleted) {
+                                        panenDeferred.complete(filteredList)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Wait until panenTPH data is available
+                        panenDeferred.await()
+
+                        // 🔹 Step 3: Use panenTPH data to build divisiList - ✅ FILTER BY ESTATE
+                        divisiList = panenTPH
+                            .mapNotNull { it.tph }
+                            .filter { it.dept?.toString() == estateId }  // ✅ Add estate filter
+                            .distinctBy { it.divisi_abbr }
+                            .sortedBy { it.divisi_nama }
+
+                        // If still empty, fallback to DB list (optional)
+                        if (divisiList.isEmpty()) {
+                            divisiList = divisiDeferred.await()
+                            AppLogger.w("⚠️ panenTPH divisiList empty, using DB fallback (${divisiList.size})")
+                        }
+
+                        // 🔹 Step 4: Update spinner only after all data ready
+                        withContext(Dispatchers.Main) {
                             setupSpinnerView(lyAfdInspect, divisiList.mapNotNull { it.divisi_abbr })
+                            AppLogger.d("✅ Afdeling spinner setup complete (${divisiList.size} divisi)")
                         }
 
                     } catch (e: Exception) {
@@ -7867,84 +7898,106 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             R.id.lyAfdInspect -> {
-
                 selectedAfdeling = selectedItem
                 selectedAfdelingIdSpinner = position
 
                 setupSpinnerView(lyBlokInspect, emptyList())
 
+                // ✅ CLEAR DEPENDENT GLOBAL VARIABLES
+                blokList = emptyList()
+                kemandoranList = emptyList()
+                latLonMap = emptyMap()
+
                 lifecycleScope.launch {
-                    // Continue with existing logic
-                    withContext(Dispatchers.IO) {
-                        try {
-                            withContext(Dispatchers.Main) {
-                                animateLoadingDots(linearLayout)
-                                delay(300) // 300ms delay
-                            }
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                    }
 
+                    try {
+                        // 🕒 Wait until panenTPH is available (avoid race)
+                        repeat(10) { retry ->
+                            if (panenTPH.isNotEmpty()) return@repeat
+                            AppLogger.d("Waiting for panenTPH to be ready... attempt $retry")
+                            delay(200)
+                        }
 
-                            AppLogger.d("${panenTPH.size}")
-                            AppLogger.d("${panenTPH}")
-                            val blokNames = panenTPH
-                                .asSequence()
-                                .filter { panenWithRelation ->
-                                    // Filter by selected divisi
-                                    panenWithRelation.tph?.divisi_abbr == selectedAfdeling
-                                }
-                                .mapNotNull { panenWithRelation ->
-                                    // Extract blok_kode, filter out null/empty values
-                                    panenWithRelation.tph?.blok_kode?.takeIf { it.isNotEmpty() }
-                                }
-                                .distinct() // Get unique blok_kode values
-                                .sortedBy { it } // Optional: sort alphabetically
-                                .toList()
-
-                            AppLogger.d("Filtered blokNames for divisi $selectedAfdeling: ${blokNames.size} blocks")
-                            AppLogger.d("blokNames: $blokNames")
-
-                            val kemandoranDeferred = async {
-                                try {
-                                    datasetViewModel.getKemandoranEstate(estateId!!.toInt())
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error fetching kemandoran list: ${e.message}")
-                                    emptyList()
-                                }
-                            }
-
-                            kemandoranList = kemandoranDeferred.await()
-
-                            withContext(Dispatchers.Main) {
-                                // Setup spinner with filtered block names
-                                if (blokNames.isNotEmpty()) {
-                                    setupSpinnerView(lyBlokInspect, blokNames)
-                                } else {
-                                    AppLogger.w("No blocks found for selected divisi: $selectedAfdeling")
-                                    setupSpinnerView(lyBlokInspect, emptyList())
-                                }
-
-                                // Setup kemandoran spinner
-                                try {
-                                    val kemandoranNames = kemandoranList.map { it.nama }
-                                    setupSpinnerView(lyKemandoran, kemandoranNames as List<String>)
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error updating kemandoran UI: ${e.message}")
-                                }
-                            }
-
-                        } catch (e: Exception) {
-                            AppLogger.e("Error loading afdeling data: ${e.message}", e.toString())
+                        if (panenTPH.isEmpty()) {
+                            AppLogger.e("panenTPH is still empty after waiting!")
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     this@FormInspectionActivity,
-                                    "Error loading afdeling data: ${e.message}",
-                                    Toast.LENGTH_LONG
+                                    "Data panen belum siap, mohon tunggu...",
+                                    Toast.LENGTH_SHORT
                                 ).show()
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
                                 hideLoadingDots(linearLayout)
                             }
+                            return@launch
                         }
+
+                        AppLogger.d("panenTPH ready with size ${panenTPH.size}")
+
+                        // 🔹 Filter blok by selected afdeling
+                        // 🔹 Filter blok by selected afdeling AND estate
+                        val blokNames = panenTPH
+                            .asSequence()
+                            .filter {
+                                it.tph?.dept?.toString() == estateId &&
+                                it.tph?.divisi_abbr == selectedAfdeling
+
+                            }
+                            .mapNotNull { it.tph?.blok_kode?.takeIf { kode -> kode.isNotEmpty() } }
+                            .distinct()
+                            .sorted()
+                            .toList()
+
+                        AppLogger.d("Filtered blokNames for divisi $selectedAfdeling: ${blokNames.size} blocks")
+
+                        // 🔹 Assign selectedDivisiId immediately here (for blok spinner)
+                        selectedDivisiId = divisiList.find {
+                            it.divisi_abbr == selectedAfdeling
+                        }?.divisi
+
+                        AppLogger.d("selectedDivisiId updated: $selectedDivisiId")
+
+                        // 🔹 Load Kemandoran - ✅ FIXED: Add Dispatchers.IO
+                        val kemandoranDeferred = async(Dispatchers.IO) {
+                            try {
+                                estateId?.toIntOrNull()?.let { id ->
+                                    datasetViewModel.getKemandoranEstate(id)
+                                } ?: emptyList()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching kemandoran list: ${e.message}")
+                                emptyList()
+                            }
+                        }
+
+                        kemandoranList = kemandoranDeferred.await()
+
+                        withContext(Dispatchers.Main) {
+                            // Setup blok spinner
+                            if (blokNames.isNotEmpty()) {
+                                setupSpinnerView(lyBlokInspect, blokNames)
+                            } else {
+                                AppLogger.w("No blocks found for selected divisi: $selectedAfdeling")
+                                setupSpinnerView(lyBlokInspect, emptyList())
+                            }
+
+                            // Setup kemandoran spinner
+                            val kemandoranNames = kemandoranList.mapNotNull { it.nama }
+                            setupSpinnerView(lyKemandoran, kemandoranNames)
+                        }
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading afdeling data: ${e.message}", e.toString())
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) { hideLoadingDots(linearLayout) }
                     }
                 }
             }
@@ -7954,108 +8007,57 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedBlok = selectedItem
                 selectedBlokIdSpinner = position
 
-                val isGM = jabatanUser?.contains(
-                    AppUtils.ListFeatureByRoleUser.GM,
-                    ignoreCase = true
-                ) == true
-
+                val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
                 isTriggeredBtnScanned = false
 
-                AppLogger.d("isGM $isGM")
-                AppLogger.d("selectedAfdeling $selectedAfdeling")
-
-                AppLogger.d("divisiList $divisiList")
-                val selectedDivisiId = try {
-                    if (isGM) {
-                        divisiList.find {
-                            it.divisi_abbr == selectedAfdeling && it.dept_nama == selectedEstate
-                        }?.divisi
-                    } else {
-                        divisiList.find {
-                            it.divisi_abbr == selectedAfdeling
-                        }?.divisi
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("Error finding divisi: ${e.message}")
-                    null
-                }
-
-                val allIdAfdeling = try {
-                    divisiList.map { it.divisi }
-                } catch (e: Exception) {
-                    AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
-                    emptyList()
-                }
-
-                AppLogger.d("selectedDivisiId $selectedDivisiId")
-                AppLogger.d("allIdAfdeling $allIdAfdeling")
-
-                AppLogger.d("allIdAfdeling $allIdAfdeling")
-                val selectedDivisiIdList = selectedDivisiId?.let { listOf(it) } ?: emptyList()
-                selectedDivisiValue = selectedDivisiId?.toInt()
-
-
                 lifecycleScope.launch {
+                    withContext(Dispatchers.Main) { animateLoadingDots(linearLayout) }
 
-                    if (isGM) {
-                        try {
-                            val estateIdStr = estateId?.trim()
+                    // Wait until estateId and selectedDivisiId are ready
+                    repeat(10) { retry ->
+                        if (!estateId.isNullOrEmpty() && selectedDivisiId != null) return@repeat
+                        AppLogger.d("Waiting for estateId or selectedDivisiId... attempt $retry")
+                        delay(200)
+                    }
 
-                            val estateIdsList = if (!estateIdStr.isNullOrEmpty()) {
-                                if (estateIdStr.contains(",")) {
-                                    // Multiple estates: "112,116,118,135"
-                                    estateIdStr.split(",")
-                                        .map { it.trim() }
-                                        .filter { it.isNotEmpty() }
-                                        .mapNotNull { it.toIntOrNull() }
-                                } else {
-                                    // Single estate
-                                    listOfNotNull(estateIdStr.toIntOrNull())
-                                }
-                            } else {
-                                emptyList()
-                            }
+                    if (estateId.isNullOrEmpty() || selectedDivisiId == null) {
+                        AppLogger.e("Estate ID or selectedDivisiId is still null after waiting!")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Data belum siap, mohon tunggu sebentar.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            hideLoadingDots(linearLayout)
+                        }
+                        return@launch
+                    }
 
-                            AppLogger.d("GM - estateIdsList: $estateIdsList")
+                    try {
+
+                        if (isGM || isRH) {
+                            val estateIdsList = estateId!!
+                                .split(",")
+                                .mapNotNull { it.trim().toIntOrNull() }
+                                .ifEmpty { emptyList() }
 
                             if (estateIdsList.isNotEmpty()) {
-                                val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
-
-                                panenViewModel.getAllTPHinWeek(estateIdsList)  // ✅ Pass list
-                                delay(100)
-
-                                withContext(Dispatchers.Main) {
-                                    panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-                                        AppLogger.d("panenTPH updated for GM after afdeling selection: ${list?.size}")
-                                        panenTPH = list ?: emptyList()
-                                        panenDeferred.complete(list ?: emptyList())
-                                    }
+                                // ✅ Trigger the query on IO thread, but observe on Main
+                                withContext(Dispatchers.IO) {
+                                    panenViewModel.getAllTPHinWeek(estateIdsList)
                                 }
 
-                                // Wait for the data to be loaded
-                                panenDeferred.await()
+                                // ✅ Then observe the result on Main thread
+                                panenTPH = withContext(Dispatchers.Main) {
+                                    panenViewModel.activePanenList.awaitValue()
+                                }
+
                                 AppLogger.d("GM - panenTPH reloaded with ${panenTPH.size} records")
-                            } else {
-                                AppLogger.e("GM - Invalid estate IDs")
                             }
-                        } catch (e: Exception) {
-                            AppLogger.e("Error reloading panenTPH for GM: ${e.message}")
                         }
-                    } else {
-                        AppLogger.d("Non-GM user - skipping panenTPH reload")
-                    }
-
-                    // Continue with existing logic
-                    withContext(Dispatchers.IO) {
-                        withContext(Dispatchers.Main) {
-                            setupScanTPHTrigger()
-                            animateLoadingDots(linearLayout)
-                            delay(300) // 1 second delay
-
-                        }
-
-                        // Remove this entire block:
-                        val blokDeferred = async {
+                        // 🔹 Load blok list safely (IO dispatcher)
+                        val blokDeferred = async(Dispatchers.IO) {
                             try {
                                 datasetViewModel.getListOfBlok(
                                     estateId!!.toInt(),
@@ -8066,130 +8068,84 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 emptyList()
                             }
                         }
+
                         blokList = blokDeferred.await()
+                        AppLogger.d("blokList size: ${blokList.size}")
 
-                        try {
-                            if (estateId == null || selectedDivisiId == null) {
-                                throw IllegalStateException("Estate ID or selectedDivisiId is null!")
-                            }
-
-                            latLonMap = emptyMap()
-
-                            val latLonResult = async {
-                                try {
-                                    val estateIdToUse = estateId!!.toInt()
-                                    val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
-
-                                    AppLogger.d("Loading ALL TPHs from database for block: $selectedBlok")
-                                    AppLogger.d("panenTPH size: ${panenTPH.size}")
-
-                                    // Get ALL TPH in the block (not filtered by transactions)
-                                    val tphList = datasetViewModel.getAllTPHInBlock(
-                                        estateIdToUse,
-                                        selectedDivisiId ?: 0,
-                                        selectedBlok
-                                    )
-
-                                    AppLogger.d("Retrieved ${tphList.size} TPH records from database")
-
-                                    data class BlokKey(
-                                        val dept: String,
-                                        val divisi: String,
-                                        val kode: String
-                                    )
-
-                                    val blokLookupMap = blokList.associateBy { blok ->
-                                        BlokKey(
-                                            blok.dept?.toString() ?: "",
-                                            blok.divisi?.toString() ?: "",
-                                            blok.kode ?: ""
-                                        )
-                                    }
-
-                                    tphList.forEach { tph ->
-                                        val tphId = tph.id
-                                        val lat = tph.lat?.toDoubleOrNull()
-                                        val lon = tph.lon?.toDoubleOrNull()
-                                        val nomor = tph.nomor ?: ""
-                                        val baseBlokKode = tph.blok_kode ?: ""
-                                        val divisiKode = tph.divisi ?: ""
-                                        val deptKode = tph.dept ?: ""
-                                        val jenisTPHId = tph.jenis_tph_id ?: "1"
-
-                                        val blokKey = BlokKey(
-                                            deptKode.toString(),
-                                            divisiKode.toString(),
-                                            baseBlokKode
-                                        )
-                                        val matchingBlok = blokLookupMap[blokKey]
-
-                                        val tipeArea = matchingBlok?.tipe_area
-                                        val jmlPokokHa = matchingBlok?.jml_pokok_ha
-
-                                        if (tphId != null && lat != null && lon != null) {
-                                            // Add ALL TPH to the map
-                                            resultMap[tphId] = ScannedTPHLocation(
-                                                lat,
-                                                lon,
-                                                nomor,
-                                                baseBlokKode,
-                                                divisiKode.toString(),
-                                                deptKode.toString(),
-                                                jmlPokokHa,
-                                                jenisTPHId,
-                                                tipeArea
-                                            )
-                                        }
-                                    }
-
-                                    AppLogger.d("Final resultMap size: ${resultMap.size}")
-                                    resultMap
-
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error in latLonResult: ${e.message}", e.toString())
-                                    throw e
-                                }
-                            }
-
+                        // 🔹 Fetch TPH + LatLon data (IO dispatcher)
+                        val latLonResult = async(Dispatchers.IO) {
                             try {
-                                latLonMap = latLonResult.await()
+                                val estateIdToUse = estateId!!.toInt()
+                                val resultMap = mutableMapOf<Int, ScannedTPHLocation>()
 
-                                withContext(Dispatchers.Main) {
-                                    mapPanenInsideBlok()
-                                }
-
-                            } catch (e: Exception) {
-                                AppLogger.e(
-                                    "Error awaiting latLonResult: ${e.message}",
-                                    e.toString()
+                                val tphList = datasetViewModel.getAllTPHInBlock(
+                                    estateIdToUse,
+                                    selectedDivisiId ?: 0,
+                                    selectedBlok
                                 )
-                                withContext(Dispatchers.Main) {
-                                    AlertDialogUtility.withSingleAction(
-                                        this@FormInspectionActivity,
-                                        stringXML(R.string.al_back),
-                                        stringXML(R.string.al_failed_fetch_data),
-                                        "Error fetching listLatLonAfd: ${e.message}",
-                                        "warning.json",
-                                        R.color.colorRedDark
-                                    ) { }
-                                }
-                                latLonMap = emptyMap()
-                            }
 
-                        } catch (e: Exception) {
-                            AppLogger.e("Error loading afdeling data: ${e.message}", e.toString())
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    this@FormInspectionActivity,
-                                    "Error loading afdeling data: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
-                                hideLoadingDots(linearLayout)
+                                AppLogger.d("Fetched ${tphList.size} TPH for blok $selectedBlok")
+
+                                val blokLookupMap = blokList.associateBy { blok ->
+                                    Triple(
+                                        blok.dept?.toString() ?: "",
+                                        blok.divisi?.toString() ?: "",
+                                        blok.kode ?: ""
+                                    )
+                                }
+
+                                tphList.forEach { tph ->
+                                    val blokKey = Triple(
+                                        tph.dept?.toString() ?: "",
+                                        tph.divisi?.toString() ?: "",
+                                        tph.blok_kode ?: ""
+                                    )
+                                    val matchingBlok = blokLookupMap[blokKey]
+                                    val tphId = tph.id ?: return@forEach
+                                    val lat = tph.lat?.toDoubleOrNull()
+                                    val lon = tph.lon?.toDoubleOrNull()
+                                    if (lat != null && lon != null) {
+                                        resultMap[tphId] = ScannedTPHLocation(
+                                            lat,
+                                            lon,
+                                            tph.nomor ?: "",
+                                            tph.blok_kode ?: "",
+                                            tph.divisi?.toString() ?: "",
+                                            tph.dept?.toString() ?: "",
+                                            matchingBlok?.jml_pokok_ha,
+                                            tph.jenis_tph_id ?: "1",
+                                            matchingBlok?.tipe_area
+                                        )
+                                    }
+                                }
+
+                                AppLogger.d("Final latLonMap size: ${resultMap.size}")
+                                resultMap
+                            } catch (e: Exception) {
+                                AppLogger.e("Error fetching TPHs: ${e.message}")
+                                emptyMap()
                             }
                         }
+
+                        latLonMap = latLonResult.await()
+
+                        // 🔹 Update UI safely
+                        withContext(Dispatchers.Main) {
+                            setupScanTPHTrigger()
+                            mapPanenInsideBlok()
+                        }
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error loading blok data: ${e.message}", e.toString())
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FormInspectionActivity,
+                                "Error loading blok data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) { hideLoadingDots(linearLayout) }
                     }
                 }
             }
@@ -8197,8 +8153,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             R.id.lyJalurInspect -> {
                 val mapData = listRadioItems["EntryPath"] ?: emptyMap()
                 val selectedKey = mapData.entries.find { it.value == selectedItem }?.value
-
-
                 selectedJalurMasuk = selectedKey ?: ""
                 AppLogger.d("selectedJalurMasuk $selectedJalurMasuk")
             }

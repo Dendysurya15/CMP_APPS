@@ -1293,7 +1293,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             continue // Skip to next item
                         }
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
-                        response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
+                            response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
@@ -1701,6 +1701,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadDataset(modifiedRequest)
                     }
 
+
+                    AppLogger.d("")
+
                     if (response.isSuccessful && response.code() == 200) {
                         val contentType = response.headers()["Content-Type"]
                         val lastModified = response.headers()["Last-Modified-Dataset"]
@@ -2044,7 +2047,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tempFile.delete()
                                 extractDir.deleteRecursively()
                             }
-                        } else if (contentType?.contains("application/json") == true) {
+                        }
+                        else if (contentType?.contains("application/json") == true) {
 
                             AppLogger.d("tipe json bro ")
                             handleJsonResponse(
@@ -2843,10 +2847,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 divisi = userOrg.optString("divisi", "")
                             }
 
-                            // Depts
                             val deptsArray = userData.optJSONArray("Depts")
                             var regional = ""
-                            var wilayah = 0
                             var company = 0
                             var companyAbbr = ""
                             var companyNama = ""
@@ -2854,15 +2856,43 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             var estateNama = ""
 
                             if (deptsArray != null && deptsArray.length() > 0) {
-                                val deptData = deptsArray.getJSONObject(0)
-                                regional = deptData.optString("regional", "")
-                                wilayah = deptData.optInt("wilayah", 0)
-                                company = deptData.optInt("company", 0)
-                                companyAbbr = deptData.optString("company_abbr", "")
-                                companyNama = deptData.optString("company_nama", "")
-                                estateAbbr = deptData.optString("abbr", "")
-                                estateNama = deptData.optString("nama", "")
+                                val estateAbbrList = mutableListOf<String>()
+                                val estateNamaList = mutableListOf<String>()
+                                val regionalList = mutableListOf<String>()
+                                val companyList = mutableListOf<Int>()
+                                val companyAbbrList = mutableListOf<String>()
+                                val companyNamaList = mutableListOf<String>()
+
+                                for (i in 0 until deptsArray.length()) {
+                                    val deptData = deptsArray.getJSONObject(i)
+
+                                    val abbr = deptData.optString("abbr", "")
+                                    val nama = deptData.optString("nama", "")
+                                    val reg = deptData.optString("regional", "")
+                                    val comp = deptData.optInt("company", 0)
+                                    val compAbbr = deptData.optString("company_abbr", "")
+                                    val compNama = deptData.optString("company_nama", "")
+
+                                    if (abbr.isNotEmpty()) estateAbbrList.add(abbr)
+                                    if (nama.isNotEmpty()) estateNamaList.add(nama)
+                                    if (reg.isNotEmpty()) regionalList.add(reg)
+                                    if (comp > 0) companyList.add(comp)
+                                    if (compAbbr.isNotEmpty()) companyAbbrList.add(compAbbr)
+                                    if (compNama.isNotEmpty()) companyNamaList.add(compNama)
+                                }
+
+                                estateAbbr = estateAbbrList.joinToString(",")
+                                estateNama = estateNamaList.joinToString(",")
+                                regional = regionalList.distinct().joinToString(",")
+                                company = companyList.firstOrNull() ?: 0
+                                companyAbbr = companyAbbrList.distinct().joinToString(",")
+                                companyNama = companyNamaList.distinct().joinToString(",")
+
+                                AppLogger.d("🏡 Combined Estates -> Abbr: $estateAbbr | Nama: $estateNama")
+                                AppLogger.d("🌍 Regional: $regional | 🏢 Company: $companyAbbr ($companyNama)")
                             }
+
+
 
                             progressMap[itemId] = 85
                             _itemProgressMap.postValue(progressMap.toMap())
@@ -2872,33 +2902,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val kemandoranNama = userData.optString("kemandoran_nama", "")
 
                             try {
-                                // ✅ LOG EVERYTHING THAT WILL BE SAVED
-                                AppLogger.d(
-                                    """
-                        🧩 User Data Ready to Save:
-                        -------------------------------------
-                        👤 username: $username
-                        👤 nama: $nama
-                        🏷️ jabatan: $jabatan
 
-                        🌍 regionalIdUserLogin: $regional
-                        🌐 wilayah: $wilayah
-                        🏢 companyIdUserLogin: $company
-                        🏢 companyAbbrUserLogin: $companyAbbr
-                        🏢 companyNamaUserLogin: $companyNama
-
-                        🌾 estateUserLogin: $estateAbbr
-                        🌾 estateUserLengkapLogin: $estateNama
-                        🏠 estateIdUserLogin (dept): $dept
-                        🧭 afdelingIdUserLogin (divisi): $divisi
-
-                        🧑‍🌾 kemandoran: $kemandoran
-                        🧩 kemandoran_ppro: $kemandoranPpro
-                        🧱 kemandoran_nama: $kemandoranNama
-                        🔢 kemandoran_kode: $kemandoranKode
-                        -------------------------------------
-                        """.trimIndent()
-                                )
 
                                 prefManager.apply {
                                     nameUserLogin = nama

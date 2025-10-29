@@ -43,25 +43,25 @@ class DownloadDatasetUtility(
 
         AppLogger.d("$TAG - User role: $userRole")
 
-//        addRoleSpecificDatasets(
-//            creatorInfo, createdBy,datasets, userRole, regionalId, estateId, regionalUser,lastModifiedDatasetKemandoran,
-//            lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
-//            lastModifiedDatasetPemanen
-//        )
+        addRoleSpecificDatasets(
+            creatorInfo, createdBy,datasets, userRole, regionalId, estateId, regionalUser,lastModifiedDatasetKemandoran,
+            lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
+            lastModifiedDatasetPemanen
+        )
 
         if (handleSpecialTriggers(datasets, userRole, estateId, afdelingId)) {
             return datasets
         }
 
-//        addCommonDatasets(
-//            datasets,userRole, regionalId,  lastModifiedDatasetJenisTPH,
-//             lastModifiedDatasetTransporter,
-//            lastModifiedDatasetKendaraan, lastModifiedSettingJSON
-//        )
-//
-//        addLateLoadingDatasets(
-//            creatorInfo, createdBy, datasets, userRole, estateId, afdelingId
-//        )
+        addCommonDatasets(
+            datasets,userRole, regionalId,  lastModifiedDatasetJenisTPH,
+             lastModifiedDatasetTransporter,
+            lastModifiedDatasetKendaraan, lastModifiedSettingJSON
+        )
+
+        addLateLoadingDatasets(
+            creatorInfo, createdBy, datasets, userRole, estateId, afdelingId
+        )
 
         return datasets
     }
@@ -161,71 +161,71 @@ class DownloadDatasetUtility(
     ): Boolean {
 
 //        // Only add other datasets if NOT follow-up trigger
-//        if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
-//            datasets.add(
-//                DatasetRequest(
-//                    afdeling = afdelingId,
-//                    estate = estateId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-//                )
-//            )
-//            datasets.add(
-//                DatasetRequest(
-//                    afdeling = afdelingId,
-//                    estate = estateId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
-//                )
-//            )
-//        }
-//
-//        if (!isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
-//            datasets.add(
-//                DatasetRequest(
-//                    afdeling = afdelingId,
-//                    estate = estateId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
-//                )
-//            )
-//            datasets.add(
-//                DatasetRequest(
-//                    afdeling = afdelingId,
-//                    estate = estateId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
-//                )
-//            )
-//            datasets.add(
-//                DatasetRequest(
-//                    regional = null,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.parameter
-//                )
-//            )
-//        }
-//
-//        if (isTriggerButtonSinkronisasiData && (userRole == UserRole.MANDOR_1 || userRole == UserRole.ASISTEN)) {
-//            datasets.add(
-//                DatasetRequest(
-//                    afdeling = afdelingId,
-//                    estate = estateId,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.sinkronisasiRestan
-//                )
-//            )
-//        }
-//
-//        if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN) {
-//            datasets.add(
-//                DatasetRequest(
-//                    regional = null,
-//                    lastModified = null,
-//                    dataset = AppUtils.DatasetNames.parameter
-//                )
-//            )
-//        }
+        if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
+                )
+            )
+        }
+
+        if (!isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiDataPanen
+                )
+            )
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi
+                )
+            )
+            datasets.add(
+                DatasetRequest(
+                    regional = null,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.parameter
+                )
+            )
+        }
+
+        if (isTriggerButtonSinkronisasiData && (userRole == UserRole.MANDOR_1 || userRole == UserRole.ASISTEN)) {
+            datasets.add(
+                DatasetRequest(
+                    afdeling = afdelingId,
+                    estate = estateId,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.sinkronisasiRestan
+                )
+            )
+        }
+
+        if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN) {
+            datasets.add(
+                DatasetRequest(
+                    regional = null,
+                    lastModified = null,
+                    dataset = AppUtils.DatasetNames.parameter
+                )
+            )
+        }
 
 
         // Handle sync data button trigger
@@ -272,6 +272,7 @@ class DownloadDatasetUtility(
             DatasetRequest(
                 lastModified = null,
                 idUser = prefManager.idUserLogin,
+                estate = prefManager.estateIdUserLogin,
                 dataset = AppUtils.DatasetNames.sinkronisasiDataUser
             )
         )

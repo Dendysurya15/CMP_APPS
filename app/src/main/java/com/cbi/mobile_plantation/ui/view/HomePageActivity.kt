@@ -2383,176 +2383,176 @@ class HomePageActivity : AppCompatActivity() {
 
                                 var validAfdelingId: Int? = null
 
-                                if (!isKeraniPanen && !isGM && !isRH) {
-                                    if (afdelingIdString.isNullOrEmpty()) {
-                                        withContext(Dispatchers.Main) {
-                                            previewRestanData =
-                                                "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
-                                        }
-                                    } else {
-                                        // Try to convert afdelingId to integer
-                                        validAfdelingId = try {
-                                            afdelingIdString.toInt()
-                                        } catch (e: NumberFormatException) {
-                                            AppLogger.d("NumberFormatException caught: ${e.message}")
-                                            null
-                                        }
-
-                                        // If conversion failed, set error message
-                                        if (validAfdelingId == null) {
-                                            AppLogger.d("afdelingId is not a valid integer - blocking user")
-                                            withContext(Dispatchers.Main) {
-                                                previewRestanData =
-                                                    "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
-                                            }
-                                        } else {
-                                            AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
-                                        }
-                                    }
-                                } else {
-                                    AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
-                                }
-
-                                if (!isKeraniPanen) {
-                                    if (!isGM && !isMandorPanen && !isRH) {
-                                        val restanDataDeferred = CompletableDeferred<String>()
-                                        val restanObserver = Observer<String> { data ->
-                                            if (!restanDataDeferred.isCompleted) {
-                                                restanDataDeferred.complete(data)
-                                            }
-                                        }
-                                        datasetViewModel.restanPreviewData.observe(
-                                            this@HomePageActivity,
-                                            restanObserver
-                                        )
-
-                                        datasetViewModel.getPreviewDataRestanWeek(
-                                            estateIdString.toInt(),
-                                            validAfdelingId.toString()
-                                        )
-                                        try {
-                                            previewRestanData = withTimeout(15000) {
-                                                restanDataDeferred.await()
-                                            }
-
-                                            AppLogger.d("previewRestanData $previewRestanData")
-
-                                            // Remove the observer to prevent memory leaks
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.restanPreviewData.removeObserver(
-                                                    restanObserver
-                                                )
-                                            }
-                                        } catch (e: Exception) {
-                                            // Clean up observer in case of timeout or error
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.restanPreviewData.removeObserver(
-                                                    restanObserver
-                                                )
-                                            }
-
-                                        }
-                                    } else {
-                                        AppLogger.d("Skipping restan data fetch - GM or Mandor Panen role doesn't have afdeling")
-                                    }
-
-                                    // === DATA PANEN INSPEKSI API (doesn't require afdeling - can call for all roles) ===
-                                    val dataPanenInspeksiDeffered = CompletableDeferred<String>()
-
-                                    // Set up the observer for restanPreviewData
-                                    val dataPanenObserver = Observer<String> { data ->
-                                        if (!dataPanenInspeksiDeffered.isCompleted) {
-                                            dataPanenInspeksiDeffered.complete(data)
-                                        }
-                                    }
-
-                                    // Register the observer
-                                    datasetViewModel.dataPanenInspeksiPreview.observe(
-                                        this@HomePageActivity,
-                                        dataPanenObserver
-                                    )
-
-                                    datasetViewModel.getPreviewDataPanenInspeksiWeek(
-                                        estateIds,
-                                    )
-
-                                    try {
-                                        previewDataPanenInspeksi = withTimeout(15000) {
-                                            dataPanenInspeksiDeffered.await()
-                                        }
-
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                dataPanenObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
-                                                dataPanenObserver
-                                            )
-                                        }
-                                    }
-
-                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
-
-                                    val dataFollowUpInspeksiDeferred =
-                                        CompletableDeferred<String>()
-
-                                    val dataFollowUpInspeksiObserver =
-                                        Observer<String> { data ->
-                                            if (!dataFollowUpInspeksiDeferred.isCompleted) {
-                                                dataFollowUpInspeksiDeferred.complete(data)
-                                            }
-                                        }
-
-                                    datasetViewModel.followUpInspeksiPreview.observe(
-                                        this@HomePageActivity,
-                                        dataFollowUpInspeksiObserver
-                                    )
-
-                                    AppLogger.d("estateidString $estateIdString")
-                                    datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
-                                        estateIds,
-                                        validAfdelingId.toString()
-                                    )
-
-                                    try {
-                                        // ✅ FIXED - Await correct deferred
-                                        previewDataFollowUpInspeksi = withTimeout(15000) {
-                                            dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
-                                        }
-
-                                        AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
-
-                                        withContext(Dispatchers.Main) {
-                                            // ✅ FIXED - Remove from correct LiveData
-                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
-                                                dataFollowUpInspeksiObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            // ✅ FIXED - Remove from correct LiveData
-                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
-                                                dataFollowUpInspeksiObserver
-                                            )
-                                        }
-                                        AppLogger.e("Error getting follow up data: ${e.message}")
-                                    }
+//                                if (!isKeraniPanen && !isGM && !isRH) {
+//                                    if (afdelingIdString.isNullOrEmpty()) {
+//                                        withContext(Dispatchers.Main) {
+//                                            previewRestanData =
+//                                                "Error: Afdeling ID tidak boleh kosong untuk ${prefManager!!.jabatanUserLogin}"
+//                                        }
 //                                    } else {
-//                                        AppLogger.d("Skipping follow up inspeksi data fetch - GM role doesn't have afdeling")
+//                                        // Try to convert afdelingId to integer
+//                                        validAfdelingId = try {
+//                                            afdelingIdString.toInt()
+//                                        } catch (e: NumberFormatException) {
+//                                            AppLogger.d("NumberFormatException caught: ${e.message}")
+//                                            null
+//                                        }
+//
+//                                        // If conversion failed, set error message
+//                                        if (validAfdelingId == null) {
+//                                            AppLogger.d("afdelingId is not a valid integer - blocking user")
+//                                            withContext(Dispatchers.Main) {
+//                                                previewRestanData =
+//                                                    "Error: Afdeling ID harus berupa angka yang valid untuk ${prefManager!!.jabatanUserLogin}. Afdeling ID saat ini: '$afdelingIdString'"
+//                                            }
+//                                        } else {
+//                                            AppLogger.d("Afdeling ID validation passed for ${prefManager!!.jabatanUserLogin}: $validAfdelingId")
+//                                        }
 //                                    }
-                                } else {
-                                    AppLogger.d("Skipping all API calls - either user is not Mandor1/Asisten or afdelingId is invalid")
-                                }
-
-                                // Wait for estates list with timeout
-                                withTimeout(10000) {
-                                    while (datasetViewModel.allEstatesList.value == null) {
-                                        delay(100)
-                                    }
-                                }
+//                                } else {
+//                                    AppLogger.d("Validation skipped - user is not Mandor 1 or Asisten")
+//                                }
+//
+//                                if (!isKeraniPanen) {
+//                                    if (!isGM && !isMandorPanen && !isRH) {
+//                                        val restanDataDeferred = CompletableDeferred<String>()
+//                                        val restanObserver = Observer<String> { data ->
+//                                            if (!restanDataDeferred.isCompleted) {
+//                                                restanDataDeferred.complete(data)
+//                                            }
+//                                        }
+//                                        datasetViewModel.restanPreviewData.observe(
+//                                            this@HomePageActivity,
+//                                            restanObserver
+//                                        )
+//
+//                                        datasetViewModel.getPreviewDataRestanWeek(
+//                                            estateIdString.toInt(),
+//                                            validAfdelingId.toString()
+//                                        )
+//                                        try {
+//                                            previewRestanData = withTimeout(15000) {
+//                                                restanDataDeferred.await()
+//                                            }
+//
+//                                            AppLogger.d("previewRestanData $previewRestanData")
+//
+//                                            // Remove the observer to prevent memory leaks
+//                                            withContext(Dispatchers.Main) {
+//                                                datasetViewModel.restanPreviewData.removeObserver(
+//                                                    restanObserver
+//                                                )
+//                                            }
+//                                        } catch (e: Exception) {
+//                                            // Clean up observer in case of timeout or error
+//                                            withContext(Dispatchers.Main) {
+//                                                datasetViewModel.restanPreviewData.removeObserver(
+//                                                    restanObserver
+//                                                )
+//                                            }
+//
+//                                        }
+//                                    } else {
+//                                        AppLogger.d("Skipping restan data fetch - GM or Mandor Panen role doesn't have afdeling")
+//                                    }
+//
+//                                    // === DATA PANEN INSPEKSI API (doesn't require afdeling - can call for all roles) ===
+//                                    val dataPanenInspeksiDeffered = CompletableDeferred<String>()
+//
+//                                    // Set up the observer for restanPreviewData
+//                                    val dataPanenObserver = Observer<String> { data ->
+//                                        if (!dataPanenInspeksiDeffered.isCompleted) {
+//                                            dataPanenInspeksiDeffered.complete(data)
+//                                        }
+//                                    }
+//
+//                                    // Register the observer
+//                                    datasetViewModel.dataPanenInspeksiPreview.observe(
+//                                        this@HomePageActivity,
+//                                        dataPanenObserver
+//                                    )
+//
+//                                    datasetViewModel.getPreviewDataPanenInspeksiWeek(
+//                                        estateIds,
+//                                    )
+//
+//                                    try {
+//                                        previewDataPanenInspeksi = withTimeout(15000) {
+//                                            dataPanenInspeksiDeffered.await()
+//                                        }
+//
+//                                        withContext(Dispatchers.Main) {
+//                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+//                                                dataPanenObserver
+//                                            )
+//                                        }
+//                                    } catch (e: Exception) {
+//                                        withContext(Dispatchers.Main) {
+//                                            datasetViewModel.dataPanenInspeksiPreview.removeObserver(
+//                                                dataPanenObserver
+//                                            )
+//                                        }
+//                                    }
+//
+//                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
+//
+//                                    val dataFollowUpInspeksiDeferred =
+//                                        CompletableDeferred<String>()
+//
+//                                    val dataFollowUpInspeksiObserver =
+//                                        Observer<String> { data ->
+//                                            if (!dataFollowUpInspeksiDeferred.isCompleted) {
+//                                                dataFollowUpInspeksiDeferred.complete(data)
+//                                            }
+//                                        }
+//
+//                                    datasetViewModel.followUpInspeksiPreview.observe(
+//                                        this@HomePageActivity,
+//                                        dataFollowUpInspeksiObserver
+//                                    )
+//
+//                                    AppLogger.d("estateidString $estateIdString")
+//                                    datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
+//                                        estateIds,
+//                                        validAfdelingId.toString()
+//                                    )
+//
+//                                    try {
+//                                        // ✅ FIXED - Await correct deferred
+//                                        previewDataFollowUpInspeksi = withTimeout(15000) {
+//                                            dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
+//                                        }
+//
+//                                        AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
+//
+//                                        withContext(Dispatchers.Main) {
+//                                            // ✅ FIXED - Remove from correct LiveData
+//                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
+//                                                dataFollowUpInspeksiObserver
+//                                            )
+//                                        }
+//                                    } catch (e: Exception) {
+//                                        withContext(Dispatchers.Main) {
+//                                            // ✅ FIXED - Remove from correct LiveData
+//                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
+//                                                dataFollowUpInspeksiObserver
+//                                            )
+//                                        }
+//                                        AppLogger.e("Error getting follow up data: ${e.message}")
+//                                    }
+////                                    } else {
+////                                        AppLogger.d("Skipping follow up inspeksi data fetch - GM role doesn't have afdeling")
+////                                    }
+//                                } else {
+//                                    AppLogger.d("Skipping all API calls - either user is not Mandor1/Asisten or afdelingId is invalid")
+//                                }
+//
+//                                // Wait for estates list with timeout
+//                                withTimeout(10000) {
+//                                    while (datasetViewModel.allEstatesList.value == null) {
+//                                        delay(100)
+//                                    }
+//                                }
 
                                 withContext(Dispatchers.Main) {
                                     startDownloads(
@@ -8304,6 +8304,35 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
+        AppLogger.d("🧭 PREFMANAGER DEBUG START -----------------------------")
+        AppLogger.d("regionalIdUserLogin: '${prefManager!!.regionalIdUserLogin}'")
+        AppLogger.d("estateIdUserLogin: '${prefManager!!.estateIdUserLogin}'")
+        AppLogger.d("afdelingIdUserLogin: '${prefManager!!.afdelingIdUserLogin}'")
+        AppLogger.d("lastModifiedDatasetEstate: '${prefManager!!.lastModifiedDatasetEstate}'")
+        AppLogger.d("lastModifiedDatasetTPH: '${prefManager!!.lastModifiedDatasetTPH}'")
+        AppLogger.d("lastModifiedDatasetJenisTPH: '${prefManager!!.lastModifiedDatasetJenisTPH}'")
+        AppLogger.d("lastModifiedDatasetBlok: '${prefManager!!.lastModifiedDatasetBlok}'")
+        AppLogger.d("lastModifiedDatasetKemandoran: '${prefManager!!.lastModifiedDatasetKemandoran}'")
+        AppLogger.d("lastModifiedDatasetPemanen: '${prefManager!!.lastModifiedDatasetPemanen}'")
+        AppLogger.d("lastModifiedDatasetTransporter: '${prefManager!!.lastModifiedDatasetTransporter}'")
+        AppLogger.d("lastModifiedDatasetKendaraan: '${prefManager!!.lastModifiedDatasetKendaraan}'")
+        AppLogger.d("lastModifiedSettingJSON: '${prefManager!!.lastModifiedSettingJSON}'")
+
+        AppLogger.d("jabatanUserLogin: '${prefManager!!.jabatanUserLogin}'")
+        AppLogger.d("nameUserLogin: '${prefManager!!.nameUserLogin}'")
+        AppLogger.d("companyAbbrUserLogin: '${prefManager!!.companyAbbrUserLogin}'")
+        AppLogger.d("companyIdUserLogin: '${prefManager!!.companyIdUserLogin}'")
+        AppLogger.d("companyNamaUserLogin: '${prefManager!!.companyNamaUserLogin}'")
+        AppLogger.d("estateUserLogin: '${prefManager!!.estateUserLogin}'")
+        AppLogger.d("estateUserLengkapLogin: '${prefManager!!.estateUserLengkapLogin}'")
+        AppLogger.d("kemandoranUserLogin: '${prefManager!!.kemandoranUserLogin}'")
+        AppLogger.d("kemandoranPPROUserLogin: '${prefManager!!.kemandoranPPROUserLogin}'")
+        AppLogger.d("kemandoranNamaUserLogin: '${prefManager!!.kemandoranNamaUserLogin}'")
+        AppLogger.d("kemandoranKodeUserLogin: '${prefManager!!.kemandoranKodeUserLogin}'")
+        AppLogger.d("datasetMustUpdate: '${prefManager!!.datasetMustUpdate}'")
+        AppLogger.d("🧭 PREFMANAGER DEBUG END -----------------------------")
+
+
         val jabatanUser = prefManager!!.jabatanUserLogin
         val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
         val isRHUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.RH) == true
@@ -8340,7 +8369,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Afdeling validation - SKIP for GM users
-        if ((!isGMUser || !isRHUser )&&  !canHaveMultipleAfdelings) {
+        if (!isGMUser && !isRHUser && !canHaveMultipleAfdelings) {
             if (afdelingIdString.isNullOrEmpty() || afdelingIdString.isBlank()) {
                 showErrorDialog("Afdeling ID is not valid. Current value: '$afdelingIdString'")
                 loadingDialog.dismiss()

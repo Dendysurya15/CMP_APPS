@@ -7,8 +7,10 @@ import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import okhttp3.Headers
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Response
@@ -23,50 +25,33 @@ class SyncDataUserRepository(
 
     suspend fun getDataUser(idUser: Int): Response<ResponseBody> {
         var hasKemandoranPpro = false
-        var isGMOrRH = false
 
+        // Step 1: Check if user has kemandoran_ppro
         try {
-            // Step 1: Check jabatan + kemandoran_ppro first
-            val checkUserQuery = JSONObject().apply {
+            val checkQuery = JSONObject().apply {
                 put("table", "sys_user")
-                put("select", JSONArray().apply {
-                    put("jabatan")
-                    put("kemandoran_ppro")
-                })
-                put("where", JSONObject().apply {
-                    put("id", idUser)
-                })
+                put("select", JSONArray().apply { put("kemandoran_ppro") })
+                put("where", JSONObject().apply { put("id", idUser) })
             }
+            val checkResponse = ApiService.getDataRaw(checkQuery.toString().toRequestBody("application/json".toMediaType()))
+            val checkBody = checkResponse.body()?.string()
 
-            val checkRequestBody = checkUserQuery.toString().toRequestBody("application/json".toMediaType())
-            val checkResponse = ApiService.getDataRaw(checkRequestBody)
-
-            val checkResponseBody = checkResponse.body()?.string()
-            if (checkResponseBody != null) {
-                val checkJsonObject = JSONObject(checkResponseBody)
-                if (checkJsonObject.optBoolean("success", false)) {
-                    val dataArray = checkJsonObject.optJSONArray("data")
-                    if (dataArray != null && dataArray.length() > 0) {
-                        val userData = dataArray.getJSONObject(0)
-                        val jabatan = userData.optString("jabatan", "")
-                        val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
-
-                        hasKemandoranPpro = kemandoranPpro > 0
-                        isGMOrRH = jabatan.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) ||
-                                jabatan.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true)
-
-                        AppLogger.d("User $idUser jabatan=$jabatan | GM/RH=$isGMOrRH | kemandoran_ppro=$kemandoranPpro")
-                    }
+            if (!checkBody.isNullOrEmpty()) {
+                val checkJson = JSONObject(checkBody)
+                if (checkJson.optBoolean("success")) {
+                    val data = checkJson.optJSONArray("data")?.optJSONObject(0)
+                    val kemandoran = data?.optInt("kemandoran_ppro", 0) ?: 0
+                    hasKemandoranPpro = kemandoran > 0
+                    AppLogger.d("User $idUser has kemandoran_ppro=$kemandoran (join=$hasKemandoranPpro)")
                 }
             }
         } catch (e: Exception) {
-            AppLogger.e("Error checking user data: ${e.message}")
+            AppLogger.e("Error checking kemandoran_ppro: ${e.message}")
         }
 
-        // Step 2: Build the main query dynamically
-        val jsonObject = JSONObject().apply {
+        // Step 2: Get main user + sys_user_org
+        val mainQuery = JSONObject().apply {
             put("table", "sys_user")
-
             put("select", JSONArray().apply {
                 put("username")
                 put("nama")
@@ -75,9 +60,7 @@ class SyncDataUserRepository(
                 put("kemandoran_ppro")
                 put("kemandoran_nama")
             })
-
             put("join", JSONArray().apply {
-                // Join sys_user_org
                 put(JSONObject().apply {
                     put("table", "sys_user_org")
                     put("select", JSONArray().apply {
@@ -86,44 +69,118 @@ class SyncDataUserRepository(
                     })
                     put("on", "sys_user.id = sys_user_org.uid")
                 })
-
-                // Join dept
-                put(JSONObject().apply {
-                    put("table", "dept")
-                    put("select", JSONArray().apply {
-                        put("regional")
-                        put("wilayah")
-                        put("company")
-                        put("company_abbr")
-                        put("company_nama")
-                        put("abbr")
-                        put("nama")
-                    })
-                    put("on", "sys_user_org.dept = dept.id")
-                })
-
-                // Only join kemandoran if NOT GM/RH and has valid ppro
-                if (!isGMOrRH && hasKemandoranPpro) {
+                if (hasKemandoranPpro) {
                     put(JSONObject().apply {
                         put("table", "kemandoran_sync")
-                        put("select", JSONArray().apply {
-                            put("kode")
-                        })
+                        put("select", JSONArray().apply { put("kode") })
                         put("on", "sys_user.kemandoran_ppro = kemandoran_sync.kemandoran_ppro")
                     })
                 }
             })
+            put("where", JSONObject().apply { put("id", idUser) })
+        }
 
+        val mainResponse = ApiService.getDataRaw(mainQuery.toString().toRequestBody("application/json".toMediaType()))
+        val mainBody = mainResponse.body()?.string()
+        AppLogger.d("📩 Main user response: ${mainBody ?: "null"}")
+
+        if (mainBody.isNullOrEmpty()) {
+            return Response.success(ResponseBody.create("application/json".toMediaType(), """{"success":false,"message":"No data found"}"""))
+        }
+
+        val mainJson = JSONObject(mainBody)
+        if (!mainJson.optBoolean("success", false)) {
+            return Response.success(ResponseBody.create("application/json".toMediaType(), """{"success":false,"message":"Invalid user"}"""))
+        }
+
+        val dataArray = mainJson.optJSONArray("data")
+        if (dataArray == null || dataArray.length() == 0) {
+            return Response.success(ResponseBody.create("application/json".toMediaType(), """{"success":false,"message":"Empty user data"}"""))
+        }
+
+        val mainUserData = dataArray.getJSONObject(0)
+        val userOrgArray = mainUserData.optJSONArray("userOrg")
+        val firstOrg = userOrgArray?.optJSONObject(0)
+        val deptValue = firstOrg?.optString("dept", "") ?: ""
+
+        if (deptValue.isEmpty()) {
+            AppLogger.w("⚠️ No dept value found in userOrg, returning base user only")
+            val finalData = JSONObject().apply {
+                put("success", true)
+                put("data", dataArray)
+                put("count", dataArray.length())
+            }
+            return Response.success(finalData.toString().toResponseBody("application/json".toMediaType()))
+        }
+
+        // Step 3: Split and query dept table using IN clause
+        val estateIds = deptValue.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+        val deptQuery = JSONObject().apply {
+            put("table", "dept")
+            put("select", JSONArray().apply {
+                put("regional")
+                put("wilayah")
+                put("company")
+                put("company_abbr")
+                put("company_nama")
+                put("abbr")
+                put("nama")
+            })
             put("where", JSONObject().apply {
-                put("id", idUser)
+                put("id", JSONObject().apply {
+                    put("in", JSONArray(estateIds))
+                })
             })
         }
 
-        val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+        AppLogger.d("📤 Dept query for all estates: $deptQuery")
 
-        AppLogger.d("✅ User Data API Request (GM/RH=$isGMOrRH | Kemandoran JOIN=${!isGMOrRH && hasKemandoranPpro}): $jsonObject")
+        val deptResponse = ApiService.getDataRaw(deptQuery.toString().toRequestBody("application/json".toMediaType()))
+        val deptBody = deptResponse.body()?.string()
+        AppLogger.d("📩 Dept response: ${deptBody ?: "null"}")
 
-        return ApiService.getDataRaw(requestBody)
+        val deptJson = JSONObject(deptBody ?: "{}")
+        val deptsData = if (deptJson.optBoolean("success", false)) deptJson.optJSONArray("data") else JSONArray()
+
+        // Step 4: Merge Depts into user
+        // Step 4: Merge Depts into user with SysUserOrg inside
+        val sysUserOrg = firstOrg ?: JSONObject() // from earlier (dept + divisi + uid + etc.)
+        val deptsFullArray = JSONArray()
+
+        for (i in 0 until (deptsData?.length() ?: 0)) {
+            val deptObj = deptsData!!.getJSONObject(i)
+
+            // Deep copy SysUserOrg data into each dept
+            val sysUserOrgObj = JSONObject().apply {
+                put("id", sysUserOrg.optInt("id", 0))
+                put("uid", idUser)
+                put("company", sysUserOrg.optString("company", ""))
+                put("dept", sysUserOrg.optString("dept", ""))
+                put("users", JSONObject.NULL)
+                put("divisi", sysUserOrg.optString("divisi", ""))
+            }
+
+            deptObj.put("SysUserOrg", sysUserOrgObj)
+            deptsFullArray.put(deptObj)
+        }
+
+        mainUserData.put("Depts", deptsFullArray)
+        mainJson.put("data", JSONArray().apply { put(mainUserData) })
+        mainJson.put("count", 1)
+
+
+        AppLogger.d("🎯 Final merged user data:\n${mainJson.toString(2)}")
+
+        // Step 5: Return
+        val headers = Headers.Builder()
+            .add("Content-Type", "application/json")
+            .build()
+
+        val responseBody = mainJson.toString().toResponseBody("application/json".toMediaType())
+        return Response.success(responseBody, headers)
+
     }
+
 
 }
