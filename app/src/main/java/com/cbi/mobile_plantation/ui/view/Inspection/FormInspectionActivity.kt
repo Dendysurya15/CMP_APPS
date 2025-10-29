@@ -7158,12 +7158,11 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
         val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+        val isGMorRH = isGM || isRH
 
-        if (!isGM || !isRH) {
-            if (linearLayout.id == R.id.lyEstInspect) {
-                spinner.isEnabled = false
-                lyEstInspect.visibility = View.GONE
-            }
+        if (linearLayout.id == R.id.lyEstInspect) {
+            spinner.isEnabled = isGMorRH
+            lyEstInspect.visibility = if (isGMorRH) View.VISIBLE else View.GONE
         }
 
         if (!isStartFromTPH) {
