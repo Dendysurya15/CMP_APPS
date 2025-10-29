@@ -475,10 +475,12 @@ class HomePageActivity : AppCompatActivity() {
                     delay(300)
                 }
                 val jabatanUser = prefManager!!.jabatanUserLogin
-                val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
-                val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+                val isAskepUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.ASKEP.lowercase()) == true
+                val isManagerUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.Manager.lowercase()) == true
+                val isGM = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase()) == true
+                val isRH = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) == true
 
-                if (!isAskepUser && !isManagerUser) {
+                if (!isAskepUser && !isManagerUser && !isGM && !isRH) {
                     try {
                         val afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull() ?: 0
 
@@ -516,7 +518,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                if (!isAskepUser && !isManagerUser) {
+                if (!isAskepUser && !isManagerUser && !isGM && !isRH) {
                     try {
                         val afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull() ?: 0
 
@@ -538,9 +540,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-
-// Skip panen count loading for askep and manager users since they can have multiple afdelings
-                if (!isAskepUser && !isManagerUser) {
+                if (!isAskepUser && !isManagerUser && !isGM && !isRH) {
                     try {
                         val afdelingId = prefManager!!.afdelingIdUserLogin
                         val countDeferred =
@@ -941,6 +941,10 @@ class HomePageActivity : AppCompatActivity() {
 
             // Determine which role pattern matches the jabatan
             val matchedRole = when {
+
+                jabatan.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) ->
+                    AppUtils.ListFeatureByRoleUser.RH
+
                 jabatan.contains(AppUtils.ListFeatureByRoleUser.KeraniPanen, ignoreCase = true) ->
                     AppUtils.ListFeatureByRoleUser.KeraniPanen
 
@@ -1049,6 +1053,17 @@ class HomePageActivity : AppCompatActivity() {
 
                     features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
                 )
+
+                AppUtils.ListFeatureByRoleUser.RH -> listOfNotNull(
+                    features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.InspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapInspeksiPanen },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.FollowUpInspeksi },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.MutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.RekapMutuBuah },
+                    features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP },
+                )
+
 
                 AppUtils.ListFeatureByRoleUser.Manager -> listOfNotNull(
                     features.find { it.featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen },
@@ -1638,16 +1653,16 @@ class HomePageActivity : AppCompatActivity() {
 
                             AppLogger.d("jabatan user $jabatanUser")
 
-                            val afdeling = ValidationSyncHelper.validateAfdeling(
-                                this@HomePageActivity,
-                                prefManager!!,
-                                datasetViewModel,
-                                shouldSkipAfdelingCheck
-                            )
+                            if (!shouldSkipAfdelingCheck) {
+                                ValidationSyncHelper.validateAfdeling(
+                                    this@HomePageActivity,
+                                    prefManager!!,
+                                    datasetViewModel,
+                                    shouldSkipAfdelingCheck = false
+                                ) ?: return@launch
+                            }
 
-                            // If afdeling validation failed and we're not skipping, return
-                            if (!shouldSkipAfdelingCheck && afdeling == null) return@launch
-
+                            AppLogger.d("masuk gess")
                             // Validate sync date
                             val lastSyncDateTime = prefManager?.lastSyncFollowUpInspeksi
                             val isSyncValid = ValidationSyncHelper.validateSyncDate(
@@ -1656,6 +1671,10 @@ class HomePageActivity : AppCompatActivity() {
                                 checkCurrentDate = true
                             )
 
+
+                            AppLogger.d("Loh gess gess")
+
+                            AppLogger.d("isSyncValid $isSyncValid")
                             if (isSyncValid) {
                                 val intent =
                                     Intent(this@HomePageActivity, ListFollowUpInspeksi::class.java)
@@ -1663,6 +1682,7 @@ class HomePageActivity : AppCompatActivity() {
                                     "FEATURE_NAME",
                                     AppUtils.ListFeatureNames.ListFollowUpInspeksi
                                 )
+                                AppLogger.d("kj askdjfla sdfkl")
                                 startActivity(intent)
                             }
 
@@ -2046,16 +2066,16 @@ class HomePageActivity : AppCompatActivity() {
                     lifecycleScope.launch {
                         try {
                             val jabatanUser = prefManager?.jabatanUserLogin
-                            val shouldSkipAfdelingCheck =
-                                ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
+                            val shouldSkipAfdelingCheck = ValidationSyncHelper.shouldSkipAfdelingCheck(jabatanUser)
 
-                            // Validate afdeling if needed
-                            ValidationSyncHelper.validateAfdeling(
-                                this@HomePageActivity,
-                                prefManager!!,
-                                datasetViewModel,
-                                shouldSkipAfdelingCheck
-                            ) ?: return@launch
+                            if (!shouldSkipAfdelingCheck) {
+                                ValidationSyncHelper.validateAfdeling(
+                                    this@HomePageActivity,
+                                    prefManager!!,
+                                    datasetViewModel,
+                                    shouldSkipAfdelingCheck = false
+                                ) ?: return@launch
+                            }
 
                             // Validate sync date
                             val lastSyncDateTime =
@@ -2342,12 +2362,17 @@ class HomePageActivity : AppCompatActivity() {
                                     ignoreCase = true
                                 )
 
+                                val isRH = prefManager!!.jabatanUserLogin!!.contains(
+                                    AppUtils.ListFeatureByRoleUser.RH,
+                                    ignoreCase = true
+                                )
+
                                 val isMandorPanen = prefManager!!.jabatanUserLogin!!.contains(
                                     AppUtils.ListFeatureByRoleUser.MandorPanen,
                                     ignoreCase = true
                                 )
 
-                                val estateIds = if (isGM && estateIdString!!.contains(",")) {
+                                val estateIds = if ((isGM || isRH)&& estateIdString!!.contains(",")) {
                                     estateIdString.split(",")
                                         .map { it.trim() }
                                         .filter { it.isNotEmpty() }
@@ -2356,12 +2381,9 @@ class HomePageActivity : AppCompatActivity() {
                                     estateIdString!!.toInt()
                                 }
 
-
-                                // Validate afdelingId and get valid integer value
                                 var validAfdelingId: Int? = null
 
-                                if (!isKeraniPanen && !isGM) {
-                                    // Check if afdelingId is null or empty
+                                if (!isKeraniPanen && !isGM && !isRH) {
                                     if (afdelingIdString.isNullOrEmpty()) {
                                         withContext(Dispatchers.Main) {
                                             previewRestanData =
@@ -2392,7 +2414,7 @@ class HomePageActivity : AppCompatActivity() {
                                 }
 
                                 if (!isKeraniPanen) {
-                                    if (!isGM && !isMandorPanen) {
+                                    if (!isGM && !isMandorPanen && !isRH) {
                                         val restanDataDeferred = CompletableDeferred<String>()
                                         val restanObserver = Observer<String> { data ->
                                             if (!restanDataDeferred.isCompleted) {
@@ -2474,8 +2496,6 @@ class HomePageActivity : AppCompatActivity() {
 
                                     AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
 
-                                    // === FOLLOW UP INSPEKSI API (requires afdeling - skip for GM) ===
-//                                    if (!isGM) {
                                     val dataFollowUpInspeksiDeferred =
                                         CompletableDeferred<String>()
 
@@ -2491,8 +2511,9 @@ class HomePageActivity : AppCompatActivity() {
                                         dataFollowUpInspeksiObserver
                                     )
 
+                                    AppLogger.d("estateidString $estateIdString")
                                     datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
-                                        estateIdString,
+                                        estateIds,
                                         validAfdelingId.toString()
                                     )
 
@@ -2989,9 +3010,6 @@ class HomePageActivity : AppCompatActivity() {
                                 )
                             }
 
-
-
-
                             if (espbDataToUpload.isNotEmpty()) {
                                 // Create a wrapper with the table name
                                 val wrappedData = mapOf(
@@ -3292,11 +3310,10 @@ class HomePageActivity : AppCompatActivity() {
                                     "tanggal" to panenWithRelations.panen.date_created,
                                     "jjg_json" to panenWithRelations.panen.jjg_json,
                                     "tipe" to panenWithRelations.panen.jenis_panen,
-                                    "created_by" to prefManager!!.idUserLogin.toString(),
-                                    "created_name" to prefManager!!.nameUserLogin.toString(),
-                                    "created_date" to panenWithRelations.panen.date_created,
+                                    "created_by_kp" to prefManager!!.idUserLogin.toString(),
+                                    "created_name_kp" to prefManager!!.nameUserLogin.toString(),
+                                    "created_date_kp" to panenWithRelations.panen.date_created,
                                     "jabatan" to prefManager!!.jabatanUserLogin.toString(),
-
                                     "regional" to panenWithRelations.tph?.regional.toString(),
                                     "wilayah" to panenWithRelations.tph?.wilayah.toString(),
                                     "company" to panenWithRelations.tph?.company.toString(),
@@ -3353,7 +3370,9 @@ class HomePageActivity : AppCompatActivity() {
                                     "id" to panenWithRelations.panen.id,
                                     "tph" to (panenWithRelations.panen.tph_id.toIntOrNull() ?: 0),
                                     "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
-                                    "created_date" to panenWithRelations.panen.date_created,
+                                    "created_by_kp" to prefManager!!.idUserLogin.toString(),
+                                    "created_name_kp" to prefManager!!.nameUserLogin.toString(),
+                                    "created_date_kp" to panenWithRelations.panen.date_created,
                                     "no_espb" to panenWithRelations.panen.no_espb,
                                     "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
                                     "regional" to panenWithRelations.tph?.regional.toString(),
@@ -3419,24 +3438,24 @@ class HomePageActivity : AppCompatActivity() {
                                     "Data Panen ${prefManager!!.estateUserLogin} batch ${batchIndex + 1}"
                                 }
 
-//                                try {
-//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                        if (!exists()) mkdirs()
-//                                    }
-//
-//                                    val tempFilename =
-//                                        "panen_data_${System.currentTimeMillis()}.json"
-//                                    val tempFile = File(tempDir, tempFilename)
-//
-//                                    FileOutputStream(tempFile).use { fos ->
-//                                        fos.write(batchJson.toByteArray())
-//                                    }
-//
-//                                    AppLogger.d("Saved raw panen data to temp file: ${tempFile.absolutePath}")
-//                                } catch (e: Exception) {
-//                                    AppLogger.e("Failed to save panen data to temp file: ${e.message}")
-//                                    e.printStackTrace()
-//                                }
+                                try {
+                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
+
+                                    val tempFilename =
+                                        "panen_data_${System.currentTimeMillis()}.json"
+                                    val tempFile = File(tempDir, tempFilename)
+
+                                    FileOutputStream(tempFile).use { fos ->
+                                        fos.write(batchJson.toByteArray())
+                                    }
+
+                                    AppLogger.d("Saved raw panen data to temp file: ${tempFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to save panen data to temp file: ${e.message}")
+                                    e.printStackTrace()
+                                }
 
                                 panenBatchMap[batchKey] = mapOf(
                                     "data" to batchJson,
@@ -6926,7 +6945,7 @@ class HomePageActivity : AppCompatActivity() {
             val itemsToUpload = uploadItems.toList()
             processedTrackingIds.clear()
             // Start the upload process
-            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload, prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
+            uploadCMPViewModel.uploadMultipleJsonsV4(itemsToUpload, prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
         }
 
         btnUploadDataCMP.setOnClickListener {
@@ -8287,11 +8306,13 @@ class HomePageActivity : AppCompatActivity() {
 
         val jabatanUser = prefManager!!.jabatanUserLogin
         val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
+        val isRHUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.RH) == true
         val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
         val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
         val canHaveMultipleAfdelings = isAskepUser || isManagerUser
 
-        if (!isGMUser) {
+        // Estate validation
+        if (!isGMUser && !isRHUser) {
             if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
                 showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
                 loadingDialog.dismiss()
@@ -8318,7 +8339,8 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        if (!canHaveMultipleAfdelings) {
+        // Afdeling validation - SKIP for GM users
+        if ((!isGMUser || !isRHUser )&&  !canHaveMultipleAfdelings) {
             if (afdelingIdString.isNullOrEmpty() || afdelingIdString.isBlank()) {
                 showErrorDialog("Afdeling ID is not valid. Current value: '$afdelingIdString'")
                 loadingDialog.dismiss()
@@ -8339,6 +8361,7 @@ class HomePageActivity : AppCompatActivity() {
                     return
                 }
             } catch (e: NumberFormatException) {
+                AppLogger.d("Invalid afdeling format")
                 showErrorDialog("Invalid Afdeling ID format: '$afdelingIdString'")
                 loadingDialog.dismiss()
                 return
@@ -8354,7 +8377,9 @@ class HomePageActivity : AppCompatActivity() {
                     this@HomePageActivity.isTriggerButtonSinkronisasiData
             }
 
-            val estateIds = if (isGMUser && estateIdString!!.contains(",")) {
+            AppLogger.d("isRHUser $isRHUser")
+
+            val estateIds = if ((isGMUser || isRHUser) && estateIdString!!.contains(",")) {
                 estateIdString.split(",")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
@@ -8363,28 +8388,29 @@ class HomePageActivity : AppCompatActivity() {
                 estateIdString!!
             }
 
-
-            val afdelingIds = if (canHaveMultipleAfdelings && afdelingIdString!!.contains(",")) {
-                afdelingIdString.split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .map { it.toInt() }
-            } else {
-                afdelingIdString!!
+            val afdelingIds = when {
+                isGMUser || isRHUser -> null
+                canHaveMultipleAfdelings && afdelingIdString!!.contains(",") -> {
+                    afdelingIdString.split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .map { it.toInt() }
+                }
+                else -> afdelingIdString
             }
 
             AppLogger.d("estateIds $estateIds")
             AppLogger.d("afdelingIds $afdelingIds")
 
             val creatorInfo = AppUtils.createCreatorInfo(this).toString()
-            val createdBy = prefManager!!.idUserLogin?: 0
+            val createdBy = prefManager!!.idUserLogin ?: 0
 
             val allDatasets = downloadDatasetUtility.getDatasetsToDownload(
                 creatorInfo,
                 createdBy,
                 regionalIdString!!.toInt(),
                 estateIds,
-                afdelingIdString,
+                afdelingIds,
                 lastModifiedDatasetEstate,
                 lastModifiedDatasetTPH,
                 lastModifiedDatasetJenisTPH,
@@ -8396,7 +8422,7 @@ class HomePageActivity : AppCompatActivity() {
                 lastModifiedSettingJSON
             )
 
-            val storedList = prefManager!!.datasetMustUpdate // Retrieve list
+            val storedList = prefManager!!.datasetMustUpdate
 
             AppLogger.d("storedList $storedList")
             AppLogger.d("allDatasets $allDatasets")
@@ -8408,7 +8434,6 @@ class HomePageActivity : AppCompatActivity() {
                     allDatasets.filterNot { prefManager!!.datasetMustUpdate.contains(it.dataset) }
                 }
 
-            // Dismiss loading dialog if it was shown
             if (isTriggerButtonSinkronisasiData) {
                 loadingDialog.dismiss()
             }
@@ -8433,8 +8458,8 @@ class HomePageActivity : AppCompatActivity() {
             }
         } catch (e: NumberFormatException) {
             loadingDialog.dismiss()
-            AppLogger.d("Downloads: Failed to parse Estate ID: ${e.message}")
-            showErrorDialog("Invalid Estate ID format: ${e.message}")
+            AppLogger.d("Downloads: Failed to parse ID: ${e.message}")
+            showErrorDialog("Invalid ID format: ${e.message}")
         }
     }
 
@@ -9126,18 +9151,20 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun refreshPanenCount() {
         val jabatanUser = prefManager!!.jabatanUserLogin
-        val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
-        val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
+        val isAskepUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.ASKEP.lowercase()) == true
+        val isManagerUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.Manager.lowercase()) == true
+        val isGMUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase()) == true
+        val isRHUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) == true
 
+        AppLogger.d("isRHUser $isRHUser")
+        AppLogger.d("jabatan $jabatanUser")
         // Skip for askep and manager users since they can have multiple afdelings
-        if (isAskepUser || isManagerUser) {
+        if (isAskepUser || isManagerUser ||isGMUser || isRHUser) {
             AppLogger.d("Skipping panen count refresh for askep/manager user")
             return
         }
 
-
-        AppLogger.d("afdeling bro ${prefManager!!.afdelingIdUserLogin}")
-        lifecycleScope.launch(Dispatchers.IO) { // ✅ Explicitly use IO dispatcher
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val afdelingId = prefManager!!.afdelingIdUserLogin
 
@@ -9150,19 +9177,15 @@ class HomePageActivity : AppCompatActivity() {
                     hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateToday()
                 }
 
-
-
-                // Wait for both to complete
                 val panenCount = newCount.await()
                 val hektarCount = countHektarZero.await()
 
-                // ✅ Switch to Main thread ONLY for UI updates
                 withContext(Dispatchers.Main) {
                     featureAdapter.updateCount(
-                        "Rekap panen dan restan",
+                        AppUtils.ListFeatureNames.RekapPanenDanRestan,
                         panenCount.toString()
                     )
-                    featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapPanenDanRestan)
 
                     featureAdapter.updateCount(
                         AppUtils.ListFeatureNames.DaftarHektarPanen,
@@ -9175,7 +9198,7 @@ class HomePageActivity : AppCompatActivity() {
 
                 // Update UI on error
                 withContext(Dispatchers.Main) {
-                    featureAdapter.hideLoadingForFeature("Rekap panen dan restan")
+                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapPanenDanRestan)
                     featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
                 }
             }

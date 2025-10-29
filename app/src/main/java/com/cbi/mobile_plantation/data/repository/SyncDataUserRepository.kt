@@ -6,6 +6,7 @@ import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import org.json.JSONArray
@@ -21,22 +22,25 @@ class SyncDataUserRepository(
 ){
 
     suspend fun getDataUser(idUser: Int): Response<ResponseBody> {
-        // First, check if user has kemandoran_ppro
-        val checkKemandoranQuery = JSONObject().apply {
-            put("table", "sys_user")
-            put("select", JSONArray().apply {
-                put("kemandoran_ppro")
-            })
-            put("where", JSONObject().apply {
-                put("id", idUser)
-            })
-        }
-        val checkRequestBody = checkKemandoranQuery.toString().toRequestBody("application/json".toMediaType())
-        val checkResponse = ApiService.getDataRaw(checkRequestBody)
-
         var hasKemandoranPpro = false
+        var isGMOrRH = false
 
         try {
+            // Step 1: Check jabatan + kemandoran_ppro first
+            val checkUserQuery = JSONObject().apply {
+                put("table", "sys_user")
+                put("select", JSONArray().apply {
+                    put("jabatan")
+                    put("kemandoran_ppro")
+                })
+                put("where", JSONObject().apply {
+                    put("id", idUser)
+                })
+            }
+
+            val checkRequestBody = checkUserQuery.toString().toRequestBody("application/json".toMediaType())
+            val checkResponse = ApiService.getDataRaw(checkRequestBody)
+
             val checkResponseBody = checkResponse.body()?.string()
             if (checkResponseBody != null) {
                 val checkJsonObject = JSONObject(checkResponseBody)
@@ -44,18 +48,22 @@ class SyncDataUserRepository(
                     val dataArray = checkJsonObject.optJSONArray("data")
                     if (dataArray != null && dataArray.length() > 0) {
                         val userData = dataArray.getJSONObject(0)
+                        val jabatan = userData.optString("jabatan", "")
                         val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
+
                         hasKemandoranPpro = kemandoranPpro > 0
-                        AppLogger.d("User $idUser has kemandoran_ppro: $kemandoranPpro, will include JOIN: $hasKemandoranPpro")
+                        isGMOrRH = jabatan.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) ||
+                                jabatan.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true)
+
+                        AppLogger.d("User $idUser jabatan=$jabatan | GM/RH=$isGMOrRH | kemandoran_ppro=$kemandoranPpro")
                     }
                 }
             }
         } catch (e: Exception) {
-            AppLogger.e("Error checking kemandoran_ppro: ${e.message}")
-            hasKemandoranPpro = false
+            AppLogger.e("Error checking user data: ${e.message}")
         }
 
-        // Now build the main query with conditional JOIN
+        // Step 2: Build the main query dynamically
         val jsonObject = JSONObject().apply {
             put("table", "sys_user")
 
@@ -68,8 +76,8 @@ class SyncDataUserRepository(
                 put("kemandoran_nama")
             })
 
-            // JOIN configuration with select for each table
             put("join", JSONArray().apply {
+                // Join sys_user_org
                 put(JSONObject().apply {
                     put("table", "sys_user_org")
                     put("select", JSONArray().apply {
@@ -79,6 +87,7 @@ class SyncDataUserRepository(
                     put("on", "sys_user.id = sys_user_org.uid")
                 })
 
+                // Join dept
                 put(JSONObject().apply {
                     put("table", "dept")
                     put("select", JSONArray().apply {
@@ -93,8 +102,8 @@ class SyncDataUserRepository(
                     put("on", "sys_user_org.dept = dept.id")
                 })
 
-                // Only add kemandoran JOIN if user has valid kemandoran_ppro
-                if (hasKemandoranPpro) {
+                // Only join kemandoran if NOT GM/RH and has valid ppro
+                if (!isGMOrRH && hasKemandoranPpro) {
                     put(JSONObject().apply {
                         put("table", "kemandoran_sync")
                         put("select", JSONArray().apply {
@@ -105,17 +114,16 @@ class SyncDataUserRepository(
                 }
             })
 
-            // Build WHERE clause
             put("where", JSONObject().apply {
                 put("id", idUser)
             })
         }
 
-        // Convert JSONObject to RequestBody
         val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
 
-        AppLogger.d("User Data API Request (with kemandoran JOIN: $hasKemandoranPpro): ${jsonObject.toString()}")
+        AppLogger.d("✅ User Data API Request (GM/RH=$isGMOrRH | Kemandoran JOIN=${!isGMOrRH && hasKemandoranPpro}): $jsonObject")
 
         return ApiService.getDataRaw(requestBody)
     }
+
 }

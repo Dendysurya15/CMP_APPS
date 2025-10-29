@@ -7,9 +7,6 @@ import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
-import com.cbi.mobile_plantation.data.network.CMPApiClient
-
-
 import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -140,7 +137,7 @@ class UploadCMPRepository(context: Context) {
         val failed: Int
     )
 
-    suspend fun uploadJsonToServerV3(
+    suspend fun uploadJsonToServerV4(
         idUserLogin: Int,
         estateAbbrUser: String,
         jsonFilePath: String,
@@ -350,7 +347,7 @@ class UploadCMPRepository(context: Context) {
                                 onProgressUpdate(50, false, "Sending ${photoParts.size} images to server...")
                             }
 
-                            val response = CMPApiClient.instance.uploadPhotos(
+                            val response = TestingAPIClient.instance.uploadPhotos(
                                 photos = photoParts,
                                 datasetType = datasetTypeRequestBody,
                                 path = basePathRequestBody
@@ -640,7 +637,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = TestingAPIClient.instance.uploadJsonV4Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1222,7 +1219,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = TestingAPIClient.instance.uploadJsonV4Raw(
                             jsonData = jsonRequestBody
                         )
 

@@ -428,6 +428,7 @@ object AppUtils {
     }
 
     object ListFeatureByRoleUser {
+        const val RH = "Regional Head"
         const val Manager = "Manager"
         const val GM = "GM"
         const val ASKEP = "ASKEP"

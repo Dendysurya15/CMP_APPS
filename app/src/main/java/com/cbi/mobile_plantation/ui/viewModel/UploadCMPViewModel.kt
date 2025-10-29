@@ -230,7 +230,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun uploadMultipleJsonsV3(items: List<UploadCMPItem> ,idUserLogin:Int, estateAbbrUser :String,) {
+    fun uploadMultipleJsonsV4(items: List<UploadCMPItem> ,idUserLogin:Int, estateAbbrUser :String,) {
         viewModelScope.launch {
             // Reset counters - these operations are safe as they're in the viewModelScope
             _completedCount.value = 0
@@ -274,7 +274,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 val tableIds = item.tableIds
                 val databaseTable = item.databaseTable
 
-                val result = repository.uploadJsonToServerV3(
+                val result = repository.uploadJsonToServerV4(
                     idUserLogin,
                     estateAbbrUser,
                     jsonFilePath = jsonFilePath,

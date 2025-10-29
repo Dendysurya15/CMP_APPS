@@ -811,6 +811,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
+    fun clearDownloadMapProgress() {
+        _downloadMapProgress.postValue(null)
+    }
+
 
     fun getDownloadMapList() {
         viewModelScope.launch {
@@ -2157,10 +2161,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val response = withContext(Dispatchers.IO) {
                     // ✅ Pass parameterDao to the repository method
+
+                    AppLogger.d("estate salkjfksdf $estate")
                     dataPanenInspectionRepository.getDataInspeksi(
                         estate = estate,
-                        joinTable = false, // ✅ Set to true to include inspeksi_detail join
-                        parameterDao = parameterDao // You'll need to inject this
+                        joinTable = false,
+                        parameterDao = parameterDao
                     )
                 }
 
@@ -2169,7 +2175,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     val jsonString = response.body()?.string() ?: ""
                     AppLogger.d(jsonString.toString())
 
-                    val formattedData = processPreviewDataInspeksi(jsonString)
+
+                    val formattedData = processPreviewDataInspeksi(jsonString,estate)
                     _followUpInspeksiPreview.value = formattedData
                 } else {
                     _followUpInspeksiPreview.value = "Gagal memuat data: ${response.message()}"
@@ -2801,38 +2808,32 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             AppUtils.DatasetNames.sinkronisasiDataUser -> {
                 try {
-                    // Parsing - update to 60%
                     progressMap[itemId] = 60
                     _itemProgressMap.postValue(progressMap.toMap())
 
                     val jsonObject = JSONObject(responseBodyString)
                     AppLogger.d(jsonObject.toString())
 
-                    // Check if response is successful
                     if (jsonObject.optBoolean("success", false)) {
                         val dataArray = jsonObject.optJSONArray("data")
 
                         if (dataArray != null && dataArray.length() > 0) {
-                            // Update to 75% before processing data
                             progressMap[itemId] = 75
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            val userData = dataArray.getJSONObject(0) // Get first user data
-
-                            // Extract user basic info
+                            val userData = dataArray.getJSONObject(0)
                             val username = userData.optString("username", "")
                             val nama = userData.optString("nama", "")
                             val jabatan = userData.optString("jabatan", "")
-                            // Note: kemandoran fields are extracted but not saved to preferences
 
-                            // Extract kemandoranData for kode (only if exists)
+                            // Kemandoran kode
                             val kemandoranDataObject = userData.optJSONObject("kemandoranData")
                             var kemandoranKode = ""
                             if (kemandoranDataObject != null) {
                                 kemandoranKode = kemandoranDataObject.optString("kode", "")
                             }
 
-                            // Extract userOrg data
+                            // userOrg
                             val userOrgArray = userData.optJSONArray("userOrg")
                             var dept = ""
                             var divisi = ""
@@ -2842,7 +2843,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 divisi = userOrg.optString("divisi", "")
                             }
 
-                            // Extract Depts data
+                            // Depts
                             val deptsArray = userData.optJSONArray("Depts")
                             var regional = ""
                             var wilayah = 0
@@ -2863,16 +2864,42 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 estateNama = deptData.optString("nama", "")
                             }
 
-                            // Update to 85% before saving to preferences
                             progressMap[itemId] = 85
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            // Extract kemandoran data (check if they exist)
                             val kemandoran = userData.optInt("kemandoran", 0)
                             val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
                             val kemandoranNama = userData.optString("kemandoran_nama", "")
 
                             try {
+                                // ✅ LOG EVERYTHING THAT WILL BE SAVED
+                                AppLogger.d(
+                                    """
+                        🧩 User Data Ready to Save:
+                        -------------------------------------
+                        👤 username: $username
+                        👤 nama: $nama
+                        🏷️ jabatan: $jabatan
+
+                        🌍 regionalIdUserLogin: $regional
+                        🌐 wilayah: $wilayah
+                        🏢 companyIdUserLogin: $company
+                        🏢 companyAbbrUserLogin: $companyAbbr
+                        🏢 companyNamaUserLogin: $companyNama
+
+                        🌾 estateUserLogin: $estateAbbr
+                        🌾 estateUserLengkapLogin: $estateNama
+                        🏠 estateIdUserLogin (dept): $dept
+                        🧭 afdelingIdUserLogin (divisi): $divisi
+
+                        🧑‍🌾 kemandoran: $kemandoran
+                        🧩 kemandoran_ppro: $kemandoranPpro
+                        🧱 kemandoran_nama: $kemandoranNama
+                        🔢 kemandoran_kode: $kemandoranKode
+                        -------------------------------------
+                        """.trimIndent()
+                                )
+
                                 prefManager.apply {
                                     nameUserLogin = nama
                                     jabatanUserLogin = jabatan
@@ -2885,29 +2912,26 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     companyNamaUserLogin = companyNama
                                     afdelingIdUserLogin = divisi
 
-                                    // Only save kemandoran data if kemandoran_ppro exists and is valid
                                     if (kemandoranPpro > 0) {
                                         kemandoranPPROUserLogin = kemandoranPpro.toString()
                                         kemandoranUserLogin = kemandoranPpro.toString()
                                         kemandoranNamaUserLogin = kemandoranNama
                                         kemandoranKodeUserLogin = kemandoranKode
-                                        AppLogger.d("Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")
+                                        AppLogger.d("✅ Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")
                                     } else {
-                                        // Clear kemandoran preferences if no valid data
                                         kemandoranPPROUserLogin = ""
                                         kemandoranUserLogin = ""
                                         kemandoranNamaUserLogin = ""
                                         kemandoranKodeUserLogin = ""
-                                        AppLogger.d("Cleared kemandoran data - no valid kemandoran_ppro found")
+                                        AppLogger.d("🚫 Cleared kemandoran data (no valid PPRO)")
                                     }
                                 }
 
                                 progressMap[itemId] = 95
                                 _itemProgressMap.postValue(progressMap.toMap())
 
-                                AppLogger.d("Successfully updated user data in preferences")
+                                AppLogger.d("✅ Successfully updated user data in preferences")
 
-                                // Final update - 100%
                                 progressMap[itemId] = 100
                                 _itemProgressMap.postValue(progressMap.toMap())
 
@@ -2924,7 +2948,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 progressMap[itemId] = 100
                                 _itemProgressMap.postValue(progressMap.toMap())
 
-                                AppLogger.e("Error updating preferences: ${prefException.message}")
+                                AppLogger.e("❌ Error updating preferences: ${prefException.message}")
                                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                                 errorMap[itemId] =
                                     "Error updating preferences: ${prefException.message}"
@@ -2934,7 +2958,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             progressMap[itemId] = 100
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            AppLogger.e("No user data found in response")
+                            AppLogger.e("❌ No user data found in response")
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "No user data found in response"
                         }
@@ -2943,20 +2967,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         _itemProgressMap.postValue(progressMap.toMap())
 
                         val message = jsonObject.optString("message", "Unknown error")
-                        AppLogger.e("API returned error: $message")
+                        AppLogger.e("❌ API returned error: $message")
                         statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                         errorMap[itemId] = "API error: $message"
                     }
 
                 } catch (e: Exception) {
-                    progressMap[itemId] = 100  // Still show 100% even on error
+                    progressMap[itemId] = 100
                     _itemProgressMap.postValue(progressMap.toMap())
 
-                    AppLogger.e("Error processing user data: ${e.message}")
+                    AppLogger.e("💥 Error processing user data: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error processing user data: ${e.message}"
                 }
             }
+
 
             AppUtils.DatasetNames.checkAppVersion -> {
                 try {
@@ -4332,12 +4357,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         AppLogger.d("Detail results: Success=$detailSuccessCount, Failed=$detailFailCount")
     }
 
-    fun processPreviewDataInspeksi(jsonResponse: String): String {
+    fun processPreviewDataInspeksi(jsonResponse: String, estate: Any): String {
         try {
             val jsonObject = JSONObject(jsonResponse)
 
             if (jsonObject.optBoolean("success", false)) {
                 val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
+
+                AppLogger.d("processPreviewDataInspeksi - estate type: ${estate::class.simpleName}")
+                AppLogger.d("processPreviewDataInspeksi - estate value: $estate")
+                AppLogger.d("processPreviewDataInspeksi - dataArray length: ${dataArray.length()}")
 
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
@@ -4346,13 +4375,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 // Today at end of day
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
-                val todayDisplay = displayFormatter.format(todayDate)
 
                 // 7 days ago from today (8 days total including today)
                 calendar.add(Calendar.DAY_OF_YEAR, -7)
                 val sevenDaysAgoDate = calendar.time
                 val sevenDaysAgo = inputFormatter.format(sevenDaysAgoDate)
-                val sevenDaysAgoDisplay = displayFormatter.format(sevenDaysAgoDate)
 
                 // Create all dates in range
                 val allDates = mutableListOf<String>()
@@ -4364,58 +4391,150 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
 
-                val inspeksiCountByDate = mutableMapOf<String, Int>()
-                for (date in allDates) {
-                    inspeksiCountByDate[date] = 0
-                }
-
-                // Process inspections
-                for (i in 0 until dataArray.length()) {
-                    val item = dataArray.getJSONObject(i)
-
-                    val inspeksiDateFull = item.optString("tgl_inspeksi", "")
-                    val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
-                        inspeksiDateFull.split(" ")[0]
-                    } else {
-                        continue
-                    }
-
-                    if (!allDates.contains(inspeksiDate)) continue
-
-                    val idPanen = item.optString("id_panen", "")
-                    val tphNomor = item.optString("tph_nomor", "")
-                    val ancak = item.optString("ancak", "")
-
-                    if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
-                        inspeksiCountByDate[inspeksiDate] =
-                            inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
-                    }
-                }
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
+                val endDateDisplay = displayFormatter.format(todayDate)
 
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Inspeksi ($sevenDaysAgoDisplay - $todayDisplay)\n")
+                resultBuilder.append("Data Inspeksi ($startDateDisplay - $endDateDisplay)\n")
 
-                var hasValidData = false
-                for (date in allDates.sortedDescending()) {
-                    val inspeksiCount = inspeksiCountByDate[date] ?: 0
-                    if (inspeksiCount > 0) {
-                        hasValidData = true
-                        val dateObj = inputFormatter.parse(date)
-                        val dateDisplay = displayFormatter.format(dateObj!!)
-                        resultBuilder.append("$dateDisplay - $inspeksiCount Transaksi\n")
+                // Check if we need grouping by dept_abbr
+                AppLogger.d("processPreviewDataInspeksi - Is estate a List? ${estate is List<*>}")
+
+                if (estate is List<*>) {
+                    AppLogger.d("processPreviewDataInspeksi - Processing multiple estates")
+
+                    // Group by dept_abbr for multiple estates
+                    val dataByEstate = mutableMapOf<String, MutableList<JSONObject>>()
+
+                    // Categorize data by dept_abbr
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+                        val deptAbbr = item.optString("dept_abbr", "Unknown")
+
+                        AppLogger.d("processPreviewDataInspeksi - Item $i dept_abbr: $deptAbbr")
+
+                        if (!dataByEstate.containsKey(deptAbbr)) {
+                            dataByEstate[deptAbbr] = mutableListOf()
+                        }
+                        dataByEstate[deptAbbr]!!.add(item)
+                    }
+
+                    AppLogger.d("processPreviewDataInspeksi - Found ${dataByEstate.size} estates")
+                    AppLogger.d("processPreviewDataInspeksi - Estate keys: ${dataByEstate.keys}")
+
+                    resultBuilder.append("\n")
+
+                    // Process each estate
+                    dataByEstate.forEach { (deptAbbr, estateData) ->
+                        AppLogger.d("processPreviewDataInspeksi - Processing estate: $deptAbbr with ${estateData.size} items")
+
+                        resultBuilder.append("=== $deptAbbr ===\n")
+
+                        val inspeksiCountByDate = mutableMapOf<String, Int>()
+                        for (date in allDates) {
+                            inspeksiCountByDate[date] = 0
+                        }
+
+                        // Process inspections for this estate
+                        for (item in estateData) {
+                            val inspeksiDateFull = item.optString("tgl_inspeksi", "")
+                            val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
+                                inspeksiDateFull.split(" ")[0]
+                            } else {
+                                continue
+                            }
+
+                            if (!allDates.contains(inspeksiDate)) continue
+
+                            val idPanen = item.optString("id_panen", "")
+                            val tphNomor = item.optString("tph_nomor", "")
+                            val ancak = item.optString("ancak", "")
+
+                            if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
+                                inspeksiCountByDate[inspeksiDate] =
+                                    inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                            }
+                        }
+
+                        // Add this estate's data
+                        var hasValidData = false
+                        for (date in allDates.sortedDescending()) {
+                            val inspeksiCount = inspeksiCountByDate[date] ?: 0
+
+                            if (inspeksiCount == 0) {
+                                continue
+                            }
+
+                            hasValidData = true
+                            val dateObj = inputFormatter.parse(date)
+                            val dateDisplay = displayFormatter.format(dateObj!!)
+                            resultBuilder.append("$dateDisplay - $inspeksiCount Transaksi\n")
+                        }
+
+                        if (!hasValidData) {
+                            resultBuilder.append("Tidak ada data inspeksi dalam periode ini.\n")
+                        }
+
+                        resultBuilder.append("\n")
+                    }
+                } else {
+                    AppLogger.d("processPreviewDataInspeksi - Processing single estate")
+
+                    // Single estate - use original logic
+                    val inspeksiCountByDate = mutableMapOf<String, Int>()
+                    for (date in allDates) {
+                        inspeksiCountByDate[date] = 0
+                    }
+
+                    // Process inspections
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+
+                        val inspeksiDateFull = item.optString("tgl_inspeksi", "")
+                        val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
+                            inspeksiDateFull.split(" ")[0]
+                        } else {
+                            continue
+                        }
+
+                        if (!allDates.contains(inspeksiDate)) continue
+
+                        val idPanen = item.optString("id_panen", "")
+                        val tphNomor = item.optString("tph_nomor", "")
+                        val ancak = item.optString("ancak", "")
+
+                        if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
+                            inspeksiCountByDate[inspeksiDate] =
+                                inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                        }
+                    }
+
+                    var hasValidData = false
+                    for (date in allDates.sortedDescending()) {
+                        val inspeksiCount = inspeksiCountByDate[date] ?: 0
+                        if (inspeksiCount > 0) {
+                            hasValidData = true
+                            val dateObj = inputFormatter.parse(date)
+                            val dateDisplay = displayFormatter.format(dateObj!!)
+                            resultBuilder.append("$dateDisplay - $inspeksiCount Transaksi\n")
+                        }
+                    }
+
+                    if (!hasValidData) {
+                        resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
                     }
                 }
 
-                if (!hasValidData) {
-                    resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
-                }
+                val finalResult = resultBuilder.toString().trim()
+                AppLogger.d("processPreviewDataInspeksi - Final result:\n$finalResult")
 
-                return resultBuilder.toString().trim()
+                return finalResult
             } else {
                 return "Failed to process data: Success flag is false"
             }
         } catch (e: Exception) {
-            AppLogger.e("Error processing data: ${e.message}")
+            AppLogger.e("processPreviewDataInspeksi - Error: ${e.message}")
+            e.printStackTrace()
             return "Error processing data: ${e.message}"
         }
     }
@@ -5031,7 +5150,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
-                        // Skip restan data for askep and manager users since they can have multiple afdelings
                         if (request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
                             request.jabatan != AppUtils.ListFeatureByRoleUser.Manager
                         ) {
@@ -5040,11 +5158,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 request.afdeling.toString()
                             )
                         } else {
-                            // Skip processing for askep/manager users - mark as success
-//                            results[request.dataset] = Resource.Success(response,
-//                                "Sinkronisasi Restan Error") // or create a dummy successful response
-//                            _downloadStatuses.postValue(results.toMap())
-                            return@forEach // Skip to next request in the forEach loop
+                            return@forEach
                         }
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
@@ -5215,7 +5329,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             _downloadStatuses.postValue(results.toMap())
                             return@forEach
                         }
-                    } else {
+                    }
+                    else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
 

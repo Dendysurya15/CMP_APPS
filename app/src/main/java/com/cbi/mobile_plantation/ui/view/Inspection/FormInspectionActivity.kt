@@ -264,6 +264,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var lyEstInspect: LinearLayout
     private lateinit var lyAfdInspect: LinearLayout
 
+    private var isProcessingMapDownload = false
     private lateinit var lyBlokInspect: LinearLayout
     private lateinit var lyKemandoran: LinearLayout
     private lateinit var lyPemuat: LinearLayout
@@ -579,6 +580,13 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         alertTvScannedRadius.text = spannableScanTPHTitle
+
+        if (!estateAbbr.isNullOrEmpty()) {
+            AppLogger.d("Updating map tile source for estate: $estateAbbr")
+            updateMapTileSource()
+        } else {
+            AppLogger.w("estateAbbr is null/empty, cannot update tile source")
+        }
     }
 
     private fun initializeLocationServices() {
@@ -762,6 +770,19 @@ open class FormInspectionActivity : AppCompatActivity(),
         radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
         boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
 
+        AppLogger.d("estateUserLogin: ${prefManager!!.estateUserLogin}")
+        AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
+        AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
+        AppLogger.d("regionalIdUserLogin: ${prefManager!!.regionalIdUserLogin}")
+        AppLogger.d("companyIdUserLogin: ${prefManager!!.companyIdUserLogin}")
+        AppLogger.d("companyAbbrUserLogin: ${prefManager!!.companyAbbrUserLogin}")
+        AppLogger.d("companyNamaUserLogin: ${prefManager!!.companyNamaUserLogin}")
+        AppLogger.d("kemandoranPPROUserLogin: ${prefManager!!.kemandoranPPROUserLogin}")
+        AppLogger.d("kemandoranUserLogin: ${prefManager!!.kemandoranUserLogin}")
+        AppLogger.d("kemandoranNamaUserLogin: ${prefManager!!.kemandoranNamaUserLogin}")
+        AppLogger.d("kemandoranKodeUserLogin: ${prefManager!!.kemandoranKodeUserLogin}")
+        AppLogger.d("afdelingIdUserLogin: ${prefManager!!.afdelingIdUserLogin}")
+
         initializeLocationServices()
         initViewModel()
         initUI()
@@ -811,6 +832,28 @@ open class FormInspectionActivity : AppCompatActivity(),
             try {
                 val estateIdStr = estateId?.trim()
 
+                val estateIdsList = if (!estateIdStr.isNullOrEmpty()) {
+                    if (estateIdStr.contains(",")) {
+                        // Multiple estates: "112,116,118,135"
+                        estateIdStr.split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .mapNotNull { it.toIntOrNull() }
+                    } else {
+                        // Single estate
+                        listOfNotNull(estateIdStr.toIntOrNull())
+                    }
+                } else {
+                    emptyList()
+                }
+
+                AppLogger.d("estateIdStr $estateIdStr")
+                AppLogger.d("estateIdsList $estateIdsList")
+
+                if (estateIdsList.isEmpty()) {
+                    throw Exception("Estate ID tidak valid")
+                }
+
                 val parameterInspeksiDeferred = async {
                     try {
                         inspectionViewModel.getParameterInspeksiJson()
@@ -822,81 +865,75 @@ open class FormInspectionActivity : AppCompatActivity(),
                 delay(100)
                 parameterInspeksi = parameterInspeksiDeferred.await()
 
-
                 if (parameterInspeksi.isEmpty()) {
                     throw Exception("Parameter Inspeksi kosong! Harap Untuk melakukan sinkronisasi Data")
                 }
 
-                if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
-                    val estateIdInt = estateIdStr.toInt()
+                val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
 
-                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+                panenViewModel.getAllTPHinWeek(estateIdsList)  // ✅ Pass list instead of single Int
+                delay(100)
 
-                    panenViewModel.getAllTPHinWeek(estateIdInt)
-                    delay(100)
+                withContext(Dispatchers.Main) {
+                    panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
+                        AppLogger.d("panenTPH raw size: ${list?.size}")
 
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.activePanenList.observe(this@FormInspectionActivity) { list ->
-                            AppLogger.d("panenTPH raw size: ${list?.size}")
+                        // Filter by isPushedToServer == 1 OR status_scan_inspeksi == 1
+                        val filteredList = list?.filter { panenWithRelations ->
+                            val panen = panenWithRelations.panen
+                            panen.isPushedToServer == 1 || panen.status_scan_inspeksi == 1
+                        } ?: emptyList()
 
-                            // Filter by isPushedToServer == 1 OR status_scan_inspeksi == 1
-                            val filteredList = list?.filter { panenWithRelations ->
-                                val panen = panenWithRelations.panen
-                                panen.isPushedToServer == 1 || panen.status_scan_inspeksi == 1
-                            } ?: emptyList()
+                        AppLogger.d("panenTPH filtered size: ${filteredList.size}")
+                        panenTPH = filteredList
+                        panenDeferred.complete(filteredList)
+                    }
+                }
+                panenDeferred.await()
 
-                            AppLogger.d("panenTPH filtered size: ${filteredList.size}")
-                            panenTPH = filteredList
-                            panenDeferred.complete(filteredList)
+                if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    if (!inspectionId.isNullOrEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            inspectionViewModel.loadInspectionById(inspectionId!!)
                         }
+                    } else {
+                        throw Exception("Inspection ID not found!")
                     }
-                    panenDeferred.await()
+                }
 
-                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-
-                        if (!inspectionId.isNullOrEmpty()) {
-                            withContext(Dispatchers.Main) {
-                                inspectionViewModel.loadInspectionById(inspectionId!!)
-                            }
-                        } else {
-                            throw Exception("Inspection ID not found!")
-                        }
+                val afdelingNameDeferred = async {
+                    try {
+                        val afdelingId = prefManager!!.afdelingIdUserLogin
+                        inspectionViewModel.getAfdelingName(afdelingId!!.toInt())
+                    } catch (e: Exception) {
+                        null // Return null if error
                     }
+                }
+                delay(100)
 
-                    val afdelingNameDeferred = async {
-                        try {
-                            val afdelingId = prefManager!!.afdelingIdUserLogin
-                            inspectionViewModel.getAfdelingName(afdelingId!!.toInt())
-                        } catch (e: Exception) {
-                            null // Return null if error
-                        }
+                AppLogger.d("afdelingNameDeferred $afdelingNameDeferred")
+                afdelingNameUser = afdelingNameDeferred.await()
+
+                val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+
+                panenViewModel.getAllJenisTPH()
+                delay(100)
+
+                withContext(Dispatchers.Main) {
+                    panenViewModel.jenisTPHList.observe(this@FormInspectionActivity) { list ->
+                        jenisTPHListGlobal = list ?: emptyList()
+                        jenisTPHDeferred.complete(list ?: emptyList())
                     }
-                    delay(100)
+                }
 
-                    AppLogger.d("afdelingNameDeferred $afdelingNameDeferred")
-                    afdelingNameUser = afdelingNameDeferred.await()
 
-                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
+                divisiList = panenTPH
+                    .mapNotNull { it.tph }
+                    .distinctBy { it.divisi_abbr }
+                    .sortedBy { it.divisi_nama }
 
-                    panenViewModel.getAllJenisTPH()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.jenisTPHList.observe(this@FormInspectionActivity) { list ->
-                            jenisTPHListGlobal = list ?: emptyList()
-                            jenisTPHDeferred.complete(list ?: emptyList())
-                        }
-                    }
-
-                    // Extract distinct TPH objects based on divisi_abbr and sort by divisi_nama
-                    divisiList = panenTPH
-                        .mapNotNull { it.tph }
-                        .distinctBy { it.divisi_abbr }
-                        .sortedBy { it.divisi_nama }
-
-                    if (divisiList.isEmpty()) {
-                        throw Exception("Divisi tidak ditemukan, Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
-                    }
+                if (divisiList.isEmpty()) {
+                    throw Exception("Divisi tidak ditemukan, Periksa kembali dataset dengan melakukan Sinkronisasi Data!")
                 }
 
                 withContext(Dispatchers.Main) {
@@ -1759,7 +1796,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             val tileSource = MapUtils.getTileSource(
                 context = this@FormInspectionActivity,
                 prefManager = prefManager!!,
-                mapView = this
+                mapView = this,
+                selectedEstateAbbr = estateAbbr
             )
 
             setTileSource(tileSource)
@@ -1888,38 +1926,123 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun startDownloadOfflineMap(downloadList: List<DownloadMapItem>) {
-        val userEstate = prefManager!!.estateUserLogin
-        val matchedDownload = downloadList.find { it.estateAbbr == userEstate }
+        // Guard to prevent multiple simultaneous calls
+        if (isProcessingMapDownload) {
+            AppLogger.d("Map download already in progress, ignoring duplicate call")
+            return
+        }
 
-        if (matchedDownload != null) {
-            val downloadId = matchedDownload.downloadId
+        isProcessingMapDownload = true
 
-            AppLogger.d("Matched estate: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
-            AppLogger.d("Download ID: $downloadId")
-            AppLogger.d("Status: ${matchedDownload.status}")
-            AppLogger.d("Total Size: ${matchedDownload.totalSize}")
+        val userEstates = prefManager!!.estateUserLogin?.trim()
 
+        // Convert to list of estate abbreviations
+        val estateAbbrList = if (!userEstates.isNullOrEmpty()) {
+            if (userEstates.contains(",")) {
+                userEstates.split(",").map { it.trim() }
+            } else {
+                listOf(userEstates)
+            }
+        } else {
+            emptyList()
+        }
+
+        AppLogger.d("User estates: $estateAbbrList")
+
+        // Find all matching downloads and keep only ONE per estate
+        val matchedDownloads = downloadList
+            .filter { it.estateAbbr in estateAbbrList }
+            .groupBy { it.estateAbbr }  // Group by estate abbreviation
+            .mapValues { (estateAbbr, downloads) ->
+                // Pick one: you can choose first, last, or largest
+                AppLogger.d("Estate $estateAbbr has ${downloads.size} download(s), picking one")
+                downloads.maxByOrNull { it.totalSize }  // Pick the largest one
+            }
+            .values
+            .filterNotNull()
+            .toList()
+
+        AppLogger.d("Found ${matchedDownloads.size} unique matching estate(s) after deduplication")
+
+        if (matchedDownloads.isNotEmpty()) {
             loadingDialog.setMessage("Mengambil detail peta...")
-            datasetViewModel.getDownloadMapProgress(downloadId)
 
-            // Observe ONCE - auto-removes after first trigger
+            val datasetRequests = mutableListOf<DatasetRequest>()
+
+            // Process estates sequentially using recursion
+            processEstateMapDownload(
+                matchedDownloads = matchedDownloads,
+                currentIndex = 0,
+                datasetRequests = datasetRequests,
+                onComplete = {
+                    isProcessingMapDownload = false
+                    loadingDialog.dismiss()
+                    if (datasetRequests.isNotEmpty()) {
+                        setupDownloadDialog(datasetRequests)
+                    } else {
+                        Toast.makeText(
+                            this@FormInspectionActivity,
+                            "Gagal mendapatkan detail peta untuk semua estate",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            )
+
+        } else {
+            isProcessingMapDownload = false  // ✅ Reset flag when no matches
+            loadingDialog.dismiss()
+            AppLogger.e("No matching estates found for: $estateAbbrList")
+
+            AlertDialogUtility.withSingleAction(
+                this@FormInspectionActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_map_offline),
+                "Estate(s) ${estateAbbrList.joinToString(", ")} tidak ditemukan dalam daftar download map",
+                "warning.json",
+                R.color.colorRedDark
+            ) {
+            }
+        }
+    }
+
+    private fun processEstateMapDownload(
+        matchedDownloads: List<DownloadMapItem>,
+        currentIndex: Int,
+        datasetRequests: MutableList<DatasetRequest>,
+        onComplete: () -> Unit
+    ) {
+        if (currentIndex >= matchedDownloads.size) {
+            onComplete()
+            return
+        }
+
+        val matchedDownload = matchedDownloads[currentIndex]
+        val downloadId = matchedDownload.downloadId
+        val totalMaps = matchedDownloads.size
+
+        AppLogger.d("Processing estate ${currentIndex + 1}/$totalMaps: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
+        AppLogger.d("Download ID: $downloadId")
+        AppLogger.d("Status: ${matchedDownload.status}")
+        AppLogger.d("Total Size: ${matchedDownload.totalSize}")
+
+        loadingDialog.setMessage("Mengambil detail peta... (${currentIndex + 1}/$totalMaps)")
+
+        // Call API
+        datasetViewModel.getDownloadMapProgress(downloadId)
+
+        // Wait longer for API to respond
+        Handler(Looper.getMainLooper()).postDelayed({
             datasetViewModel.downloadMapProgress.observeOnce(this@FormInspectionActivity) { progressResult ->
-                loadingDialog.dismiss()
-
                 progressResult.onSuccess { progressResponse ->
                     if (progressResponse.success) {
                         val progressData = progressResponse.data
 
-                        AppLogger.d("Chunks count: ${progressData.chunksCount}")
-                        AppLogger.d("Total tiles: ${progressData.totalTiles}")
-                        AppLogger.d("Size bytes: ${progressData.sizeBytesRaw}")
-                        AppLogger.d("Total chunks: ${progressData.chunks.size}")
-
-                        val datasetRequests = mutableListOf<DatasetRequest>()
+                        AppLogger.d("Estate ${progressData.estateAbbr} - Chunks: ${progressData.chunksCount}, Tiles: ${progressData.totalTiles}")
 
                         datasetRequests.add(
                             DatasetRequest(
-                                estate = estateId,
+                                estate = progressData.estateAbbr,
                                 estateAbbr = progressData.estateAbbr,
                                 lastModified = null,
                                 dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
@@ -1928,38 +2051,24 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 totalChunks = progressData.chunksCount
                             )
                         )
-
-                        setupDownloadDialog(datasetRequests)
                     } else {
-                        Toast.makeText(
-                            this@FormInspectionActivity,
-                            "Gagal mendapatkan detail peta",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        AppLogger.e("Failed to get progress for ${matchedDownload.estateAbbr}")
                     }
                 }.onFailure { error ->
-                    AppLogger.e("Error getting download map progress: ${error.message}")
-                    Toast.makeText(
-                        this@FormInspectionActivity,
-                        "Gagal mengambil detail: ${error.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    AppLogger.e("Error getting map progress for ${matchedDownload.estateAbbr}: ${error.message}")
                 }
+
+                // Process next estate with longer delay
+                Handler(Looper.getMainLooper()).postDelayed({
+                    processEstateMapDownload(
+                        matchedDownloads = matchedDownloads,
+                        currentIndex = currentIndex + 1,
+                        datasetRequests = datasetRequests,
+                        onComplete = onComplete
+                    )
+                }, 500) // ✅ Increased from 200ms to 500ms
             }
-
-        } else {
-            loadingDialog.dismiss()
-            AppLogger.e("No matching estate found for: $userEstate")
-
-            AlertDialogUtility.withSingleAction(
-                this@FormInspectionActivity,
-                stringXML(R.string.al_back),
-                stringXML(R.string.al_no_map_offline),
-                "Estate $userEstate tidak ditemukan dalam daftar download map",
-                "warning.json",
-                R.color.colorRedDark
-            ) { }
-        }
+        }, 800) // ✅ Increased from 500ms to 800ms
     }
 
     private fun <T> LiveData<T>.observeOnce(owner: LifecycleOwner, observer: (T) -> Unit) {
@@ -2015,41 +2124,29 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "Master TPH ${request.estateAbbr}"
             }
 
-            datasetRequests.forEach { request ->
-                // Check if downloadIdMap exists and set button text accordingly
-                val itemTitle = if (request.downloadIdMap != null) {
-                    titleTV.text = "Download Offline Map"
-                    btnDownloadDataset.text = "Download Map"
-                    request.dataset
-                } else {
-                    btnDownloadDataset.text = "Download Dataset"
-                    titleTV.text = "Download Dataset"
-                    "Master TPH ${request.estateAbbr}"
-                }
-
-                // Create JSON string for data field
-                val dataJson = if (request.downloadIdMap != null && request.totalChunks != null) {
-                    JSONObject().apply {
-                        put("downloadId", request.downloadIdMap)
-                        put("totalChunks", request.totalChunks)
-                    }.toString()
-                } else {
-                    ""
-                }
-
-                downloadItems.add(
-                    UploadCMPItem(
-                        id = itemId++,
-                        title = itemTitle,
-                        fullPath = "",
-                        baseFilename = request.estateAbbr ?: "",
-                        data = dataJson,
-                        type = "",
-                        databaseTable = ""
-                    )
-                )
+            // Create JSON string for data field
+            val dataJson = if (request.downloadIdMap != null && request.totalChunks != null) {
+                JSONObject().apply {
+                    put("downloadId", request.downloadIdMap)
+                    put("totalChunks", request.totalChunks)
+                }.toString()
+            } else {
+                ""
             }
+
+            downloadItems.add(
+                UploadCMPItem(
+                    id = itemId++,
+                    title = itemTitle,
+                    fullPath = "",
+                    baseFilename = request.estateAbbr ?: "",
+                    data = dataJson,
+                    type = "",
+                    databaseTable = ""
+                )
+            )
         }
+
 
         Handler(Looper.getMainLooper()).postDelayed({
             if (counterTV.text == "0/0" && downloadItems.size > 0) {
@@ -2289,35 +2386,41 @@ open class FormInspectionActivity : AppCompatActivity(),
                             // ✅ Process offline map if it's a map download
                             val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
                             if (isDownloadingMap) {
-                                AppLogger.d("Starting offline map processing...")
+                                AppLogger.d("Starting offline map processing for ${successfulEstates.size} estate(s)...")
 
                                 // Show processing dialog
                                 loadingDialog.show()
                                 loadingDialog.setMessage("Memproses peta offline...")
 
                                 try {
-                                    // Get estate abbreviation
-                                    val estateAbbr = datasetRequests.first().estateAbbr
-                                    val userEstate = prefManager!!.estateUserLogin
+                                    // Process each successful estate
+                                    successfulEstates.forEachIndexed { index, estateAbbr ->
+                                        val currentEstate = index + 1
+                                        val totalEstates = successfulEstates.size
 
-                                    val offlineMapDir = File(
-                                        getExternalFilesDir(null),
-                                        "map_offline/$userEstate"
-                                    )
+                                        AppLogger.d("Processing estate $currentEstate/$totalEstates: $estateAbbr")
 
-                                    // Step 1: Merge chunks
-                                    loadingDialog.setMessage("Menggabungkan file peta...")
-                                    val mergedZipFile = MapUtils.mergeChunksToZip(offlineMapDir)
+                                        val offlineMapDir = File(
+                                            getExternalFilesDir(null),
+                                            "map_offline/$estateAbbr"
+                                        )
 
-                                    // Step 2: Extract tiles
-                                    loadingDialog.setMessage("Mengekstrak tiles peta...")
-                                    MapUtils.extractZipToTiles(mergedZipFile, offlineMapDir)
+                                        // Step 1: Merge chunks
+                                        loadingDialog.setMessage("[$currentEstate/$totalEstates] Menggabungkan file peta $estateAbbr...")
+                                        val mergedZipFile = MapUtils.mergeChunksToZip(offlineMapDir)
 
-                                    // Step 3: Cleanup
-                                    loadingDialog.setMessage("Membersihkan file temp...")
-                                    MapUtils.cleanupTempFiles(offlineMapDir, mergedZipFile)
+                                        // Step 2: Extract tiles
+                                        loadingDialog.setMessage("[$currentEstate/$totalEstates] Mengekstrak tiles peta $estateAbbr...")
+                                        MapUtils.extractZipToTiles(mergedZipFile, offlineMapDir)
 
-                                    // Step 4: Save preference
+                                        // Step 3: Cleanup
+                                        loadingDialog.setMessage("[$currentEstate/$totalEstates] Membersihkan file temp $estateAbbr...")
+                                        MapUtils.cleanupTempFiles(offlineMapDir, mergedZipFile)
+
+                                        AppLogger.d("Completed processing for $estateAbbr")
+                                    }
+
+                                    // Step 4: Save preference (after all estates are processed)
                                     prefManager!!.isDownloadedMapOffline = true
 
                                     // ✅ Step 5: UPDATE THE MAP TILES!
@@ -2326,13 +2429,19 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                     loadingDialog.dismiss()
 
+                                    val message = if (successfulEstates.size > 1) {
+                                        "Peta offline untuk ${successfulEstates.size} estate berhasil diproses!\n(${successfulEstates.joinToString(", ")})"
+                                    } else {
+                                        "Peta offline ${successfulEstates.first()} berhasil diproses!"
+                                    }
+
                                     Toast.makeText(
                                         this@FormInspectionActivity,
-                                        "Peta offline berhasil diproses!",
-                                        Toast.LENGTH_SHORT
+                                        message,
+                                        Toast.LENGTH_LONG
                                     ).show()
 
-                                    AppLogger.d("Offline map processing completed successfully")
+                                    AppLogger.d("All offline maps processed successfully: ${successfulEstates.joinToString(", ")}")
 
                                 } catch (e: Exception) {
                                     loadingDialog.dismiss()
@@ -2372,6 +2481,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
         }
 
+
         datasetViewModel.itemStatusMap.observe(this) { statusMap ->
             // Update status for each item
             for ((id, status) in statusMap) {
@@ -2404,7 +2514,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             val tileSource = MapUtils.getTileSource(
                 context = this@FormInspectionActivity,
                 prefManager = prefManager!!,
-                mapView = this
+                mapView = this,
+                selectedEstateAbbr = estateAbbr
             )
 
             setTileSource(tileSource)
@@ -2564,7 +2675,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 MapUtils.loadOfflineMapTileSourceForFullscreen(
                                     context = this@FormInspectionActivity,
                                     prefManager = prefManager!!,
-                                    mapView = this
+                                    mapView = this,
+                                    selectedEstateAbbr = estateAbbr
                                 )
                             } else {
                                 AppLogger.d("🗺️ [FULLSCREEN] Using online map tiles")
@@ -7770,6 +7882,9 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 delay(300) // 300ms delay
                             }
 
+
+                            AppLogger.d("${panenTPH.size}")
+                            AppLogger.d("${panenTPH}")
                             val blokNames = panenTPH
                                 .asSequence()
                                 .filter { panenWithRelation ->
@@ -7885,13 +8000,28 @@ open class FormInspectionActivity : AppCompatActivity(),
                     if (isGM) {
                         try {
                             val estateIdStr = estateId?.trim()
-                            if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
-                                val estateIdInt = estateIdStr.toInt()
 
-                                val panenDeferred =
-                                    CompletableDeferred<List<PanenEntityWithRelations>>()
+                            val estateIdsList = if (!estateIdStr.isNullOrEmpty()) {
+                                if (estateIdStr.contains(",")) {
+                                    // Multiple estates: "112,116,118,135"
+                                    estateIdStr.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .mapNotNull { it.toIntOrNull() }
+                                } else {
+                                    // Single estate
+                                    listOfNotNull(estateIdStr.toIntOrNull())
+                                }
+                            } else {
+                                emptyList()
+                            }
 
-                                panenViewModel.getAllTPHinWeek(estateIdInt)
+                            AppLogger.d("GM - estateIdsList: $estateIdsList")
+
+                            if (estateIdsList.isNotEmpty()) {
+                                val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
+
+                                panenViewModel.getAllTPHinWeek(estateIdsList)  // ✅ Pass list
                                 delay(100)
 
                                 withContext(Dispatchers.Main) {
@@ -7905,6 +8035,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 // Wait for the data to be loaded
                                 panenDeferred.await()
                                 AppLogger.d("GM - panenTPH reloaded with ${panenTPH.size} records")
+                            } else {
+                                AppLogger.e("GM - Invalid estate IDs")
                             }
                         } catch (e: Exception) {
                             AppLogger.e("Error reloading panenTPH for GM: ${e.message}")

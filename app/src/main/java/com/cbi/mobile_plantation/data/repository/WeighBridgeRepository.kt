@@ -580,7 +580,7 @@ class WeighBridgeRepository(context: Context) {
                                 AppLogger.d("CMP Upload - Starting upload for data with size: ${data.length} characters")
 
                                 try {
-                                    val response = ApiProvider.currentApiService.uploadJsonV3Raw(
+                                    val response = ApiProvider.currentApiService.uploadJsonV4Raw(
                                         jsonData = jsonRequestBody
                                     )
 

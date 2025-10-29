@@ -182,13 +182,13 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     INNER JOIN tph t ON p.tph_id = t.id
     WHERE (:date IS NULL OR strftime('%Y-%m-%d', p.date_created) = :date)
     AND p.archive_transfer_inspeksi = :archive_transfer_inspeksi
-    AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdelingId))
+    AND (:afdelingId IS NULL OR t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdelingId))
 """
     )
     abstract suspend fun getCountPanenForTransferInspeksi(
         date: String? = null,
         archive_transfer_inspeksi: Int,
-        afdelingId: Int
+        afdelingId: Int? = null
     ): Int
 
     @Query("SELECT COUNT(*) FROM panen_table WHERE archive = 1 AND status_espb = 0 AND date(date_created) = date('now', 'localtime')")
@@ -383,10 +383,10 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     AND p.karyawan_nama IS NOT NULL 
     AND p.karyawan_nama != ''
     AND p.karyawan_nama != 'NULL'
-    AND t.dept = :estateId
+    AND t.dept IN (:estateIds)
 """
     )
-    abstract fun getAllTPHinWeek(estateId: Int): List<PanenEntityWithRelations>
+    abstract fun getAllTPHinWeek(estateIds: List<Int>): List<PanenEntityWithRelations>
 
     @Transaction
     @Query("SELECT * FROM panen_table WHERE scan_status = 0 and status_restan = 0")

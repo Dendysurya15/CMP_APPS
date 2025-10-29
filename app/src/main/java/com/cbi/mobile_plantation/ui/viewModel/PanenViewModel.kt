@@ -381,11 +381,11 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAllTPHinWeek(estateId: Int) {
+    fun getAllTPHinWeek(estateIds: List<Int>) {
         viewModelScope.launch {
-            repository.getAllTPHinWeek(estateId)
+            repository.getAllTPHinWeek(estateIds)
                 .onSuccess { panenList ->
-                    _activePanenList.value = panenList // ✅ Immediate emission like StateFlow
+                    _activePanenList.value = panenList
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load data")
@@ -474,7 +474,7 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
     fun loadCountTransferInspeksi(
         datetime: String? = null,
         archive_transfer_inspeksi: Int,
-        afdelingId: Int
+        afdelingId: Int? = null
     ) {
         viewModelScope.launch {
             val count = repository.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi, afdelingId)

@@ -149,7 +149,7 @@ class ListFollowUpInspeksi : AppCompatActivity() {
     private lateinit var bluetoothScanner: BluetoothScanner
     private var bluetoothJsonData: String = ""
     private var bluetoothDataInfo: String = ""
-    private var afdelingId: Int = 0
+    private var afdelingId: Int? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var userName: String? = null
     private var estateName: String? = null
@@ -219,10 +219,11 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
 
-        afdelingId = prefManager!!.afdelingIdUserLogin!!.toInt()
+        afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull()
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin
+
 
         val backButton = findViewById<ImageView>(R.id.btn_back)
         backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }

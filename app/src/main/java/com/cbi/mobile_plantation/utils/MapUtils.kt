@@ -28,12 +28,13 @@ object MapUtils {
     fun getTileSource(
         context: Context,
         prefManager: PrefManager,
-        mapView: MapView? = null
+        mapView: MapView? = null,
+        selectedEstateAbbr: String? = null
     ): ITileSource {
         return when {
             prefManager.isDownloadedMapOffline -> {
                 AppLogger.d("Using offline map tiles")
-                loadOfflineMapTileSource(context, prefManager, mapView)
+                loadOfflineMapTileSource(context, prefManager, mapView, selectedEstateAbbr)
             }
             else -> {
                 createOnlineTileSource(context)
@@ -44,10 +45,11 @@ object MapUtils {
     private fun loadOfflineMapTileSource(
         context: Context,
         prefManager: PrefManager,
-        mapView: MapView?
+        mapView: MapView?,
+        selectedEstateAbbr: String? = null
     ): ITileSource {
         try {
-            val userEstate = prefManager.estateUserLogin
+            val userEstate = selectedEstateAbbr ?: prefManager.estateUserLogin
             val tilesDir = File(
                 context.getExternalFilesDir(null),
                 "map_offline/$userEstate/tiles"
@@ -204,10 +206,11 @@ object MapUtils {
     fun loadOfflineMapTileSourceForFullscreen(
         context: Context,
         prefManager: PrefManager,
-        mapView: MapView
+        mapView: MapView,
+        selectedEstateAbbr: String? = null
     ): ITileSource {
         try {
-            val userEstate = prefManager.estateUserLogin
+            val userEstate = selectedEstateAbbr ?: prefManager.estateUserLogin
             val tilesDir = File(
                 context.getExternalFilesDir(null),
                 "map_offline/$userEstate/tiles"

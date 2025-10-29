@@ -239,7 +239,7 @@ class AppRepository(context: Context) {
     suspend fun getCountPanenForTransferInspeksi(
         datetime: String? = null,
         archive_transfer_inspeksi: Int,
-        afdelingId: Int
+        afdelingId: Int? = null
     ): Int {
         return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi, afdelingId)
     }
@@ -1814,10 +1814,10 @@ class AppRepository(context: Context) {
         }
 
 
-    suspend fun getAllTPHinWeek(estateId: Int): Result<List<PanenEntityWithRelations>> =
+    suspend fun getAllTPHinWeek(estateIds: List<Int>): Result<List<PanenEntityWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
-                val data = panenDao.getAllTPHinWeek(estateId)
+                val data = panenDao.getAllTPHinWeek(estateIds)
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)
