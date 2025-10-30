@@ -297,6 +297,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                     // Log tanggal
                     AppLogger.d("Generated Date: '$generatedDate'")
                     AppLogger.d("Today Date: '$todayDate'")
+                    AppLogger.d("Data QR: '$mappedData'")
 
                     if (generatedDate.isEmpty() || generatedDate != todayDate) {
                         // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
@@ -569,23 +570,23 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                         AppLogger.d("JSON size: $jsonSizeInKB KB ($jsonSizeInBytes bytes)")
 
-                        if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
-                            withContext(Dispatchers.Main) {
-                                stopLoadingAnimation(loadingLogo, loadingContainer)
-
-                                AlertDialogUtility.withSingleAction(
-                                    this@ListAbsensiActivity,
-                                    "OK",
-                                    "Data Terlalu Besar",
-                                    "Ukuran data ${String.format("%.2f", jsonSizeInKB)} KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {
-                                    // Close bottom sheet or do nothing
-                                }
-                            }
-                            return@launch // Stop execution
-                        }
+//                        if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
+//                            withContext(Dispatchers.Main) {
+//                                stopLoadingAnimation(loadingLogo, loadingContainer)
+//
+//                                AlertDialogUtility.withSingleAction(
+//                                    this@ListAbsensiActivity,
+//                                    "OK",
+//                                    "Data Terlalu Besar",
+//                                    "Ukuran data ${String.format("%.2f", jsonSizeInKB)} KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
+//                                    "warning.json",
+//                                    R.color.colorRedDark
+//                                ) {
+//                                    // Close bottom sheet or do nothing
+//                                }
+//                            }
+//                            return@launch // Stop execution
+//                        }
                         val encodedData =
                             encodeJsonToBase64ZipQR(jsonData)
                                 ?: throw Exception("Encoding failed")
@@ -978,6 +979,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (mappedData.isNotEmpty()) {
                     val data = mappedData[0]  // Take only first item to avoid duplicates
 
+                    val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
                     val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
                     val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                     val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
@@ -1545,10 +1547,14 @@ class ListAbsensiActivity : AppCompatActivity() {
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
 
-            val mergedKaryawanMskNik = mutableSetOf<String>()
-            val mergedKaryawanTdkMskNik = mutableSetOf<String>()
-            val mergedKaryawanMskId = mutableSetOf<String>()
-            val mergedKaryawanTdkMskId = mutableSetOf<String>()
+            // ✅ Gunakan List untuk semua data agar urutan dan duplikat terjaga
+            val mergedKaryawanMskNama = mutableListOf<String>()
+            val mergedKaryawanMskNik = mutableListOf<String>()
+//            val mergedKaryawanTdkMskNik = mutableListOf<String>()
+            val mergedKaryawanMskId = mutableListOf<String>()
+//            val mergedKaryawanTdkMskId = mutableListOf<String>()
+            val mergedKaryawanMskWorkLocation = mutableListOf<String>()
+//            val mergedKaryawanTdkMskWorkLocation = mutableListOf<String>()
 
             val infoSet = mutableSetOf<String>()
 
@@ -1564,22 +1570,27 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val dateAbsen = data["datetime"]?.toString() ?: ""
                 val info = data["info"]?.toString() ?: ""
 
+                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
                 val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
-                val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
+//                val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
-                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+//                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
                 val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
+//                val karyawanTdkMskWorkLocation = data["karyawan_tdk_msk_work_location"]?.toString() ?: ""
 
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Filter untuk work location "Panen"
-                extractValuesFromNestedJsonWithFilter(karyawanMskNik, karyawanMskWorkLocation, mergedKaryawanMskNik)
-                extractValuesFromNestedJsonWithFilter(karyawanMskId, karyawanMskWorkLocation, mergedKaryawanMskId)
+                // ✅ TIDAK PAKAI FILTER - ambil SEMUA data untuk yang masuk
+                extractValuesFromNestedJsonAsList(karyawanMskNama, mergedKaryawanMskNama)
+                extractValuesFromNestedJsonAsList(karyawanMskNik, mergedKaryawanMskNik)
+                extractValuesFromNestedJsonAsList(karyawanMskId, mergedKaryawanMskId)
+                extractValuesFromNestedJsonAsList(karyawanMskWorkLocation, mergedKaryawanMskWorkLocation)
 
                 // Tidak pakai filter untuk yang tidak masuk
-                extractValuesFromNestedJson(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
-                extractValuesFromNestedJson(karyawanTdkMskId, mergedKaryawanTdkMskId)
+//                extractValuesFromNestedJsonAsList(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
+//                extractValuesFromNestedJsonAsList(karyawanTdkMskId, mergedKaryawanTdkMskId)
+//                extractValuesFromNestedJsonAsList(karyawanTdkMskWorkLocation, mergedKaryawanTdkMskWorkLocation)
 
                 if (dept.isNotEmpty()) deptSet.add(dept)
                 if (deptAbbr.isNotEmpty()) deptAbbrSet.add(deptAbbr)
@@ -1605,17 +1616,25 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
 
+                put("karyawan_msk_nama", JSONArray(mergedKaryawanMskNama))
                 put("karyawan_msk_nik", JSONArray(mergedKaryawanMskNik))
-                put("karyawan_tdk_msk_nik", JSONArray(mergedKaryawanTdkMskNik))
+//                put("karyawan_tdk_msk_nik", JSONArray(mergedKaryawanTdkMskNik))
                 put("karyawan_msk_id", JSONArray(mergedKaryawanMskId))
-                put("karyawan_tdk_msk_id", JSONArray(mergedKaryawanTdkMskId))
+//                put("karyawan_tdk_msk_id", JSONArray(mergedKaryawanTdkMskId))
+                put("karyawan_msk_work_location", JSONArray(mergedKaryawanMskWorkLocation))
+//                put("karyawan_tdk_msk_work_location", JSONArray(mergedKaryawanTdkMskWorkLocation))
 
                 put("info", JSONArray(infoSet))
             }
 
             AppLogger.d("=== QR JSON SUMMARY ===")
-            AppLogger.d("Total present (Panen only): ${mergedKaryawanMskNik.size}")
-            AppLogger.d("Total absent: ${mergedKaryawanTdkMskNik.size}")
+            AppLogger.d("Total present (ALL): ${mergedKaryawanMskNik.size}")
+            AppLogger.d("Total present names: ${mergedKaryawanMskNama.size}")
+            AppLogger.d("Total present IDs: ${mergedKaryawanMskId.size}")
+            AppLogger.d("Total present work locations: ${mergedKaryawanMskWorkLocation.size}")
+            AppLogger.d("Work locations detail: $mergedKaryawanMskWorkLocation")
+//            AppLogger.d("Total absent: ${mergedKaryawanTdkMskNik.size}")
+//            AppLogger.d("Total absent work locations: ${mergedKaryawanTdkMskWorkLocation.size}")
             AppLogger.d("JSON: $jsonObject")
             AppLogger.d("=======================")
 
@@ -1626,7 +1645,8 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractValuesFromNestedJson(jsonString: String, targetSet: MutableSet<String>) {
+    // Fungsi helper untuk extract tanpa filter menggunakan List
+    private fun extractValuesFromNestedJsonAsList(jsonString: String, targetList: MutableList<String>) {
         if (jsonString.isEmpty()) return
 
         try {
@@ -1641,7 +1661,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                         innerValue.split(",").forEach { value ->
                             val trimmedValue = value.trim()
                             if (trimmedValue.isNotEmpty()) {
-                                targetSet.add(trimmedValue)
+                                targetList.add(trimmedValue)
                             }
                         }
                     }
@@ -1649,7 +1669,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                     outerValue.toString().split(",").forEach { value ->
                         val trimmedValue = value.trim()
                         if (trimmedValue.isNotEmpty()) {
-                            targetSet.add(trimmedValue)
+                            targetList.add(trimmedValue)
                         }
                     }
                 }
@@ -1659,10 +1679,12 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractValuesFromNestedJsonWithFilter(
+    // Fungsi untuk ekstraksi dengan filter (untuk nama, nik, id yang hanya Panen)
+    private fun extractValuesFromNestedJsonWithFilterAsList(
+        jsonStringNama: String,
         jsonString: String,
         workLocationJsonString: String,
-        targetSet: MutableSet<String>
+        targetList: MutableList<String>
     ) {
         if (jsonString.isEmpty() || workLocationJsonString.isEmpty()) {
             AppLogger.d("Empty JSON string, skipping filter")
@@ -1673,7 +1695,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             val jsonObject = JSONObject(jsonString)
             val workLocationObject = JSONObject(workLocationJsonString)
 
-            AppLogger.d("=== FILTERING DATA FOR QR ===")
+            AppLogger.d("=== FILTERING DATA FOR QR (List) ===")
 
             jsonObject.keys().forEach { outerKey ->
                 val outerValue = jsonObject.get(outerKey)
@@ -1699,7 +1721,7 @@ class ListAbsensiActivity : AppCompatActivity() {
 
                                     if (workLocation.equals("Panen", ignoreCase = true)) {
                                         if (value.isNotEmpty()) {
-                                            targetSet.add(value)
+                                            targetList.add(value)
                                             AppLogger.d("    ✓ Added to QR: $value")
                                         }
                                     } else {
@@ -1712,12 +1734,12 @@ class ListAbsensiActivity : AppCompatActivity() {
                 }
             }
 
-            AppLogger.d("Final QR dataset size: ${targetSet.size}")
+            AppLogger.d("Final QR dataset size: ${targetList.size}")
             AppLogger.d("=============================")
 
         } catch (e: Exception) {
             AppLogger.e("Error parsing JSON with filter: ${e.message}", e.toString())
-            extractValuesFromNestedJson(jsonString, targetSet)
+            extractValuesFromNestedJsonAsList(jsonString, targetList)
         }
     }
 
@@ -1920,6 +1942,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: "-"),
                                                 "info" to (absensiWithRelations.absensi.info
                                                     ?: "-"),
+                                                "karyawan_msk_nama" to (absensiWithRelations.absensi.karyawan_msk_nama
+                                                    ?: ""),
                                                 "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
                                                     ?: ""),
                                                 "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
@@ -2095,6 +2119,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 ?: "-"),
                                             "info" to (absensiWithRelations.absensi.info
                                                 ?: "-"),
+                                            "karyawan_msk_nama" to (absensiWithRelations.absensi.karyawan_msk_nama
+                                                ?: ""),
                                             "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
                                                 ?: ""),
                                             "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
@@ -2102,7 +2128,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
                                                 ?: ""),
                                             "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
-                                                ?: "")
+                                                ?: ""),
+                                            "karyawan_msk_work_location" to (absensiWithRelations.absensi.karyawan_msk_work_location ?: ""),
+                                            "karyawan_tdk_msk_work_location" to (absensiWithRelations.absensi.karyawan_tdk_msk_work_location ?: "")
                                         )
 
                                         // Return the data object
