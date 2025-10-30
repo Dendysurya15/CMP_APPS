@@ -860,8 +860,6 @@ open class FormInspectionActivity : AppCompatActivity(),
                     throw Exception("Parameter Inspeksi kosong! Harap untuk melakukan sinkronisasi data")
                 }
 
-                var panenTPH: List<PanenEntityWithRelations> = emptyList()
-
                 if (!isGMUser && !isRHUser) {
                     val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
                     panenViewModel.getAllTPHinWeek(estateIdsList)
@@ -881,6 +879,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                             panenDeferred.complete(filteredList)
                         }
                     }
+
+                    AppLogger.d("masuk gess")
 
                     panenDeferred.await()
                 } else {
@@ -1950,11 +1950,10 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Find all matching downloads and keep only ONE per estate
         val matchedDownloads = downloadList
             .filter { it.estateAbbr in estateAbbrList }
-            .groupBy { it.estateAbbr }  // Group by estate abbreviation
+            .groupBy { it.estateAbbr }
             .mapValues { (estateAbbr, downloads) ->
-                // Pick one: you can choose first, last, or largest
                 AppLogger.d("Estate $estateAbbr has ${downloads.size} download(s), picking one")
-                downloads.maxByOrNull { it.totalSize }  // Pick the largest one
+                downloads.maxByOrNull { it.totalSize }
             }
             .values
             .filterNotNull()
@@ -1965,30 +1964,37 @@ open class FormInspectionActivity : AppCompatActivity(),
         if (matchedDownloads.isNotEmpty()) {
             loadingDialog.setMessage("Mengambil detail peta...")
 
-            val datasetRequests = mutableListOf<DatasetRequest>()
+            // ✅ Use coroutine to process sequentially
+            lifecycleScope.launch {
+                val datasetRequests = mutableListOf<DatasetRequest>()
 
-            // Process estates sequentially using recursion
-            processEstateMapDownload(
-                matchedDownloads = matchedDownloads,
-                currentIndex = 0,
-                datasetRequests = datasetRequests,
-                onComplete = {
-                    isProcessingMapDownload = false
-                    loadingDialog.dismiss()
-                    if (datasetRequests.isNotEmpty()) {
-                        setupDownloadDialog(datasetRequests)
-                    } else {
-                        Toast.makeText(
-                            this@FormInspectionActivity,
-                            "Gagal mendapatkan detail peta untuk semua estate",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                matchedDownloads.forEachIndexed { index, matchedDownload ->
+                    val result = processEstateMapDownloadSuspend(
+                        matchedDownload = matchedDownload,
+                        currentIndex = index,
+                        totalMaps = matchedDownloads.size
+                    )
+
+                    result?.let { datasetRequests.add(it) }
                 }
-            )
+
+                // All done
+                isProcessingMapDownload = false
+                loadingDialog.dismiss()
+
+                if (datasetRequests.isNotEmpty()) {
+                    setupDownloadDialog(datasetRequests)
+                } else {
+                    Toast.makeText(
+                        this@FormInspectionActivity,
+                        "Gagal mendapatkan detail peta untuk semua estate",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
 
         } else {
-            isProcessingMapDownload = false  // ✅ Reset flag when no matches
+            isProcessingMapDownload = false
             loadingDialog.dismiss()
             AppLogger.e("No matching estates found for: $estateAbbrList")
 
@@ -1999,74 +2005,59 @@ open class FormInspectionActivity : AppCompatActivity(),
                 "Estate(s) ${estateAbbrList.joinToString(", ")} tidak ditemukan dalam daftar download map",
                 "warning.json",
                 R.color.colorRedDark
-            ) {
-            }
+            ) {}
         }
     }
 
-    private fun processEstateMapDownload(
-        matchedDownloads: List<DownloadMapItem>,
+    private suspend fun processEstateMapDownloadSuspend(
+        matchedDownload: DownloadMapItem,
         currentIndex: Int,
-        datasetRequests: MutableList<DatasetRequest>,
-        onComplete: () -> Unit
-    ) {
-        if (currentIndex >= matchedDownloads.size) {
-            onComplete()
-            return
-        }
-
-        val matchedDownload = matchedDownloads[currentIndex]
+        totalMaps: Int
+    ): DatasetRequest? {
         val downloadId = matchedDownload.downloadId
-        val totalMaps = matchedDownloads.size
 
         AppLogger.d("Processing estate ${currentIndex + 1}/$totalMaps: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
         AppLogger.d("Download ID: $downloadId")
         AppLogger.d("Status: ${matchedDownload.status}")
         AppLogger.d("Total Size: ${matchedDownload.totalSize}")
 
-        loadingDialog.setMessage("Mengambil detail peta... (${currentIndex + 1}/$totalMaps)")
+        withContext(Dispatchers.Main) {
+            loadingDialog.setMessage("Mengambil detail peta... (${currentIndex + 1}/$totalMaps)")
+        }
 
-        // Call API
-        datasetViewModel.getDownloadMapProgress(downloadId)
+        return try {
+            // ✅ Call suspend function directly - no LiveData, no observers
+            val progressResult = datasetViewModel.getDownloadMapProgress(downloadId)
 
-        // Wait longer for API to respond
-        Handler(Looper.getMainLooper()).postDelayed({
-            datasetViewModel.downloadMapProgress.observeOnce(this@FormInspectionActivity) { progressResult ->
-                progressResult.onSuccess { progressResponse ->
-                    if (progressResponse.success) {
-                        val progressData = progressResponse.data
+            progressResult.getOrNull()?.let { progressResponse ->
+                if (progressResponse.success) {
+                    val progressData = progressResponse.data
 
-                        AppLogger.d("Estate ${progressData.estateAbbr} - Chunks: ${progressData.chunksCount}, Tiles: ${progressData.totalTiles}")
+                    AppLogger.d("✅ Estate ${progressData.estateAbbr} - Chunks: ${progressData.chunksCount}, Tiles: ${progressData.totalTiles}")
 
-                        datasetRequests.add(
-                            DatasetRequest(
-                                estate = progressData.estateAbbr,
-                                estateAbbr = progressData.estateAbbr,
-                                lastModified = null,
-                                dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
-                                isDownloadMasterTPHAsistensi = false,
-                                downloadIdMap = downloadId,
-                                totalChunks = progressData.chunksCount
-                            )
-                        )
-                    } else {
-                        AppLogger.e("Failed to get progress for ${matchedDownload.estateAbbr}")
-                    }
-                }.onFailure { error ->
+                    DatasetRequest(
+                        estate = progressData.estateAbbr,
+                        estateAbbr = progressData.estateAbbr,
+                        lastModified = null,
+                        dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
+                        isDownloadMasterTPHAsistensi = false,
+                        downloadIdMap = downloadId,
+                        totalChunks = progressData.chunksCount
+                    )
+                } else {
+                    AppLogger.e("Failed to get progress for ${matchedDownload.estateAbbr}")
+                    null
+                }
+            } ?: run {
+                progressResult.exceptionOrNull()?.let { error ->
                     AppLogger.e("Error getting map progress for ${matchedDownload.estateAbbr}: ${error.message}")
                 }
-
-                // Process next estate with longer delay
-                Handler(Looper.getMainLooper()).postDelayed({
-                    processEstateMapDownload(
-                        matchedDownloads = matchedDownloads,
-                        currentIndex = currentIndex + 1,
-                        datasetRequests = datasetRequests,
-                        onComplete = onComplete
-                    )
-                }, 500) // ✅ Increased from 200ms to 500ms
+                null
             }
-        }, 800) // ✅ Increased from 500ms to 800ms
+        } catch (e: Exception) {
+            AppLogger.e("Exception in processEstateMapDownloadSuspend: ${e.message}")
+            null
+        }
     }
 
     private fun <T> LiveData<T>.observeOnce(owner: LifecycleOwner, observer: (T) -> Unit) {
@@ -7913,12 +7904,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
 
                     try {
-                        // 🕒 Wait until panenTPH is available (avoid race)
-                        repeat(10) { retry ->
-                            if (panenTPH.isNotEmpty()) return@repeat
-                            AppLogger.d("Waiting for panenTPH to be ready... attempt $retry")
-                            delay(200)
-                        }
+
+                        AppLogger.d("panenTPH $panenTPH")
 
                         if (panenTPH.isEmpty()) {
                             AppLogger.e("panenTPH is still empty after waiting!")

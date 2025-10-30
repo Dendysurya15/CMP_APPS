@@ -104,6 +104,7 @@ class DownloadDatasetUtility(
         ASKEP,
         MANAGER,
         GM,
+        RH,
         OTHER
     }
 
@@ -148,6 +149,11 @@ class DownloadDatasetUtility(
                 AppUtils.ListFeatureByRoleUser.GM,
                 ignoreCase = true
             ) -> UserRole.GM
+
+            jabatan.contains(
+                AppUtils.ListFeatureByRoleUser.RH,
+                ignoreCase = true
+            ) -> UserRole.RH
 
             else -> UserRole.OTHER
         }
@@ -345,29 +351,37 @@ class DownloadDatasetUtility(
                 )
             }
 
-            UserRole.GM -> {
-                addGMDatasets(
+            UserRole.GM, UserRole.RH -> {
+                val userRole = if (userRole == UserRole.GM) {
+                    AppUtils.ListFeatureByRoleUser.GM
+                } else {
+                    AppUtils.ListFeatureByRoleUser.RH
+                }
+
+                addGMandRHDatasets(
                     datasets,
                     regionalUser,
                     estateId,
-                    lastModifiedDatasetKemandoran,
                     lastModifiedDatasetBlok,
+                    lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetTPH,
                     lastModifiedDatasetPemanen,
-                    lastModifiedDatasetEstate
+                    userRole
                 )
             }
         }
     }
 
 
-    private fun addGMDatasets(
+    private fun addGMandRHDatasets(
         datasets: MutableList<DatasetRequest>,
         regionalId: Int,
         estateId: Any,
         lastModifiedDatasetBlok: String?,
-        lastModifiedDatasetKemandoran:String?,
+        lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTPH: String?,
-        lastModifiedDatasetPemanen: String?
+        lastModifiedDatasetPemanen: String?,
+        userRole: String  // ✅ Pass the actual role (GM or RH)
     ) {
         datasets.addAll(
             listOf(
@@ -375,25 +389,25 @@ class DownloadDatasetUtility(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetBlok,
                     dataset = AppUtils.DatasetNames.blok,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetKemandoran,
                     dataset = AppUtils.DatasetNames.kemandoran,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 )
             )
         )
@@ -566,6 +580,7 @@ class DownloadDatasetUtility(
             UserRole.ASKEP -> AppUtils.ListFeatureByRoleUser.ASKEP
             UserRole.MANAGER -> AppUtils.ListFeatureByRoleUser.Manager
             UserRole.GM -> AppUtils.ListFeatureByRoleUser.GM
+            UserRole.RH -> AppUtils.ListFeatureByRoleUser.RH
             UserRole.OTHER -> null
         }
 

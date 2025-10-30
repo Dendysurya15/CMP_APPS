@@ -85,6 +85,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.DownloadMapItem
+import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
@@ -140,6 +141,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.osmdroid.config.Configuration
@@ -1369,11 +1371,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         // Find all matching downloads and keep only ONE per estate
         val matchedDownloads = downloadList
             .filter { it.estateAbbr in estateAbbrList }
-            .groupBy { it.estateAbbr }  // Group by estate abbreviation
+            .groupBy { it.estateAbbr }
             .mapValues { (estateAbbr, downloads) ->
-                // Pick one: you can choose first, last, or largest
                 AppLogger.d("Estate $estateAbbr has ${downloads.size} download(s), picking one")
-                downloads.maxByOrNull { it.totalSize }  // Pick the largest one
+                downloads.maxByOrNull { it.totalSize }
             }
             .values
             .filterNotNull()
@@ -1384,30 +1385,37 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         if (matchedDownloads.isNotEmpty()) {
             loadingDialog.setMessage("Mengambil detail peta...")
 
-            val datasetRequests = mutableListOf<DatasetRequest>()
+            // ✅ Use coroutine to process sequentially
+            lifecycleScope.launch {
+                val datasetRequests = mutableListOf<DatasetRequest>()
 
-            // Process estates sequentially using recursion
-            processEstateMapDownload(
-                matchedDownloads = matchedDownloads,
-                currentIndex = 0,
-                datasetRequests = datasetRequests,
-                onComplete = {
-                    isProcessingMapDownload = false
-                    loadingDialog.dismiss()
-                    if (datasetRequests.isNotEmpty()) {
-                        setupDownloadDialog(datasetRequests)
-                    } else {
-                        Toast.makeText(
-                            this@FeaturePanenTBSActivity,
-                            "Gagal mendapatkan detail peta untuk semua estate",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                matchedDownloads.forEachIndexed { index, matchedDownload ->
+                    val result = processEstateMapDownloadSuspend(
+                        matchedDownload = matchedDownload,
+                        currentIndex = index,
+                        totalMaps = matchedDownloads.size
+                    )
+
+                    result?.let { datasetRequests.add(it) }
                 }
-            )
+
+                // All done
+                isProcessingMapDownload = false
+                loadingDialog.dismiss()
+
+                if (datasetRequests.isNotEmpty()) {
+                    setupDownloadDialog(datasetRequests)
+                } else {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Gagal mendapatkan detail peta untuk semua estate",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
 
         } else {
-            isProcessingMapDownload = false  // ✅ Reset flag when no matches
+            isProcessingMapDownload = false
             loadingDialog.dismiss()
             AppLogger.e("No matching estates found for: $estateAbbrList")
 
@@ -1418,74 +1426,59 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 "Estate(s) ${estateAbbrList.joinToString(", ")} tidak ditemukan dalam daftar download map",
                 "warning.json",
                 R.color.colorRedDark
-            ) {
-            }
+            ) {}
         }
     }
 
-    private fun processEstateMapDownload(
-        matchedDownloads: List<DownloadMapItem>,
+    private suspend fun processEstateMapDownloadSuspend(
+        matchedDownload: DownloadMapItem,
         currentIndex: Int,
-        datasetRequests: MutableList<DatasetRequest>,
-        onComplete: () -> Unit
-    ) {
-        if (currentIndex >= matchedDownloads.size) {
-            onComplete()
-            return
-        }
-
-        val matchedDownload = matchedDownloads[currentIndex]
+        totalMaps: Int
+    ): DatasetRequest? {
         val downloadId = matchedDownload.downloadId
-        val totalMaps = matchedDownloads.size
 
         AppLogger.d("Processing estate ${currentIndex + 1}/$totalMaps: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
         AppLogger.d("Download ID: $downloadId")
         AppLogger.d("Status: ${matchedDownload.status}")
         AppLogger.d("Total Size: ${matchedDownload.totalSize}")
 
-        loadingDialog.setMessage("Mengambil detail peta... (${currentIndex + 1}/$totalMaps)")
+        withContext(Dispatchers.Main) {
+            loadingDialog.setMessage("Mengambil detail peta... (${currentIndex + 1}/$totalMaps)")
+        }
 
-        // Call API
-        datasetViewModel.getDownloadMapProgress(downloadId)
+        return try {
+            // ✅ Call suspend function directly - no LiveData, no observers
+            val progressResult = datasetViewModel.getDownloadMapProgress(downloadId)
 
-        // Wait longer for API to respond
-        Handler(Looper.getMainLooper()).postDelayed({
-            datasetViewModel.downloadMapProgress.observeOnce(this@FeaturePanenTBSActivity) { progressResult ->
-                progressResult.onSuccess { progressResponse ->
-                    if (progressResponse.success) {
-                        val progressData = progressResponse.data
+            progressResult.getOrNull()?.let { progressResponse ->
+                if (progressResponse.success) {
+                    val progressData = progressResponse.data
 
-                        AppLogger.d("Estate ${progressData.estateAbbr} - Chunks: ${progressData.chunksCount}, Tiles: ${progressData.totalTiles}")
+                    AppLogger.d("✅ Estate ${progressData.estateAbbr} - Chunks: ${progressData.chunksCount}, Tiles: ${progressData.totalTiles}")
 
-                        datasetRequests.add(
-                            DatasetRequest(
-                                estate = progressData.estateAbbr,
-                                estateAbbr = progressData.estateAbbr,
-                                lastModified = null,
-                                dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
-                                isDownloadMasterTPHAsistensi = false,
-                                downloadIdMap = downloadId,
-                                totalChunks = progressData.chunksCount
-                            )
-                        )
-                    } else {
-                        AppLogger.e("Failed to get progress for ${matchedDownload.estateAbbr}")
-                    }
-                }.onFailure { error ->
+                    DatasetRequest(
+                        estate = progressData.estateAbbr,
+                        estateAbbr = progressData.estateAbbr,
+                        lastModified = null,
+                        dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
+                        isDownloadMasterTPHAsistensi = false,
+                        downloadIdMap = downloadId,
+                        totalChunks = progressData.chunksCount
+                    )
+                } else {
+                    AppLogger.e("Failed to get progress for ${matchedDownload.estateAbbr}")
+                    null
+                }
+            } ?: run {
+                progressResult.exceptionOrNull()?.let { error ->
                     AppLogger.e("Error getting map progress for ${matchedDownload.estateAbbr}: ${error.message}")
                 }
-
-                // Process next estate with longer delay
-                Handler(Looper.getMainLooper()).postDelayed({
-                    processEstateMapDownload(
-                        matchedDownloads = matchedDownloads,
-                        currentIndex = currentIndex + 1,
-                        datasetRequests = datasetRequests,
-                        onComplete = onComplete
-                    )
-                }, 500) // ✅ Increased from 200ms to 500ms
+                null
             }
-        }, 800) // ✅ Increased from 500ms to 800ms
+        } catch (e: Exception) {
+            AppLogger.e("Exception in processEstateMapDownloadSuspend: ${e.message}")
+            null
+        }
     }
 
     private fun initializeJjgJson() {
@@ -3108,17 +3101,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     @SuppressLint("SetTextI18n", "CutPasteId")
     private fun setupLayout() {
         val featureName = intent.getStringExtra("FEATURE_NAME")
-        val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+        val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+        val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
 
         findViewById<LinearLayout>(R.id.layoutEstate).visibility =
-            if (isGM || featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+            if (isGM || isRH || featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
                 View.VISIBLE
             } else {
                 View.GONE
             }
 
 
-        AppLogger.d("radiusMinimum $radiusMinimum")
         val radiusText = "${radiusMinimum.toInt()} m"
         val fullText =
             "Berikut adalah daftar lokasi TPH yang berada dalam radius $radiusText dari lokasi anda:"
@@ -4695,17 +4688,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
             if (linearLayout.id == R.id.layoutEstate) {
-                // Check if jabatan contains "GM" instead of exact match
-                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+                val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+                val isGMORRH = isGM || isRH
 
-                val shouldDisable =
-                    featureName != AppUtils.ListFeatureNames.AsistensiEstateLain && !isGM
+                val isAsistensiFeature = featureName == AppUtils.ListFeatureNames.AsistensiEstateLain
 
-                spinner.isEnabled = !shouldDisable
-
-                AppLogger.d("Estate spinner - Feature: $featureName, Jabatan: $jabatanUser, IsGM: $isGM, Enabled: ${spinner.isEnabled}")
-                AppLogger.d("Expected GM value: ${AppUtils.ListFeatureByRoleUser.GM}")
+                // Enable spinner only if GM/RH or Asistensi feature
+                spinner.isEnabled = isGMORRH || isAsistensiFeature
             }
+
 
             spinner.setOnItemSelectedListener { _, position, _, item ->
                 try {
@@ -4730,9 +4722,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val layoutBlokBanjir = findViewById<LinearLayout>(R.id.layoutBlokBanjir)
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
 
-        val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+        val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+        val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+
         layoutBlokBanjir.visibility =
-            View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM } ?: View.GONE
+            View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM && !isRH } ?: View.GONE
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)

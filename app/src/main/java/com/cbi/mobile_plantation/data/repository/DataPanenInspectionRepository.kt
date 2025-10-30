@@ -35,8 +35,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.MILLISECOND, 999)
         val endDate = formatter.format(calendar.time)
 
-        // Start of 7 days ago (00:00:00 seven days ago)
-        calendar.add(Calendar.DAY_OF_YEAR, -7)
+        calendar.add(Calendar.DAY_OF_YEAR, -3)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -171,7 +170,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, -7)
+        calendar.add(Calendar.DAY_OF_YEAR, -3)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)

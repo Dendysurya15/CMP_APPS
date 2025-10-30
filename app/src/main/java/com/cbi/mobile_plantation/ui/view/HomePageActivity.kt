@@ -8304,44 +8304,23 @@ class HomePageActivity : AppCompatActivity() {
         val lastModifiedDatasetKendaraan = prefManager!!.lastModifiedDatasetKendaraan
         val lastModifiedSettingJSON = prefManager!!.lastModifiedSettingJSON
 
-        AppLogger.d("🧭 PREFMANAGER DEBUG START -----------------------------")
-        AppLogger.d("regionalIdUserLogin: '${prefManager!!.regionalIdUserLogin}'")
-        AppLogger.d("estateIdUserLogin: '${prefManager!!.estateIdUserLogin}'")
-        AppLogger.d("afdelingIdUserLogin: '${prefManager!!.afdelingIdUserLogin}'")
-        AppLogger.d("lastModifiedDatasetEstate: '${prefManager!!.lastModifiedDatasetEstate}'")
-        AppLogger.d("lastModifiedDatasetTPH: '${prefManager!!.lastModifiedDatasetTPH}'")
-        AppLogger.d("lastModifiedDatasetJenisTPH: '${prefManager!!.lastModifiedDatasetJenisTPH}'")
-        AppLogger.d("lastModifiedDatasetBlok: '${prefManager!!.lastModifiedDatasetBlok}'")
-        AppLogger.d("lastModifiedDatasetKemandoran: '${prefManager!!.lastModifiedDatasetKemandoran}'")
-        AppLogger.d("lastModifiedDatasetPemanen: '${prefManager!!.lastModifiedDatasetPemanen}'")
-        AppLogger.d("lastModifiedDatasetTransporter: '${prefManager!!.lastModifiedDatasetTransporter}'")
-        AppLogger.d("lastModifiedDatasetKendaraan: '${prefManager!!.lastModifiedDatasetKendaraan}'")
-        AppLogger.d("lastModifiedSettingJSON: '${prefManager!!.lastModifiedSettingJSON}'")
 
-        AppLogger.d("jabatanUserLogin: '${prefManager!!.jabatanUserLogin}'")
-        AppLogger.d("nameUserLogin: '${prefManager!!.nameUserLogin}'")
-        AppLogger.d("companyAbbrUserLogin: '${prefManager!!.companyAbbrUserLogin}'")
-        AppLogger.d("companyIdUserLogin: '${prefManager!!.companyIdUserLogin}'")
-        AppLogger.d("companyNamaUserLogin: '${prefManager!!.companyNamaUserLogin}'")
-        AppLogger.d("estateUserLogin: '${prefManager!!.estateUserLogin}'")
-        AppLogger.d("estateUserLengkapLogin: '${prefManager!!.estateUserLengkapLogin}'")
-        AppLogger.d("kemandoranUserLogin: '${prefManager!!.kemandoranUserLogin}'")
-        AppLogger.d("kemandoranPPROUserLogin: '${prefManager!!.kemandoranPPROUserLogin}'")
-        AppLogger.d("kemandoranNamaUserLogin: '${prefManager!!.kemandoranNamaUserLogin}'")
-        AppLogger.d("kemandoranKodeUserLogin: '${prefManager!!.kemandoranKodeUserLogin}'")
-        AppLogger.d("datasetMustUpdate: '${prefManager!!.datasetMustUpdate}'")
-        AppLogger.d("🧭 PREFMANAGER DEBUG END -----------------------------")
 
 
         val jabatanUser = prefManager!!.jabatanUserLogin
         val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
-        val isRHUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.RH) == true
+        val isRHUser = jabatanUser?.lowercase()?.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) == true
         val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
         val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
         val canHaveMultipleAfdelings = isAskepUser || isManagerUser
+        val isGMorRH = isGMUser || isRHUser
 
-        // Estate validation
-        if (!isGMUser && !isRHUser) {
+        AppLogger.d("isGMUser: $isGMUser")
+        AppLogger.d("isRHUser: $isRHUser")
+        AppLogger.d("isGMorRH: $isGMorRH")
+
+        // Estate validation - ✅ SKIP for GM/RH users
+        if (!isGMorRH) {
             if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
                 showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
                 loadingDialog.dismiss()
@@ -8349,7 +8328,7 @@ class HomePageActivity : AppCompatActivity() {
             }
 
             if (estateIdString.contains(",")) {
-                showErrorDialog("Non-GM users should have only one Estate ID")
+                showErrorDialog("Non-GM/RH users should have only one Estate ID")
                 loadingDialog.dismiss()
                 return
             }
@@ -8368,8 +8347,8 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        // Afdeling validation - SKIP for GM users
-        if (!isGMUser && !isRHUser && !canHaveMultipleAfdelings) {
+        // Afdeling validation - ✅ SKIP for GM/RH users
+        if (!isGMorRH && !canHaveMultipleAfdelings) {
             if (afdelingIdString.isNullOrEmpty() || afdelingIdString.isBlank()) {
                 showErrorDialog("Afdeling ID is not valid. Current value: '$afdelingIdString'")
                 loadingDialog.dismiss()
@@ -8408,7 +8387,8 @@ class HomePageActivity : AppCompatActivity() {
 
             AppLogger.d("isRHUser $isRHUser")
 
-            val estateIds = if ((isGMUser || isRHUser) && estateIdString!!.contains(",")) {
+            // ✅ Handle multiple estates for GM/RH
+            val estateIds = if (isGMorRH && estateIdString!!.contains(",")) {
                 estateIdString.split(",")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
@@ -8417,8 +8397,9 @@ class HomePageActivity : AppCompatActivity() {
                 estateIdString!!
             }
 
+            // ✅ Handle afdelings based on role
             val afdelingIds = when {
-                isGMUser || isRHUser -> null
+                isGMorRH -> null
                 canHaveMultipleAfdelings && afdelingIdString!!.contains(",") -> {
                     afdelingIdString.split(",")
                         .map { it.trim() }

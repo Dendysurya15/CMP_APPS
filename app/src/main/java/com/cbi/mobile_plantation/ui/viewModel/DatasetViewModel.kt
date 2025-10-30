@@ -812,7 +812,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     )
 
     fun clearDownloadMapProgress() {
-        _downloadMapProgress.postValue(null)
+        _downloadMapProgress.value = null
     }
 
 
@@ -828,7 +828,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getDownloadMapProgress(downloadId: String) {
+    // Change this function signature
+    suspend fun getDownloadMapProgress(downloadId: String): Result<DownloadMapProgressResponse> {
+        return try {
+            // Call repository directly and return the result
+            downloadMapRepository.getDownloadMapProgress(downloadId)
+        } catch (e: Exception) {
+            AppLogger.e("Error in getDownloadMapProgress: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // Keep the LiveData version if you need it elsewhere, but rename it
+    fun getDownloadMapProgressLiveData(downloadId: String) {
         viewModelScope.launch {
             try {
                 val result = downloadMapRepository.getDownloadMapProgress(downloadId)
@@ -4294,8 +4306,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         localInspectionId: Int,
         tglInspeksi: String
     ) {
-        AppLogger.d(">>> Starting insertAllDetailRecords for inspection ID=$localInspectionId")
-        AppLogger.d("Processing ${inspectionDetails.length()} details for inspection ID=$localInspectionId")
 
         var detailSuccessCount = 0
         var detailFailCount = 0
@@ -4368,10 +4378,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             if (jsonObject.optBoolean("success", false)) {
                 val dataArray = jsonObject.optJSONArray("data") ?: JSONArray()
 
-                AppLogger.d("processPreviewDataInspeksi - estate type: ${estate::class.simpleName}")
-                AppLogger.d("processPreviewDataInspeksi - estate value: $estate")
-                AppLogger.d("processPreviewDataInspeksi - dataArray length: ${dataArray.length()}")
-
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
@@ -4380,8 +4386,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                // 7 days ago from today (8 days total including today)
-                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.add(Calendar.DAY_OF_YEAR, -3)
                 val sevenDaysAgoDate = calendar.time
                 val sevenDaysAgo = inputFormatter.format(sevenDaysAgoDate)
 
@@ -4561,8 +4566,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                // 7 days ago from today (8 days total including today)
-                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.add(Calendar.DAY_OF_YEAR, -3)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -4753,8 +4757,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
 
-                // 7 days ago from today (8 days total including today)
-                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.add(Calendar.DAY_OF_YEAR, -3)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -4887,30 +4890,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                // NEW: Log the data consistency check results
-                AppLogger.d("=== PREVIEW DATA CONSISTENCY CHECK ===")
-                AppLogger.d("Total records in response: ${dataArray.length()}")
-                AppLogger.d("Status_espb = 0: $status0Count")
-                AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (shown in preview)")
-                AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb (hidden from preview)")
-                AppLogger.d("Status_espb = 1: $status1Count")
-                AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
-                AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (expected)")
-                AppLogger.d("Status_espb = 2: $status2Count")
-                AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
-                AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (expected)")
-
-                // Data consistency verdict
-                if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
-                    AppLogger.e("🚨 DATA INCONSISTENCY DETECTED IN PREVIEW!")
-                    AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
-                    AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
-                    AppLogger.e("This indicates backend data quality issues!")
-                } else {
-                    AppLogger.d("✅ Data consistency check PASSED")
-                    AppLogger.d("All status_espb=1&2 records have non-null spb_kode as expected")
-                }
-                AppLogger.d("=====================================")
 
                 // Calculate total jjg_kirim for all dates
                 val totalJjgKirim = jjgKirimByDate.values.sum()
@@ -4933,7 +4912,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     hasValidData = true
 
-                    // Format date for display (e.g., "5 Mei")
+
                     val dateObj = inputFormatter.parse(date)
                     val dateDisplay = displayFormatter.format(dateObj!!)
 
@@ -5153,7 +5132,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
                         if (request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
                             request.jabatan != AppUtils.ListFeatureByRoleUser.Manager
                         ) {
@@ -5164,13 +5144,15 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         } else {
                             return@forEach
                         }
-                    } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
-                    } else if (request.dataset == AppUtils.DatasetNames.hektaran) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.hektaran) {
 
                         val estateId: Int = when (val estate = request.estate) {
                             is Int -> estate
@@ -5187,20 +5169,20 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         }
                         response =
                             hektarPanenRepository.getDataHektaranHektarDetail(estateId, afdelingId)
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
-                        AppLogger.d("sinkronisasi data panen")
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
                         )
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
-                        AppLogger.d("sinkronisasi inspeksi")
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             request.estate!!,
                             true,
                             parameterDao
                         )
-                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
-                        AppLogger.d("masuk sini gess")
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
@@ -5259,11 +5241,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         _downloadStatuses.postValue(results.toMap())
                         return@forEach
-                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
 
                         val estatesResult = repository.getAllEstates()
-
-                        AppLogger.d("estate Resutl $estatesResult")
                         if (estatesResult.isSuccess) {
                             val estates = estatesResult.getOrNull() ?: emptyList()
                             val allTphData = mutableListOf<TPHNewModel>()
