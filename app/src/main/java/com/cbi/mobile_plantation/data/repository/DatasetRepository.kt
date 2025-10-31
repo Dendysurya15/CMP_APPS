@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
@@ -35,8 +36,7 @@ import retrofit2.Response
 
 class DatasetRepository(
     context: Context,
-    private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
+    private val apiService: ApiService = ApiProvider.currentApiService
     ) {
 
     private val database = AppDatabase.getDatabase(context)
@@ -159,15 +159,15 @@ class DatasetRepository(
         return tphDao.getLatLonByDivisi(idEstate, idDivisi)
     }
 
-    suspend fun getLatLonDivisiByTPHIds(
+    suspend fun getAllTPHInBlock(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>
+        blokKode: String
     ): List<TPHNewModel> {
-        return if (tphIds.isEmpty()) {
+        return if (blokKode.isEmpty()) {
             emptyList()
         } else {
-            tphDao.getLatLonByDivisiAndTPHIds(idEstate, idDivisi, tphIds)
+            tphDao.getAllTPHInBlock(idEstate, idDivisi, blokKode)
         }
     }
 

@@ -4,7 +4,10 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
+import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 
 @Dao
 interface MutuBuahDao {
@@ -19,10 +22,12 @@ interface MutuBuahDao {
     @Query("""
     SELECT * FROM mutu_buah 
     WHERE  date(createdDate) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
-    AND status_upload = 0
     ORDER BY tanggal DESC
 """)
     abstract suspend fun getAllMutuBuah(): List<MutuBuahEntity>
+    @Transaction
+    @Query("SELECT * FROM mutu_buah WHERE date(createdDate) = date('now')")
+    abstract fun getAllTPHHasBeenSelectedMB(): List<MutuBuahWithRelations>
 
     @Query("UPDATE mutu_buah SET dataIsZipped = :status WHERE id IN (:ids)")
     abstract  suspend fun updateDataIsZippedMutuBuah(ids: List<Int>, status: Int)

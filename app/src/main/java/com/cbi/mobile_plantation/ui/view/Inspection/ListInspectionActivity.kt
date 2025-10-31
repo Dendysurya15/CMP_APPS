@@ -604,11 +604,27 @@ class ListInspectionActivity : AppCompatActivity() {
                 // Get unique workers for this pokok
                 val workers = details.map { "${it.nama} (${it.nik})" }.distinct()
 
-                // Sum up all temuan values by kode_inspeksi from all workers
+                // Process temuan values by kode_inspeksi based on undivided flag
                 val temuanByKode = details
                     .groupBy { it.kode_inspeksi }
-                    .mapValues { (_, codeDetails) ->
-                        codeDetails.sumOf { it.temuan_inspeksi }
+                    .mapValues { (kodeInspeksi, codeDetails) ->
+                        // Find the parameter for this kode_inspeksi
+                        val parameter = parameterInspeksi.find { it.id == kodeInspeksi }
+
+                        AppLogger.d("Processing kode_inspeksi: $kodeInspeksi")
+                        AppLogger.d("Parameter found: ${parameter?.nama}, undivided: ${parameter?.undivided}")
+
+                        if (parameter != null && parameter.undivided.equals("true", ignoreCase = true)) {
+                            // Sum the values if undivided is true (numeric fields)
+                            val sum = codeDetails.sumOf { it.temuan_inspeksi }
+                            AppLogger.d("Undivided = true, summing values: $sum")
+                            sum
+                        } else {
+                            // Take the first value if undivided is false (radio button fields)
+                            val firstValue = codeDetails.firstOrNull()?.temuan_inspeksi ?: 0.0
+                            AppLogger.d("Undivided = false, taking first value: $firstValue")
+                            firstValue
+                        }
                     }
 
                 // Combine comments from all workers (if any)
@@ -738,12 +754,17 @@ class ListInspectionActivity : AppCompatActivity() {
                 4 -> AppUtils.kodeInspeksi.buahTertinggalPiringan
                 7 -> AppUtils.kodeInspeksi.susunanPelepahTidakSesuai
                 8 -> AppUtils.kodeInspeksi.terdapatPelepahSengkleh
-                9 -> AppUtils.kodeInspeksi.overPruning
-                10 -> AppUtils.kodeInspeksi.underPruning
+                9 -> null // Skip individual over/under pruning columns
+                10 -> null // Skip individual over/under pruning columns
                 else -> param.nama.take(20)
             }
-            columnHeaders.add(shortName)
+            if (shortName != null) {
+                columnHeaders.add(shortName)
+            }
         }
+
+        // Add combined Kondisi Pruning column
+        columnHeaders.add("Kondisi\nPruning")
 
         // Add standard columns
         columnHeaders.add("Pokok\nPanen")
@@ -884,10 +905,32 @@ class ListInspectionActivity : AppCompatActivity() {
             val rowData = mutableListOf<String>()
 
             filteredParameters.forEach { param ->
-                val value = mergedDetail.temuanByKode[param.id] ?: 0.0
-                rowData.add(if (value > 0) value.toString() else "0")
+                // Skip params 9 and 10 as they will be combined into Kondisi Pruning
+                if (param.id !in listOf(9, 10)) {
+                    val value = mergedDetail.temuanByKode[param.id] ?: 0.0
+                    AppLogger.d("Processing param.id: ${param.id}, param.nama: ${param.nama}, value: $value")
+
+                    val displayValue = getDisplayValueForParameter(param.id, value)
+                    AppLogger.d("Display value for param ${param.id}: '$displayValue'")
+
+                    rowData.add(displayValue)
+                }
             }
 
+
+            // Add combined Kondisi Pruning column (combines params 9 and 10)
+            val overPruning = mergedDetail.temuanByKode[9] ?: 0.0
+            val underPruning = mergedDetail.temuanByKode[10] ?: 0.0
+
+            val kondisiPruning = when {
+                overPruning.toInt() == 1 -> "Over Pruning"
+                underPruning.toInt() == 1 -> "Under Pruning"
+                else -> "Normal"
+            }
+            AppLogger.d("Kondisi Pruning - overPruning: $overPruning, underPruning: $underPruning, result: $kondisiPruning")
+            rowData.add(kondisiPruning)
+
+            // Add standard columns
             rowData.add(getPokokPanenText(mergedDetail.pokok_panen))
             rowData.add("FOTO")
 
@@ -1274,6 +1317,35 @@ class ListInspectionActivity : AppCompatActivity() {
             else -> "-"
         }
     }
+
+    private fun getDisplayValueForParameter(paramId: Int, value: Double): String {
+        AppLogger.d("=== getDisplayValueForParameter ===")
+        AppLogger.d("paramId: $paramId, value: $value")
+
+        val result = when (paramId) {
+            7 -> {
+                // Susunan Pelepah: 1 = Standar, 0 = Tidak Standar
+                if (value.toInt() == 1) "Standar" else if (value.toInt() == 0) "Tidak Standar" else "-"
+            }
+            8 -> {
+                // Pelepah Sengkleh: 1 = Ya, 0 = Tidak
+                if (value.toInt() == 1) "Ya" else if (value.toInt() == 0) "Tidak" else "-"
+            }
+            9, 10 -> {
+                // These are handled together in Kondisi Pruning column
+                "-"
+            }
+            else -> {
+                // Numeric values
+                if (value > 0) value.toString() else "0"
+            }
+        }
+
+        AppLogger.d("Final result: '$result'")
+        return result
+    }
+
+
 
     fun createRowTextView(
         text: String,

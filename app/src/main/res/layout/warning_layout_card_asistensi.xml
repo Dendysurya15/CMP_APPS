@@ -5,10 +5,10 @@
     android:id="@+id/warningCardAsistensi"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="1dp"
+    android:layout_margin="5dp"
     android:visibility="visible"
     app:cardBackgroundColor="@color/bgLightYellow"
-    app:cardCornerRadius="0dp"
+    app:cardCornerRadius="10dp"
     app:cardElevation="1dp">
 
     <LinearLayout
@@ -35,7 +35,7 @@
             android:layout_weight="1"
             android:text="Peringatan, form ini merupakan form khusus untuk asistensi panen TBS ke Estate lain!"
             android:textColor="@color/black"
-            android:textSize="14sp" />
+            android:textSize="@dimen/m" />
 
         <ImageButton
             android:id="@+id/btnCloseWarning"

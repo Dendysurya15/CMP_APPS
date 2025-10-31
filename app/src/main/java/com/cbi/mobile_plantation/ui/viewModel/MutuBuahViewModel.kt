@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
+import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 import kotlinx.coroutines.launch
@@ -34,6 +36,22 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
 
     private val _updateStatus = MutableLiveData<Boolean>()
     val updateStatus: LiveData<Boolean> get() = _updateStatus
+
+    private val _activeMBList = MutableLiveData<List<MutuBuahWithRelations>>()
+    val activeMBList: LiveData<List<MutuBuahWithRelations>> get() = _activeMBList
+
+
+    fun getAllTPHHasBeenSelected() {
+        viewModelScope.launch {
+            repository.getAllTPHHasBeenSelectedMB()
+                .onSuccess { panenList ->
+                    _activeMBList.value = panenList // ✅ Immediate emission like StateFlow
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load data")
+                }
+        }
+    }
 
     suspend fun loadMutuBuahToday(): Int {
         val count = try {

@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cbi.mobile_plantation.R
+import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
@@ -196,7 +197,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
 
                     val jsonObject = JSONObject(jsonStr)
 
-                    // Extract the essential data
+// Extract the essential data
                     val idKemandoranList = jsonObject.optJSONArray("id_kemandoran")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
@@ -204,7 +205,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val rawDatetime = datetimeList.firstOrNull() ?: ""
 
-                    // Extract dept and dept_abbr (previously estate)
+// Extract dept and dept_abbr (previously estate)
                     val deptList = jsonObject.optJSONArray("dept")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val dept = deptList.firstOrNull() ?: ""
@@ -213,14 +214,14 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val deptAbbr = deptAbbrList.firstOrNull() ?: ""
 
-                    // Use estate as fallback for dept_abbr if not present
+// Use estate as fallback for dept_abbr if not present
                     val estateList = jsonObject.optJSONArray("dept")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val estate = estateList.firstOrNull() ?: ""
 
                     val finalDeptAbbr = if (deptAbbr.isNotEmpty()) deptAbbr else estate
 
-                    // Extract divisi and divisi_abbr (previously afdeling)
+// Extract divisi and divisi_abbr (previously afdeling)
                     val divisiList = jsonObject.optJSONArray("divisi")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val divisi = divisiList.firstOrNull() ?: ""
@@ -229,19 +230,19 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val divisiAbbr = divisiAbbrList.firstOrNull() ?: ""
 
-                    // Use afdeling as fallback for divisi_abbr if not present
+// Use afdeling as fallback for divisi_abbr if not present
                     val afdelingList = jsonObject.optJSONArray("divisi")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val afdeling = afdelingList.firstOrNull() ?: ""
 
                     val finalDivisiAbbr = if (divisiAbbr.isNotEmpty()) divisiAbbr else afdeling
 
-                    // Extract info field
+// Extract info field
                     val infoList = jsonObject.optJSONArray("info")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val info = infoList.firstOrNull() ?: ""
 
-                    // Extract created_by field
+// Extract created_by field
                     val createdByList = jsonObject.optJSONArray("created_by")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val createdBy = createdByList.firstOrNull()?.toIntOrNull() ?: 0
@@ -272,60 +273,92 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         ""
                     }
 
+// Process the employee data
+// First try karyawan_msk_id and karyawan_tdk_msk_id
                     // Process the employee data
-                    // First try karyawan_msk_id and karyawan_tdk_msk_id
+// First try karyawan_msk_id and karyawan_tdk_msk_id
                     val karyawanMskIdList = jsonObject.optJSONArray("karyawan_msk_id")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val karyawanTdkMskIdList = jsonObject.optJSONArray("karyawan_tdk_msk_id")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    // Fallback to NIK if ID lists are empty
+// Get NIK lists
                     val nikKaryawanMskList = jsonObject.optJSONArray("karyawan_msk_nik")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
                     val nikKaryawanTdkMskList = jsonObject.optJSONArray("karyawan_tdk_msk_nik")
                         ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    // Use IDs if available, otherwise use NIKs
-                    val finalKaryawanMskIdList = if (karyawanMskIdList.isNotEmpty()) karyawanMskIdList else nikKaryawanMskList
-                    val finalKaryawanTdkMskIdList = if (karyawanTdkMskIdList.isNotEmpty()) karyawanTdkMskIdList else nikKaryawanTdkMskList
+// ✅ GET NAMA lists
+                    val karyawanMskNamaList = jsonObject.optJSONArray("karyawan_msk_nama")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val karyawanTdkMskNamaList = jsonObject.optJSONArray("karyawan_tdk_msk_nama")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    // Join lists to strings for global variables
-                    val karyawanMskIdString = finalKaryawanMskIdList.joinToString(",")
-                    val karyawanTdkMskIdString = finalKaryawanTdkMskIdList.joinToString(",")
-                    val nikKaryawanMskString = nikKaryawanMskList.joinToString(",")
-                    val nikKaryawanTdkMskString = nikKaryawanTdkMskList.joinToString(",")
-                    val idKemandoranString = idKemandoranList.joinToString(",")
+// ✅ GET WORK LOCATION lists
+                    val karyawanMskWorkLocationList = jsonObject.optJSONArray("karyawan_msk_work_location")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
+                    val karyawanTdkMskWorkLocationList = jsonObject.optJSONArray("karyawan_tdk_msk_work_location")
+                        ?.let { array -> List(array.length()) { array.optString(it) } } ?: emptyList()
 
-                    AppLogger.d("Present employees (ID/NIK): ${finalKaryawanMskIdList.joinToString(", ")}")
-                    AppLogger.d("Absent employees (ID/NIK): ${finalKaryawanTdkMskIdList.joinToString(", ")}")
+                    AppLogger.d("=== RAW DATA FROM QR ===")
+                    AppLogger.d("Total karyawan_msk: ${karyawanMskIdList.size}")
+                    AppLogger.d("karyawan_msk_nama: $karyawanMskNamaList")
+                    AppLogger.d("karyawan_msk_nik: $nikKaryawanMskList")
+                    AppLogger.d("karyawan_msk_work_location: $karyawanMskWorkLocationList")
 
-                    // Get employee names if needed
-                    var karyawanMskNamaString = ""
-                    var karyawanTdkMskNamaString = ""
-
-                    try {
-                        if (nikKaryawanMskList.isNotEmpty()) {
-                            val presentEmployees = absensiViewModel.getKaryawanByNikList(nikKaryawanMskList)
-                            val nikToNameMap = presentEmployees.associate { it.nik to it.nama }
-                            karyawanMskNamaString = nikKaryawanMskList.mapNotNull { nik ->
-                                nikToNameMap[nik]
-                            }.joinToString(",")
+// ✅ FILTER berdasarkan work location (Panen atau Gardan)
+                    val allowedWorkLocations = listOf("Panen", "Gardan")
+                    val filteredIndices = karyawanMskWorkLocationList.mapIndexedNotNull { index, workLocation ->
+                        if (allowedWorkLocations.any { it.equals(workLocation, ignoreCase = true) }) {
+                            index
+                        } else {
+                            null
                         }
-
-                        if (nikKaryawanTdkMskList.isNotEmpty()) {
-                            val absentEmployees = absensiViewModel.getKaryawanByNikList(nikKaryawanTdkMskList)
-                            val nikToNameMap = absentEmployees.associate { it.nik to it.nama }
-                            karyawanTdkMskNamaString = nikKaryawanTdkMskList.mapNotNull { nik ->
-                                nikToNameMap[nik]
-                            }.joinToString(",")
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error getting employee names: ${e.message}")
                     }
 
+                    AppLogger.d("=== FILTERING BY WORK LOCATION ===")
+                    AppLogger.d("Allowed work locations: $allowedWorkLocations")
+                    AppLogger.d("Filtered indices: $filteredIndices")
+
+// Apply filter to all related lists
+                    val filteredKaryawanMskIdList = filteredIndices.mapNotNull {
+                        karyawanMskIdList.getOrNull(it)
+                    }
+                    val filteredNikKaryawanMskList = filteredIndices.mapNotNull {
+                        nikKaryawanMskList.getOrNull(it)
+                    }
+                    val filteredKaryawanMskNamaList = filteredIndices.mapNotNull {
+                        karyawanMskNamaList.getOrNull(it)
+                    }
+                    val filteredKaryawanMskWorkLocationList = filteredIndices.mapNotNull {
+                        karyawanMskWorkLocationList.getOrNull(it)
+                    }
+
+                    AppLogger.d("=== FILTERED DATA ===")
+                    AppLogger.d("Filtered total: ${filteredKaryawanMskIdList.size}")
+                    AppLogger.d("Filtered names: $filteredKaryawanMskNamaList")
+                    AppLogger.d("Filtered NIKs: $filteredNikKaryawanMskList")
+                    AppLogger.d("Filtered work locations: $filteredKaryawanMskWorkLocationList")
+
+// Use filtered IDs if available, otherwise use filtered NIKs
+                    val finalKaryawanMskIdList = if (filteredKaryawanMskIdList.isNotEmpty())
+                        filteredKaryawanMskIdList
+                    else
+                        filteredNikKaryawanMskList
+
+                    val finalKaryawanTdkMskIdList = if (karyawanTdkMskIdList.isNotEmpty())
+                        karyawanTdkMskIdList
+                    else
+                        nikKaryawanTdkMskList
+
+                    AppLogger.d("Present employees (filtered): ${finalKaryawanMskIdList.joinToString(", ")}")
+                    AppLogger.d("Absent employees: ${finalKaryawanTdkMskIdList.joinToString(", ")}")
+
+                    // Get kemandoran names and data
                     var namaKemandoran = "-"
+                    var kemandoranData: List<KemandoranModel>? = null
                     try {
-                        val kemandoranData = absensiViewModel.getKemandoranById(idKemandoranList)
+                        kemandoranData = absensiViewModel.getKemandoranById(idKemandoranList)
                         namaKemandoran = kemandoranData?.mapNotNull { it.nama }?.takeIf { it.isNotEmpty() }
                             ?.joinToString("\n") ?: "-"
                         AppLogger.d("Kemandoran name: $namaKemandoran")
@@ -333,45 +366,215 @@ class ScanAbsensiActivity : AppCompatActivity() {
                         AppLogger.e("Error getting kemandoran name: ${e.message}")
                     }
 
-                    // Calculate attendance statistics
-                    val totalMasuk = finalKaryawanMskIdList.size
-                    val totalTidakMasuk = finalKaryawanTdkMskIdList.size
-                    val totalAll = totalMasuk + totalTidakMasuk
-                    val kehadiranText = "$totalMasuk / $totalAll"
+// START SIMPLIFIED FILTERING LOGIC
+                    val userKemandoranPPRO = prefManager?.kemandoranPPROUserLogin ?: ""
 
-                    AppLogger.d("Attendance stats: $kehadiranText")
-                    AppLogger.d("dept: $dept, dept_abbr: $finalDeptAbbr")
-                    AppLogger.d("divisi: $divisi, divisi_abbr: $finalDivisiAbbr")
+                    AppLogger.d("User Kemandoran PPRO: $userKemandoranPPRO")
+                    AppLogger.d("Original finalKaryawanMskIdList size: ${finalKaryawanMskIdList.size}")
 
-                    // Set global variables for saving data
-                    globalIdKemandoran = idKemandoranString
+                    var finalFilteredKaryawanMskIdList = finalKaryawanMskIdList
+                    var finalFilteredNikKaryawanMskList = filteredNikKaryawanMskList  // ✅ Gunakan yang sudah difilter
+                    var finalFilteredKaryawanTdkMskIdList = finalKaryawanTdkMskIdList
+                    var finalFilteredNikKaryawanTdkMskList = nikKaryawanTdkMskList
+                    var filteredIdKemandoranList = idKemandoranList
+                    var filteredNamaKemandoran = namaKemandoran
+                    var karyawanMskNamaString = filteredKaryawanMskNamaList.joinToString(",")  // ✅ Langsung dari yang sudah difilter
+                    var karyawanTdkMskNamaString = ""
+
+                    if (kemandoranData != null && userKemandoranPPRO.isNotEmpty()) {
+                        AppLogger.d("=== FILTERING KEMANDORAN BY PPRO AND TYPE ===")
+
+                        // Filter kemandoran based on type and PPRO matching
+                        val allowedKemandoranIds = mutableListOf<String>()
+                        val allowedKemandoranNames = mutableListOf<String>()
+
+                        kemandoranData.forEach { kemandoran ->
+                            val kemandoranType = kemandoran.type ?: ""
+                            val kemandoranPPRO = kemandoran.kemandoran_ppro ?: ""
+                            val kemandoranName = kemandoran.nama ?: ""
+                            val kemandoranId = kemandoran.id.toString()
+
+                            AppLogger.d("Checking kemandoran ID: $kemandoranId")
+                            AppLogger.d("  - Type: '$kemandoranType'")
+                            AppLogger.d("  - PPRO: '$kemandoranPPRO'")
+
+                            val shouldInclude = if (kemandoranType.equals("Harvest", ignoreCase = true)) {
+                                val matches = kemandoranPPRO == userKemandoranPPRO
+                                AppLogger.d("  - Harvest type: PPRO matches user ($userKemandoranPPRO): $matches")
+                                matches
+                            } else {
+                                AppLogger.d("  - Non-Harvest type: include all")
+                                true
+                            }
+
+                            if (shouldInclude) {
+                                allowedKemandoranIds.add(kemandoranId)
+                                allowedKemandoranNames.add(kemandoranName)
+                                AppLogger.d("  ✓ INCLUDING kemandoran ID: $kemandoranId")
+                            } else {
+                                AppLogger.d("  ✗ EXCLUDING kemandoran ID: $kemandoranId")
+                            }
+                        }
+
+                        AppLogger.d("Allowed kemandoran IDs: $allowedKemandoranIds")
+                        AppLogger.d("Allowed kemandoran names: $allowedKemandoranNames")
+
+                        if (allowedKemandoranIds.isNotEmpty()) {
+                            try {
+                                // Filter present employees
+                                if (finalFilteredNikKaryawanMskList.isNotEmpty()) {  // ✅ Gunakan yang sudah difilter
+                                    val presentEmployees = absensiViewModel.getKaryawanByNikList(finalFilteredNikKaryawanMskList)
+
+                                    AppLogger.d("=== FILTERING PRESENT EMPLOYEES BY KEMANDORAN ===")
+                                    AppLogger.d("Total present employees before kemandoran filtering: ${presentEmployees.size}")
+
+                                    val filteredPresentEmployees = presentEmployees.filter { employee ->
+                                        val employeeKemandoranId = employee.kemandoran_id?.toString()
+                                        val shouldInclude = allowedKemandoranIds.contains(employeeKemandoranId)
+
+                                        AppLogger.d("Employee: ${employee.nama} (NIK: ${employee.nik}) - Kemandoran ID: $employeeKemandoranId - Include: $shouldInclude")
+
+                                        shouldInclude
+                                    }
+
+                                    AppLogger.d("Filtered present employees after kemandoran filter: ${filteredPresentEmployees.size}")
+
+                                    // Update filtered lists
+                                    finalFilteredNikKaryawanMskList = filteredPresentEmployees.map { it.nik ?: "" }
+                                    val nikToNameMap = filteredPresentEmployees.associate { it.nik to it.nama }
+                                    karyawanMskNamaString = finalFilteredNikKaryawanMskList.mapNotNull { nik ->
+                                        nikToNameMap[nik]
+                                    }.joinToString(",")
+
+                                    // Update ID list
+                                    val employeeNikToIdMap = filteredNikKaryawanMskList.zip(filteredKaryawanMskIdList).toMap()
+                                    finalFilteredKaryawanMskIdList = finalFilteredNikKaryawanMskList.mapNotNull { nik ->
+                                        employeeNikToIdMap[nik]
+                                    }
+
+                                    AppLogger.d("Final filtered present NIKs: $finalFilteredNikKaryawanMskList")
+                                    AppLogger.d("Final filtered present IDs: $finalFilteredKaryawanMskIdList")
+                                }
+
+                                // Filter absent employees (same logic as before)
+                                if (finalFilteredNikKaryawanTdkMskList.isNotEmpty()) {
+                                    val absentEmployees = absensiViewModel.getKaryawanByNikList(finalFilteredNikKaryawanTdkMskList)
+
+                                    AppLogger.d("=== FILTERING ABSENT EMPLOYEES BY KEMANDORAN ===")
+                                    AppLogger.d("Total absent employees before kemandoran filtering: ${absentEmployees.size}")
+
+                                    val filteredAbsentEmployees = absentEmployees.filter { employee ->
+                                        val employeeKemandoranId = employee.kemandoran_id?.toString()
+                                        val shouldInclude = allowedKemandoranIds.contains(employeeKemandoranId)
+
+                                        AppLogger.d("Absent employee: ${employee.nama} (NIK: ${employee.nik}) - Kemandoran ID: $employeeKemandoranId - Include: $shouldInclude")
+
+                                        shouldInclude
+                                    }
+
+                                    AppLogger.d("Filtered absent employees after kemandoran filter: ${filteredAbsentEmployees.size}")
+
+                                    // Update filtered lists
+                                    finalFilteredNikKaryawanTdkMskList = filteredAbsentEmployees.map { it.nik ?: "" }
+                                    val nikToNameMap = filteredAbsentEmployees.associate { it.nik to it.nama }
+                                    karyawanTdkMskNamaString = finalFilteredNikKaryawanTdkMskList.mapNotNull { nik ->
+                                        nikToNameMap[nik]
+                                    }.joinToString(",")
+
+                                    // Update ID list
+                                    val employeeNikToIdMap = nikKaryawanTdkMskList.zip(finalKaryawanTdkMskIdList).toMap()
+                                    finalFilteredKaryawanTdkMskIdList = finalFilteredNikKaryawanTdkMskList.mapNotNull { nik ->
+                                        employeeNikToIdMap[nik]
+                                    }
+
+                                    AppLogger.d("Final filtered absent NIKs: $finalFilteredNikKaryawanTdkMskList")
+                                    AppLogger.d("Final filtered absent IDs: $finalFilteredKaryawanTdkMskIdList")
+                                }
+
+                                // Update kemandoran data
+                                filteredIdKemandoranList = allowedKemandoranIds
+                                filteredNamaKemandoran = allowedKemandoranNames.joinToString("\n")
+
+                            } catch (e: Exception) {
+                                AppLogger.e("Error filtering employees by kemandoran: ${e.message}")
+                            }
+                        } else {
+                            AppLogger.d("No matching kemandoran found - clearing all data")
+                            finalFilteredKaryawanMskIdList = emptyList()
+                            finalFilteredNikKaryawanMskList = emptyList()
+                            finalFilteredKaryawanTdkMskIdList = emptyList()
+                            finalFilteredNikKaryawanTdkMskList = emptyList()
+                            filteredIdKemandoranList = emptyList()
+                            filteredNamaKemandoran = "NO ACCESS"
+                            karyawanMskNamaString = ""
+                            karyawanTdkMskNamaString = ""
+                        }
+                    } else {
+                        AppLogger.d("No kemandoran data or user PPRO is empty - using filtered data without additional filtering")
+                        // karyawanMskNamaString already set from filteredKaryawanMskNamaList above
+
+                        try {
+                            if (finalFilteredNikKaryawanTdkMskList.isNotEmpty()) {
+                                val absentEmployees = absensiViewModel.getKaryawanByNikList(finalFilteredNikKaryawanTdkMskList)
+                                val nikToNameMap = absentEmployees.associate { it.nik to it.nama }
+                                karyawanTdkMskNamaString = finalFilteredNikKaryawanTdkMskList.mapNotNull { nik ->
+                                    nikToNameMap[nik]
+                                }.joinToString(",")
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error getting employee names: ${e.message}")
+                        }
+                    }
+
+// Log final results
+                    AppLogger.d("=== FINAL FILTERING RESULTS ===")
+                    AppLogger.d("Original employees (after work location filter): ${finalKaryawanMskIdList.size}")
+                    AppLogger.d("Final filtered employees (after kemandoran filter): ${finalFilteredKaryawanMskIdList.size}")
+                    AppLogger.d("Filtered kemandoran: $filteredNamaKemandoran")
+                    AppLogger.d("Final employee names: $karyawanMskNamaString")
+
+// Calculate final data
+                    val totalMasuk = finalFilteredKaryawanMskIdList.size
+                    val kehadiranText = "$totalMasuk"
+
+                    val filteredKaryawanMskIdString = finalFilteredKaryawanMskIdList.joinToString(",")
+                    val filteredKaryawanTdkMskIdString = finalFilteredKaryawanTdkMskIdList.joinToString(",")
+                    val filteredNikKaryawanMskString = finalFilteredNikKaryawanMskList.joinToString(",")
+                    val filteredNikKaryawanTdkMskString = finalFilteredNikKaryawanTdkMskList.joinToString(",")
+                    val filteredIdKemandoranString = filteredIdKemandoranList.joinToString(",")
+
+                    AppLogger.d("FINAL FILTERED DATA:")
+                    AppLogger.d("filteredKaryawanMskIdString: $filteredKaryawanMskIdString")
+                    AppLogger.d("karyawanMskNamaString: $karyawanMskNamaString")
+                    AppLogger.d("filteredIdKemandoranString: $filteredIdKemandoranString")
+                    AppLogger.d("filteredNamaKemandoran: $filteredNamaKemandoran")
+
+// Set global variables with filtered data
+                    globalKaryawanMskId = filteredKaryawanMskIdString
+                    globalKaryawanTdkMskId = filteredKaryawanTdkMskIdString
+                    globalKaryawanMskNama = karyawanMskNamaString
+                    globalKaryawanTdkMskNama = karyawanTdkMskNamaString
+                    globalKaryawanMskNik = filteredNikKaryawanMskString
+                    globalKaryawanTdkMskNik = filteredNikKaryawanTdkMskString
+
+// Set global variables for saving data with FILTERED kemandoran data
+                    globalIdKemandoran = filteredIdKemandoranString
                     globalDateTime = rawDatetime
                     globalCreatedBy = createdBy
-                    globalKaryawanMskId = karyawanMskIdString
-                    globalKaryawanTdkMskId = karyawanTdkMskIdString
                     globalInfo = info
 
-                    // Store dept and divisi information
+// Store dept and divisi information
                     globalDept = dept
                     globalDeptAbbr = finalDeptAbbr
                     globalDivisi = divisi
                     globalDivisiAbbr = finalDivisiAbbr
-
-                    // Store employee names
-
-                    AppLogger.d(nikKaryawanMskString)
-                    AppLogger.d(karyawanMskNamaString)
-                    globalKaryawanMskNama = karyawanMskNamaString
-                    globalKaryawanTdkMskNama = karyawanTdkMskNamaString
-                    globalKaryawanMskNik = nikKaryawanMskString
-                    globalKaryawanTdkMskNik = nikKaryawanTdkMskString
 
                     withContext(Dispatchers.Main) {
                         try {
                             showBottomSheetWithData(
                                 datetimeQR = formattedDatetime,
                                 estateAfdelingQR = "$finalDeptAbbr / $finalDivisiAbbr",
-                                namaKemandoranQR = namaKemandoran,
+                                namaKemandoranQR = filteredNamaKemandoran,
                                 kehadiranQR = kehadiranText,
                                 hasError = false,
                                 errorMessage = null
@@ -389,6 +592,7 @@ class ScanAbsensiActivity : AppCompatActivity() {
                             )
                         }
                     }
+
                 }
             } catch (e: Exception) {
                 AppLogger.e("Error Processing QR Result: ${e.message}")
@@ -419,6 +623,180 @@ class ScanAbsensiActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun extractUserPattern(username: String, nameUserLogin: String, namaKemandoran: String): String {
+        AppLogger.d("Extracting user pattern dynamically")
+        AppLogger.d("Username: '$username'")
+        AppLogger.d("NameUserLogin: '$nameUserLogin'")
+        AppLogger.d("Kemandoran names: '$namaKemandoran'")
+
+        // Extract all possible patterns from kemandoran names
+        val kemandoranPatterns = extractPatternsFromKemandoran(namaKemandoran)
+        AppLogger.d("Kemandoran patterns found: $kemandoranPatterns")
+
+        // Extract patterns from user credentials
+        val userPatterns = mutableListOf<String>()
+
+        // From username: "kpanenoa1@nbe" -> extract parts after "kpanen"
+        val usernameClean = username.replace("@.*".toRegex(), "").replace("kpanen", "", ignoreCase = true)
+        if (usernameClean.isNotEmpty()) {
+            userPatterns.add(usernameClean.uppercase())
+            AppLogger.d("Username pattern: '$usernameClean'")
+        }
+
+        // From nameUserLogin: "KERANI PANEN NBE OA 1" -> extract meaningful parts
+        val nameWords = nameUserLogin.split(" ").filter { it.isNotEmpty() }
+
+        // Try to find division/section patterns in the name
+        for (i in nameWords.indices) {
+            if (nameWords[i].length >= 2) { // Skip single characters
+                // Try combinations of 1-3 words
+                for (j in i until minOf(i + 3, nameWords.size)) {
+                    val pattern = nameWords.subList(i, j + 1).joinToString(" ")
+                    if (pattern.length >= 2 && !pattern.equals("KERANI", ignoreCase = true) &&
+                        !pattern.equals("PANEN", ignoreCase = true) &&
+                        !pattern.equals("NBE", ignoreCase = true)) {
+                        userPatterns.add(pattern)
+                    }
+                }
+            }
+        }
+
+        AppLogger.d("User patterns extracted: $userPatterns")
+
+        // Find the best matching pattern between kemandoran and user patterns
+        for (userPattern in userPatterns) {
+            for (kemandoranPattern in kemandoranPatterns) {
+                if (patternsMatch(userPattern, kemandoranPattern)) {
+                    AppLogger.d("MATCH FOUND: user='$userPattern' matches kemandoran='$kemandoranPattern'")
+                    return userPattern
+                }
+            }
+        }
+
+        // Fallback: return the most specific user pattern
+        val fallbackPattern = userPatterns.filter { it.length >= 2 }.firstOrNull() ?: ""
+        AppLogger.d("No direct match found, using fallback: '$fallbackPattern'")
+        return fallbackPattern
+    }
+
+    private fun extractPatternsFromKemandoran(namaKemandoran: String): List<String> {
+        val patterns = mutableListOf<String>()
+        val kemandoranList = namaKemandoran.split("\n").map { it.trim() }
+
+        for (kemandoran in kemandoranList) {
+            if (kemandoran.contains("Panen", ignoreCase = true)) {
+                // Extract patterns like "OA-1", "OB-2", etc.
+                val words = kemandoran.split(" ", "-").filter { it.isNotEmpty() }
+                for (i in words.indices) {
+                    val word = words[i]
+                    // Look for division codes (2-3 letter combos) followed by numbers
+                    if (word.matches(Regex("[A-Z]{2,3}"))) {
+                        if (i + 1 < words.size && words[i + 1].matches(Regex("\\d+"))) {
+                            patterns.add("$word ${words[i + 1]}")
+                            patterns.add("$word-${words[i + 1]}")
+                        }
+                    }
+                }
+            }
+        }
+
+        return patterns.distinct()
+    }
+
+    private fun patternsMatch(userPattern: String, kemandoranPattern: String): Boolean {
+        // Normalize both patterns
+        val normalizedUser = userPattern.replace("-", " ").replace("\\s+".toRegex(), " ").trim()
+        val normalizedKemandoran = kemandoranPattern.replace("-", " ").replace("\\s+".toRegex(), " ").trim()
+
+        return normalizedUser.equals(normalizedKemandoran, ignoreCase = true) ||
+                normalizedUser.contains(normalizedKemandoran, ignoreCase = true) ||
+                normalizedKemandoran.contains(normalizedUser, ignoreCase = true)
+    }
+
+    private fun filterMatchingKemandoranNames(namaKemandoran: String, userPattern: String): List<String> {
+        AppLogger.d("Filtering kemandoran names with pattern: '$userPattern'")
+        AppLogger.d("Full kemandoran names: '$namaKemandoran'")
+
+        val kemandoranList = namaKemandoran.split("\n").map { it.trim() }
+        AppLogger.d("Split kemandoran list: $kemandoranList")
+
+        val matchingNames = mutableListOf<String>()
+
+        for (kemandoran in kemandoranList) {
+            AppLogger.d("Checking kemandoran: '$kemandoran'")
+
+            // Skip Rawat kemandoran (this stays the same)
+            if (kemandoran.contains("Rawat", ignoreCase = true)) {
+                AppLogger.d("Skipping Rawat kemandoran: '$kemandoran'")
+                continue
+            }
+
+            // For Panen kemandoran, check if it matches user pattern
+            if (kemandoran.contains("Panen", ignoreCase = true)) {
+                val isMatch = checkKemandoranMatch(kemandoran, userPattern)
+                AppLogger.d("Panen kemandoran '$kemandoran' match result: $isMatch")
+
+                if (isMatch) {
+                    matchingNames.add(kemandoran)
+                }
+            } else {
+                // For non-Panen kemandoran, you might want different logic
+                // For now, let's check if it matches the user pattern anyway
+                val isMatch = checkKemandoranMatch(kemandoran, userPattern)
+                AppLogger.d("Other kemandoran '$kemandoran' match result: $isMatch")
+
+                if (isMatch) {
+                    matchingNames.add(kemandoran)
+                }
+            }
+        }
+
+        AppLogger.d("Final matching kemandoran names: $matchingNames")
+        return matchingNames
+    }
+
+    private fun checkKemandoranMatch(kemandoran: String, userPattern: String): Boolean {
+        AppLogger.d("Checking match: kemandoran='$kemandoran', pattern='$userPattern'")
+
+        if (userPattern.isEmpty()) {
+            AppLogger.d("Empty user pattern, no match")
+            return false
+        }
+
+        // Strategy 1: Direct substring match
+        if (kemandoran.contains(userPattern, ignoreCase = true)) {
+            AppLogger.d("Direct match found!")
+            return true
+        }
+
+        // Strategy 2: Try with dash instead of space
+        val dashPattern = userPattern.replace(" ", "-")
+        if (kemandoran.contains(dashPattern, ignoreCase = true)) {
+            AppLogger.d("Dash pattern match found with: '$dashPattern'")
+            return true
+        }
+
+        // Strategy 3: Try with space instead of dash
+        val spacePattern = userPattern.replace("-", " ")
+        if (kemandoran.contains(spacePattern, ignoreCase = true)) {
+            AppLogger.d("Space pattern match found with: '$spacePattern'")
+            return true
+        }
+
+        // Strategy 4: Individual words must all be present
+        val patternWords = userPattern.split(" ", "-").filter { it.isNotEmpty() }
+        AppLogger.d("Checking individual words: $patternWords")
+
+        val allWordsMatch = patternWords.all { word ->
+            val wordMatch = kemandoran.contains(word, ignoreCase = true)
+            AppLogger.d("Word '$word' match: $wordMatch")
+            wordMatch
+        }
+
+        AppLogger.d("All words match result: $allWordsMatch")
+        return allWordsMatch
     }
 
     @SuppressLint("SetTextI18n")

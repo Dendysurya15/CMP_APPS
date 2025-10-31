@@ -1075,6 +1075,9 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             // Setup existing workers (parse from current data and add to adapter)
             setupExistingWorkers(data, selectedPemanenAdapter)
 
+
+            AppLogger.d("data $data")
+            AppLogger.d("dropdownOptions $dropdownOptions")
             // Setup dropdown with absensi options using the existing spinner
             setupWorkerDropdown(layoutPemanen, selectedPemanenAdapter, dropdownOptions)
 

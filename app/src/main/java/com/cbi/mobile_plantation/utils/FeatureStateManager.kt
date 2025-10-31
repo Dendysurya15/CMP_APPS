@@ -63,7 +63,7 @@ object FeatureStateManager {
     fun isFeatureDisabled(featureName: String): Boolean {
         // Check if this feature is exempt from being disabled
         if (AppUtils.ExemptFeatures.ALWAYS_ENABLED.contains(featureName)) {
-            AppLogger.d("FeatureStateManager: Feature '$featureName' is EXEMPT - always enabled")
+//            AppLogger.d("FeatureStateManager: Feature '$featureName' is EXEMPT - always enabled")
             return false
         }
 
@@ -74,7 +74,7 @@ object FeatureStateManager {
         val isDisabled = updateRequired || manuallyDisabled || appUtilsDisabled
 
         if (isDisabled) {
-            AppLogger.d("FeatureStateManager: Feature '$featureName' is disabled. UpdateRequired: $updateRequired, ManuallyDisabled: $manuallyDisabled, AppUtilsDisabled: $appUtilsDisabled")
+//            AppLogger.d("FeatureStateManager: Feature '$featureName' is disabled. UpdateRequired: $updateRequired, ManuallyDisabled: $manuallyDisabled, AppUtilsDisabled: $appUtilsDisabled")
         }
 
         return isDisabled

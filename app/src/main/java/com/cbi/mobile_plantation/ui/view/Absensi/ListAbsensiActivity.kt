@@ -165,62 +165,6 @@ class ListAbsensiActivity : AppCompatActivity() {
         dateButton = findViewById(R.id.calendarPickerAbsensi)
         dateButton.text = AppUtils.getTodaysDate()
 
-//        filterAllData = findViewById(R.id.calendarCheckboxAbsensi)
-//
-//        filterAllData.setOnCheckedChangeListener { _, isChecked ->
-//            val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainerAbsensi)
-//            val nameFilterDate = findViewById<TextView>(R.id.name_filter_dateAbsensi)
-//            if (isChecked) {
-//                filterDateContainer.visibility = View.VISIBLE
-//                nameFilterDate.text = "Semua Data"
-//
-//                dateButton.isEnabled = false
-//                dateButton.alpha = 0.5f
-//
-//                if (currentState == 0) {
-//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 0)
-//                } else if (currentState == 1) {
-//                    absensiViewModel.loadHistoryRekapAbsensi(archive = 1)
-//                }
-//            } else {
-//                // For line 136 (use date from date picker)
-//                val displayDate = formatGlobalDate(globalFormattedDate)
-//
-//                nameFilterDate.text = displayDate
-//                dateButton.isEnabled = true
-//                dateButton.alpha = 1f // Make the button appear darker
-//                Log.d("FilterAllData", "Checkbox is UNCHECKED. Button enabled.")
-//                if (currentState == 0) {
-//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 0)
-//                } else if (currentState == 1) {
-//                    absensiViewModel.loadHistoryRekapAbsensi(globalFormattedDate, 1)
-//                }
-//            }
-//
-//            val removeFilterDate = findViewById<ImageView>(R.id.remove_filter_dateAbsensi)
-//
-//            removeFilterDate.setOnClickListener {
-//                if (filterAllData.isChecked) {
-//                    filterAllData.isChecked = false
-//                }
-//
-//                filterDateContainer.visibility = View.GONE
-//
-//                val todayBackendDate = AppUtils.formatDateForBackend(
-//                    Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
-//                    Calendar.getInstance().get(Calendar.MONTH) + 1,
-//                    Calendar.getInstance().get(Calendar.YEAR)
-//                )
-//                // Reset the selected date in your utils
-//                AppUtils.setSelectedDate(todayBackendDate)
-//
-//                // Update the dateButton to show today's date
-//                val todayDisplayDate = AppUtils.getTodaysDate()
-//                dateButton.text = todayDisplayDate
-//
-//            }
-//        }
-
         setupHeader()
         initViewModel()
         setupRecyclerView()
@@ -337,45 +281,33 @@ class ListAbsensiActivity : AppCompatActivity() {
     private fun setupQRAbsensi() {
         val btnGenerateQRAbsensi = findViewById<FloatingActionButton>(R.id.btnGenerateQRAbsensi)
         btnGenerateQRAbsensi.setOnClickListener {
-            // First dialog: Check if employee status has been filled
-            AlertDialogUtility.withSingleAction(
+            // Langsung tampilkan dialog konfirmasi generate QR
+            AlertDialogUtility.withTwoActions(
                 this,
-                "OKE",
-                "Peringatan",
-                "Pastikan sudah mengisi status karyawan yang tidak hadir",
+                "Generate QR",
+                getString(R.string.confirmation_dialog_title),
+                getString(R.string.al_confirm_generate_qr),
                 "warning.json",
-                R.color.colorRedDark,
+                ContextCompat.getColor(this, R.color.bluedarklight),
                 function = {
-                    // After confirming the status check, show the QR generation dialog
-                    AlertDialogUtility.withTwoActions(
-                        this,
-                        "Generate QR",
-                        getString(R.string.confirmation_dialog_title),
-                        getString(R.string.al_confirm_generate_qr),
-                        "warning.json",
-                        ContextCompat.getColor(this, R.color.bluedarklight),
-                        function = {
-                            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                            val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
-                            val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val todayDate = dateFormat.format(Date())  // Ambil tanggal hari ini
+                    val generatedDate = getGeneratedDate() ?: "" // Ambil tanggal yang tersimpan (default kosong jika null)
 
-                            // Log tanggal
-                            AppLogger.d("Generated Date: '$generatedDate'")
-                            AppLogger.d("Today Date: '$todayDate'")
+                    // Log tanggal
+                    AppLogger.d("Generated Date: '$generatedDate'")
+                    AppLogger.d("Today Date: '$todayDate'")
+                    AppLogger.d("Data QR: '$mappedData'")
 
-                            if (generatedDate.isEmpty() || generatedDate != todayDate) {
-                                // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
-                                // Berarti ini adalah generate baru untuk hari ini
-                                playSound(R.raw.berhasil_generate_qr)
-                                saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
-                                generateData()  // Generate data baru
-                            } else {
-                                // Jika sudah pernah generate di hari yang sama
-                                // Tampilkan QR yang sudah ada
-                                showBottomSheetQR()
-                            }
-                        }
-                    )
+                    if (generatedDate.isEmpty() || generatedDate != todayDate) {
+                        // Jika belum pernah generate atau tanggal berbeda dari yang tersimpan
+                        playSound(R.raw.berhasil_generate_qr)
+                        saveGeneratedDate(todayDate)  // Simpan tanggal hari ini
+                        generateData()  // Generate data baru
+                    } else {
+                        // Jika sudah pernah generate di hari yang sama
+                        showBottomSheetQR()
+                    }
                 }
             )
         }
@@ -476,6 +408,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                             view.findViewById(R.id.descAfterScanQR)
                         val btnConfirmScanAbsensi: MaterialButton =
                             view.findViewById(R.id.btnConfirmScanPanenTPH)
+
 
                         btnConfirmScanAbsensi.setOnClickListener {
                             AlertDialogUtility.withTwoActions(
@@ -630,6 +563,30 @@ class ListAbsensiActivity : AppCompatActivity() {
                         AppLogger.d("test $mappedData")
                         val jsonData = formatPanenDataForQR(mappedData)
                         AppLogger.d("data json $jsonData")
+
+                        // Check JSON size BEFORE encoding
+                        val jsonSizeInBytes = jsonData.toByteArray(Charsets.UTF_8).size
+                        val jsonSizeInKB = jsonSizeInBytes / 1024.0
+
+                        AppLogger.d("JSON size: $jsonSizeInKB KB ($jsonSizeInBytes bytes)")
+
+//                        if (jsonSizeInKB > AppUtils.MAX_QR_SIZE_KB) {
+//                            withContext(Dispatchers.Main) {
+//                                stopLoadingAnimation(loadingLogo, loadingContainer)
+//
+//                                AlertDialogUtility.withSingleAction(
+//                                    this@ListAbsensiActivity,
+//                                    "OK",
+//                                    "Data Terlalu Besar",
+//                                    "Ukuran data ${String.format("%.2f", jsonSizeInKB)} KB melebihi batas maksimum ${AppUtils.MAX_QR_SIZE_KB} KB. Silakan kurangi jumlah data yang akan di-generate.",
+//                                    "warning.json",
+//                                    R.color.colorRedDark
+//                                ) {
+//                                    // Close bottom sheet or do nothing
+//                                }
+//                            }
+//                            return@launch // Stop execution
+//                        }
                         val encodedData =
                             encodeJsonToBase64ZipQR(jsonData)
                                 ?: throw Exception("Encoding failed")
@@ -1013,21 +970,29 @@ class ListAbsensiActivity : AppCompatActivity() {
                     kemandoranValue = ": -"
                 }
 
-                // Calculate attendance
-                var totalMasuk = 0
-                var totalTidakMasuk = 0
+                // Replace the attendance calculation section with this filtered version:
 
-                for (data in mappedData) {
+// Calculate attendance using filtered data (work location = 1 only)
+                var totalMasuk = 0
+                var totalAllEmployees = 0
+
+                if (mappedData.isNotEmpty()) {
+                    val data = mappedData[0]  // Take only first item to avoid duplicates
+
+                    val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
                     val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
                     val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
+                    val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
 
-                    totalMasuk += karyawanMskNik.split(",").filter { it.isNotEmpty() }.size
-                    totalTidakMasuk += karyawanTdkMskNik.split(",").filter { it.isNotEmpty() }.size
+                    // Count present employees with work location = 1 (filtered) - this is your focus
+                    totalMasuk = countFilteredEmployees(karyawanMskNik, karyawanMskWorkLocation)
+
+                    // Total employees = all present + all absent (no filtering)
+                    totalAllEmployees = countEmployeesFromJson(karyawanMskNik) + countEmployeesFromJson(karyawanTdkMskNik)
                 }
 
-                val totalKaryawan = totalMasuk + totalTidakMasuk
-                val totalAttendance = "$totalMasuk / $totalKaryawan"
-                AppLogger.d("Total attendance: $totalAttendance")
+                val totalAttendance = "$totalMasuk / $totalAllEmployees"
+                AppLogger.d("Total attendance (filtered present / total): $totalAttendance")
 
                 // Generate current date and time for footer and counter
                 val currentDate = Date()
@@ -1112,6 +1077,110 @@ class ListAbsensiActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun countFilteredEmployees(jsonString: String, workLocationJsonString: String): Int {
+        if (jsonString.isEmpty() || workLocationJsonString.isEmpty()) {
+            AppLogger.d("Empty JSON string for counting filtered employees")
+            return 0
+        }
+
+        var count = 0
+        try {
+            val jsonObject = JSONObject(jsonString)
+            val workLocationObject = JSONObject(workLocationJsonString)
+
+            AppLogger.d("=== COUNTING FILTERED EMPLOYEES ===")
+            AppLogger.d("Data JSON: $jsonString")
+            AppLogger.d("Work Location JSON: $workLocationJsonString")
+
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.optJSONObject(outerKey)
+                val workLocationOuterValue = workLocationObject.optJSONObject(outerKey)
+
+                if (outerValue != null && workLocationOuterValue != null) {
+                    outerValue.keys().forEach { innerKey ->
+                        if (workLocationOuterValue.has(innerKey)) {
+                            val innerValue = outerValue.getString(innerKey)
+                            val workLocationInnerValue = workLocationOuterValue.getString(innerKey)
+
+                            val dataValues = innerValue.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            val workLocationValues = workLocationInnerValue.split(",").map { it.trim() }
+
+                            AppLogger.d("  Processing innerKey: $innerKey")
+                            AppLogger.d("  Data count: ${dataValues.size}")
+                            AppLogger.d("  Work locations: $workLocationValues")
+
+                            dataValues.forEachIndexed { index, value ->
+                                if (index < workLocationValues.size) {
+                                    val workLocation = workLocationValues[index]
+                                    if (workLocation.equals("Panen", ignoreCase = true)) {
+                                        count++
+                                        AppLogger.d("    ✓ Counted: $value (work location: $workLocation)")
+                                    } else {
+                                        AppLogger.d("    ✗ Skipped: $value (work location: $workLocation)")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            AppLogger.d("Total filtered employees: $count")
+            AppLogger.d("===================================")
+
+        } catch (e: Exception) {
+            AppLogger.e("Error counting filtered employees: ${e.message}")
+            e.printStackTrace()
+            // Fallback: count all if error
+            return countEmployeesFromJson(jsonString)
+        }
+
+        return count
+    }
+
+    // Count all employees from JSON (no filter)
+    private fun countEmployeesFromJson(jsonString: String): Int {
+        if (jsonString.isEmpty() || jsonString == "{}") {
+            return 0
+        }
+
+        var count = 0
+        try {
+            val jsonObject = JSONObject(jsonString)
+
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.get(outerKey)
+
+                if (outerValue is JSONObject) {
+                    outerValue.keys().forEach { innerKey ->
+                        val innerValue = outerValue.getString(innerKey)
+                        val employees = innerValue.split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                        count += employees.size
+                    }
+                } else {
+                    // Direct value (old format)
+                    val employees = outerValue.toString().split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                    count += employees.size
+                }
+            }
+
+            AppLogger.d("Total employees counted from JSON: $count")
+
+        } catch (e: Exception) {
+            AppLogger.e("Error counting employees: ${e.message}")
+            // Fallback untuk format lama
+            if (jsonString.isNotEmpty()) {
+                count = jsonString.split(",").filter { it.trim().isNotEmpty() }.size
+            }
+        }
+
+        return count
     }
 
     private fun getAndIncrementScreenshotCounter(): Int {
@@ -1450,7 +1519,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val firstHalf = base64Encoded.substring(0, midPoint)
                 val secondHalf = base64Encoded.substring(midPoint)
 
-                firstHalf + "5nqHzPKdlILxS9ABpClq" + secondHalf
+                firstHalf + AppUtils.half_json_encrypted + secondHalf
             }
         } catch (e: JSONException) {
             AppLogger.e("JSON Processing Error: ${e.message}")
@@ -1478,13 +1547,14 @@ class ListAbsensiActivity : AppCompatActivity() {
             val createdBySet = mutableSetOf<String>()
             val datetimeSet = mutableSetOf<String>()
 
-            // Changed to use Sets to collect all unique values directly
-            val mergedKaryawanMskNik = mutableSetOf<String>()
-            val mergedKaryawanTdkMskNik = mutableSetOf<String>()
-            val mergedKaryawanMskId = mutableSetOf<String>()
-            val mergedKaryawanTdkMskId = mutableSetOf<String>()
-            val mergedKaryawanMskNama = mutableSetOf<String>()
-            val mergedKaryawanTdkMskNama = mutableSetOf<String>()
+            // ✅ Gunakan List untuk semua data agar urutan dan duplikat terjaga
+            val mergedKaryawanMskNama = mutableListOf<String>()
+            val mergedKaryawanMskNik = mutableListOf<String>()
+//            val mergedKaryawanTdkMskNik = mutableListOf<String>()
+            val mergedKaryawanMskId = mutableListOf<String>()
+//            val mergedKaryawanTdkMskId = mutableListOf<String>()
+            val mergedKaryawanMskWorkLocation = mutableListOf<String>()
+//            val mergedKaryawanTdkMskWorkLocation = mutableListOf<String>()
 
             val infoSet = mutableSetOf<String>()
 
@@ -1500,24 +1570,28 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val dateAbsen = data["datetime"]?.toString() ?: ""
                 val info = data["info"]?.toString() ?: ""
 
-                // Get JSON strings for karyawan data
+                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
                 val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
-                val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
+//                val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                 val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
-                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+//                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
+                val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
+//                val karyawanTdkMskWorkLocation = data["karyawan_tdk_msk_work_location"]?.toString() ?: ""
 
-
-                // Process id_kemandoran
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // Extract values from nested JSON and add to sets
-                extractValuesFromNestedJson(karyawanMskNik, mergedKaryawanMskNik)
-                extractValuesFromNestedJson(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
-                extractValuesFromNestedJson(karyawanMskId, mergedKaryawanMskId)
-                extractValuesFromNestedJson(karyawanTdkMskId, mergedKaryawanTdkMskId)
+                // ✅ TIDAK PAKAI FILTER - ambil SEMUA data untuk yang masuk
+                extractValuesFromNestedJsonAsList(karyawanMskNama, mergedKaryawanMskNama)
+                extractValuesFromNestedJsonAsList(karyawanMskNik, mergedKaryawanMskNik)
+                extractValuesFromNestedJsonAsList(karyawanMskId, mergedKaryawanMskId)
+                extractValuesFromNestedJsonAsList(karyawanMskWorkLocation, mergedKaryawanMskWorkLocation)
 
-                // Add other data
+                // Tidak pakai filter untuk yang tidak masuk
+//                extractValuesFromNestedJsonAsList(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
+//                extractValuesFromNestedJsonAsList(karyawanTdkMskId, mergedKaryawanTdkMskId)
+//                extractValuesFromNestedJsonAsList(karyawanTdkMskWorkLocation, mergedKaryawanTdkMskWorkLocation)
+
                 if (dept.isNotEmpty()) deptSet.add(dept)
                 if (deptAbbr.isNotEmpty()) deptAbbrSet.add(deptAbbr)
                 if (dateAbsen.isNotEmpty()) datetimeSet.add(dateAbsen)
@@ -1533,7 +1607,6 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (info.isNotEmpty()) infoSet.add(info)
             }
 
-            // Final JSON with flattened arrays
             val jsonObject = JSONObject().apply {
                 put("id_kemandoran", JSONArray(allKemandoran))
                 put("datetime", JSONArray(datetimeSet))
@@ -1543,16 +1616,28 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
 
-                // Store as flat arrays instead of nested objects
+                put("karyawan_msk_nama", JSONArray(mergedKaryawanMskNama))
                 put("karyawan_msk_nik", JSONArray(mergedKaryawanMskNik))
-                put("karyawan_tdk_msk_nik", JSONArray(mergedKaryawanTdkMskNik))
+//                put("karyawan_tdk_msk_nik", JSONArray(mergedKaryawanTdkMskNik))
                 put("karyawan_msk_id", JSONArray(mergedKaryawanMskId))
-                put("karyawan_tdk_msk_id", JSONArray(mergedKaryawanTdkMskId))
+//                put("karyawan_tdk_msk_id", JSONArray(mergedKaryawanTdkMskId))
+                put("karyawan_msk_work_location", JSONArray(mergedKaryawanMskWorkLocation))
+//                put("karyawan_tdk_msk_work_location", JSONArray(mergedKaryawanTdkMskWorkLocation))
 
                 put("info", JSONArray(infoSet))
             }
 
-            AppLogger.d("cek json object: $jsonObject")
+            AppLogger.d("=== QR JSON SUMMARY ===")
+            AppLogger.d("Total present (ALL): ${mergedKaryawanMskNik.size}")
+            AppLogger.d("Total present names: ${mergedKaryawanMskNama.size}")
+            AppLogger.d("Total present IDs: ${mergedKaryawanMskId.size}")
+            AppLogger.d("Total present work locations: ${mergedKaryawanMskWorkLocation.size}")
+            AppLogger.d("Work locations detail: $mergedKaryawanMskWorkLocation")
+//            AppLogger.d("Total absent: ${mergedKaryawanTdkMskNik.size}")
+//            AppLogger.d("Total absent work locations: ${mergedKaryawanTdkMskWorkLocation.size}")
+            AppLogger.d("JSON: $jsonObject")
+            AppLogger.d("=======================")
+
             jsonObject.toString()
 
         } catch (e: Exception) {
@@ -1560,35 +1645,31 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-    // Helper function to extract values from nested JSON structure
-    private fun extractValuesFromNestedJson(jsonString: String, targetSet: MutableSet<String>) {
+    // Fungsi helper untuk extract tanpa filter menggunakan List
+    private fun extractValuesFromNestedJsonAsList(jsonString: String, targetList: MutableList<String>) {
         if (jsonString.isEmpty()) return
 
         try {
             val jsonObject = JSONObject(jsonString)
 
-            // Iterate through all keys in the JSON object
             jsonObject.keys().forEach { outerKey ->
                 val outerValue = jsonObject.get(outerKey)
 
                 if (outerValue is JSONObject) {
-                    // If it's a nested object, iterate through its keys
                     outerValue.keys().forEach { innerKey ->
                         val innerValue = outerValue.getString(innerKey)
-                        // Split comma-separated values and add to set
                         innerValue.split(",").forEach { value ->
                             val trimmedValue = value.trim()
                             if (trimmedValue.isNotEmpty()) {
-                                targetSet.add(trimmedValue)
+                                targetList.add(trimmedValue)
                             }
                         }
                     }
                 } else {
-                    // If it's a direct value, split and add
                     outerValue.toString().split(",").forEach { value ->
                         val trimmedValue = value.trim()
                         if (trimmedValue.isNotEmpty()) {
-                            targetSet.add(trimmedValue)
+                            targetList.add(trimmedValue)
                         }
                     }
                 }
@@ -1598,106 +1679,69 @@ class ListAbsensiActivity : AppCompatActivity() {
         }
     }
 
-    // Helper function to merge JSON objects
-    private fun mergeJsonObjects(jsonString: String, targetObject: JSONObject) {
-        if (jsonString.isNotEmpty()) {
-            try {
-                val sourceJson = JSONObject(jsonString)
-                val statusKeys = sourceJson.keys()
-
-                while (statusKeys.hasNext()) {
-                    val statusKey = statusKeys.next()
-                    val statusValue = sourceJson.opt(statusKey)
-
-                    when (statusValue) {
-                        is JSONObject -> {
-                            // Handle nested structure: {"status": {"kemandoran": "values"}}
-                            if (!targetObject.has(statusKey)) {
-                                targetObject.put(statusKey, JSONObject())
-                            }
-
-                            val targetStatusObject = targetObject.getJSONObject(statusKey)
-                            val kemandoranKeys = statusValue.keys()
-
-                            while (kemandoranKeys.hasNext()) {
-                                val kemandoranKey = kemandoranKeys.next()
-                                val kemandoranValue = statusValue.getString(kemandoranKey)
-
-                                if (targetStatusObject.has(kemandoranKey)) {
-                                    // Merge values if key already exists
-                                    val existingValue = targetStatusObject.getString(kemandoranKey)
-                                    val mergedValue = "$existingValue,$kemandoranValue"
-                                    targetStatusObject.put(kemandoranKey, mergedValue)
-                                } else {
-                                    targetStatusObject.put(kemandoranKey, kemandoranValue)
-                                }
-                            }
-                        }
-                        is String -> {
-                            // Handle flat structure: {"kemandoran": "values"}
-                            if (targetObject.has(statusKey)) {
-                                val existingValue = targetObject.getString(statusKey)
-                                val mergedValue = "$existingValue,$statusValue"
-                                targetObject.put(statusKey, mergedValue)
-                            } else {
-                                targetObject.put(statusKey, statusValue)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                AppLogger.e("Error merging JSON objects: ${e.message}")
-            }
+    // Fungsi untuk ekstraksi dengan filter (untuk nama, nik, id yang hanya Panen)
+    private fun extractValuesFromNestedJsonWithFilterAsList(
+        jsonStringNama: String,
+        jsonString: String,
+        workLocationJsonString: String,
+        targetList: MutableList<String>
+    ) {
+        if (jsonString.isEmpty() || workLocationJsonString.isEmpty()) {
+            AppLogger.d("Empty JSON string, skipping filter")
+            return
         }
-    }
 
-    // Helper function to extract values from JSON string and add to set
-    private fun extractAndAddFromJson(jsonString: String, targetSet: MutableSet<String>) {
         try {
-            if (jsonString.isNotEmpty() && jsonString.startsWith("{")) {
-                val jsonObj = JSONObject(jsonString)
+            val jsonObject = JSONObject(jsonString)
+            val workLocationObject = JSONObject(workLocationJsonString)
 
-                // Handle nested JSON structure: {"status": {"kemandoran": "values"}}
-                jsonObj.keys().forEach { statusKey ->
-                    val statusValue = jsonObj.opt(statusKey)
+            AppLogger.d("=== FILTERING DATA FOR QR (List) ===")
 
-                    when (statusValue) {
-                        is JSONObject -> {
-                            // This is a nested object (status -> kemandoran -> values)
-                            statusValue.keys().forEach { kemandoranKey ->
-                                val kemandoranValue = statusValue.optString(kemandoranKey, "")
-                                if (kemandoranValue.isNotEmpty()) {
-                                    kemandoranValue.split(",").filter { it.trim().isNotEmpty() }
-                                        .forEach { targetSet.add(it.trim()) }
+            jsonObject.keys().forEach { outerKey ->
+                val outerValue = jsonObject.get(outerKey)
+                val workLocationOuterValue = workLocationObject.optJSONObject(outerKey)
+
+                AppLogger.d("Processing outerKey: $outerKey")
+
+                if (outerValue is JSONObject && workLocationOuterValue != null) {
+                    outerValue.keys().forEach { innerKey ->
+                        if (workLocationOuterValue.has(innerKey)) {
+                            val innerValue = outerValue.getString(innerKey)
+                            val workLocationInnerValue = workLocationOuterValue.getString(innerKey)
+
+                            val dataValues = innerValue.split(",").map { it.trim() }
+                            val workLocationValues = workLocationInnerValue.split(",").map { it.trim() }
+
+                            AppLogger.d("  InnerKey: $innerKey")
+                            AppLogger.d("  Data count: ${dataValues.size}")
+
+                            dataValues.forEachIndexed { index, value ->
+                                if (index < workLocationValues.size) {
+                                    val workLocation = workLocationValues[index]
+
+                                    if (workLocation.equals("Panen", ignoreCase = true)) {
+                                        if (value.isNotEmpty()) {
+                                            targetList.add(value)
+                                            AppLogger.d("    ✓ Added to QR: $value")
+                                        }
+                                    } else {
+                                        AppLogger.d("    ✗ Filtered out: $value (${workLocation})")
+                                    }
                                 }
-                            }
-                        }
-                        is String -> {
-                            // This is a direct string value (old format)
-                            if (statusValue.isNotEmpty()) {
-                                statusValue.split(",").filter { it.trim().isNotEmpty() }
-                                    .forEach { targetSet.add(it.trim()) }
                             }
                         }
                     }
                 }
-            } else {
-                // Handle old format (comma-separated values)
-                if (jsonString.isNotEmpty()) {
-                    jsonString.split(",").filter { it.trim().isNotEmpty() }
-                        .forEach { targetSet.add(it.trim()) }
-                }
             }
+
+            AppLogger.d("Final QR dataset size: ${targetList.size}")
+            AppLogger.d("=============================")
+
         } catch (e: Exception) {
-            AppLogger.e("Error extracting from JSON: ${e.message}")
-            // Fallback to treat as comma-separated string
-            if (jsonString.isNotEmpty()) {
-                jsonString.split(",").filter { it.trim().isNotEmpty() }
-                    .forEach { targetSet.add(it.trim()) }
-            }
+            AppLogger.e("Error parsing JSON with filter: ${e.message}", e.toString())
+            extractValuesFromNestedJsonAsList(jsonString, targetList)
         }
     }
-
 
     private fun setupCardListeners() {
         cardTersimpan.setOnClickListener {
@@ -1749,118 +1793,6 @@ class ListAbsensiActivity : AppCompatActivity() {
         loadingLogo.visibility = View.GONE
         loadingContainer.visibility = View.GONE
     }
-
-//    private fun handleUpload(selectedItems: List<Map<String, Any>>) {
-//
-//        val uploadItems = selectedItems.map { item ->
-//            UploadItem(
-//                id = item["id"] as Int,
-//                deptPpro = (item["dept_ppro"] as Number).toInt(),
-//                divisiPpro = (item["divisi_ppro"] as Number).toInt(),
-//                commodity = (item["commodity"] as Number).toInt(),
-//                blokJjg = item["blok_jjg"] as String,
-//                nopol = item["nopol"] as String,
-//                driver = item["driver"] as String,
-//                pemuatId = item["pemuat_id"].toString(),
-//                transporterId = (item["transporter_id"] as Number).toInt(),
-//                millId = (item["mill_id"] as Number).toInt(),
-//                createdById = (item["created_by_id"] as Number).toInt(),
-//                createdAt = item["created_at"] as String,
-//                no_espb = item["no_espb"] as String,
-//                uploader_info = infoApp,
-//                uploaded_at = SimpleDateFormat(
-//                    "yyyy-MM-dd HH:mm:ss",
-//                    Locale.getDefault()
-//                ).format(Date()),
-//                uploaded_by_id = prefManager!!.idUserLogin!!.toInt()
-//            )
-//        }
-//
-//        // Merge all items into one combined UploadItem
-////        val mergedItem = UploadItem(
-////            id = -1, // Indicating merged data
-////            deptPpro = 0, // Use logic if needed
-////            divisiPpro = 0,
-////            commodity = 0,
-////            blokJjg = uploadItems.joinToString("; ") { it.blokJjg },
-////            nopol = uploadItems.joinToString(", ") { it.nopol }.trim(),
-////            driver = uploadItems.joinToString(", ") { it.driver }.trim(),
-////            pemuatId = uploadItems.joinToString(", ") { it.pemuatId }.trim(),
-////            transporterId = 0, // Use logic if necessary
-////            millId = 0,
-////            createdById = 0,
-////            createdAt = uploadItems.maxByOrNull { it.createdAt }?.createdAt ?: "",
-////            noEspb = uploadItems.joinToString(" | ") { it.noEspb }
-////        )
-//
-//        // Add merged item to the list
-////        val allUploadItems = uploadItems + mergedItem
-//
-//        val allUploadItems = uploadItems
-//
-//        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
-//
-//        val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-//        titleTV.text = "Progress Upload..."
-//        val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
-//        counterTV.text = "0/${allUploadItems.size}"
-//        val cancelDownloadDataset =
-//            dialogView.findViewById<MaterialButton>(R.id.btnCancelDownloadDataset)
-//        val containerDownloadDataset =
-//            dialogView.findViewById<LinearLayout>(R.id.containerDownloadDataset)
-//
-//        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.features_recycler_view)
-//        recyclerView.layoutManager = LinearLayoutManager(this)
-//        recyclerView.adapter = UploadProgressAdapter(uploadItems, weightBridgeViewModel)
-//
-//        val dialog = AlertDialog.Builder(this)
-//            .setView(dialogView)
-//            .setCancelable(false)
-//            .create()
-//        dialog.show()
-//
-//        cancelDownloadDataset.setOnClickListener {
-//            speedDial.close()
-//            weightBridgeViewModel.loadHistoryUploadeSPB()
-//            dialog.dismiss()
-//        }
-//
-//        weightBridgeViewModel.uploadStatusMap.observe(this) { statusMap ->
-//            val completedCount = statusMap.count { it.value == "Success" || it.value == "Failed" }
-//            counterTV.text = "$completedCount/${allUploadItems.size}"
-//
-//            if (completedCount == allUploadItems.size) {
-//                containerDownloadDataset.visibility = View.VISIBLE
-//                cancelDownloadDataset.visibility = View.VISIBLE
-//            }
-//        }
-//
-//        weightBridgeViewModel.uploadESPBStagingKraniTimbang(
-//            uploadItems.map { uploadItem ->
-//                mapOf(
-//                    "id" to uploadItem.id,
-//                    "dept_ppro" to uploadItem.deptPpro,
-//                    "divisi_ppro" to uploadItem.divisiPpro,
-//                    "commodity" to uploadItem.commodity,
-//                    "blok_jjg" to uploadItem.blokJjg,
-//                    "nopol" to uploadItem.nopol,
-//                    "driver" to uploadItem.driver,
-//                    "pemuat_id" to uploadItem.pemuatId,
-//                    "transporter_id" to uploadItem.transporterId,
-//                    "mill_id" to uploadItem.millId,
-//                    "created_by_id" to uploadItem.createdById,
-//                    "created_at" to uploadItem.createdAt,
-//                    "no_espb" to uploadItem.no_espb,
-//                    "uploader_info" to uploadItem.uploader_info,
-//                    "uploaded_at" to uploadItem.uploaded_at,
-//                    "uploaded_by_id" to uploadItem.uploaded_by_id
-//                )
-//            }
-//        )
-//
-//
-//
-//    }
 
     private fun setActiveCard(activeCard: MaterialCardView) {
 
@@ -2010,6 +1942,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: "-"),
                                                 "info" to (absensiWithRelations.absensi.info
                                                     ?: "-"),
+                                                "karyawan_msk_nama" to (absensiWithRelations.absensi.karyawan_msk_nama
+                                                    ?: ""),
                                                 "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
                                                     ?: ""),
                                                 "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
@@ -2017,7 +1951,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
                                                     ?: ""),
                                                 "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
-                                                    ?: "")
+                                                    ?: ""),
+                                                "karyawan_msk_work_location" to (absensiWithRelations.absensi.karyawan_msk_work_location ?: ""),
+                                                "karyawan_tdk_msk_work_location" to (absensiWithRelations.absensi.karyawan_tdk_msk_work_location ?: "")
                                             )
 
                                             // Return the AbsensiDataRekap object
@@ -2041,6 +1977,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                     ?: "",
                                                 karyawan_tdk_msk_nik = absensiWithRelations.absensi.karyawan_tdk_msk_nik
                                                     ?: "",
+                                                karyawan_msk_work_location = absensiWithRelations.absensi.karyawan_msk_work_location ?: "", // ✅
+                                                karyawan_tdk_msk_work_location = absensiWithRelations.absensi.karyawan_tdk_msk_work_location ?: "", // ✅
                                                 status_upload = absensiWithRelations.absensi.status_upload
                                             )
                                         } catch (e: Exception) {
@@ -2060,6 +1998,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 karyawan_tdk_msk_nama = "",
                                                 karyawan_msk_nik = "",
                                                 karyawan_tdk_msk_nik = "",
+                                                karyawan_msk_work_location = "",
+                                                karyawan_tdk_msk_work_location = "",
                                                 status_upload = 0
                                             )
                                         }
@@ -2179,6 +2119,8 @@ class ListAbsensiActivity : AppCompatActivity() {
                                                 ?: "-"),
                                             "info" to (absensiWithRelations.absensi.info
                                                 ?: "-"),
+                                            "karyawan_msk_nama" to (absensiWithRelations.absensi.karyawan_msk_nama
+                                                ?: ""),
                                             "karyawan_msk_nik" to (absensiWithRelations.absensi.karyawan_msk_nik
                                                 ?: ""),
                                             "karyawan_tdk_msk_nik" to (absensiWithRelations.absensi.karyawan_tdk_msk_nik
@@ -2186,7 +2128,9 @@ class ListAbsensiActivity : AppCompatActivity() {
                                             "karyawan_msk_id" to (absensiWithRelations.absensi.karyawan_msk_id
                                                 ?: ""),
                                             "karyawan_tdk_msk_id" to (absensiWithRelations.absensi.karyawan_tdk_msk_id
-                                                ?: "")
+                                                ?: ""),
+                                            "karyawan_msk_work_location" to (absensiWithRelations.absensi.karyawan_msk_work_location ?: ""),
+                                            "karyawan_tdk_msk_work_location" to (absensiWithRelations.absensi.karyawan_tdk_msk_work_location ?: "")
                                         )
 
                                         // Return the data object

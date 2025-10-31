@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="16dp"
+
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+
+    app:strokeColor="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/white"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvPhotoTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Foto Temuan di TPH"
+            android:textSize="16sp"
+            android:textColor="@color/black"
+            android:fontFamily="@font/manrope_semibold"
+            android:layout_marginBottom="8dp" />
+
+        <ImageView
+            android:id="@+id/ivTPHPhoto"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:scaleType="centerCrop"
+            android:background="@color/graylight"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Comment section -->
+        <TextView
+            android:id="@+id/tvCommentTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Komentar"
+            android:textSize="16sp"
+            android:textColor=  "@color/black"
+            android:fontFamily="@font/manrope_semibold"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvCommentText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Comment text here"
+            android:textSize="14sp"
+            android:textColor="@color/graytextdark"
+            android:fontFamily="@font/manrope_regular"
+            android:background="@color/graylight"
+            android:padding="12dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

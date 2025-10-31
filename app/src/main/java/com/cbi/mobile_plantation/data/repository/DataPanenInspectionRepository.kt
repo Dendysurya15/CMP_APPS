@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.ParameterDao
 import com.cbi.mobile_plantation.data.network.CMPApiClient
@@ -17,8 +18,9 @@ import java.util.Locale
 
 class DataPanenInspectionRepository(
     context: Context,
+//    private val apiService: ApiService = ApiProvider.currentApiService
+//    private val apiService: ApiService = TestingAPIClient.instance,
     private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
 ){
 
     suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
@@ -33,8 +35,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.MILLISECOND, 999)
         val endDate = formatter.format(calendar.time)
 
-        // Start of 7 days ago (00:00:00 seven days ago)
-        calendar.add(Calendar.DAY_OF_YEAR, -6) // Go back 6 more days (total 7 days from today)
+        calendar.add(Calendar.DAY_OF_YEAR, -3)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -51,10 +52,22 @@ class DataPanenInspectionRepository(
                 put("id")
                 put("tph")
                 put("tph_nomor")
+                put("asistensi")
+                put("asistensi_dept")
+                put("asistensi_dept_nama")
+                put("asistensi_divisi")
                 put("ancak")
                 put("tipe")
                 put("dept_abbr")
                 put("jjg_kirim")
+                put("jjg_masak")
+                put("jjg_mentah")
+                put("jjg_lewat_masak")
+                put("jjg_kosong")
+                put("jjg_abnormal")
+                put("jjg_bayar")
+                put("spb_kode")
+                put("status_espb")
                 put("created_date")
                 put("created_by")
                 put("created_name")
@@ -110,7 +123,6 @@ class DataPanenInspectionRepository(
 
     suspend fun getDataInspeksi(
         estate: Any, // Changed from Int to Any
-        afdeling: String,
         joinTable: Boolean = true,
         parameterDao: ParameterDao
     ): Response<ResponseBody> {
@@ -158,13 +170,14 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        calendar.add(Calendar.WEEK_OF_YEAR, -1)
+        calendar.add(Calendar.DAY_OF_YEAR, -3)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val oneWeekAgo = formatter.format(calendar.time)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $oneWeekAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $startDate to $today (inclusive, full datetime)")
 
 
 
@@ -187,6 +200,10 @@ class DataPanenInspectionRepository(
                 put("blok_nama")
                 put("tph_nomor")
                 put("ancak")
+                put("kemandoran_ppro_pemuat")
+                put("kemandoran_nama_pemuat")
+                put("nik_pemuat")
+                put("nama_pemuat")
                 put("tph")
                 put("tgl_inspeksi")
                 put("tgl_panen")
@@ -231,7 +248,7 @@ class DataPanenInspectionRepository(
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(oneWeekAgo)
+                        put(startDate)
                         put(today)
                     })
                 })

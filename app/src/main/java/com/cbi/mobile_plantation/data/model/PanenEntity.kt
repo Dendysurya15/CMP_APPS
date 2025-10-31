@@ -18,6 +18,9 @@ data class PanenEntity(
     val foto: String,
     val komentar:  String,
     val asistensi: Int,
+    val asistensi_dept: Int? = null,  // Nullable Int
+    val asistensi_dept_nama: String? = null,  // Nullable String
+    val asistensi_divisi: Int? = null,  // Nullable Int
     val lat: Double,
     val lon: Double,
     val jenis_panen: Int, //normal = 0, Cut& carry =1, MAIC = 2

@@ -15,34 +15,80 @@
         android:text="Nama Karyawan"
         android:textColor="@color/black"
         android:textSize="12sp"
-        android:gravity="center_vertical"
         android:padding="4dp"
-        android:fontFamily="@font/manrope_semibold" />
+        android:fontFamily="@font/manrope_semibold"
+        android:gravity="center_vertical" />
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/MCVSpinner"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginLeft="5dp"
+        android:orientation="vertical"
+        android:padding="8dp"
         android:background="@color/white">
 
-        <FrameLayout
+        <!-- Attendance Status Spinner -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/MCVSpinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/white">
+            android:layout_marginLeft="5dp"
+            android:background="@color/white"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="4dp">
 
-            <com.jaredrummler.materialspinner.MaterialSpinner
-                android:id="@+id/spAttendanceStatus"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:ms_hint="Pilih Status"
-                app:ms_hint_color="@color/black"
-                app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
-                app:ms_text_color="@color/black" />
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="@color/white">
 
-        </FrameLayout>
+                <com.jaredrummler.materialspinner.MaterialSpinner
+                    android:id="@+id/spAttendanceStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:ms_hint="Pilih Status"
+                    app:ms_hint_color="@color/black"
+                    app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
+                    app:ms_text_color="@color/black" />
 
-    </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Work Location Spinner -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/MCVSpinnerWorkLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginLeft="5dp"
+            android:visibility="gone"
+            android:background="@color/white"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="@color/white">
+
+                <com.jaredrummler.materialspinner.MaterialSpinner
+                    android:id="@+id/spWorkLocationStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:ms_hint="Alokasi Kerja"
+                    app:ms_hint_color="@color/black"
+                    app:ms_popup_padding_top="@dimen/cardview_compat_inset_shadow"
+                    app:ms_text_color="@color/black" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
 
 </LinearLayout>

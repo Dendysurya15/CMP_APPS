@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.ESPBEntity
@@ -98,6 +99,15 @@ class WeighBridgeRepository(context: Context) {
     suspend fun getTPHByBlockId(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
         try {
             val tphData = tphDao.getTPHByBlockId(blockId)
+            Result.success(tphData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTPHByBlockPPRO(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
+        try {
+            val tphData = tphDao.getTPHByBlockPPRO(blockId)
             Result.success(tphData)
         } catch (e: Exception) {
             Result.failure(e)
@@ -570,8 +580,7 @@ class WeighBridgeRepository(context: Context) {
                                 AppLogger.d("CMP Upload - Starting upload for data with size: ${data.length} characters")
 
                                 try {
-                                    // Use the direct method for uploading JSON data
-                                    val response = CMPApiClient.instance.uploadJsonV3Raw(
+                                    val response = ApiProvider.currentApiService.uploadJsonV4Raw(
                                         jsonData = jsonRequestBody
                                     )
 

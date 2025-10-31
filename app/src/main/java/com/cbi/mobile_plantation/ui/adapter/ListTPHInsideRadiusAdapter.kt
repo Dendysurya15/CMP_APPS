@@ -33,9 +33,11 @@ class ListTPHInsideRadiusAdapter(
 ) : RecyclerView.Adapter<ListTPHInsideRadiusAdapter.ViewHolder>() {
 
     private var selectedPosition = -1
-
-    // Keep track of currently selected TPH ID to maintain selection during refresh
     private var selectedTPHId: Int? = null
+
+    // ADD these new properties:
+    private var previousSelectedPosition = -1
+    private var previousSelectedTPHId: Int? = null
 
     // Updated interface
     interface OnTPHSelectedListener {
@@ -120,10 +122,16 @@ class ListTPHInsideRadiusAdapter(
         val baseText = "TPH ${tphItem.number} - ${tphItem.blockCode}"
 
         // Create the full text
-        val plainText = if (!tphItem.isWithinRange) {
-            "$baseText ($distanceValue)\ndiluar jangkauan"
-        } else {
-            "$baseText ($distanceValue)"
+        val plainText = when {
+            !tphItem.hasTransaction -> {
+                "$baseText ($distanceValue)\nTidak ada transaksi panen"
+            }
+            !tphItem.isWithinRange -> {
+                "$baseText ($distanceValue)\ndiluar jangkauan"
+            }
+            else -> {
+                "$baseText ($distanceValue)"
+            }
         }
 
         // Create spannable for coloring
@@ -138,13 +146,16 @@ class ListTPHInsideRadiusAdapter(
         )
 
         // Color the distance part yellow if out of range
-        if (!tphItem.isWithinRange) {
-            val yellowColor = ContextCompat.getColor(holder.itemView.context, R.color.yellowbutton)
+        if (!tphItem.isWithinRange || !tphItem.hasTransaction) {
+            val warningColor = ContextCompat.getColor(
+                holder.itemView.context,
+                if (!tphItem.hasTransaction) R.color.colorRedDark else R.color.yellowbutton
+            )
             val openParenIndex = plainText.indexOf('(')
 
             if (openParenIndex >= 0) {
                 spannable.setSpan(
-                    ForegroundColorSpan(yellowColor),
+                    ForegroundColorSpan(warningColor),
                     openParenIndex,
                     plainText.length,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -297,13 +308,23 @@ class ListTPHInsideRadiusAdapter(
         holder.itemView.setOnClickListener(null)
 
         val canClick = if (enforceSelectionLimits) {
-            (tphItem.canBeSelectedAgain && tphItem.isWithinRange) || (tphItem.id == selectedTPHId)
+            (tphItem.canBeSelectedAgain && tphItem.isWithinRange && tphItem.hasTransaction) || (tphItem.id == selectedTPHId)
         } else {
-            tphItem.isWithinRange || (tphItem.id == selectedTPHId)
+            (tphItem.isWithinRange && tphItem.hasTransaction) || (tphItem.id == selectedTPHId)
+        }
+
+        // Disable if no transaction
+        if (!tphItem.hasTransaction) {
+            holder.radioButton.isEnabled = false
+            holder.radioButton.alpha = 0.5f
         }
 
         if (canClick) {
             holder.radioButton.setOnClickListener {
+                // ADD this line to store current state as previous before changing
+                previousSelectedPosition = selectedPosition
+                previousSelectedTPHId = selectedTPHId
+
                 val oldPosition = selectedPosition
                 selectedPosition = position
                 selectedTPHId = tphItem.id
@@ -327,6 +348,27 @@ class ListTPHInsideRadiusAdapter(
 
 
     override fun getItemCount() = tphList.size
+
+    fun revertSelection() {
+        val currentPosition = selectedPosition
+
+        // Restore previous state instead of clearing everything
+        selectedPosition = previousSelectedPosition
+        selectedTPHId = previousSelectedTPHId
+
+        // Update UI for both positions
+        if (currentPosition >= 0) {
+            notifyItemChanged(currentPosition)
+        }
+        if (previousSelectedPosition >= 0) {
+            notifyItemChanged(previousSelectedPosition)
+        }
+    }
+
+    fun confirmSelection(tphId: Int) {
+        // Selection is already set, this is just for confirmation if needed
+        selectedTPHId = tphId
+    }
 }
 
 
