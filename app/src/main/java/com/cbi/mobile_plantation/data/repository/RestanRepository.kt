@@ -47,8 +47,8 @@ class RestanRepository(
             put("table", "panen")
             put("select", JSONArray().apply {
                 put("tph")
-                put("created_date")
-                put("created_name")
+                put("created_date_kp")
+                put("created_name_kp")
                 put("jjg_kirim")
                 put("spb_kode")
                 put("nomor_pemanen")
@@ -66,7 +66,7 @@ class RestanRepository(
                 }
 
                 // Date range condition using BETWEEN with full datetime
-                put("created_date", JSONObject().apply {
+                put("created_date_kp", JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(sevenDaysAgo)
                         put(today)

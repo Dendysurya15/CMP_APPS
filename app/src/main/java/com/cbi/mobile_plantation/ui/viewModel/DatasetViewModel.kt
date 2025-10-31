@@ -2547,12 +2547,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // Extract required fields
                             val tphId = item.optString("tph", "")
-                            val createdDate = item.optString("created_date", "")
+                            val createdDate = item.optString("created_date_kp", "")
                             val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val nomorPemanen = item.optInt("nomor_pemanen", 0)
-                            val createdName = item.optString("created_name", "")
-                            // For spb_kode, check specifically for null vs. empty string
+                            val createdName = item.optString("created_name_kp", "")
                             val spbKode: String? =
                                 if (item.has("spb_kode") && !item.isNull("spb_kode")) {
                                     item.optString("spb_kode")
@@ -2570,7 +2569,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 extractUsernameFromCreatedName(createdName)
                             }
 
-                            // Count status_espb values and check spb_kode relationship (for logging only)
                             when (statusEspb) {
                                 0 -> {
                                     status0Count++
@@ -2608,6 +2606,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val panenEntity = PanenEntity(
                                 tph_id = tphId.toString(),
                                 date_created = createdDate,
+                                created_name = createdName,
                                 created_by = 0,
                                 karyawan_id = "",
                                 kemandoran_id = "",
@@ -2625,11 +2624,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 archive = 0,
                                 nomor_pemanen = nomorPemanen,
                                 status_banjir = 0,
-                                status_espb = statusEspb, // Use actual status from server
+                                status_espb = statusEspb,
                                 status_restan = 1,
                                 scan_status = 1,
                                 dataIsZipped = 0,
-                                no_espb = spbKode ?: "", // Use actual spb_kode or empty
+                                no_espb = spbKode ?: "",
                                 username = username,
                                 status_upload = 0,
                                 status_uploaded_image = "0",
@@ -2644,30 +2643,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             panenList.add(panenEntity)
                         }
 
-                        // Enhanced summary with spb_kode relationship check
-                        AppLogger.d("=== RESTAN PROCESSING SUMMARY ===")
-                        AppLogger.d("Total records processed: ${dataArray.length()}")
-                        AppLogger.d("Status_espb = 0: $status0Count")
-                        AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (will INSERT/UPDATE)")
-                        AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb")
-                        AppLogger.d("Status_espb = 1: $status1Count")
-                        AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
-                        AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (normal)")
-                        AppLogger.d("Status_espb = 2: $status2Count")
-                        AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
-                        AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (normal)")
-                        AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
-
-                        // Data consistency check
-                        if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
-                            AppLogger.e("🚨 DATA INCONSISTENCY DETECTED!")
-                            AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
-                            AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
-                            AppLogger.e("This suggests data quality issues in the backend!")
-                        } else {
-                            AppLogger.d("✅ Data consistency check passed - no inconsistencies found")
-                        }
-                        AppLogger.d("==================================")
 
                         // Update to 80% when processing is complete
                         progressMap[itemId] = 80
@@ -2678,7 +2653,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 var successCount = 0
                                 var failCount = 0
 
-                                // STEP: Insert or Update records that should be in local DB
                                 if (panenList.isNotEmpty()) {
                                     AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
@@ -2721,6 +2695,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         panen.username
                                                     } else {
                                                         existingRecord.username
+                                                    },
+
+                                                    created_name = if (existingRecord.created_name.isNullOrEmpty() || existingRecord.created_name == "NULL") {
+                                                        panen.created_name
+                                                    } else {
+                                                        existingRecord.created_name
                                                     },
 
                                                     nomor_pemanen = if (existingRecord.nomor_pemanen == 0) {
@@ -3544,8 +3524,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             // Extract required fields
                             val idPanen = item.optInt("id", 0)
                             val tphId = item.optString("tph", "")
-                            val createdDate = item.optString("created_date", "")
-                            val createdBy = item.optInt("created_by", 0)
+                            val createdDate = item.optString("created_date_kp", "")
+                            val createdBy = item.optInt("created_by_kp", 0)
                             val ancak = item.optInt("ancak", 0)
                             val asistensi = item.optInt("asistensi", 0)
 
@@ -3588,7 +3568,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 put("PA", jjgBayar)
                             }.toString()
 
-                            val createdName = item.optString("created_name", "")
+                            val createdName = item.optString("created_name_kp", "")
                             val username = if (createdName.isNullOrEmpty() || createdName.equals(
                                     "NULL",
                                     ignoreCase = true
@@ -3676,6 +3656,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tph_id = tphId.toString(),
                                 date_created = createdDate,
                                 created_by = createdBy,
+                                created_name = createdName,
                                 karyawan_id = karyawanId,
                                 kemandoran_id = kemandoranId,
                                 karyawan_nik = karyawanNik,
@@ -3760,6 +3741,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val updatedRecord = existingRecord.copy(
                                                     // Update basic info from server
                                                     created_by = panen.created_by,
+                                                    created_name = if (existingRecord.created_name.isNullOrEmpty() || existingRecord.created_name == "NULL") {
+                                                        panen.created_name
+                                                    } else {
+                                                        existingRecord.created_name
+                                                    },
                                                     jenis_panen = if (existingRecord.jenis_panen == 0 && panen.jenis_panen != 0) {
                                                         panen.jenis_panen
                                                     } else {
@@ -3923,13 +3909,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                     }
                                 }
-
-                                // Final summary
-                                AppLogger.d("=== PANEN SYNC COMPLETE ===")
-                                AppLogger.d("Inserted/Updated: $successCount")
-                                AppLogger.d("Failed: $failCount")
-                                AppLogger.d("Total records processed: ${panenList.size}")
-                                AppLogger.d("============================")
 
                                 // Final update - 100%
                                 progressMap[itemId] = 100
@@ -4102,9 +4081,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 "ancak"
                                             ) else null
 
-                                        // Create InspectionModel with new pemuat fields
                                         val inspectionEntity = InspectionModel(
-                                            id = 0, // Always 0 for auto-increment
+                                            id = 0,
                                             created_date = tglInspeksi,
                                             created_by = createdBy.toString(),
                                             created_name = createdName,
@@ -4137,7 +4115,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             status_upload = "0",
                                             status_uploaded_image = "0",
                                             isPushedToServer = 1,
-                                            // NEW: Add the 4 pemuat fields
                                             kemandoran_ppro_pemuat = kemandoranPproPemuat,
                                             kemandoran_nama_pemuat = kemandoranNamaPemuat,
                                             nik_pemuat = nikPemuat,
@@ -4386,7 +4363,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                calendar.add(Calendar.DAY_OF_YEAR, -3)
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
                 val sevenDaysAgoDate = calendar.time
                 val sevenDaysAgo = inputFormatter.format(sevenDaysAgoDate)
 
@@ -4566,7 +4543,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                calendar.add(Calendar.DAY_OF_YEAR, -3)
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -4757,7 +4734,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
 
-                calendar.add(Calendar.DAY_OF_YEAR, -3)
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -5838,7 +5815,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing follow-up inspection data: ${e.message}")
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                                     try {
                                         results[request.dataset] = Resource.Loading(60)
                                         _downloadStatuses.postValue(results.toMap())
@@ -5864,8 +5842,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 // Extract required fields
                                                 val idPanen = item.optInt("id", 0)
                                                 val tphId = item.optString("tph", "")
-                                                val createdDate = item.optString("created_date", "")
-                                                val createdBy = item.optInt("created_by", 0)
+                                                val createdDate = item.optString("created_date_kp", "")
+                                                val createdBy = item.optInt("created_by_kp", 0)
                                                 val asistensi = item.optInt("asistensi", 0)
                                                 val asistensiDept =
                                                     if (item.isNull("asistensi_dept")) {
@@ -5924,7 +5902,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     put("KP", jjgKirim)
                                                     put("PA", jjgBayar)
                                                 }.toString()
-                                                val createdName = item.optString("created_name", "")
+                                                val createdName = item.optString("created_name_kp", "")
                                                 val username =
                                                     if (createdName.isNullOrEmpty() || createdName.equals(
                                                             "NULL",
@@ -5991,6 +5969,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     id = idPanen,
                                                     tph_id = tphId.toString(),
                                                     date_created = createdDate,
+                                                    created_name = createdName,
                                                     created_by = createdBy,
                                                     karyawan_id = "", // Will be filled after bulk lookup
                                                     kemandoran_id = kemandoranId,
@@ -6116,7 +6095,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         results[request.dataset] =
                                             Resource.Error("Error processing panen data: ${e.message}")
                                     }
-                                } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                                     AppLogger.d("Processing settingJSON dataset")
 
                                     if (responseBodyString.isBlank()) {
@@ -6196,7 +6176,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
 
                                     AppLogger.d("Finished processing settingJSON dataset")
-                                } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
+                                }
+                                else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                                     if (responseBodyString.isBlank()) {
                                         AppLogger.e("Received empty JSON response for app version")
                                         results[request.dataset] =

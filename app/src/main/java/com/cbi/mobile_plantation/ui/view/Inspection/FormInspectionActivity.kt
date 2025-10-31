@@ -10632,13 +10632,13 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun checkDateTimeSettings() {
-        if (!AppUtils.isDateTimeValid(this)) {
-            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
-            AppUtils.showDateTimeNetworkWarning(this)
-        } else if (!activityInitialized) {
+//        if (!AppUtils.isDateTimeValid(this)) {
+//            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+//            AppUtils.showDateTimeNetworkWarning(this)
+//        } else if (!activityInitialized) {
             initializeActivity()
             startPeriodicDateTimeChecking()
-        }
+//        }
     }
 
     private fun startPeriodicDateTimeChecking() {

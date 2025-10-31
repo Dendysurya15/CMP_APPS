@@ -35,7 +35,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.MILLISECOND, 999)
         val endDate = formatter.format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, -3)
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -68,9 +68,9 @@ class DataPanenInspectionRepository(
                 put("jjg_bayar")
                 put("spb_kode")
                 put("status_espb")
-                put("created_date")
-                put("created_by")
-                put("created_name")
+                put("created_date_kp")
+                put("created_by_kp")
+                put("created_name_kp")
                 put("kemandoran")
             })
 
@@ -103,7 +103,7 @@ class DataPanenInspectionRepository(
                 }
 
                 // Date range condition using BETWEEN with full datetime
-                put("created_date", JSONObject().apply {
+                put("created_date_kp", JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(startDate)
                         put(endDate)
@@ -170,7 +170,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, -3)
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -259,7 +259,6 @@ class DataPanenInspectionRepository(
                 })
             })
 
-            // Add join if requested
             if (joinTable) {
                 put("join", JSONArray().apply {
                     put(JSONObject().apply {

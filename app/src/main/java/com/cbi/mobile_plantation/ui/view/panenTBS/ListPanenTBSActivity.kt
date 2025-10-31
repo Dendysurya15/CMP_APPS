@@ -1313,6 +1313,8 @@ class ListPanenTBSActivity : AppCompatActivity() {
             return JSONObject().apply {
                 put("tph_0", formattedData)
                 put("username", username)
+                put("created_name", prefManager!!.nameUserLogin)
+                put("created_by", prefManager!!.idUserLogin)
                 put("tgl", tglJson)
             }.toString()
         } catch (e: Exception) {
@@ -4296,6 +4298,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                     "foto" to (panenWithRelations.panen.foto as Any),
                                     "komentar" to (panenWithRelations.panen.komentar as Any),
                                     "asistensi" to (panenWithRelations.panen.asistensi as Any),
+                                    "asistensi_divisi" to (panenWithRelations.panen.asistensi_divisi ?: 0),
                                     "karyawan_nik" to (panenWithRelations.panen.karyawan_nik as Any),
                                     "karyawan_nama" to (panenWithRelations.panen.karyawan_nama as Any),
                                     "karyawan_id" to (panenWithRelations.panen.karyawan_id as Any),
@@ -5324,13 +5327,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
 
     private fun checkDateTimeSettings() {
-        if (!AppUtils.isDateTimeValid(this)) {
-            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
-            AppUtils.showDateTimeNetworkWarning(this)
-        } else if (!activityInitialized) {
+//        if (!AppUtils.isDateTimeValid(this)) {
+//            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+//            AppUtils.showDateTimeNetworkWarning(this)
+//        } else if (!activityInitialized) {
             initializeActivity()
             startPeriodicDateTimeChecking()
-        }
+//        }
     }
 
     private fun startPeriodicDateTimeChecking() {

@@ -1145,13 +1145,13 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun checkDateTimeSettings() {
-        if (!AppUtils.isDateTimeValid(this)) {
-            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
-            AppUtils.showDateTimeNetworkWarning(this)
-        } else if (!activityInitialized) {
+//        if (!AppUtils.isDateTimeValid(this)) {
+//            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+//            AppUtils.showDateTimeNetworkWarning(this)
+//        } else if (!activityInitialized) {
             initializeActivity()
             startPeriodicDateTimeChecking()
-        }
+//        }
     }
 
     private fun startPeriodicDateTimeChecking() {
@@ -3363,17 +3363,34 @@ class HomePageActivity : AppCompatActivity() {
                                     "status_espb" to 0
                                 )
                             }
-                        } else if (panenESPBMandor1Asisten.isNotEmpty()) {
+                        }
+                        else if (panenESPBMandor1Asisten.isNotEmpty()) {
+
+                            val espbMap = parseEspbEntries(espbList)
 
                             mappedPanenData = panenESPBMandor1Asisten.map { panenWithRelations ->
+                                // Create lookup key: tph_id|date_created
+                                val key = "${panenWithRelations.panen.tph_id}|${panenWithRelations.panen.date_created}"
+                                val matchingEspb = espbMap[key]
+
+                                // Use ESPB data if found, otherwise use empty string
+                                val updatedBySpv = matchingEspb?.created_by_id ?: ""
+                                val updatedNameSpv = matchingEspb?.created_name ?: ""
+                                val updatedDateSpv = matchingEspb?.created_at ?: ""
+                                val creatorInfo = matchingEspb?.creator_info ?: ""
+
                                 mapOf(
                                     "id" to panenWithRelations.panen.id,
                                     "tph" to (panenWithRelations.panen.tph_id.toIntOrNull() ?: 0),
                                     "tph_nomor" to (panenWithRelations.tph?.nomor ?: ""),
-                                    "created_by_kp" to prefManager!!.idUserLogin.toString(),
-                                    "created_name_kp" to prefManager!!.nameUserLogin.toString(),
+                                    "updated_by_spv" to updatedBySpv,
+                                    "updated_name_spv" to updatedNameSpv,
+                                    "updated_date_spv" to updatedDateSpv,
+                                    "app_version" to creatorInfo,
+                                    "created_by_kp" to panenWithRelations.panen.created_by,
+                                    "created_name_kp" to (panenWithRelations.panen.created_name ?: ""),
                                     "created_date_kp" to panenWithRelations.panen.date_created,
-                                    "no_espb" to panenWithRelations.panen.no_espb,
+                                    "spb_kode" to panenWithRelations.panen.no_espb,
                                     "status_pengangkutan" to panenWithRelations.panen.status_pengangkutan,
                                     "regional" to panenWithRelations.tph?.regional.toString(),
                                     "wilayah" to panenWithRelations.tph?.wilayah.toString(),
@@ -3391,8 +3408,8 @@ class HomePageActivity : AppCompatActivity() {
                                     "blok" to panenWithRelations.tph?.blok.toString(),
                                     "blok_ppro" to panenWithRelations.tph?.blok_ppro.toString(),
                                     "blok_kode" to panenWithRelations.tph?.blok_kode.toString(),
-                                    "blok_nama" to panenWithRelations.tph?.blok_nama.toString()
-
+                                    "blok_nama" to panenWithRelations.tph?.blok_nama.toString(),
+                                    "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                 )
                             }
 
@@ -9279,6 +9296,27 @@ class HomePageActivity : AppCompatActivity() {
         if (prefManager!!.datasetMustUpdate.isEmpty()) {
             startDownloads()
         }
+    }
+
+    fun parseEspbEntries(espbList: List<ESPBEntity>): Map<String, ESPBEntity> {
+        val map = mutableMapOf<String, ESPBEntity>()
+
+        espbList.forEach { espb ->
+            // Parse tph1 column: "222593,2025-10-31 09:38:11,2,1,3;222593,2025-10-31 09:37:50,2,1,2"
+            espb.tph1?.split(";")?.forEach { entry ->
+                val parts = entry.split(",")
+                if (parts.size >= 2) {
+                    val tphId = parts[0].trim()
+                    val dateCreated = parts[1].trim()
+
+                    // Create unique key: tphId + dateCreated
+                    val key = "$tphId|$dateCreated"
+                    map[key] = espb
+                }
+            }
+        }
+
+        return map
     }
 
     private fun setupLogout() {

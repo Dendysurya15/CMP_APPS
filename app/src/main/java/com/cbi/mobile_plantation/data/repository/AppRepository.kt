@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 
 import com.cbi.mobile_plantation.data.model.InspectionModel
@@ -12,7 +11,6 @@ import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.database.HektarPanenDao
-import com.cbi.mobile_plantation.data.database.PanenDao
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -31,8 +29,6 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.MathFun
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.math.BigDecimal
@@ -1326,29 +1322,43 @@ class AppRepository(context: Context) {
                     val existingRecord = panenDao.existsModel(tphData.namaBlok, tphData.time)
 
                     if (existingRecord != null) {
-                        AppLogger.d("🔍 COMPARISON DETAILS for TPH=${tphData.namaBlok}:")
-                        AppLogger.d("   namaBlok: '${tphData.namaBlok}' vs '${existingRecord.tph?.id}' → ${tphData.namaBlok == existingRecord.tph?.id.toString()}")
-                        AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
-                        AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
-                        AppLogger.d("   asistensi: '${tphData.asistensi}' vs '${existingRecord.panen.asistensi}' → ${tphData.asistensi == existingRecord.panen.asistensi}")
-                        AppLogger.d("   asistensi_divisi: '${tphData.asistensi_divisi}' vs '${existingRecord.panen.asistensi_divisi}' → ${tphData.asistensi_divisi == existingRecord.panen.asistensi_divisi}")
+//                        AppLogger.d("🔍 COMPARISON DETAILS for TPH=${tphData.namaBlok}:")
+//                        AppLogger.d("   namaBlok: '${tphData.namaBlok}' vs '${existingRecord.tph?.id}' → ${tphData.namaBlok == existingRecord.tph?.id.toString()}")
+//                        AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
+//                        AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
+//                        AppLogger.d("   asistensi: '${tphData.asistensi}' vs '${existingRecord.panen.asistensi}' → ${tphData.asistensi == existingRecord.panen.asistensi}")
+//                        AppLogger.d("   asistensi_divisi: '${tphData.asistensi_divisi}' vs '${existingRecord.panen.asistensi_divisi}' → ${tphData.asistensi_divisi == existingRecord.panen.asistensi_divisi}")
 
                         // Helper function to check if a value should be ignored
                         fun shouldIgnoreValue(value: String?): Boolean {
                             return value == null || value.isEmpty() || value == "NULL"
                         }
 
-                        // Only compare username if incoming value is not NULL/empty
+                        fun shouldIgnoreIntValue(value: Int): Boolean {
+                            return value == null || value == 0
+                        }
+
                         val usernameMatches = if (shouldIgnoreValue(tphData.username)) {
-                            true // Skip comparison if incoming is NULL/empty
+                            true
                         } else {
                             tphData.username == existingRecord.panen.username
                         }
-                        AppLogger.d("   username: '${tphData.username}' vs '${existingRecord.panen.username}' → $usernameMatches ${if (shouldIgnoreValue(tphData.username)) "(skipped - incoming NULL/empty)" else ""}")
+
+                        val createdNameMatches = if (shouldIgnoreValue(tphData.created_name)) {
+                            true
+                        } else {
+                            tphData.created_name == existingRecord.panen.created_name
+                        }
+
+                        val createdByMatches = if (shouldIgnoreIntValue(tphData.created_by)) {
+                            true
+                        } else {
+                            tphData.created_by == existingRecord.panen.created_by
+                        }
 
                         val existingJJG = extractJJGFromJson(existingRecord.panen.jjg_json)
                         val jjgMatches = if (shouldIgnoreValue(tphData.jjg)) {
-                            true // Skip comparison if incoming is NULL/empty
+                            true
                         } else {
                             tphData.jjg == existingJJG
                         }
@@ -1380,6 +1390,8 @@ class AppRepository(context: Context) {
                                         tphData.asistensi == existingRecord.panen.asistensi &&
                                         asistensiDivisiMatches &&
                                         usernameMatches &&
+                                        createdNameMatches &&
+                                        createdByMatches &&
                                         jjgMatches &&
                                         tipePanenMatches &&
                                         ancakMatches
@@ -1400,6 +1412,10 @@ class AppRepository(context: Context) {
                                     asistensi_divisi = tphData.asistensi_divisi,
                                     username = if (!shouldIgnoreValue(tphData.username))
                                         tphData.username else existingRecord.panen.username,
+                                    created_name = if (!shouldIgnoreValue(tphData.created_name))
+                                        tphData.created_name else existingRecord.panen.created_name,
+                                    created_by = if (!shouldIgnoreIntValue(tphData.created_by))
+                                        tphData.created_by else existingRecord.panen.created_by,
                                     jjg_json = if (!shouldIgnoreValue(tphData.jjg))
                                         "{\"KP\": ${tphData.jjg}}" else existingRecord.panen.jjg_json,
                                     jenis_panen = if (incomingTipePanen != null) {
@@ -1425,7 +1441,8 @@ class AppRepository(context: Context) {
                             PanenEntity(
                                 tph_id = tphData.namaBlok,
                                 date_created = tphData.time,
-                                created_by = 0,
+                                created_name = tphData.created_name,
+                                created_by = tphData.created_by,
                                 karyawan_id = "",
                                 kemandoran_id = "",
                                 karyawan_nik = "",

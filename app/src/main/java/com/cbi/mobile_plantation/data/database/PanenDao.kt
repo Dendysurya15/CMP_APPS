@@ -374,17 +374,19 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
 
     @Query(
         """
-    SELECT p.* FROM panen_table p
-    INNER JOIN tph t ON p.tph_id = t.id
-    WHERE datetime(p.date_created) >= datetime('now', '-7 days')
-    AND p.karyawan_nik IS NOT NULL 
-    AND p.karyawan_nik != ''
-    AND p.karyawan_nik != 'NULL'
-    AND p.karyawan_nama IS NOT NULL 
-    AND p.karyawan_nama != ''
-    AND p.karyawan_nama != 'NULL'
-    AND t.dept IN (:estateIds)
-"""
+    SELECT p.* 
+    FROM panen_table p 
+    INNER JOIN tph t ON p.tph_id = t.id 
+    WHERE date(p.date_created) >= date('now', '-3 days')
+      AND date(p.date_created) >= date('now', 'start of month')
+      AND p.karyawan_nik IS NOT NULL 
+      AND p.karyawan_nik != '' 
+      AND p.karyawan_nik != 'NULL' 
+      AND p.karyawan_nama IS NOT NULL 
+      AND p.karyawan_nama != '' 
+      AND p.karyawan_nama != 'NULL' 
+      AND t.dept IN (:estateIds)
+    """
     )
     abstract fun getAllTPHinWeek(estateIds: List<Int>): List<PanenEntityWithRelations>
 

@@ -509,7 +509,6 @@ class ListTPHApproval : AppCompatActivity() {
                     val jsonStr = AppUtils.readJsonFromEncryptedBase64Zip(qrResult)
 
                     AppLogger.d(jsonStr.toString())
-                    AppLogger.d("laksdjflkjafdl kj $jsonStr")
                     jsonStr?.let {
                         data = parseTphData(it)
                         withContext(Dispatchers.Main) {
@@ -657,6 +656,20 @@ class ListTPHApproval : AppCompatActivity() {
                     "NULL"
                 }
 
+                val created_name = if (jsonObject.has("created_name")) {
+                    jsonObject.getString("created_name")
+                } else {
+                    AppLogger.d("created_name key not found in JSON")
+                    ""
+                }
+
+                val created_by = if (jsonObject.has("created_by")) {
+                    jsonObject.getInt("created_by")
+                } else {
+                    AppLogger.d("created_by key not found in JSON")
+                    0
+                }
+
                 val kemandoranId = if (jsonObject.has("kemandoran_id")) {
                     jsonObject.getString("kemandoran_id")
                 } else {
@@ -703,8 +716,6 @@ class ListTPHApproval : AppCompatActivity() {
 
                 val parsedEntries = tph0String.split(";").mapNotNull { entry ->
                     if (entry.isBlank()) return@mapNotNull null
-
-//                    AppLogger.d("Processing entry: $entry")
 
                     try {
                         var idtph = 0
@@ -784,7 +795,9 @@ class ListTPHApproval : AppCompatActivity() {
                                 username = usernameString,
                                 kemandoran_id = "",
                                 tipePanen = "NULL",
-                                ancak = "NULL"
+                                ancak = "NULL",
+                                created_name = created_name,
+                                created_by = created_by
                             )
 
                             // Create save data with original values + new fields
@@ -800,8 +813,10 @@ class ListTPHApproval : AppCompatActivity() {
                                 nomor_pemanen = nomor_pemanen,
                                 asistensi = asistensi,
                                 asistensi_divisi = asistensiDivisi,
-                                date_created = fullDateTime,  // Add this - using the full datetime
-                                tph_id = idtph                // Add this - using the original idtph
+                                date_created = fullDateTime,
+                                tph_id = idtph,
+                                created_name = created_name,
+                                created_by = created_by
                             )
                         } else if (featureName == AppUtils.ListFeatureNames.ScanPanenMPanen) {
                             val parts = entry.split(",")
@@ -920,7 +935,8 @@ class ListTPHApproval : AppCompatActivity() {
 
 //                            AppLogger.d("panenEntity $panenEntity")
                             saveDataMPanenList.add(panenEntity)
-                        } else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
+                        }
+                        else if (featureName == AppUtils.ListFeatureNames.ScanTransferInspeksiPanen) {
                             // Parse ScanTransferInspeksiPanen with JSON handling
                             // Format: 222593,0,07:20:48,1,16,{"1232500026":"DANIEL DAWU BORA","1232100169":"ARSYAD"}
 

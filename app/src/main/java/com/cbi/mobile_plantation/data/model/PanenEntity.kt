@@ -10,6 +10,7 @@ data class PanenEntity(
     val tph_id: String,
     val date_created: String,
     val created_by: Int,
+    val created_name: String? = "",
     val karyawan_id: String,
     val kemandoran_id: String,
     val karyawan_nik: String,
