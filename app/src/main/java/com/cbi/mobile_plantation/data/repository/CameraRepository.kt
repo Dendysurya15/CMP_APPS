@@ -1,7 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.annotation.SuppressLint
-import android.app.Activity
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -20,7 +20,6 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
-import android.media.ExifInterface
 import android.media.ImageReader
 import android.net.Uri
 import android.os.Build
@@ -33,6 +32,7 @@ import android.os.Vibrator
 import android.util.Log
 import android.util.Rational
 import android.util.Size
+import android.view.OrientationEventListener
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
@@ -51,33 +51,75 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.BoundingBox
 import com.cbi.mobile_plantation.utils.CameraOrientationHandler
+import com.cbi.mobile_plantation.utils.DetectionMetrics
+import com.cbi.mobile_plantation.utils.FFBClassCountsView
+import com.cbi.mobile_plantation.utils.FFBDetector
+import com.cbi.mobile_plantation.utils.FFBOverlayView
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.PerformanceMetrics
+import com.cbi.mobile_plantation.utils.PerformanceOverlayView
 import com.cbi.mobile_plantation.utils.PrefManager
-import com.daimajia.androidanimations.library.Techniques
-import com.daimajia.androidanimations.library.YoYo
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-
 
 class CameraRepository(
     private val context: Context,
     private val window: Window,
     private val view: View,
     private val zoomView: View
-) {
+) : FFBDetector.DetectorListener {
 
     enum class CameraType {
         BACK,
         FRONT
     }
+
+    private var currentDisplayRotation = 0
+    private val rotationListener = object : OrientationEventListener(context) {
+        override fun onOrientationChanged(orientation: Int) {
+            if (orientation == ORIENTATION_UNKNOWN) return
+
+            val newRotation = when (orientation) {
+                in 45..134 -> 270   // Left landscape
+                in 135..224 -> 180  // Upside down
+                in 225..314 -> 90   // Right landscape
+                else -> 0           // Portrait
+            }
+
+            if (newRotation != currentDisplayRotation) {
+                currentDisplayRotation = newRotation
+                rotateUIElements()
+            }
+        }
+    }
+
+    private fun rotateUIElements() {
+        mainHandler.post {
+            val rotation = currentDisplayRotation.toFloat()
+            overlayView?.setTextRotation(rotation)
+
+            // Remove all classCountsView related code
+
+            performanceOverlay?.animate()
+                ?.rotation(rotation)
+                ?.setDuration(200)
+                ?.start()
+
+            val pivotX = textureViewCam.width / 2f
+            val pivotY = textureViewCam.height / 2f
+            textureViewCam.pivotX = pivotX
+            textureViewCam.pivotY = pivotY
+        }
+    }
+
 
     interface PhotoCallback {
         fun onPhotoTaken(
@@ -91,6 +133,18 @@ class CameraRepository(
             longitude: Double?
         )
     }
+
+    // FFB Detection properties
+    private var ffbDetector: FFBDetector? = null
+    private var overlayView: FFBOverlayView? = null
+    private var classCountsView: FFBClassCountsView? = null
+    private var isFFBDetectionEnabled = false
+    private var useGPUDetection = false
+    private var lockedDetectionResults: List<BoundingBox>? = null
+    private var lockedClassCounts: Map<String, Int>? = null
+    private val detectionHandler = Handler(Looper.getMainLooper())
+    private var detectionRunnable: Runnable? = null
+
     private lateinit var orientationHandler: CameraOrientationHandler
     private var photoCallback: PhotoCallback? = null
     private var prefManager: PrefManager? = null
@@ -111,68 +165,226 @@ class CameraRepository(
     private var isCameraOpen = false
     private var isFlashlightOn = false
 
+    private var performanceOverlay: PerformanceOverlayView? = null
+    private var performanceCheckCounter = 0
+    private var totalDetectionCount = 0
+    private var lastInferenceTime = 0L
 
     fun setPhotoCallback(callback: PhotoCallback) {
         this.photoCallback = callback
     }
 
-    private fun rotateBitmapWithOrientation(photoFilePath: String?, cameraId: Int, orientationHandler: CameraOrientationHandler): Bitmap {
+    // FFB Detection methods
+    fun enableFFBDetection(enable: Boolean, useGPU: Boolean = false) {
+        isFFBDetectionEnabled = enable
+        useGPUDetection = useGPU
+
+        if (enable) {
+            initializeFFBDetection()
+        } else {
+            stopFFBDetection()
+        }
+    }
+
+    private fun initializeFFBDetection() {
+        if (ffbDetector == null) {
+            ffbDetector = FFBDetector(context, detectorListener = this)
+            if (!ffbDetector!!.initialize(useGPUDetection)) {
+                Log.e("CameraRepository", "Failed to initialize FFB detector")
+                ffbDetector = null
+                return
+            }
+        }
+
+        // Setup overlay if not exists
+        if (overlayView == null) {
+            overlayView = FFBOverlayView(context, null)
+            val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+            rlCamera.addView(overlayView)
+        }
+
+        startContinuousDetection()
+    }
+
+    private fun startContinuousDetection() {
+        if (!isFFBDetectionEnabled || ffbDetector == null) return
+
+        detectionRunnable = object : Runnable {
+            override fun run() {
+                if (isFFBDetectionEnabled && isCameraOpen && lockedDetectionResults == null) {
+                    performDetection()
+                    detectionHandler.postDelayed(this, 100) // 10 FPS detection
+                }
+            }
+        }
+        detectionHandler.post(detectionRunnable!!)
+    }
+
+    private fun performDetection() {
+        try {
+            val bitmap = textureViewCam.getBitmap() ?: return
+            val detectionStartTime = System.currentTimeMillis()
+
+            ffbDetector?.detect(bitmap)
+
+            // Monitor performance every 30 detections (approximately every 3 seconds at 10 FPS)
+            performanceCheckCounter++
+            if (performanceCheckCounter >= 30) {
+                monitorAndUpdatePerformance()
+                performanceCheckCounter = 0
+            }
+        } catch (e: Exception) {
+            Log.e("CameraRepository", "Error performing detection", e)
+        }
+    }
+
+    private fun monitorAndUpdatePerformance() {
+        try {
+            val memoryInfo = ActivityManager.MemoryInfo()
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            activityManager.getMemoryInfo(memoryInfo)
+
+            val availableMemoryMB = memoryInfo.availMem / (1024 * 1024)
+            val totalMemoryMB = memoryInfo.totalMem / (1024 * 1024)
+            val usedMemoryMB = totalMemoryMB - availableMemoryMB
+            val memoryUsagePercent = (usedMemoryMB * 100) / totalMemoryMB
+
+            // Get FPS from detector (you'll need to add this method to FFBDetector)
+            val currentFps = ffbDetector?.getCurrentFps() ?: 0f
+
+            val metrics = PerformanceMetrics(
+                fps = currentFps,
+                memoryUsageMB = usedMemoryMB,
+                memoryUsagePercent = memoryUsagePercent,
+                inferenceTime = lastInferenceTime,
+                totalDetections = totalDetectionCount
+            )
+
+            // Update UI on main thread
+            mainHandler.post {
+                performanceOverlay?.updateMetrics(metrics)
+            }
+
+            // Log for debugging
+            Log.d("Performance", "FPS: $currentFps, Memory: ${usedMemoryMB}MB (${memoryUsagePercent}%)")
+
+        } catch (e: Exception) {
+            Log.e("Performance", "Error monitoring performance", e)
+        }
+    }
+
+    private fun stopFFBDetection() {
+        detectionRunnable?.let { detectionHandler.removeCallbacks(it) }
+        overlayView?.clear()
+    }
+
+    fun lockDetectionResults() {
+        // Store current detection results
+        lockedDetectionResults = overlayView?.let {
+            // Get current results from overlay - this would need implementation in OverlayView
+            emptyList<BoundingBox>() // Placeholder
+        }
+        lockedClassCounts = classCountsView?.let {
+            // Get current class counts - this would need implementation
+            mapOf<String, Int>()
+        }
+    }
+
+    fun unlockDetectionResults() {
+        lockedDetectionResults = null
+        lockedClassCounts = null
+        if (isFFBDetectionEnabled) {
+            startContinuousDetection()
+        }
+    }
+
+    fun getLockedResults(): Pair<List<BoundingBox>?, Map<String, Int>?> {
+        return Pair(lockedDetectionResults, lockedClassCounts)
+    }
+
+    override fun onEmptyDetect(metrics: DetectionMetrics) {
+        lastInferenceTime = metrics.inferenceTime
+
+        mainHandler.post {
+            if (lockedDetectionResults == null) {
+                overlayView?.clear()
+                performanceOverlay?.updateTotalDetections(0)
+            }
+        }
+    }
+
+    override fun onDetect(boundingBoxes: List<BoundingBox>, metrics: DetectionMetrics) {
+        totalDetectionCount += boundingBoxes.size
+        lastInferenceTime = metrics.inferenceTime
+
+        mainHandler.post {
+            if (lockedDetectionResults == null) {
+                overlayView?.setResults(boundingBoxes)
+                // Update performance overlay with total count from metrics
+                performanceOverlay?.updateTotalDetections(metrics.classCounts.values.sum())
+            }
+        }
+    }
+
+    private fun rotateBitmapWithOrientation(
+        photoFilePath: String?,
+        cameraId: Int,
+        orientationHandler: CameraOrientationHandler
+    ): Bitmap {
         val TAG = "BitmapRotation"
 
         val originalBitmap = BitmapFactory.decodeFile(photoFilePath)
 
-        // Get rotation angle and hand detection
         val rotationAngle = orientationHandler.getImageRotation(cameraId)
         val isLeftHanded = orientationHandler.isLikelyLeftHanded()
 
-        Log.d(TAG, "Original rotation from handler: $rotationAngle°")
+        Log.d(TAG, "Original rotation from handler: ${rotationAngle}°")
         Log.d(TAG, "Hand detection: ${if (isLeftHanded) "LEFT" else "RIGHT"}")
         Log.d(TAG, "Camera ID: $cameraId")
 
-        // Adjust rotation based on hand detection
         val correctedRotation = when {
-            // Right-handed use - keep the current working logic
             !isLeftHanded -> {
                 when {
                     cameraId == 1 -> {
                         when (rotationAngle) {
-                            180 -> 0    // Don't rotate if handler says 180°
-                            0 -> 180    // Rotate 180° if handler says 0°
-                            90 -> 270   // Invert 90° rotation
-                            270 -> 90   // Invert 270° rotation
+                            180 -> 0
+                            0 -> 180
+                            90 -> 270
+                            270 -> 90
                             else -> rotationAngle
                         }
                     }
+
                     else -> {
                         when (rotationAngle) {
-                            180 -> 0    // Don't rotate if handler says 180°
-                            0 -> 0      // Keep as is
-                            90 -> 90    // Keep as is
-                            270 -> 270  // Keep as is
+                            180 -> 0
+                            0 -> 0
+                            90 -> 90
+                            270 -> 270
                             else -> rotationAngle
                         }
                     }
                 }
             }
-            // Left-handed use - adjust the rotation
+
             else -> {
                 when {
                     cameraId == 1 -> {
-                        // Front camera + left hand needs special handling
                         when (rotationAngle) {
-                            180 -> 0     // Don't rotate (same as right-handed logic)
-                            0 -> 180     // Rotate 180° (same as right-handed logic)
-                            90 -> 270    // Invert rotation (same as right-handed logic)
-                            270 -> 90    // Invert rotation (same as right-handed logic)
+                            180 -> 0
+                            0 -> 180
+                            90 -> 270
+                            270 -> 90
                             else -> rotationAngle
                         }
                     }
+
                     else -> {
                         when (rotationAngle) {
-                            180 -> 180   // Apply 180° rotation (opposite of right-handed)
-                            0 -> 180     // Rotate 180° when handler says 0°
-                            90 -> 270    // Invert to 270°
-                            270 -> 90    // Invert to 90°
+                            180 -> 180
+                            0 -> 180
+                            90 -> 270
+                            270 -> 90
                             else -> rotationAngle
                         }
                     }
@@ -180,20 +392,33 @@ class CameraRepository(
             }
         }
 
-        Log.d(TAG, "Corrected rotation for ${if (isLeftHanded) "LEFT" else "RIGHT"} hand: $correctedRotation°")
+        Log.d(
+            TAG,
+            "Corrected rotation for ${if (isLeftHanded) "LEFT" else "RIGHT"} hand: ${correctedRotation}°"
+        )
 
         if (correctedRotation == 0) {
             return originalBitmap
         }
 
-        // Apply the corrected rotation
         val matrix = Matrix()
-        matrix.setRotate(correctedRotation.toFloat(), originalBitmap.width / 2f, originalBitmap.height / 2f)
+        matrix.setRotate(
+            correctedRotation.toFloat(),
+            originalBitmap.width / 2f,
+            originalBitmap.height / 2f
+        )
 
-        return Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.width, originalBitmap.height, matrix, true)
+        return Bitmap.createBitmap(
+            originalBitmap,
+            0,
+            0,
+            originalBitmap.width,
+            originalBitmap.height,
+            matrix,
+            true
+        )
     }
 
-    // 2. Add helper function to check if device is in portrait mode:
     private fun isInPortraitMode(orientationHandler: CameraOrientationHandler): Boolean {
         val deviceOrientation = orientationHandler.getCurrentOrientation()
         return deviceOrientation == 0 || deviceOrientation == 180
@@ -223,10 +448,9 @@ class CameraRepository(
             height
         } / 48f
         textPaint.textAlign = Paint.Align.RIGHT
-//        textPaint.typeface = ResourcesCompat.getFont(context, R.font.helvetica)
 
         val backgroundPaint = Paint()
-        backgroundPaint.color = Color.parseColor("#3D000000") // Black color with 25% transparency
+        backgroundPaint.color = Color.parseColor("#3D000000")
 
         val watermarkLines = watermarkText.split("\n")
         val textHeight = textPaint.fontMetrics.bottom - textPaint.fontMetrics.top
@@ -254,6 +478,7 @@ class CameraRepository(
     }
 
     private var blockingView: View? = null
+
     private fun isTouchOnView(view: View?, x: Float, y: Float): Boolean {
         if (view == null) return false
 
@@ -263,7 +488,6 @@ class CameraRepository(
         val viewX = location[0]
         val viewY = location[1]
 
-        // Check if the touch coordinates are within the view's bounds
         return (x >= viewX && x <= viewX + view.width &&
                 y >= viewY && y <= viewY + view.height)
     }
@@ -281,12 +505,16 @@ class CameraRepository(
         latitude: Double? = null,
         longitude: Double? = null,
         sourceFoto: String,
-        cameraType: CameraType = CameraType.BACK // Default to back camera
+        cameraType: CameraType = CameraType.BACK
     ) {
-        // Set the camera ID based on the specified camera type
         lastCameraId = when (cameraType) {
             CameraType.BACK -> 0
             CameraType.FRONT -> 1
+        }
+
+        val shouldEnableFFB = featureName != "Mutu Buah"
+        if (shouldEnableFFB) {
+            enableFFBDetection(true, useGPUDetection)
         }
 
         orientationHandler = CameraOrientationHandler(context)
@@ -295,7 +523,6 @@ class CameraRepository(
         setDefaultIconTorchButton(view)
         loadingDialog = LoadingDialog(context)
 
-        // Rest of your existing code remains the same...
         val rootDCIM = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
             "CMP-$featureName"
@@ -311,17 +538,21 @@ class CameraRepository(
         view.visibility = View.VISIBLE
         textureViewCam = TextureView(context)
 
-
         val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
-// Add the texture view for the camera
         rlCamera.addView(textureViewCam)
 
-        // Get references to camera control buttons
+        if (shouldEnableFFB) {
+            setupFFBDetectionUI(rlCamera)
+        }
+
         val captureButton = view.findViewById<FloatingActionButton>(R.id.captureCam)
         val torchButton = view.findViewById<Button>(R.id.torchButton)
         val switchButton = view.findViewById<Button>(R.id.switchButton)
 
-        // Create a transparent blocking view that covers the whole screen EXCEPT camera controls
+//        if (shouldEnableFFB) {
+//            setupFFBControls(view)
+//        }
+
         val blockingView = View(context).apply {
             layoutParams = RelativeLayout.LayoutParams(
                 RelativeLayout.LayoutParams.MATCH_PARENT,
@@ -329,27 +560,19 @@ class CameraRepository(
             )
             setBackgroundColor(Color.TRANSPARENT)
 
-            // This is the key part - consume touch events EXCEPT for camera controls
             setOnTouchListener { _, event ->
-                // Get the touch coordinates
                 val x = event.rawX
                 val y = event.rawY
 
-                // Check if touch is within any of the camera controls
                 val isTouchOnCapture = isTouchOnView(captureButton, x, y)
                 val isTouchOnTorch = isTouchOnView(torchButton, x, y)
                 val isTouchOnSwitch = isTouchOnView(switchButton, x, y)
 
-                // If touch is on a camera control, don't consume the event
-                // Otherwise, consume it to block interaction with underlying UI
                 !(isTouchOnCapture || isTouchOnTorch || isTouchOnSwitch)
             }
         }
 
-        // Add the blocking view
         (view.parent as ViewGroup).addView(blockingView)
-
-        // Store the blocking view reference so we can remove it later
         this.blockingView = blockingView
 
         cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -361,14 +584,15 @@ class CameraRepository(
             object : TextureView.SurfaceTextureListener {
                 @SuppressLint("MissingPermission")
                 override fun onSurfaceTextureAvailable(p0: SurfaceTexture, p1: Int, p2: Int) {
+                    if (rotationListener.canDetectOrientation()) {
+                        rotationListener.enable()
+                    }
                     cameraManager.openCamera(
                         cameraManager.cameraIdList[lastCameraId],
                         object : CameraDevice.StateCallback() {
                             @RequiresApi(Build.VERSION_CODES.TIRAMISU)
                             @SuppressLint("SimpleDateFormat")
                             override fun onOpened(p0: CameraDevice) {
-
-
                                 var fileName = ""
                                 lateinit var file: File
 
@@ -382,9 +606,8 @@ class CameraRepository(
                                     cameraManager.getCameraCharacteristics(cameraDevice!!.id)
                                 val streamConfigurationMap =
                                     characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                                val outputSizes = streamConfigurationMap?.getOutputSizes(
-                                    ImageFormat.JPEG
-                                )
+                                val outputSizes =
+                                    streamConfigurationMap?.getOutputSizes(ImageFormat.JPEG)
 
                                 for (size in outputSizes!!) {
                                     val rational = Rational(size.width, size.height)
@@ -400,543 +623,402 @@ class CameraRepository(
                                     val surface = Surface(surfaceTexture)
                                     capReq.addTarget(surface)
 
-                                    val torchButton = view.findViewById<Button>(R.id.torchButton)
-                                    torchButton.apply {
-                                        // Make sure it has the default icon when first created
-                                        setBackgroundResource(R.drawable.baseline_flash_on_24)
-                                        backgroundTintList = ColorStateList.valueOf(Color.WHITE)
-                                    }
-                                    torchButton.apply {
-                                        setOnClickListener {
-                                            isFlashlightOn = !isFlashlightOn
-                                            if (isFlashlightOn) {
-                                                torchButton.setBackgroundResource(R.drawable.baseline_flash_on_24)
-                                                torchButton.backgroundTintList =
-                                                    ColorStateList.valueOf(Color.YELLOW)
-
-                                                // Use TORCH mode for consistent brightness
-                                                capReq.set(
-                                                    CaptureRequest.FLASH_MODE,
-                                                    CaptureRequest.FLASH_MODE_TORCH
-                                                )
-
-                                                // Prevent auto-exposure from dimming the preview
-                                                capReq.set(
-                                                    CaptureRequest.CONTROL_AE_MODE,
-                                                    CaptureRequest.CONTROL_AE_MODE_ON
-                                                )
-
-                                                // Increase exposure compensation to prevent dimming (values typically range from -3 to +3)
-                                                capReq.set(
-                                                    CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
-                                                    2
-                                                )
-
-                                                // Set a higher ISO value to increase sensor sensitivity (typical range 100-1600)
-                                                capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
-
-                                                // Lock auto-exposure to prevent the camera from adjusting brightness automatically
-                                                capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
-                                            } else {
-                                                setDefaultIconTorchButton(view)
-                                                // Reset all settings when turning flash off
-                                                capReq.set(
-                                                    CaptureRequest.FLASH_MODE,
-                                                    CaptureRequest.FLASH_MODE_OFF
-                                                )
-                                                capReq.set(
-                                                    CaptureRequest.CONTROL_AE_MODE,
-                                                    CaptureRequest.CONTROL_AE_MODE_ON
-                                                )
-                                                capReq.set(
-                                                    CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
-                                                    0
-                                                )
-                                                capReq.set(CaptureRequest.CONTROL_AE_LOCK, false)
-                                                // Let the camera determine ISO automatically
-                                                capReq.set(
-                                                    CaptureRequest.CONTROL_AE_MODE,
-                                                    CaptureRequest.CONTROL_AE_MODE_ON
-                                                )
-                                            }
-
-                                            // Apply the changes
-                                            cameraCaptureSession!!.setRepeatingRequest(
-                                                capReq.build(),
-                                                null,
-                                                null
-                                            )
-                                        }
-                                    }
-
-                                    val switchButton = view.findViewById<Button>(R.id.switchButton)
-
-                                    switchButton.apply {
-                                        setOnClickListener {
-                                            isFlashlightOn = false
-                                            rotatedCam = true
-                                            closeCamera()
-                                            setDefaultIconTorchButton(view)
-
-                                            lastCameraId = if (lastCameraId == 0) {
-                                                1
-                                            } else {
-                                                0
-                                            }
-
-                                            // Convert lastCameraId back to CameraType for the recursive call
-                                            val newCameraType = if (lastCameraId == 0) CameraType.BACK else CameraType.FRONT
-
-                                            takeCameraPhotos(
-                                                context,
-                                                resultCode,
-                                                imageView,
-                                                pageForm,
-                                                deletePhoto,
-                                                komentar,
-                                                kodeFoto,
-                                                featureName,
-                                                latitude,
-                                                longitude,
-                                                sourceFoto,
-                                                newCameraType // Pass the new camera type
-                                            )
-                                        }
-                                    }
-
-                                    imageReader =
-                                        ImageReader.newInstance(
-                                            size.width,
-                                            size.height,
-                                            ImageFormat.JPEG,
-                                            1
-                                        )
-                                    imageReader!!.setOnImageAvailableListener({ p0 ->
-                                        val image = p0?.acquireLatestImage()
-                                        var fileDCIM: File? = null
-                                        if (image != null) {
-                                            val buffer = image.planes[0].buffer
-                                            val bytes = ByteArray(buffer.remaining())
-                                            buffer.get(bytes)
-
-                                            val dirApp = File(rootApp)
-                                            if (!dirApp.exists()) dirApp.mkdirs()
-
-                                            val dirDCIM = File(rootDCIM)
-                                            if (!dirDCIM.exists()) dirDCIM.mkdirs()
-
-                                            val dateTimeFormat =
-                                                SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
-
-                                            val cleanFeatureName = featureName!!.replace(" ", "_")
-
-                                            // Create filename
-                                            val noTPH = sourceFoto?.split(" ")?.lastOrNull() ?: ""
-
-                                            fileName =
-                                                "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_NOTPH_${noTPH}_${dateTimeFormat}.jpg"
-
-                                            file = File(dirApp, fileName)
-
-                                            fileDCIM = File(dirDCIM, fileName)
-                                            if (fileDCIM.exists()) fileDCIM.delete()
-                                            addToGallery(fileDCIM)
-
-                                            if (file.exists()) file.delete()
-                                            addToGallery(file)
-
-                                            val opStream = FileOutputStream(file)
-                                            opStream.write(bytes)
-                                            opStream.close()
-                                            image.close()
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                "Unable to capture image. Please try again.",
-                                                Toast.LENGTH_LONG
-                                            ).show()
-                                            closeCamera()
-                                        }
-
-                                            val takenImage = rotateBitmapWithOrientation(file.path, lastCameraId, orientationHandler)
-                                        val dateWM = SimpleDateFormat(
-                                            "dd MMMM yyyy HH:mm:ss",
-                                            Locale("id", "ID")
-                                        ).format(Calendar.getInstance().time)
-
-                                        var commentWm = komentar
-                                        commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
-                                        commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
-
-// Build the location string if coordinates are available
-                                        val locationText =
-                                            if (latitude != null && longitude != null) {
-                                                "Lat: $latitude, Lon: $longitude"
-                                            } else {
-                                                ""
-                                            }
-
-
-                                        AppLogger.d("lat $latitude")
-                                        AppLogger.d("long $longitude")
-
-                                        AppLogger.d("sourceFoto $sourceFoto")
-                                        val userInfo =
-                                            "${sourceFoto}\n${prefManager!!.nameUserLogin}"
-
-                                        val line3 = when {
-                                            locationText.isNotEmpty() && (resultCode != "0" && commentWm.isNotEmpty()) ->
-                                                "$locationText - $commentWm"
-
-                                            locationText.isNotEmpty() ->
-                                                locationText
-
-                                            resultCode != "0" && commentWm.isNotEmpty() ->
-                                                commentWm
-
-                                            else ->
-                                                "-"  // Placeholder when no location or comment
-                                        }
-
-                                        val watermarkText =
-                                            "CMP-$featureName\n$userInfo\n$line3\n$dateWM"
-
-                                        val watermarkedBitmap =
-                                            addWatermark(takenImage, watermarkText)
-                                        try {
-                                            val targetSizeBytes = 100 * 1024
-                                            var quality = 100
-                                            val minQuality = 50
-                                            val maxWidth = 1024
-
-                                            val sourceWidth = watermarkedBitmap.width
-                                            val sourceHeight = watermarkedBitmap.height
-
-                                            val maxHeight =
-                                                (maxWidth.toFloat() / sourceWidth.toFloat() * sourceHeight).toInt()
-
-                                            var scaledBitmap: Bitmap? = null
-
-                                            while (true) {
-                                                if (quality <= minQuality || sourceWidth <= maxWidth || sourceHeight <= maxHeight) {
-                                                    break
-                                                }
-
-                                                val aspectRatio =
-                                                    sourceWidth.toFloat() / sourceHeight.toFloat()
-                                                val newWidth =
-                                                    maxWidth.coerceAtMost((maxHeight * aspectRatio).toInt())
-                                                scaledBitmap = Bitmap.createScaledBitmap(
-                                                    watermarkedBitmap,
-                                                    newWidth,
-                                                    maxHeight,
-                                                    true
-                                                )
-
-                                                val outputStream = ByteArrayOutputStream()
-                                                scaledBitmap.compress(
-                                                    Bitmap.CompressFormat.JPEG,
-                                                    quality,
-                                                    outputStream
-                                                )
-
-                                                if (outputStream.size() > targetSizeBytes) {
-                                                    quality -= 5
-                                                } else {
-                                                    break
-                                                }
-                                            }
-
-                                            try {
-                                                val out = FileOutputStream(file)
-                                                scaledBitmap?.compress(
-                                                    Bitmap.CompressFormat.JPEG,
-                                                    quality,
-                                                    out
-                                                )
-                                                out.flush()
-                                                out.close()
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
-                                            }
-                                        } catch (e: java.lang.Exception) {
-                                            e.printStackTrace()
-                                        }
-
-                                        try {
-                                            val outDCIM = FileOutputStream(fileDCIM)
-                                            watermarkedBitmap.compress(
-                                                Bitmap.CompressFormat.JPEG,
-                                                100,
-                                                outDCIM
-                                            )
-                                            outDCIM.flush()
-                                            outDCIM.close()
-                                        } catch (e: java.lang.Exception) {
-                                            e.printStackTrace()
-                                        }
-
-
-                                        mainHandler.post {
-                                            rotatedCam = false
-                                            closeCamera()
-
-                                            Glide.with(context).load(Uri.fromFile(file))
-                                                .diskCacheStrategy(
-                                                    DiskCacheStrategy.NONE
-                                                ).skipMemoryCache(true).centerCrop()
-                                                .into(imageView)
-
-
-
-                                            photoCallback?.onPhotoTaken(
-                                                file,
-                                                fileName,
-                                                resultCode,
-                                                deletePhoto,
-                                                pageForm,
-                                                komentar,
-                                                latitude,
-                                                longitude
-                                            )
-                                        }
-                                    }, handler)
-
-                                    cameraDevice!!.createCaptureSession(
-                                        listOf(surface, imageReader!!.surface),
-                                        object : CameraCaptureSession.StateCallback() {
-                                            override fun onConfigured(p0: CameraCaptureSession) {
-                                                cameraCaptureSession = p0
-                                                cameraCaptureSession!!.setRepeatingRequest(
-                                                    capReq.build(),
-                                                    null,
-                                                    null
-                                                )
-                                            }
-
-                                            override fun onConfigureFailed(p0: CameraCaptureSession) {
-
-                                            }
-                                        },
-                                        handler
+                                    setupTorchButton(view)
+                                    setupSwitchButton(
+                                        view, context, resultCode, imageView, pageForm,
+                                        deletePhoto, komentar, kodeFoto, featureName,
+                                        latitude, longitude, sourceFoto
                                     )
+
+                                    setupImageReader(
+                                        size = size,
+                                        rootApp = rootApp,
+                                        rootDCIM = rootDCIM,
+                                        featureName = featureName,
+                                        sourceFoto = sourceFoto,
+                                        komentar = komentar,
+                                        latitude = latitude,
+                                        longitude = longitude,
+                                        context = context,
+                                        imageView = imageView,
+                                        deletePhoto = deletePhoto,
+                                        pageForm = pageForm,
+                                        resultCode = resultCode
+                                    )
+
+                                    startCameraSession(surface)
                                 }
                             }
 
-                            override fun onDisconnected(p0: CameraDevice) {
-
-                            }
-
-                            override fun onError(p0: CameraDevice, p1: Int) {
-
-                            }
+                            override fun onDisconnected(p0: CameraDevice) {}
+                            override fun onError(p0: CameraDevice, p1: Int) {}
                         },
                         handler
                     )
                 }
 
-                override fun onSurfaceTextureSizeChanged(p0: SurfaceTexture, p1: Int, p2: Int) {
-
-                }
-
-                override fun onSurfaceTextureDestroyed(p0: SurfaceTexture): Boolean {
-                    return true
-                }
-
-                override fun onSurfaceTextureUpdated(p0: SurfaceTexture) {
-
-                }
-
+                override fun onSurfaceTextureSizeChanged(p0: SurfaceTexture, p1: Int, p2: Int) {}
+                override fun onSurfaceTextureDestroyed(p0: SurfaceTexture): Boolean = true
+                override fun onSurfaceTextureUpdated(p0: SurfaceTexture) {}
             }
 
         blockingView.bringToFront()
-
         captureButton?.bringToFront()
         torchButton?.bringToFront()
         switchButton?.bringToFront()
 
-        fun vibrate(context: Context) {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(
-                    VibrationEffect.createOneShot(
-                        50,
-                        VibrationEffect.DEFAULT_AMPLITUDE
-                    )
+        setupCaptureButton(view, context)
+    }
+
+    private fun setupFFBDetectionUI(rlCamera: RelativeLayout) {
+        overlayView = FFBOverlayView(context, null).apply {
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+        rlCamera.addView(overlayView)
+
+        // Remove classCountsView setup entirely
+
+        performanceOverlay = PerformanceOverlayView(context, null).apply {
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                addRule(RelativeLayout.ALIGN_PARENT_LEFT)
+                bottomMargin = 120
+                leftMargin = 20
+            }
+        }
+        rlCamera.addView(performanceOverlay)
+    }
+
+    private fun setupTorchButton(view: View) {
+        val torchButton = view.findViewById<Button>(R.id.torchButton)
+        torchButton.apply {
+            setBackgroundResource(R.drawable.baseline_flash_on_24)
+            backgroundTintList = ColorStateList.valueOf(Color.WHITE)
+
+            setOnClickListener {
+                isFlashlightOn = !isFlashlightOn
+                if (isFlashlightOn) {
+                    setBackgroundResource(R.drawable.baseline_flash_on_24)
+                    backgroundTintList = ColorStateList.valueOf(Color.YELLOW)
+
+                    capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                    capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                    capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
+                    capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
+                    capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
+                } else {
+                    setDefaultIconTorchButton(view)
+                    capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
+                    capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                    capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
+                    capReq.set(CaptureRequest.CONTROL_AE_LOCK, false)
+                }
+
+                cameraCaptureSession?.setRepeatingRequest(capReq.build(), null, null)
+            }
+        }
+    }
+
+    private fun setupSwitchButton(
+        view: View, context: Context, resultCode: String,
+        imageView: ImageView, pageForm: Int, deletePhoto: View?,
+        komentar: String?, kodeFoto: String, featureName: String?,
+        latitude: Double?, longitude: Double?, sourceFoto: String
+    ) {
+        val switchButton = view.findViewById<Button>(R.id.switchButton)
+        switchButton.setOnClickListener {
+            isFlashlightOn = false
+            rotatedCam = true
+            closeCamera()
+            setDefaultIconTorchButton(view)
+
+            lastCameraId = if (lastCameraId == 0) 1 else 0
+            val newCameraType = if (lastCameraId == 0) CameraType.BACK else CameraType.FRONT
+
+            takeCameraPhotos(
+                context, resultCode, imageView, pageForm, deletePhoto,
+                komentar, kodeFoto, featureName, latitude, longitude,
+                sourceFoto, newCameraType
+            )
+        }
+    }
+
+    private fun setupImageReader(
+        size: Size, rootApp: String, rootDCIM: String,
+        featureName: String?, sourceFoto: String,
+        komentar: String?, latitude: Double?, longitude: Double?,
+        context: Context, imageView: ImageView, deletePhoto: View?,
+        pageForm: Int, resultCode: String
+    ) {
+        imageReader = ImageReader.newInstance(size.width, size.height, ImageFormat.JPEG, 1)
+        imageReader!!.setOnImageAvailableListener({ p0 ->
+            val image = p0?.acquireLatestImage()
+            var fileDCIM: File? = null
+            var actualFile: File
+            var actualFileName: String
+
+            if (image != null) {
+                if (isFFBDetectionEnabled) {
+                    lockDetectionResults()
+                }
+
+                val buffer = image.planes[0].buffer
+                val bytes = ByteArray(buffer.remaining())
+                buffer.get(bytes)
+
+                val dirApp = File(rootApp)
+                if (!dirApp.exists()) dirApp.mkdirs()
+
+                val dirDCIM = File(rootDCIM)
+                if (!dirDCIM.exists()) dirDCIM.mkdirs()
+
+                val dateTimeFormat =
+                    SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().time)
+                val cleanFeatureName = featureName!!.replace(" ", "_")
+                val noTPH = sourceFoto?.split(" ")?.lastOrNull() ?: ""
+
+                actualFileName =
+                    "${cleanFeatureName}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_NOTPH_${noTPH}_${dateTimeFormat}.jpg"
+                actualFile = File(dirApp, actualFileName)
+
+                fileDCIM = File(dirDCIM, actualFileName)
+                if (fileDCIM.exists()) fileDCIM.delete()
+                addToGallery(fileDCIM)
+
+                if (actualFile.exists()) actualFile.delete()
+                addToGallery(actualFile)
+
+                val opStream = FileOutputStream(actualFile)
+                opStream.write(bytes)
+                opStream.close()
+                image.close()
+            } else {
+                Toast.makeText(
+                    context,
+                    "Unable to capture image. Please try again.",
+                    Toast.LENGTH_LONG
+                ).show()
+                closeCamera()
+                return@setOnImageAvailableListener
+            }
+
+            processAndWatermarkImage(
+                actualFile, fileDCIM, komentar, latitude, longitude,
+                featureName, sourceFoto, context, imageView,
+                deletePhoto, pageForm, resultCode, actualFileName
+            )
+
+        }, handler)
+    }
+
+    private fun processAndWatermarkImage(
+        file: File, fileDCIM: File?, komentar: String?,
+        latitude: Double?, longitude: Double?,
+        featureName: String?, sourceFoto: String,
+        context: Context, imageView: ImageView,
+        deletePhoto: View?, pageForm: Int,
+        resultCode: String, fileName: String
+    ) {
+        val takenImage = rotateBitmapWithOrientation(file.path, lastCameraId, orientationHandler)
+        val dateWM = SimpleDateFormat(
+            "dd MMMM yyyy HH:mm:ss",
+            Locale("id", "ID")
+        ).format(Calendar.getInstance().time)
+
+        var commentWm = komentar
+        commentWm = commentWm?.replace("|", ",")?.replace("\n", "")
+        commentWm = AppUtils.splitStringWatermark(commentWm!!, 60)
+
+        val locationText = if (latitude != null && longitude != null) {
+            "Lat: $latitude, Lon: $longitude"
+        } else ""
+
+        val userInfo = "${sourceFoto}\n${prefManager!!.nameUserLogin}"
+
+        val detectionInfo = if (isFFBDetectionEnabled && lockedClassCounts?.isNotEmpty() == true) {
+            val totalFFB = lockedClassCounts!!.values.sum()
+            "\nFFB Detected: $totalFFB"
+        } else ""
+
+        val line3 = when {
+            locationText.isNotEmpty() && (resultCode != "0" && commentWm.isNotEmpty()) ->
+                "$locationText - $commentWm"
+
+            locationText.isNotEmpty() -> locationText
+            resultCode != "0" && commentWm.isNotEmpty() -> commentWm
+            else -> "-"
+        }
+
+        val watermarkText = "CMP-$featureName\n$userInfo\n$line3$detectionInfo\n$dateWM"
+        val watermarkedBitmap = addWatermark(takenImage, watermarkText)
+
+        try {
+            val targetSizeBytes = 100 * 1024
+            var quality = 100
+            val minQuality = 50
+            val maxWidth = 1024
+
+            val sourceWidth = watermarkedBitmap.width
+            val sourceHeight = watermarkedBitmap.height
+            val maxHeight = (maxWidth.toFloat() / sourceWidth.toFloat() * sourceHeight).toInt()
+
+            var scaledBitmap: Bitmap? = null
+
+            while (true) {
+                if (quality <= minQuality || sourceWidth <= maxWidth || sourceHeight <= maxHeight) {
+                    break
+                }
+
+                val aspectRatio = sourceWidth.toFloat() / sourceHeight.toFloat()
+                val newWidth = maxWidth.coerceAtMost((maxHeight * aspectRatio).toInt())
+                scaledBitmap =
+                    Bitmap.createScaledBitmap(watermarkedBitmap, newWidth, maxHeight, true)
+
+                val outputStream = ByteArrayOutputStream()
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+
+                if (outputStream.size() > targetSizeBytes) {
+                    quality -= 5
+                } else {
+                    break
+                }
+            }
+
+            try {
+                val out = FileOutputStream(file)
+                scaledBitmap?.compress(Bitmap.CompressFormat.JPEG, quality, out)
+                out.flush()
+                out.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            fileDCIM?.let { dcimFile ->
+                val outDCIM = FileOutputStream(dcimFile)
+                watermarkedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outDCIM)
+                outDCIM.flush()
+                outDCIM.close()
+            }
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+
+        mainHandler.post {
+            rotatedCam = false
+            closeCamera()
+
+            Glide.with(context).load(Uri.fromFile(file))
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .skipMemoryCache(true)
+                .centerCrop()
+                .into(imageView)
+
+            photoCallback?.onPhotoTaken(
+                file,
+                fileName,
+                resultCode,
+                deletePhoto,
+                pageForm,
+                komentar,
+                latitude,
+                longitude
+            )
+        }
+    }
+
+    private fun startCameraSession(surface: Surface) {
+        cameraDevice!!.createCaptureSession(
+            listOf(surface, imageReader!!.surface),
+            object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(p0: CameraCaptureSession) {
+                    cameraCaptureSession = p0
+                    cameraCaptureSession!!.setRepeatingRequest(capReq.build(), null, null)
+
+                    if (isFFBDetectionEnabled) {
+                        startContinuousDetection()
+                    }
+                }
+
+                override fun onConfigureFailed(p0: CameraCaptureSession) {}
+            },
+            handler
+        )
+    }
+
+    private fun setupCaptureButton(view: View, context: Context) {
+        val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
+        captureCam.setOnClickListener {
+            if (isInPortraitMode(orientationHandler)) {
+                vibrate(context)
+                Toast.makeText(context, "Mohon putar HP ke mode landscape", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            captureCam.isEnabled = false
+
+            if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
+                capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                capReq.addTarget(imageReader!!.surface)
+
+                if (isFlashlightOn) {
+                    capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                    capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                    capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
+                    capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
+                    capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
+                }
+
+                cameraCaptureSession?.capture(
+                    capReq.build(),
+                    object : CameraCaptureSession.CaptureCallback() {
+                        override fun onCaptureCompleted(
+                            session: CameraCaptureSession,
+                            request: CaptureRequest,
+                            result: TotalCaptureResult
+                        ) {
+                            super.onCaptureCompleted(session, request, result)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                captureCam.isEnabled = true
+                            }, 800)
+                        }
+
+                        override fun onCaptureFailed(
+                            session: CameraCaptureSession,
+                            request: CaptureRequest,
+                            failure: CaptureFailure
+                        ) {
+                            super.onCaptureFailed(session, request, failure)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                captureCam.isEnabled = true
+                            }, 800)
+                        }
+                    },
+                    null
                 )
             } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(50)
+                captureCam.isEnabled = true
             }
         }
-
-
-        val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
-        captureCam.apply {
-            setOnClickListener {
-
-                AppLogger.d("=== CAMERA CAPTURE CLICKED ===")
-
-                // Check if in portrait mode before capturing
-                if (isInPortraitMode(orientationHandler)) {
-                    AppLogger.d("❌ CAPTURE FAILED: Portrait mode")
-                    vibrate(context)
-                    Toast.makeText(
-                        context,
-                        "Mohon putar HP ke mode landscape",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnClickListener
-                }
-
-                // Check if button is already disabled (processing)
-                if (!isEnabled) {
-                    AppLogger.d("❌ CAPTURE FAILED: Button already disabled/processing")
-                    Toast.makeText(
-                        context,
-                        "Sedang memproses foto, mohon tunggu...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnClickListener
-                }
-
-                // Check camera components
-                AppLogger.d("Camera state check:")
-                AppLogger.d("- cameraDevice: ${cameraDevice != null}")
-                AppLogger.d("- imageReader: ${imageReader != null}")
-                AppLogger.d("- cameraCaptureSession: ${cameraCaptureSession != null}")
-                AppLogger.d("- latitude: $latitude")
-                AppLogger.d("- longitude: $longitude")
-
-                // Validate required components
-                when {
-                    cameraDevice == null -> {
-                        AppLogger.e("❌ CAPTURE FAILED: cameraDevice is null")
-                        showCameraError(context, "Kamera tidak tersedia. Silakan coba lagi.")
-                        return@setOnClickListener
-                    }
-
-                    imageReader == null -> {
-                        AppLogger.e("❌ CAPTURE FAILED: imageReader is null")
-                        showCameraError(context, "ImageReader tidak tersedia. Silakan restart kamera.")
-                        return@setOnClickListener
-                    }
-
-                    cameraCaptureSession == null -> {
-                        AppLogger.e("❌ CAPTURE FAILED: cameraCaptureSession is null")
-                        showCameraError(context, "Sesi kamera tidak aktif. Silakan restart kamera.")
-                        return@setOnClickListener
-                    }
-
-                    latitude == null || longitude == null -> {
-                        AppLogger.e("❌ CAPTURE FAILED: Location not available - lat: $latitude, lon: $longitude")
-                        showCameraError(context, "Lokasi tidak tersedia. Pastikan GPS aktif dan coba lagi.")
-                        return@setOnClickListener
-                    }
-
-                    latitude == 0.0 || longitude == 0.0 -> {
-                        AppLogger.e("❌ CAPTURE FAILED: Invalid location coordinates - lat: $latitude, lon: $longitude")
-                        showCameraError(context, "Koordinat lokasi tidak valid. Pastikan GPS mendapat sinyal yang baik.")
-                        return@setOnClickListener
-                    }
-                }
-
-                // All checks passed, proceed with capture
-                AppLogger.d("✅ All checks passed, proceeding with capture")
-                isEnabled = false
-
-                try {
-                    capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                    capReq.addTarget(imageReader!!.surface)
-
-                    // Apply the same flash settings for the actual photo capture
-                    if (isFlashlightOn) {
-                        AppLogger.d("Applying flash settings for capture")
-                        capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
-                        capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                        capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
-                        capReq.set(CaptureRequest.SENSOR_SENSITIVITY, 800)
-                        capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
-                    }
-
-                    AppLogger.d("Starting capture...")
-                    cameraCaptureSession?.capture(
-                        capReq.build(),
-                        object : CameraCaptureSession.CaptureCallback() {
-                            override fun onCaptureCompleted(
-                                session: CameraCaptureSession,
-                                request: CaptureRequest,
-                                result: TotalCaptureResult
-                            ) {
-                                super.onCaptureCompleted(session, request, result)
-                                AppLogger.d("✅ Capture completed successfully")
-
-                                // Re-enable button after a short delay
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    isEnabled = true
-                                    AppLogger.d("Capture button re-enabled")
-                                }, 800)
-                            }
-
-                            override fun onCaptureFailed(
-                                session: CameraCaptureSession,
-                                request: CaptureRequest,
-                                failure: CaptureFailure
-                            ) {
-                                super.onCaptureFailed(session, request, failure)
-                                AppLogger.e("❌ Capture failed: ${failure.reason}")
-
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    isEnabled = true
-                                    showCameraError(context, "Gagal mengambil foto. Silakan coba lagi.")
-                                }, 800)
-                            }
-
-                            override fun onCaptureStarted(
-                                session: CameraCaptureSession,
-                                request: CaptureRequest,
-                                timestamp: Long,
-                                frameNumber: Long
-                            ) {
-                                super.onCaptureStarted(session, request, timestamp, frameNumber)
-                                AppLogger.d("Capture started at timestamp: $timestamp")
-
-                                // Provide immediate feedback
-                                vibrate(context)
-
-                                // Optional: Show a brief "capturing" indicator
-                                Handler(Looper.getMainLooper()).post {
-                                    Toast.makeText(context, "Mengambil foto...", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        },
-                        null
-                    )
-                } catch (e: Exception) {
-                    AppLogger.e("❌ Exception during capture: ${e.message}")
-                    isEnabled = true
-                    showCameraError(context, "Error saat mengambil foto: ${e.message}")
-                }
-            }
-        }
-
     }
 
-    private fun showCameraError(context: Context, message: String) {
-        if (context is Activity) {
-            AlertDialogUtility.withSingleAction(
-                context,
-                "OK",
-                "Error Kamera",
-                message,
-                "warning.json",
-                R.color.colorRedDark
-            ) {}
+    private fun vibrate(context: Context) {
+        val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(50)
         }
     }
-
 
     fun statusCamera(): Boolean {
         rotatedCam = false
@@ -945,27 +1027,38 @@ class CameraRepository(
 
     fun closeCamera() {
         if (isCameraOpen) {
+            rotationListener.disable()
+
+            stopFFBDetection()
 
             val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
             rlCamera.removeView(textureViewCam)
 
+            overlayView?.let { rlCamera.removeView(it) }
+//            classCountsView?.let { rlCamera.removeView(it) }
+            performanceOverlay?.let { rlCamera.removeView(it) } // Add this line
+
+            // Reset performance counters
+            performanceCheckCounter = 0
+            totalDetectionCount = 0
+            lastInferenceTime = 0L
 
             blockingView?.let {
                 (view.parent as? ViewGroup)?.removeView(it)
                 blockingView = null
             }
 
-            cameraCaptureSession!!.close()
-            cameraCaptureSession!!.device.close()
+            cameraCaptureSession?.close()
+            cameraCaptureSession?.device?.close()
             cameraCaptureSession = null
 
-            cameraDevice!!.close()
+            cameraDevice?.close()
             cameraDevice = null
 
-            imageReader!!.close()
+            imageReader?.close()
             imageReader = null
 
-            handlerThread!!.quitSafely()
+            handlerThread?.quitSafely()
             handlerThread = null
             handler = null
 
@@ -981,12 +1074,6 @@ class CameraRepository(
 
     private lateinit var loadingDialog: LoadingDialog
 
-    // Initialize the loading dialog in your onCreate or init method
-    private fun initLoadingDialog() {
-        loadingDialog = LoadingDialog(context)
-    }
-
-
     fun openZoomPhotos(
         file: File,
         position: String,
@@ -995,13 +1082,10 @@ class CameraRepository(
         onClosePhoto: () -> Unit = {}
     ) {
         val fotoZoom = zoomView.findViewById<ImageView>(R.id.fotoZoom)
-        val backgroundView =
-            zoomView.findViewById<View>(R.id.backgroundOverlay) // Add this to your layout
+        val backgroundView = zoomView.findViewById<View>(R.id.backgroundOverlay)
 
-        // Make both visible
         zoomView.visibility = View.VISIBLE
         backgroundView.visibility = View.VISIBLE
-
 
         Glide.with(context)
             .load(file)
@@ -1009,7 +1093,6 @@ class CameraRepository(
             .skipMemoryCache(true)
             .into(fotoZoom)
 
-        // Your existing click listeners...
         zoomView.findViewById<MaterialCardView>(R.id.cardCloseZoom)?.setOnClickListener {
             onClosePhoto.invoke()
             zoomView.visibility = View.GONE
@@ -1018,7 +1101,6 @@ class CameraRepository(
 
         val zoomview = zoomView.findViewById<MaterialCardView>(R.id.cardDeletePhoto)
         zoomview.setOnClickListener {
-
             AlertDialogUtility.withTwoActions(
                 context,
                 "Hapus",
@@ -1031,9 +1113,7 @@ class CameraRepository(
                     zoomView.visibility = View.GONE
                     backgroundView.visibility = View.GONE
                 },
-                cancelFunction = {
-
-                }
+                cancelFunction = {}
             )
         }
 
@@ -1054,13 +1134,11 @@ class CameraRepository(
         backgroundView.visibility = View.GONE
     }
 
-
     fun deletePhotoSelected(fileName: String): Boolean {
         val rootDCIM = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
             "CMP"
         ).toString()
-
         val rootApp = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES).toString()
 
         val dirApp = File(rootApp, "CMP")
@@ -1079,32 +1157,23 @@ class CameraRepository(
                     "Photo deleted successfully from internal storage.",
                     Toast.LENGTH_LONG
                 ).show()
-
             } else {
                 Toast.makeText(
                     context,
                     "Failed to delete the photo from internal storage. Please try again.",
                     Toast.LENGTH_LONG
                 ).show()
-
             }
         } else {
-            Toast.makeText(
-                context,
-                "Photo not found in internal storage.",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(context, "Photo not found in internal storage.", Toast.LENGTH_LONG)
+                .show()
         }
 
         if (fileDCIM.exists()) {
             if (fileDCIM.delete()) {
                 deleted = true
-
-                Toast.makeText(
-                    context,
-                    "Photo deleted successfully from DCIM.",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(context, "Photo deleted successfully from DCIM.", Toast.LENGTH_LONG)
+                    .show()
             } else {
                 Toast.makeText(
                     context,
@@ -1113,20 +1182,11 @@ class CameraRepository(
                 ).show()
             }
         } else {
-            Toast.makeText(
-                context,
-                "Photo not found in DCIM.",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(context, "Photo not found in DCIM.", Toast.LENGTH_LONG).show()
         }
 
         if (!deleted) {
-            Toast.makeText(
-                context,
-                "Photo not found in either location.",
-                Toast.LENGTH_LONG
-            ).show()
-
+            Toast.makeText(context, "Photo not found in either location.", Toast.LENGTH_LONG).show()
         }
 
         return deleted
@@ -1135,7 +1195,13 @@ class CameraRepository(
     private fun setDefaultIconTorchButton(view: View) {
         val torchButton = view.findViewById<Button>(R.id.torchButton)
         torchButton.setBackgroundResource(R.drawable.baseline_flash_off_24)
-        torchButton.backgroundTintList =
-            ColorStateList.valueOf(Color.WHITE)
+        torchButton.backgroundTintList = ColorStateList.valueOf(Color.WHITE)
+    }
+
+    fun cleanup() {
+        ffbDetector?.close()
+        ffbDetector = null
+        overlayView = null
+        classCountsView = null
     }
 }
