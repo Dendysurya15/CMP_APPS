@@ -1179,7 +1179,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             progressMap[item.id] = 0
             errorMap[item.id] = null
         }
-//        ApiProvider.switchToTesting()
         // Update LiveData with initial values
         _itemStatusMap.value = statusMap.toMap()
         _itemProgressMap.value = progressMap.toMap()
@@ -2547,11 +2546,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // Extract required fields
                             val tphId = item.optString("tph", "")
-                            val createdDate = item.optString("created_date_kp", "")
+                            val createdDate = item.optString("created_date", "")
                             val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val nomorPemanen = item.optInt("nomor_pemanen", 0)
-                            val createdName = item.optString("created_name_kp", "")
+                            val createdName = item.optString("created_name", "")
                             val spbKode: String? =
                                 if (item.has("spb_kode") && !item.isNull("spb_kode")) {
                                     item.optString("spb_kode")
@@ -3524,8 +3523,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             // Extract required fields
                             val idPanen = item.optInt("id", 0)
                             val tphId = item.optString("tph", "")
-                            val createdDate = item.optString("created_date_kp", "")
-                            val createdBy = item.optInt("created_by_kp", 0)
+                            val createdDate = item.optString("created_date", "")
+                            val createdBy = item.optInt("created_by", 0)
                             val ancak = item.optInt("ancak", 0)
                             val asistensi = item.optInt("asistensi", 0)
 
@@ -3568,7 +3567,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 put("PA", jjgBayar)
                             }.toString()
 
-                            val createdName = item.optString("created_name_kp", "")
+                            val createdName = item.optString("created_name", "")
                             val username = if (createdName.isNullOrEmpty() || createdName.equals(
                                     "NULL",
                                     ignoreCase = true
@@ -5842,8 +5841,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 // Extract required fields
                                                 val idPanen = item.optInt("id", 0)
                                                 val tphId = item.optString("tph", "")
-                                                val createdDate = item.optString("created_date_kp", "")
-                                                val createdBy = item.optInt("created_by_kp", 0)
+                                                val createdDate = item.optString("created_date", "")
+                                                val createdBy = item.optInt("created_by", 0)
                                                 val asistensi = item.optInt("asistensi", 0)
                                                 val asistensiDept =
                                                     if (item.isNull("asistensi_dept")) {
@@ -5902,7 +5901,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     put("KP", jjgKirim)
                                                     put("PA", jjgBayar)
                                                 }.toString()
-                                                val createdName = item.optString("created_name_kp", "")
+                                                val createdName = item.optString("created_name", "")
                                                 val username =
                                                     if (createdName.isNullOrEmpty() || createdName.equals(
                                                             "NULL",

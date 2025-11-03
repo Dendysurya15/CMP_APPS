@@ -7,8 +7,10 @@ import com.cbi.mobile_plantation.data.database.ParameterDao
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
+import okhttp3.Headers
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Response
@@ -43,9 +45,65 @@ class DataPanenInspectionRepository(
         val startDate = formatter.format(calendar.time)
 
         AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
-
         AppLogger.d("estate $estate")
-        // Create the JSON request using JSONObject
+
+        var useStandardFields = false
+
+        // Step 1: Check if created_date exists (not null)
+        try {
+            val checkQuery = JSONObject().apply {
+                put("table", "panen")
+                put("select", JSONArray().apply {
+                    put("created_date")
+                })
+                put("where", JSONObject().apply {
+                    // Estate condition
+                    when (estate) {
+                        is Int -> put("dept", estate)
+                        is String -> put("dept", estate.toIntOrNull() ?: estate)
+                        is List<*> -> {
+                            put("dept", JSONObject().apply {
+                                put("in", JSONArray().apply {
+                                    (estate as List<Int>).forEach { estateId -> put(estateId) }
+                                })
+                            })
+                        }
+                        else -> put("dept", estate as Int)
+                    }
+
+                    // Check for non-null created_date
+                    put("created_date", JSONObject().apply {
+                        put("!=", null)
+                    })
+                })
+            }
+
+            val requestBody = checkQuery.toString().toRequestBody("application/json".toMediaType())
+            AppLogger.d("🔍 Check query: $checkQuery")
+
+            val checkResponse = apiService.getDataRaw(requestBody)
+            val checkBody = checkResponse.body()?.string()
+
+            if (!checkBody.isNullOrEmpty()) {
+                val checkJson = JSONObject(checkBody)
+                if (checkJson.optBoolean("success")) {
+                    val data = checkJson.optJSONArray("data")
+                    useStandardFields = data != null && data.length() > 0
+                    AppLogger.d("✅ created_date exists: $useStandardFields")
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("❌ Error checking created_date: ${e.message}")
+            useStandardFields = false
+        }
+
+        // Step 2: Build main query based on field availability
+        val dateField = if (useStandardFields) "created_date" else "created_date_kp"
+        val byField = if (useStandardFields) "created_by" else "created_by_kp"
+        val nameField = if (useStandardFields) "created_name" else "created_name_kp"
+
+        AppLogger.d("📝 Using fields: date=$dateField, by=$byField, name=$nameField")
+
         val jsonObject = JSONObject().apply {
             put("table", "panen")
             put("select", JSONArray().apply {
@@ -68,42 +126,29 @@ class DataPanenInspectionRepository(
                 put("jjg_bayar")
                 put("spb_kode")
                 put("status_espb")
-                put("created_date_kp")
-                put("created_by_kp")
-                put("created_name_kp")
+                put(dateField)   // created_date or created_date_kp
+                put(byField)     // created_by or created_by_kp
+                put(nameField)   // created_name or created_name_kp
                 put("kemandoran")
             })
 
-            // Build WHERE clause with multiple conditions
             put("where", JSONObject().apply {
-                // Estate condition - handle both Int and List<Int>
+                // Estate condition
                 when (estate) {
-                    is Int -> {
-                        put("dept", estate)
-                    }
-                    is String -> {
-                        // Convert string to int, or handle as string depending on your API
-                        put("dept", estate.toIntOrNull() ?: estate)
-                        // OR if your API expects string IDs:
-                        // put("dept", estate)
-                    }
+                    is Int -> put("dept", estate)
+                    is String -> put("dept", estate.toIntOrNull() ?: estate)
                     is List<*> -> {
                         put("dept", JSONObject().apply {
                             put("in", JSONArray().apply {
-                                (estate as List<Int>).forEach { estateId ->
-                                    put(estateId)
-                                }
+                                (estate as List<Int>).forEach { estateId -> put(estateId) }
                             })
                         })
                     }
-                    else -> {
-                        // Fallback to Int
-                        put("dept", estate as Int)
-                    }
+                    else -> put("dept", estate as Int)
                 }
 
-                // Date range condition using BETWEEN with full datetime
-                put("created_date_kp", JSONObject().apply {
+                // Date range condition using the determined field
+                put(dateField, JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(startDate)
                         put(endDate)
@@ -112,13 +157,61 @@ class DataPanenInspectionRepository(
             })
         }
 
-        // Convert JSONObject to RequestBody
-        val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+        AppLogger.d("📤 Data Panen API Request: ${jsonObject.toString()}")
 
-        AppLogger.d("jsonObject $jsonObject")
-        AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
+        val response = apiService.getDataRaw(jsonObject.toString().toRequestBody("application/json".toMediaType()))
+        val responseBody = response.body()?.string()
 
-        return apiService.getDataRaw(requestBody)
+        AppLogger.d("📩 Data Panen API Response: $responseBody")
+
+        if (responseBody.isNullOrEmpty()) {
+            return Response.success(
+                ResponseBody.create("application/json".toMediaType(),
+                    """{"success":false,"message":"No data found"}""")
+            )
+        }
+
+        // Step 3: Parse and remap field names to standard names
+        val responseJson = JSONObject(responseBody)
+
+        if (responseJson.optBoolean("success", false)) {
+            val dataArray = responseJson.optJSONArray("data")
+
+            if (dataArray != null && dataArray.length() > 0) {
+                // Remap fields if we used _kp fields
+                if (!useStandardFields) {
+                    AppLogger.d("🔄 Remapping _kp fields to standard names...")
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+
+                        // Rename fields from _kp to standard names
+                        if (item.has("created_date_kp")) {
+                            item.put("created_date", item.get("created_date_kp"))
+                            item.remove("created_date_kp")
+                        }
+                        if (item.has("created_by_kp")) {
+                            item.put("created_by", item.get("created_by_kp"))
+                            item.remove("created_by_kp")
+                        }
+                        if (item.has("created_name_kp")) {
+                            item.put("created_name", item.get("created_name_kp"))
+                            item.remove("created_name_kp")
+                        }
+                    }
+                    AppLogger.d("✅ Fields remapped successfully")
+                }
+            }
+        }
+
+        AppLogger.d("🎯 Final response: ${responseJson.toString(2)}")
+
+        // Return the remapped response
+        val headers = Headers.Builder()
+            .add("Content-Type", "application/json")
+            .build()
+
+        val finalResponseBody = responseJson.toString().toResponseBody("application/json".toMediaType())
+        return Response.success(finalResponseBody, headers)
     }
 
     suspend fun getDataInspeksi(

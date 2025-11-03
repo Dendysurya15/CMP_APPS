@@ -362,7 +362,7 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     AND status_scan_mpanen = 0 
     AND status_transfer_restan = 0 
     AND isPushedToServer = 0
-    
+    AND scan_status = 0
     AND date(date_created) BETWEEN date('now', 'localtime', '-7 days') AND date('now', 'localtime')
 """
     )

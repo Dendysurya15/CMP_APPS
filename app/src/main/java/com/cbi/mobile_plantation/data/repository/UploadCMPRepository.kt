@@ -149,8 +149,6 @@ class UploadCMPRepository(context: Context) {
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadV3Response> {
         return try {
-//            ApiProvider.switchToTesting()
-//            ApiProvider.switchToProduction()
             withContext(Dispatchers.IO) {
                 withContext(Dispatchers.Main) {
                     onProgressUpdate(0, false, null)
@@ -1269,96 +1267,69 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Errors: ${responseBody.results!!.errors}")
                                 AppLogger.d("Skipped: ${responseBody.results!!.skipped}")
 
-                                // Check if status is between 1 and 3
+                                // Check if status is between 1 and 3 for success
                                 val statusInt = responseBody.status.toInt()
                                 val isSuccess = statusInt in 1..3
 
-                                // Check for special mutu_buah case with skipped records
-                                val isMutuBuahWithSkipped = databaseTable == "mutu_buah" &&
-                                        responseBody.results?.skipped != null &&
-                                        responseBody.results.skipped > 0
+                                // Handle skipped records - filter them out from table_ids
+                                val filteredTableIds = if (tableIds != null && responseBody.results?.skipped != null && responseBody.results.skipped > 0) {
+                                    try {
+                                        // Parse the tableIds JSON string
+                                        val originalTableIdsJson = JSONObject(tableIds)
 
-                                // Filter table_ids for mutu_buah if there are skipped records
-                                val filteredTableIds =
-                                    if (isMutuBuahWithSkipped && tableIds != null) {
-                                        try {
-                                            // Parse the tableIds JSON string
-                                            val originalTableIdsJson = JSONObject(tableIds)
-
-                                            // Get the skipped record IDs from skipErrorDetails
-                                            val skippedIds = mutableSetOf<Int>()
-                                            responseBody.results?.skipErrorDetails?.forEach { skipDetail ->
-                                                skipDetail.data?.let { data ->
-                                                    // Extract the ID from the data object
-                                                    val dataJson = JSONObject(data.toString())
-                                                    if (dataJson.has("id")) {
-                                                        skippedIds.add(dataJson.getInt("id"))
-                                                    }
+                                        // Get the skipped record IDs from skipErrorDetails
+                                        val skippedIds = mutableSetOf<Int>()
+                                        responseBody.results?.skipErrorDetails?.forEach { skipDetail ->
+                                            skipDetail.data?.let { data ->
+                                                // Extract the ID from the data object
+                                                val dataJson = JSONObject(data.toString())
+                                                if (dataJson.has("id")) {
+                                                    skippedIds.add(dataJson.getInt("id"))
                                                 }
                                             }
+                                        }
 
-                                            // Filter mutu_buah IDs by removing skipped ones
-                                            if (originalTableIdsJson.has("mutu_buah")) {
-                                                val originalMutuBuahIdsArray =
-                                                    originalTableIdsJson.getJSONArray("mutu_buah")
-                                                val originalMutuBuahIds =
-                                                    (0 until originalMutuBuahIdsArray.length()).map {
-                                                        originalMutuBuahIdsArray.getInt(it)
-                                                    }
+                                        AppLogger.d("Skipped record IDs: $skippedIds")
 
-                                                val filteredMutuBuahIds =
-                                                    originalMutuBuahIds.filter { id ->
-                                                        !skippedIds.contains(id)
-                                                    }
-
-                                                AppLogger.d("Original mutu_buah IDs: $originalMutuBuahIds")
-                                                AppLogger.d("Skipped IDs: $skippedIds")
-                                                AppLogger.d("Filtered mutu_buah IDs: $filteredMutuBuahIds")
-
-                                                // Create new JSON with filtered IDs
-                                                val filteredTableIdsJson =
-                                                    JSONObject(tableIds) // Copy original
-                                                val filteredIdsArray = JSONArray()
-                                                filteredMutuBuahIds.forEach {
-                                                    filteredIdsArray.put(
-                                                        it
-                                                    )
-                                                }
-                                                filteredTableIdsJson.put(
-                                                    "mutu_buah",
-                                                    filteredIdsArray
-                                                )
-
-                                                filteredTableIdsJson.toString()
-                                            } else {
-                                                tableIds
+                                        // Filter IDs by removing skipped ones for the current table
+                                        if (originalTableIdsJson.has(databaseTable)) {
+                                            val originalIdsArray = originalTableIdsJson.getJSONArray(databaseTable)
+                                            val originalIds = (0 until originalIdsArray.length()).map {
+                                                originalIdsArray.getInt(it)
                                             }
-                                        } catch (e: Exception) {
-                                            AppLogger.e("Error filtering table_ids: ${e.message}")
+
+                                            val filteredIds = originalIds.filter { id ->
+                                                !skippedIds.contains(id)
+                                            }
+
+                                            AppLogger.d("Original $databaseTable IDs: $originalIds")
+                                            AppLogger.d("Filtered $databaseTable IDs: $filteredIds")
+
+                                            // Create new JSON with filtered IDs
+                                            val filteredTableIdsJson = JSONObject(tableIds) // Copy original
+                                            val filteredIdsArray = JSONArray()
+                                            filteredIds.forEach { filteredIdsArray.put(it) }
+                                            filteredTableIdsJson.put(databaseTable, filteredIdsArray)
+
+                                            filteredTableIdsJson.toString()
+                                        } else {
                                             tableIds
                                         }
-                                    } else {
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error filtering table_ids: ${e.message}")
                                         tableIds
                                     }
-
-                                // Determine final message, status, and success
-                                val finalMessage = if (isMutuBuahWithSkipped) {
-                                    "Data tidak dapat di-upload, Mohon hubungi Kerani Panen untuk upload data panen"
                                 } else {
-                                    responseBody.message
+                                    tableIds
                                 }
 
-                                val finalStatus = responseBody.status
-                                val finalSuccess =
-                                    if (isMutuBuahWithSkipped) false else responseBody.success
-
-
                                 AppLogger.d("filteredTableIds $filteredTableIds")
+
                                 val jsonResponse = UploadV3Response(
-                                    success = finalSuccess,
+                                    success = responseBody.success,
                                     trackingId = responseBody.trackingId,
-                                    message = finalMessage,
-                                    status = finalStatus,
+                                    message = responseBody.message,
+                                    status = responseBody.status,
                                     tanggal_upload = responseBody.tanggal_upload,
                                     nama_file = responseBody.nama_file,
                                     results = responseBody.results,
@@ -1377,9 +1348,9 @@ class UploadCMPRepository(context: Context) {
                                 AppLogger.d("Response Table IDs: ${jsonResponse.table_ids}")
                                 AppLogger.d("Response Results: ${jsonResponse.results}")
 
-                                // ✅ ADD THIS: Update progress to 100% on success
+                                // Update progress to 100% on success
                                 withContext(Dispatchers.Main) {
-                                    onProgressUpdate(100, true, finalMessage) // true = success
+                                    onProgressUpdate(100, true, responseBody.message)
                                 }
 
                                 Result.success(jsonResponse)
@@ -1394,8 +1365,7 @@ class UploadCMPRepository(context: Context) {
                             }
                         } else {
                             val errorBody = response.errorBody()?.string()
-                            val errorMsg =
-                                "Upload failed - Code: ${response.code()}, Error: $errorBody"
+                            val errorMsg = "Upload failed - Code: ${response.code()}, Error: $errorBody"
 
                             AppLogger.d("====== ERROR DETAILS ======")
                             AppLogger.d("Upload failed for: $filename")

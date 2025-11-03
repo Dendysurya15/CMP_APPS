@@ -130,11 +130,11 @@ interface ApiService {
 
     // Add this method to your CMPApiClient interface
     // Update the API interface to remove the filename parameter
-//    @POST("cmpmain/uploadv3")
-//    @Headers("Content-Type: application/json")
-//    suspend fun uploadJsonV3Raw(
-//        @Body jsonData: RequestBody
-//    ): Response<UploadV3Response>
+    @POST("cmpmain/uploadv3")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadJsonV3Raw(
+        @Body jsonData: RequestBody
+    ): Response<UploadV3Response>
 
     @POST("cmpmain/uploadv4")
     @Headers("Content-Type: application/json")

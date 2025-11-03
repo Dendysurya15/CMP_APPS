@@ -521,9 +521,9 @@ class WeighBridgeRepository(context: Context) {
                                 AppLogger.e(errorMessage)
                                 for (id in idsESPB) {
                                     try {
-                                        withContext(Dispatchers.IO) { // Ensures it runs in background & waits
+                                        withContext(Dispatchers.IO) {
                                             updateUploadStatusCMP(
-                                                id, // ✅ Replace itemId with id from idsESPB
+                                                id,
                                                 0,
                                                 uploaderInfo,
                                                 uploadedAt,
