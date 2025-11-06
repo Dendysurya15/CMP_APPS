@@ -4195,7 +4195,7 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("itemsToUpload $itemsToUpload")
 
             // Start the upload process
-            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
+            uploadCMPViewModel.uploadMultipleJsonsV4(itemsToUpload)
 
         }
 

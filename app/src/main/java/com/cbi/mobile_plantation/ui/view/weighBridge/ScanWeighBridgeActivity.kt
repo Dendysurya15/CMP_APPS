@@ -88,6 +88,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalTotalJjg: String = ""
     var globalCreatedById: Int? = null
     var globalCreatedName: String = ""
+    var globalCreatedByWB: Int? = null
+    var globalCreatedNameWB: String = ""
+    var globalCreatedAtWB: String = ""
     var globalPemuatNama: String = ""
     var globalNopol: String = ""
     var globalDriver: String = ""
@@ -186,7 +189,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
                 "warning.json",
                 function = {
-                    saveAndUplaodESPB()
+                    saveAndUploadESPB()
                     btnSaveUploadESPB.isEnabled = true
                 },
                 cancelFunction = {
@@ -209,13 +212,20 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     }
 
 
-    private fun saveAndUplaodESPB() {
+    private fun saveAndUploadESPB() {
         lifecycleScope.launch(Dispatchers.Main) {
             loadingDialog.show()
             loadingDialog.setMessage(
                 "Sedang menyimpan e-SPB ke local database",
                 true
             )
+            globalCreatedByWB = prefManager!!.idUserLogin
+            globalCreatedNameWB = prefManager!!.nameUserLogin ?: ""
+            globalCreatedAtWB = SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss",
+                Locale.getDefault()
+            ).format(Date())
+
             try {
 
                 val result = withContext(Dispatchers.IO) {
@@ -224,6 +234,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         created_by_id = globalCreatedById ?: 0,
                         created_name = globalCreatedName,
                         created_at = globalCreatedAt,
+                        created_by_wb = globalCreatedByWB,
+                        created_name_wb = globalCreatedNameWB,
+                        created_at_wb = globalCreatedAtWB,
                         nopol = globalNopol,
                         driver = globalDriver,
                         transporter_id = globalTransporterId ?: 0,
@@ -244,10 +257,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         uploader_info_wb = "", // New field for WB
                         noESPB = globalNoESPB,
                         scan_status = 1,
-                        date_scan = SimpleDateFormat(
-                            "yyyy-MM-dd HH:mm:ss",
-                            Locale.getDefault()
-                        ).format(Date()) // Current datetime
+                        date_scan = globalCreatedAtWB
                     )
                 }
 
@@ -272,10 +282,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 "id" to savedItemId,
                                 "endpoint" to "PPRO",
                                 "uploader_info" to globalCreatorInfo,
-                                "uploaded_at" to SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                ).format(Date()),
+                                "uploaded_at" to globalCreatedAtWB,
                                 "uploaded_by_id" to (globalCreatedById ?: 0),
                                 "dept_ppro" to globalDeptPPRO,
                                 "divisi_ppro" to globalDivisiPPRO,
@@ -323,6 +330,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "created_by_id" to (globalCreatedById ?: 0),
                                     "created_at" to globalCreatedAt,
                                     "created_name" to globalCreatedName,
+                                    "updated_by_wb" to globalCreatedByWB,
+                                    "updated_name_wb" to globalCreatedNameWB,
+                                    "updated_date_wb" to globalCreatedAtWB,
                                     "pemuat_id" to globalPemuatId,
                                     "pemuat_nama" to globalPemuatNama,
                                     "pemuat_nik" to globalPemuatNik,
@@ -412,10 +422,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         "id" to savedItemId,
                                         "endpoint" to "CMP",
                                         "uploader_info" to globalCreatorInfo,
-                                        "uploaded_at" to SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).format(Date()),
+                                        "uploaded_at" to globalCreatedAtWB,
                                         "uploaded_by_id" to (globalCreatedById
                                             ?: 0),
                                         "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
@@ -427,10 +434,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         "id" to savedItemId,
                                         "endpoint" to "CMP",
                                         "uploader_info" to globalCreatorInfo,
-                                        "uploaded_at" to SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).format(Date()),
+                                        "uploaded_at" to globalCreatedAtWB,
                                         "uploaded_by_id" to (globalCreatedById
                                             ?: 0),
                                         "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly

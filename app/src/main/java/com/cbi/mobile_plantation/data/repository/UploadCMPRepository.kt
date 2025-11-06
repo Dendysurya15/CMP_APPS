@@ -302,7 +302,7 @@ class UploadCMPRepository(context: Context) {
         val databaseTable: String
     )
 
-    suspend fun uploadJsonToServerV3(
+suspend fun uploadJsonToServerV4(
         jsonFilePath: String,
         filename: String,
         data: String,
@@ -724,7 +724,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV4Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1306,7 +1306,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = CMPApiClient.instance.uploadJsonV3Raw(
+                        val response = CMPApiClient.instance.uploadJsonV4Raw(
                             jsonData = jsonRequestBody
                         )
 

@@ -335,7 +335,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Upload Data CMP"
 
-            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
+            uploadCMPViewModel.uploadMultipleJsonsV4(itemsToUpload)
 
         }
 
@@ -1032,6 +1032,9 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "created_by_id" to data.created_by_id,
                                                         "created_at" to data.created_at,
                                                         "created_name" to data.created_name,
+                                                        "updated_by_wb" to (data.created_by_wb?:0),
+                                                        "updated_name_wb" to (data.created_name_wb ?:""),
+                                                        "updated_date_wb" to (data.created_at_wb ?: ""),
                                                         "pemuat_id" to data.pemuat_id,
                                                         "kemandoran_id" to data.kemandoran_id,
                                                         "pemuat_nik" to data.pemuat_nik,

@@ -572,7 +572,7 @@ class WeighBridgeRepository(context: Context) {
 
                                 try {
                                     // Use the direct method for uploading JSON data
-                                    val response = CMPApiClient.instance.uploadJsonV3Raw(
+                                    val response = CMPApiClient.instance.uploadJsonV4Raw(
                                         jsonData = jsonRequestBody
                                     )
 

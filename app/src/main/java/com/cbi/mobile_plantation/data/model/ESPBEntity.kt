@@ -11,6 +11,9 @@ data class ESPBEntity(
     val created_by_id: Int, //X
     val created_name:String,
     val created_at: String,//X
+    val created_by_wb: Int? = 0, //X
+    val created_name_wb:String? = "",
+    val created_at_wb: String?="",//X
     val nopol: String, //X
     val driver: String, //X
     val transporter_id: Int, //X
