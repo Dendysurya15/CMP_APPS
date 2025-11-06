@@ -811,9 +811,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val message: String
     )
 
-    fun clearDownloadMapProgress() {
-        _downloadMapProgress.value = null
-    }
 
 
     fun getDownloadMapList() {
@@ -837,23 +834,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             AppLogger.e("Error in getDownloadMapProgress: ${e.message}")
             Result.failure(e)
         }
-    }
-
-    // Keep the LiveData version if you need it elsewhere, but rename it
-    fun getDownloadMapProgressLiveData(downloadId: String) {
-        viewModelScope.launch {
-            try {
-                val result = downloadMapRepository.getDownloadMapProgress(downloadId)
-                _downloadMapProgress.postValue(result)
-            } catch (e: Exception) {
-                AppLogger.e("Error in getDownloadMapProgress: ${e.message}")
-                _downloadMapProgress.postValue(Result.failure<DownloadMapProgressResponse>(e))
-            }
-        }
-    }
-
-    suspend fun downloadMapChunk(downloadId: String, chunkIndex: Int): Response<ResponseBody> {
-        return downloadMapRepository.downloadMapChunk(downloadId, chunkIndex)
     }
 
     fun updateLocalUploadCMP(
