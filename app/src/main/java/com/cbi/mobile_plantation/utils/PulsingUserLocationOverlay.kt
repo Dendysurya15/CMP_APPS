@@ -20,6 +20,7 @@ class PulsingUserLocationOverlay(
     private var userBearing: Float = 0f
     private var boundaryMeters: Float = 15f // Default 15 meters
 
+    private var overlayColor: Int = R.color.orange // Default color
     private val outerCirclePaint = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.FILL
@@ -90,6 +91,17 @@ class PulsingUserLocationOverlay(
 
     fun setUserLocation(location: GeoPoint) {
         userLocation = location
+    }
+
+
+    fun setColor(colorRes: Int) {
+        overlayColor = colorRes
+        val color = ContextCompat.getColor(context, colorRes)
+
+        outerCirclePaint.color = color and 0x80FFFFFF.toInt()
+        innerCirclePaint.color = color
+
+        mapView.invalidate()
     }
 
     fun setUserBearing(bearing: Float) {

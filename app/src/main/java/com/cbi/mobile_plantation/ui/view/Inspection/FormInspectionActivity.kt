@@ -1593,29 +1593,25 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         contentContainer.addView(rvSelectedPemanen)
 
-// Setup RecyclerView
         rvSelectedPemanen.layoutManager = LinearLayoutManager(this)
         rvSelectedPemanen.adapter = selectedPemanenAdapter
 
-//        val mapContainer = LayoutInflater.from(this)
-//            .inflate(R.layout.map_container_layout, contentContainer, false)
-//        mapContainer.id = View.generateViewId()
-//
-//
-//        val cardMapPanen = mapContainer as MaterialCardView
-//        val mapViewPemanen = cardMapPanen.findViewById<MapView>(R.id.mapViewPemanenBlok)
-//
-//        cardMapPanen.visibility = View.GONE
-//
-//        contentContainer.addView(cardMapPanen)  // Add cardMapPanen, not mapContainer
-//
-//// Configure the map
-//        mapViewPemanen?.apply {
-//            setTileSource(TileSourceFactory.MAPNIK)
-//            setMultiTouchControls(true)
-//            controller.setZoom(15.0)
-//        }
-//
+        val mapContainer = LayoutInflater.from(this)
+            .inflate(R.layout.map_container_layout, contentContainer, false)
+        mapContainer.id = View.generateViewId()
+
+        val cardMapPanen = mapContainer as MaterialCardView
+        val mapViewPemanen = cardMapPanen.findViewById<MapView>(R.id.mapViewPemanenBlok)
+
+        cardMapPanen.visibility = View.GONE
+
+        contentContainer.addView(cardMapPanen)
+
+        mapViewPemanen?.apply {
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+            controller.setZoom(15.0)
+        }
 
 
         val tvErrorAfdeling = layoutAfdeling.findViewById<TextView>(R.id.tvErrorFormPanenTBS)
@@ -1665,16 +1661,11 @@ open class FormInspectionActivity : AppCompatActivity(),
                         isPemanenSelected = false
                         selectedPemanenValue = ""
 
-                        // 🔥 ADD THESE TWO LINES
                         selectedKaryawanList = emptyList()
                         selectedPemanenAdapter.clearAllWorkers()
 
-//                        // 🆕 Show map for radius mode
-//                        if (value == "radius") {
-//                            cardMapPanen.visibility = View.VISIBLE
-//                        } else {
-//                            cardMapPanen.visibility = View.GONE
-//                        }
+                        // 🔥 DON'T SHOW MAP HERE - let loadPemanenListForBottomSheet handle it
+                        cardMapPanen.visibility = View.GONE
 
                         // Load pemanen list based on mode
                         if (tempSelectedBlok.isNotEmpty()) {
@@ -1682,13 +1673,13 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 value,
                                 tempSelectedBlok,
                                 spinnerPemanen,
-//                                mapViewPemanen,
-//                                cardMapPanen
+                                mapViewPemanen,
+                                cardMapPanen
                             )
                         } else {
                             AppLogger.w("⚠️ Blok not selected yet, cannot load pemanen")
                             spinnerPemanen.setItems(listOf("Pilih blok terlebih dahulu"))
-//                            cardMapPanen.visibility = View.GONE
+                            cardMapPanen.visibility = View.GONE
                         }
                     }
                 }
@@ -1995,8 +1986,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 selectedPemanenMode,
                 selectedBlokValue,
                 spinnerPemanen,
-//                mapViewPemanen,
-//                cardMapPanen
+                mapViewPemanen,
+                cardMapPanen
             )
         }
 
@@ -2254,27 +2245,27 @@ open class FormInspectionActivity : AppCompatActivity(),
         return sortedWorkers
     }
 
-    // 🆕 Load pemanen list for bottom sheet
     private fun loadPemanenListForBottomSheet(
         mode: String,
         blokKode: String,
         spinner: MaterialSpinner,
-//        mapView: MapView?,
-//        mapCard: MaterialCardView?
+        mapView: MapView?,
+        mapCard: MaterialCardView?
     ) {
         AppLogger.d("Loading pemanen list - Mode: $mode, Blok: $blokKode")
 
         if (blokKode.isEmpty()) {
             spinner.setItems(listOf("Pilih blok terlebih dahulu"))
-//            mapCard?.visibility = View.GONE
+            mapCard?.visibility = View.GONE
             return
         }
+
+        mapCard?.visibility = View.GONE
 
         lifecycleScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
                 spinner.setItems(listOf("Memuat data..."))
             }
-
 
             try {
                 val userLat = lat!!
@@ -2286,6 +2277,17 @@ open class FormInspectionActivity : AppCompatActivity(),
                     getAllPemanenForBlok(blokKode)
                 }
 
+                val tphLocationsForMap = if (mode == "radius") {
+                    getTPHLocationsWithinRadius(blokKode, AppUtils.CLOSEST_PEMANEN_RADIUS, userLat, userLon)
+                } else {
+                    emptyList()
+                }
+
+                val tphToWorkersMap = if (mode == "radius") {
+                    createTPHToWorkersMap(blokKode, AppUtils.CLOSEST_PEMANEN_RADIUS, userLat, userLon)
+                } else {
+                    emptyMap()
+                }
 
                 withContext(Dispatchers.Main) {
                     if (workerList.isEmpty()) {
@@ -2296,21 +2298,19 @@ open class FormInspectionActivity : AppCompatActivity(),
                         }
                         spinner.setItems(listOf(message))
 
-//                        if (mode == "radius" && mapView != null) {
-//                            // Show map with just user location and radius circle (no TPH markers)
-//                            showPemanenMapMarkersEmpty(mapView, mapCard, userLat, userLon)
-//                        } else {
-//                            mapCard?.visibility = View.GONE
-//                        }
-
+                        // 🔥 KEEP MAP HIDDEN
+                        mapCard?.visibility = View.GONE
 
                     } else {
                         val pemanenNames = workerList.map { it.name }
                         spinner.setItems(pemanenNames)
 
-//                        if (mode == "radius" && mapView != null) {
-//                            showPemanenMapMarkers(mapView, mapCard, tphLocationsForMap, userLat, userLon)
-//                        }
+                        if (mode == "radius" && mapView != null) {
+                            initializeBottomSheetMap(mapView, userLat, userLon)
+                            showPemanenMapMarkers(mapView, mapCard, tphLocationsForMap, tphToWorkersMap, userLat, userLon)
+                        } else {
+                            mapCard?.visibility = View.GONE
+                        }
                     }
                 }
 
@@ -2318,9 +2318,133 @@ open class FormInspectionActivity : AppCompatActivity(),
                 AppLogger.e("❌ Error loading pemanen list: ${e.message}")
                 withContext(Dispatchers.Main) {
                     spinner.setItems(listOf("Error loading data"))
-//                    mapCard?.visibility = View.GONE
+                    mapCard?.visibility = View.GONE
                 }
             }
+        }
+    }
+
+    private fun createTPHToWorkersMap(
+        blokKode: String,
+        radius: Double,
+        userLat: Double,
+        userLon: Double
+    ): Map<Int, List<String>> {
+        AppLogger.d("Creating TPH to Workers mapping")
+
+        val matchingPanenByBlok = panenTPH.filter { panenWithRelations ->
+            val blok = panenWithRelations.tph?.blok_kode
+            blok == blokKode
+        }
+
+        if (matchingPanenByBlok.isEmpty()) {
+            return emptyMap()
+        }
+
+        val tphWorkersMap = mutableMapOf<Int, MutableSet<String>>()
+
+        matchingPanenByBlok.forEach { panenWithRelations ->
+            val tph = panenWithRelations.tph ?: return@forEach
+            val panenEntity = panenWithRelations.panen
+            val tphId = tph.id ?: return@forEach
+
+            val tphLat = tph.lat?.toDoubleOrNull()
+            val tphLon = tph.lon?.toDoubleOrNull()
+
+            if (tphLat == null || tphLon == null || !tphLat.isFinite() || !tphLon.isFinite()) {
+                return@forEach
+            }
+
+            val results = FloatArray(1)
+            try {
+                android.location.Location.distanceBetween(userLat, userLon, tphLat, tphLon, results)
+            } catch (e: Exception) {
+                return@forEach
+            }
+
+            val distance = results[0]
+
+            if (distance <= radius) {
+                val karyawanNik = panenEntity.karyawan_nik
+                val karyawanNama = panenEntity.karyawan_nama
+
+                if (!karyawanNik.isNullOrBlank() && !karyawanNama.isNullOrBlank()) {
+                    val niks = karyawanNik.split(",").map { it.trim() }
+                    val names = karyawanNama.split(",").map { it.trim() }
+
+                    for (i in niks.indices) {
+                        if (i < names.size) {
+                            val nik = niks[i]
+                            val nama = names[i]
+
+                            if (nik.isNotEmpty() && nama.isNotEmpty()) {
+                                val formattedName = "$nik - $nama"
+
+                                // Add to map
+                                if (!tphWorkersMap.containsKey(tphId)) {
+                                    tphWorkersMap[tphId] = mutableSetOf()
+                                }
+                                tphWorkersMap[tphId]?.add(formattedName)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Convert to Map<Int, List<String>> and sort
+        val result = tphWorkersMap.mapValues { (_, workers) ->
+            workers.toList().sorted()
+        }
+
+        AppLogger.d("📊 TPH to Workers map created: ${result.size} TPH with workers")
+        result.forEach { (tphId, workers) ->
+            AppLogger.d("   TPH $tphId: ${workers.size} workers")
+        }
+
+        return result
+    }
+
+
+    private fun initializeBottomSheetMap(mapView: MapView, userLat: Double, userLon: Double) {
+        try {
+            mapView.apply {
+                // ✅ Use the same tile source as main map
+                val tileSource = MapUtils.getTileSource(
+                    context = this@FormInspectionActivity,
+                    prefManager = prefManager!!,
+                    mapView = this,
+                    selectedEstateAbbr = estateAbbr
+                )
+
+                setTileSource(tileSource)
+                setMultiTouchControls(true)
+                setBuiltInZoomControls(false)
+
+                // 🔥 SET ZOOM LEVELS 17-19
+                minZoomLevel = 17.0
+                maxZoomLevel = 19.0
+
+                // 🔥 CENTER ON USER LOCATION WITH ZOOM 17
+                controller.setCenter(GeoPoint(userLat, userLon))
+                controller.setZoom(17.0)
+
+                // Allow scrolling inside ScrollView
+                setOnTouchListener { v, event ->
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                            v.parent.requestDisallowInterceptTouchEvent(true)
+                        }
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                            v.parent.requestDisallowInterceptTouchEvent(false)
+                        }
+                    }
+                    false
+                }
+            }
+            AppLogger.d("✅ Bottom sheet map initialized with zoom 17-19, centered on user")
+        } catch (e: Exception) {
+            AppLogger.e("❌ Error initializing bottom sheet map: ${e.message}")
         }
     }
 
@@ -2440,18 +2564,29 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
 
-    private fun getTPHLocationsForRadius(
+    // 🔥 ADD THIS NEW FUNCTION to extract TPH locations
+    private fun getTPHLocationsWithinRadius(
         blokKode: String,
+        radius: Double,
         userLat: Double,
-        userLon: Double,
-        radius: Double
+        userLon: Double
     ): List<TPHLocationData> {
-        val tphLocations = mutableListOf<TPHLocationData>()
+        AppLogger.d("Getting TPH locations within ${radius}m radius for blok: $blokKode")
 
-        val matchingPanen = panenTPH.filter { it.tph?.blok_kode == blokKode }
+        val matchingPanenByBlok = panenTPH.filter { panenWithRelations ->
+            val blok = panenWithRelations.tph?.blok_kode
+            blok == blokKode
+        }
 
-        matchingPanen.forEach { panenWithRelations ->
+        if (matchingPanenByBlok.isEmpty()) {
+            return emptyList()
+        }
+
+        val tphLocations = mutableMapOf<Int, TPHLocationData>()
+
+        matchingPanenByBlok.forEach { panenWithRelations ->
             val tph = panenWithRelations.tph ?: return@forEach
+            val tphId = tph.id ?: return@forEach
 
             val tphLat = tph.lat?.toDoubleOrNull()
             val tphLon = tph.lon?.toDoubleOrNull()
@@ -2460,91 +2595,47 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@forEach
             }
 
+            // Skip if already processed
+            if (tphLocations.containsKey(tphId)) {
+                return@forEach
+            }
+
             val results = FloatArray(1)
             try {
                 android.location.Location.distanceBetween(userLat, userLon, tphLat, tphLon, results)
             } catch (e: Exception) {
+                AppLogger.e("Error calculating distance for TPH ${tph.nomor}: ${e.message}")
                 return@forEach
             }
 
             val distance = results[0]
 
             if (distance <= radius) {
-                tphLocations.add(
-                    TPHLocationData(
-                        id = tph.id ?: 0,
-                        nomor = tph.nomor ?: "",
-                        lat = tphLat,
-                        lon = tphLon,
-                        distance = distance,
-                        hasWorkers = true
-                    )
+                tphLocations[tphId] = TPHLocationData(
+                    id = tphId,
+                    nomor = tph.nomor ?: "",
+                    lat = tphLat,
+                    lon = tphLon,
+                    distance = distance,
+                    hasWorkers = true
                 )
+                AppLogger.d("✅ TPH ${tph.nomor} added to map - Distance: ${distance}m")
             }
         }
 
-        return tphLocations.distinctBy { it.id }
+        AppLogger.d("📍 Total TPH locations for map: ${tphLocations.size}")
+        return tphLocations.values.toList().sortedBy { it.distance }
     }
 
-    // 🆕 Show map with just user location and radius circle (no TPH)
-    private fun showPemanenMapMarkersEmpty(
-        mapView: MapView,
-        mapCard: MaterialCardView?,
-        userLat: Double,
-        userLon: Double
-    ) {
-        try {
-            mapView.overlays.clear()
-            mapCard?.visibility = View.VISIBLE
-
-            // Add user location marker
-            val userMarker = Marker(mapView).apply {
-                position = GeoPoint(userLat, userLon)
-                title = "Lokasi Anda"
-                icon = ContextCompat.getDrawable(
-                    this@FormInspectionActivity,
-                    org.osmdroid.library.R.drawable.person
-                )
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            }
-            mapView.overlays.add(userMarker)
-
-            // Add 500m radius circle
-            val circle = org.osmdroid.views.overlay.Polygon(mapView).apply {
-                points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(
-                    GeoPoint(userLat, userLon),
-                    500.0
-                )
-                fillColor = 0x12FF0000 // Semi-transparent red
-                strokeColor = ContextCompat.getColor(
-                    this@FormInspectionActivity,
-                    R.color.colorRedDark
-                )
-                strokeWidth = 2f
-            }
-            mapView.overlays.add(circle)
-
-            // Center map on user location
-            mapView.controller.setCenter(GeoPoint(userLat, userLon))
-            mapView.controller.setZoom(15.0)
-
-            mapView.invalidate()
-
-            AppLogger.d("✅ Map shown with user location only (no TPH within radius)")
-
-        } catch (e: Exception) {
-            AppLogger.e("❌ Error showing empty map: ${e.message}")
-        }
-    }
     private fun showPemanenMapMarkers(
         mapView: MapView,
         mapCard: MaterialCardView?,
         tphLocations: List<TPHLocationData>,
+        tphToWorkersMap: Map<Int, List<String>>,
         userLat: Double,
         userLon: Double
     ) {
         try {
-            // Clear existing overlays
             mapView.overlays.clear()
 
             if (tphLocations.isEmpty()) {
@@ -2555,52 +2646,61 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             mapCard?.visibility = View.VISIBLE
 
-            // Add user location marker (yellow/gold)
-            val userMarker = Marker(mapView).apply {
-                position = GeoPoint(userLat, userLon)
-                title = "Lokasi Anda"
-                icon = ContextCompat.getDrawable(
-                    this@FormInspectionActivity,
-                    org.osmdroid.library.R.drawable.person
-                )
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            // ADD PULSING USER OVERLAY
+            val pulsingOverlay = PulsingUserLocationOverlay(this, mapView).apply {
+                setUserLocation(GeoPoint(userLat, userLon))
+                setBoundaryMeters(450f)
+                setColor(R.color.bluedarklight)
             }
-            mapView.overlays.add(userMarker)
+            mapView.overlays.add(0, pulsingOverlay)
 
-            // Add TPH markers (blue - has workers in radius)
+            AppLogger.d("tphLocations $tphLocations")
+
+            // Add TPH markers (BLUE with numbers, clickable)
             tphLocations.forEach { tphData ->
+                // 🔥 GET WORKERS FOR THIS TPH
+                val workersAtTPH = tphToWorkersMap[tphData.id] ?: emptyList()
+
+                // 🔥 FORMAT WITH BULLET POINTS
+                val workerNames = if (workersAtTPH.isNotEmpty()) {
+                    workersAtTPH.joinToString("\n") { "• $it" }
+                } else {
+                    "Tidak ada pemanen"
+                }
+
                 val marker = Marker(mapView).apply {
                     position = GeoPoint(tphData.lat, tphData.lon)
-                    title = "TPH ${tphData.nomor} (${String.format("%.0f", tphData.distance)}m)"
+
+                    // 🔥 SET TITLE AND SNIPPET
+                    title = "TPH ${tphData.nomor}"
+                    snippet = workerNames
+
+                    // 🔥 ENABLE INFO WINDOW
+                    infoWindow = org.osmdroid.views.overlay.infowindow.BasicInfoWindow(
+                        org.osmdroid.library.R.layout.bonuspack_bubble,
+                        mapView
+                    )
 
                     val colorInt = ContextCompat.getColor(
                         this@FormInspectionActivity,
                         R.color.bluedarklight
                     )
-                    icon = createCircleMarker(colorInt, tphData.nomor)
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    icon = createColoredMarkerWithNumber(colorInt, tphData.nomor)
+
+
+                    // 🔥 SHOW INFO WINDOW ON CLICK
+                    setOnMarkerClickListener { clickedMarker, _ ->
+                        clickedMarker.showInfoWindow()
+                        mapView.controller.animateTo(clickedMarker.position) // Center on marker
+                        true
+                    }
                 }
                 mapView.overlays.add(marker)
+
+                AppLogger.d("✅ TPH ${tphData.nomor} - ${workersAtTPH.size} workers:\n$workerNames")
             }
 
-            // Add radius circle
-            val circle = org.osmdroid.views.overlay.Polygon(mapView).apply {
-                points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(
-                    GeoPoint(userLat, userLon),
-                    500.0 // 500m radius
-                )
-                fillColor = 0x12121212 // Semi-transparent
-                strokeColor = ContextCompat.getColor(
-                    this@FormInspectionActivity,
-                    R.color.bluedarklight
-                )
-                strokeWidth = 2f
-            }
-            mapView.overlays.add(circle)
 
-            // Center map on user location
-            mapView.controller.setCenter(GeoPoint(userLat, userLon))
-            mapView.controller.setZoom(15.0)
 
             mapView.invalidate()
 
@@ -2611,37 +2711,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-    private fun createCircleMarker(color: Int, text: String): Drawable {
-        val size = 80
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-
-        // Draw circle
-        val paint = Paint().apply {
-            this.color = color
-            isAntiAlias = true
-            style = Paint.Style.FILL
-        }
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 4, paint)
-
-        // Draw border
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 4f
-        paint.color = Color.WHITE
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 4, paint)
-
-        // Draw text
-        paint.style = Paint.Style.FILL
-        paint.color = Color.WHITE
-        paint.textSize = 24f
-        paint.textAlign = Paint.Align.CENTER
-        paint.isFakeBoldText = true
-
-        val textY = size / 2f - (paint.descent() + paint.ascent()) / 2
-        canvas.drawText(text, size / 2f, textY, paint)
-
-        return BitmapDrawable(resources, bitmap)
-    }
 
     // 🆕 Data class for TPH location
     data class TPHLocationData(
@@ -2652,6 +2721,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         val distance: Float,
         val hasWorkers: Boolean
     )
+
     private fun initializeMapView() {
         Configuration.getInstance().apply {
             userAgentValue = packageName

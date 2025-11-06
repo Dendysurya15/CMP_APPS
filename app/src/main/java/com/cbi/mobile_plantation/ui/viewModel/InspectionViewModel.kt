@@ -160,12 +160,10 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         app_version: String,
         status_upload: String,
         status_uploaded_image: String,
-        // NEW: Added 4 pemuat parameters
         kemandoran_ppro_pemuat: String = "",
         kemandoran_nama_pemuat: String = "",
         nik_pemuat: String = "",
         nama_pemuat: String = "",
-        // Existing follow-up parameters
         isFollowUp: Boolean = false,
         existingInspectionId: Int? = null,
         tracking_path_pemulihan: String? = null,
@@ -220,7 +218,6 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     app_version = app_version,
                     status_upload = status_upload,
                     status_uploaded_image = status_uploaded_image,
-                    // NEW: Add the 4 pemuat fields to InspectionModel
                     kemandoran_ppro_pemuat = kemandoran_ppro_pemuat,
                     kemandoran_nama_pemuat = kemandoran_nama_pemuat,
                     nik_pemuat = nik_pemuat,
@@ -457,14 +454,14 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
-                    7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
+                    7, { pageData, _, _ -> if (pageData.neatPelepah == 2) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 7 }?.nama
                         ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai,
                     parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
-                    8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
+                    8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 2) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 8 }?.nama
                         ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,
