@@ -2421,37 +2421,37 @@ class HomePageActivity : AppCompatActivity() {
                                                 restanDataDeferred.complete(data)
                                             }
                                         }
-                                        datasetViewModel.restanPreviewData.observe(
-                                            this@HomePageActivity,
-                                            restanObserver
-                                        )
-
-                                        datasetViewModel.getPreviewDataRestanWeek(
-                                            estateIdString.toInt(),
-                                            validAfdelingId.toString()
-                                        )
-                                        try {
-                                            previewRestanData = withTimeout(15000) {
-                                                restanDataDeferred.await()
-                                            }
-
-                                            AppLogger.d("previewRestanData $previewRestanData")
-
-                                            // Remove the observer to prevent memory leaks
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.restanPreviewData.removeObserver(
-                                                    restanObserver
-                                                )
-                                            }
-                                        } catch (e: Exception) {
-                                            // Clean up observer in case of timeout or error
-                                            withContext(Dispatchers.Main) {
-                                                datasetViewModel.restanPreviewData.removeObserver(
-                                                    restanObserver
-                                                )
-                                            }
-
-                                        }
+//                                        datasetViewModel.restanPreviewData.observe(
+//                                            this@HomePageActivity,
+//                                            restanObserver
+//                                        )
+//
+//                                        datasetViewModel.getPreviewDataRestanWeek(
+//                                            estateIdString.toInt(),
+//                                            validAfdelingId.toString()
+//                                        )
+//                                        try {
+//                                            previewRestanData = withTimeout(15000) {
+//                                                restanDataDeferred.await()
+//                                            }
+//
+//                                            AppLogger.d("previewRestanData $previewRestanData")
+//
+//                                            // Remove the observer to prevent memory leaks
+//                                            withContext(Dispatchers.Main) {
+//                                                datasetViewModel.restanPreviewData.removeObserver(
+//                                                    restanObserver
+//                                                )
+//                                            }
+//                                        } catch (e: Exception) {
+//                                            // Clean up observer in case of timeout or error
+//                                            withContext(Dispatchers.Main) {
+//                                                datasetViewModel.restanPreviewData.removeObserver(
+//                                                    restanObserver
+//                                                )
+//                                            }
+//
+//                                        }
                                     } else {
                                         AppLogger.d("Skipping restan data fetch - GM or Mandor Panen role doesn't have afdeling")
                                     }
@@ -2494,52 +2494,52 @@ class HomePageActivity : AppCompatActivity() {
                                         }
                                     }
 
-                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
-
-                                    val dataFollowUpInspeksiDeferred =
-                                        CompletableDeferred<String>()
-
-                                    val dataFollowUpInspeksiObserver =
-                                        Observer<String> { data ->
-                                            if (!dataFollowUpInspeksiDeferred.isCompleted) {
-                                                dataFollowUpInspeksiDeferred.complete(data)
-                                            }
-                                        }
-
-                                    datasetViewModel.followUpInspeksiPreview.observe(
-                                        this@HomePageActivity,
-                                        dataFollowUpInspeksiObserver
-                                    )
-
-                                    AppLogger.d("estateidString $estateIdString")
-                                    datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
-                                        estateIds,
-                                        validAfdelingId.toString()
-                                    )
-
-                                    try {
-                                        // ✅ FIXED - Await correct deferred
-                                        previewDataFollowUpInspeksi = withTimeout(15000) {
-                                            dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
-                                        }
-
-                                        AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
-
-                                        withContext(Dispatchers.Main) {
-                                            // ✅ FIXED - Remove from correct LiveData
-                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
-                                                dataFollowUpInspeksiObserver
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            // ✅ FIXED - Remove from correct LiveData
-                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
-                                                dataFollowUpInspeksiObserver
-                                            )
-                                        }
-                                        AppLogger.e("Error getting follow up data: ${e.message}")
-                                    }
+//                                    AppLogger.d("previewDataPanenInspeksi $previewDataPanenInspeksi")
+//
+//                                    val dataFollowUpInspeksiDeferred =
+//                                        CompletableDeferred<String>()
+//
+//                                    val dataFollowUpInspeksiObserver =
+//                                        Observer<String> { data ->
+//                                            if (!dataFollowUpInspeksiDeferred.isCompleted) {
+//                                                dataFollowUpInspeksiDeferred.complete(data)
+//                                            }
+//                                        }
+//
+//                                    datasetViewModel.followUpInspeksiPreview.observe(
+//                                        this@HomePageActivity,
+//                                        dataFollowUpInspeksiObserver
+//                                    )
+//
+//                                    AppLogger.d("estateidString $estateIdString")
+//                                    datasetViewModel.getPreviewDataFollowUpInspeksiWeek(
+//                                        estateIds,
+//                                        validAfdelingId.toString()
+//                                    )
+//
+//                                    try {
+//                                        // ✅ FIXED - Await correct deferred
+//                                        previewDataFollowUpInspeksi = withTimeout(15000) {
+//                                            dataFollowUpInspeksiDeferred.await()  // ✅ Correct variable
+//                                        }
+//
+//                                        AppLogger.d("previewDataFollowUpInspeksi $previewDataFollowUpInspeksi")
+//
+//                                        withContext(Dispatchers.Main) {
+//                                            // ✅ FIXED - Remove from correct LiveData
+//                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
+//                                                dataFollowUpInspeksiObserver
+//                                            )
+//                                        }
+//                                    } catch (e: Exception) {
+//                                        withContext(Dispatchers.Main) {
+//                                            // ✅ FIXED - Remove from correct LiveData
+//                                            datasetViewModel.followUpInspeksiPreview.removeObserver(
+//                                                dataFollowUpInspeksiObserver
+//                                            )
+//                                        }
+//                                        AppLogger.e("Error getting follow up data: ${e.message}")
+//                                    }
 //                                    } else {
 //                                        AppLogger.d("Skipping follow up inspeksi data fetch - GM role doesn't have afdeling")
 //                                    }

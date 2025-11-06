@@ -62,7 +62,13 @@
                 android:id="@+id/layoutPemanen"
                 layout="@layout/pertanyaan_spinner_layout" />
 
-
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSelectedPemanenOtomatisInspection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:overScrollMode="never"
+                android:visibility="gone" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

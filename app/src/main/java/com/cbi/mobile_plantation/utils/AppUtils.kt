@@ -75,6 +75,7 @@ object AppUtils {
     const val MAX_ALERT_FOR_GENERATE_QR = 60
     const val max_data_in_zip = 12
     const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
+    const val CLOSEST_PEMANEN_RADIUS = 450.0
 
     const val LOCATION_USER_UPDATE_INTERVAL = 1000L // 3 seconds
 
@@ -349,8 +350,8 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-//        return prefManager?.radiusMinimum ?:15F
-        return 5000F
+        return prefManager?.radiusMinimum ?:15F
+//        return 5000F
     }
 
     val listRadioItems: Map<String, Map<String, String>> = mapOf(

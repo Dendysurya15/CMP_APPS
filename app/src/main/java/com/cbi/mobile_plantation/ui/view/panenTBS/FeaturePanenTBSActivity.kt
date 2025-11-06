@@ -122,6 +122,7 @@ import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScannedTPHLocation
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.awaitValue
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
@@ -168,6 +169,7 @@ import java.io.FileFilter
 import java.io.FileInputStream
 import java.io.InputStream
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import kotlin.reflect.KMutableProperty0
@@ -471,306 +473,102 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
-                    val divisiDeferred = async {
+                    // 1. Fetch divisi list
+                    divisiList = withContext(Dispatchers.IO) {
                         try {
                             datasetViewModel.getDivisiList(estateIdInt)
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching divisiList: ${e.message}")
-                            emptyList() // Return an empty list to prevent crash
+                            emptyList()
                         }
                     }
-
-                    divisiList = divisiDeferred.await()
 
                     if (divisiList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
                     }
 
-
-                    val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
-
-                    panenViewModel.getAllJenisTPH()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
-                            jenisTPHListGlobal = list ?: emptyList()
-                            jenisTPHDeferred.complete(list ?: emptyList())
-                        }
+                    // 2. Fetch jenis TPH list - properly on Main thread
+                    jenisTPHListGlobal = withContext(Dispatchers.Main) {
+                        panenViewModel.getAllJenisTPH()
+                        panenViewModel.jenisTPHList.awaitValue()
                     }
 
-                    val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
-                    val mutuBuahDeferred = CompletableDeferred<List<MutuBuahWithRelations>>()
-
+                    // 3. Fetch TPH selections based on feature
                     if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
-                        mutuBuahViewModel.getAllTPHHasBeenSelected()
-                    } else {
-                        panenViewModel.getAllTPHHasBeenSelected()
-                    }
-
-                    delay(100)
-
-                    if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
-                        val absensiDeferred =
-                            CompletableDeferred<List<AbsensiKemandoranRelations>>()
-
                         withContext(Dispatchers.Main) {
-                            panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val tphDataMap = mutableMapOf<Int, TPHData>()
-
-                                list?.forEach { panen ->
-                                    val tphId = panen.tph?.id
-                                    val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                    val limitTPH = panen.tph?.limit_tph
-                                    val workerNiks =
-                                        panen.panen.karyawan_nik?.split(",")?.map { it.trim() }
-                                            ?: emptyList()
-                                    val blokKode = panen.tph!!.blok_kode
-                                    val nomor = panen.tph.nomor
-
-                                    if (tphId != null && jenisTPHId != null) {
-                                        val existingData = tphDataMap[tphId]
-                                        if (existingData != null) {
-                                            // Merge worker NIKs and increment count
-                                            val mergedNiks =
-                                                (existingData.workerNiks + workerNiks).distinct()
-                                            tphDataMap[tphId] = existingData.copy(
-                                                count = existingData.count + 1,
-                                                workerNiks = mergedNiks,
-                                                blokKode = blokKode,
-                                                nomor = nomor
-                                            )
-                                        } else {
-                                            // Create new entry for this TPH
-                                            tphDataMap[tphId] = TPHData(
-                                                count = 1,
-                                                jenisTPHId = jenisTPHId,
-                                                limitTPH = limitTPH!!,
-                                                workerNiks = workerNiks,
-                                                blokKode = blokKode,
-                                                nomor = nomor
-                                            )
-                                        }
-                                    }
-                                }
-
-                                panenStoredLocal.clear()
-                                panenStoredLocal.putAll(tphDataMap)
-
-                                panenDeferred.complete(list ?: emptyList())
-                            }
-                        }
-
-
-                        absensiViewModel.loadActiveAbsensi()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            absensiViewModel.activeAbsensiList.observe(this@FeaturePanenTBSActivity) { absensiWithRelations ->
-                                val absensiData = absensiWithRelations ?: emptyList()
-
-                                // Store the absensi models in the global variable
-                                absensiList = absensiData
-
-
-                                AppLogger.d("absensiList $absensiList")
-                                // Extract all NIKs of present karyawan from all absensi entries
-                                val newPresentNikSet = mutableSetOf<String>()
-
-                                absensiData.forEach { absensiRelation ->
-                                    val absensi = absensiRelation.absensi
-                                    // Split the comma-separated NIK string and add each NIK to the set
-                                    val niks = absensi.karyawan_msk_nik.split(",")
-                                    newPresentNikSet.addAll(niks.filter {
-                                        it.isNotEmpty() && it.trim().isNotEmpty()
-                                    })
-                                }
-
-                                // Update the global set
-                                presentNikSet = newPresentNikSet
-
-                                AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
-                                absensiDeferred.complete(absensiData)
-                            }
-                        }
-
-                        val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
-
-                        panenViewModel.getAllKaryawan()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val allKaryawan = list ?: emptyList()
-
-                                if (presentNikSet.isNotEmpty()) {
-                                    // Filter only present karyawan
-                                    val presentKaryawan = allKaryawan.filter { karyawan ->
-                                        karyawan.nik != null && presentNikSet.contains(karyawan.nik)
-                                    }
-
-                                    AppLogger.d("=== KARYAWAN SIMPLE LOGIC ===")
-                                    AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
-
-                                    // Push all present karyawan to both lists
-                                    karyawanList = presentKaryawan
-                                    karyawanLainList = presentKaryawan
-
-                                    // Complete the deferred
-                                    karyawanDeferred.complete(presentKaryawan)
-
-                                    AppLogger.d("All present karyawan assigned to both lists.")
-                                    AppLogger.d("===============================")
-                                } else {
-                                    // No present karyawan
-                                    karyawanList = emptyList()
-                                    karyawanLainList = emptyList()
-                                    karyawanDeferred.complete(allKaryawan)
-                                }
-                            }
-                        }
-
-
-                        val allKaryawan = karyawanDeferred.await()
-
-                        if (allKaryawan.isNotEmpty()) {
-                            // Setup the karyawan dropdown
-                            val nameCounts = mutableMapOf<String, Int>()
-                            allKaryawan.forEach {
-                                it.nama?.trim()?.let { nama ->
-                                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
-                                }
-                            }
-
-                            allKaryawan.forEach {
-                                it.nama?.trim()?.let { nama ->
-                                    val key = if (nameCounts[nama]!! > 1) {
-                                        "$nama - ${it.nik}"
-                                    } else {
-                                        nama
-                                    }
-                                    karyawanIdMap[key] = it.id!!
-                                    if (it.kemandoran_id != null) {
-                                        kemandoranIdMap[key] = it.kemandoran_id!!
-                                    }
-                                }
-                            }
+                            mutuBuahViewModel.getAllTPHHasBeenSelected()
+                            mutuBuahViewModel.activeMBList.awaitValue()
+                        }.also { list ->
+                            processMutuBuahData(list)
                         }
                     } else {
-                        withContext(Dispatchers.Main) {
-                            mutuBuahViewModel.activeMBList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val tphDataMap = mutableMapOf<Int, TPHData>()
-
-                                list?.forEach { panen ->
-                                    val tphId = panen.tph?.id
-                                    val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                    val limitTPH = panen.tph?.limit_tph
-
-                                    val blokKode = panen.tph!!.blok_kode
-                                    val nomor = panen.tph.nomor
-
-                                    if (tphId != null && jenisTPHId != null) {
-                                        val existingData = tphDataMap[tphId]
-                                        if (existingData != null) {
-                                            // Merge worker NIKs and increment count
-
-                                            tphDataMap[tphId] = existingData.copy(
-                                                count = existingData.count + 1,
-                                                blokKode = blokKode,
-                                                nomor = nomor
-                                            )
-                                        } else {
-                                            // Create new entry for this TPH
-                                            tphDataMap[tphId] = TPHData(
-                                                count = 1,
-                                                jenisTPHId = jenisTPHId,
-                                                limitTPH = limitTPH!!,
-                                                blokKode = blokKode,
-                                                nomor = nomor
-                                            )
-                                        }
-                                    }
-                                }
-
-                                panenStoredLocal.clear()
-                                panenStoredLocal.putAll(tphDataMap)
-
-                                mutuBuahDeferred.complete(list ?: emptyList())
-                            }
+                        // 4. Fetch panen data
+                        val panenList = withContext(Dispatchers.Main) {
+                            panenViewModel.getAllTPHHasBeenSelected()
+                            panenViewModel.activePanenList.awaitValue()
                         }
+                        processPanenData(panenList)
+
+                        // 5. Fetch absensi data
+                        val absensiData = withContext(Dispatchers.Main) {
+                            absensiViewModel.loadActiveAbsensi()
+                            absensiViewModel.activeAbsensiList.awaitValue()
+                        }
+                        processAbsensiData(absensiData)
+
+                        // 6. Fetch karyawan data
+                        val allKaryawan = withContext(Dispatchers.Main) {
+                            panenViewModel.getAllKaryawan()
+                            panenViewModel.allKaryawanList.awaitValue()
+                        }
+                        processKaryawanData(allKaryawan)
                     }
 
-                    val tphOtomatisDeferred = async {
+                    // 7. Fetch TPH otomatis
+                    tph_otomatis_estate = withContext(Dispatchers.IO) {
                         try {
                             val estateAbbr = prefManager!!.estateUserLogin
                             datasetViewModel.getTphOtomatisByEstate(estateAbbr!!)
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching tph_otomatis: ${e.message}")
-                            null // Return null if error occurs
+                            null
                         }
                     }
 
-                    tph_otomatis_estate = tphOtomatisDeferred.await()
-
-                    datasetViewModel.getAllEstates()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        datasetViewModel.allEstatesList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val allEstates = list ?: emptyList()
-                            estateList = allEstates
-                        }
+                    // 8. Fetch estates
+                    estateList = withContext(Dispatchers.Main) {
+                        datasetViewModel.getAllEstates()
+                        datasetViewModel.allEstatesList.awaitValue()
                     }
 
                     if (estateList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset estate dengan melakukan Sinkronisasi Data!")
                     }
 
+                    // 9. Fetch department info if needed
                     if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
-
-                        withContext(Dispatchers.Main) {
-                            datasetViewModel.distinctDeptInfoList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val distinctDeptInfos = list ?: emptyList()
-                                val deptInfoMap =
-                                    distinctDeptInfos.associate { it.dept to it.dept_abbr }
-                                masterDeptInfoMap = deptInfoMap
-                                departmentInfoDeferred.complete(deptInfoMap)
-                            }
-
-                            // Trigger the data fetch on the main thread
+                        masterDeptInfoMap = withContext(Dispatchers.Main) {
                             datasetViewModel.getDistinctMasterDeptInfo()
-                        }
-
-                        // Wait for the department info to be loaded
-                        masterDeptInfoMap = departmentInfoDeferred.await()
+                            datasetViewModel.distinctDeptInfoList.awaitValue()
+                        }.associate { it.dept to it.dept_abbr }
                     }
-
-
                 }
 
                 withContext(Dispatchers.Main) {
                     loadingDialog.dismiss()
                     setupLayout()
                 }
-            } catch (e: Exception) {
+            }  catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     loadingDialog.dismiss()
-                    val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
 
-                    val estateInfo = estateId?.takeIf { it.isBlank() }
-                        ?.let { "2. ID Estate User Login: \"$it\"" }
-
-                    // Combine messages dynamically (avoid extra \n\n if estateInfo is null)
-                    val fullMessage = listOfNotNull(errorMessage, estateInfo).joinToString("\n\n")
-
-                    AppLogger.e("Error fetching data: ${e.message}")
+                    val errorMessage = e.toString()
 
                     AlertDialogUtility.withSingleAction(
                         this@FeaturePanenTBSActivity,
                         stringXML(R.string.al_back),
                         stringXML(R.string.al_failed_fetch_data),
-                        fullMessage,
+                        errorMessage,
                         "warning.json",
                         R.color.colorRedDark
                     ) {
@@ -792,10 +590,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
             false
         }
-
-//        masterEstateChoice.observe(this) { selections ->
-//            updateDownloadMasterDataButtonText(selections)
-//        }
 
         mbSaveDataPanenTBS.setOnClickListener {
             if (validateAndShowErrors()) {
@@ -1263,6 +1057,134 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         setupDownloadOfflineMap()
     }
 
+    private fun processPanenData(list: List<PanenEntityWithRelations>) {
+        val tphDataMap = mutableMapOf<Int, TPHData>()
+
+        list.forEach { panen ->
+            val tphId = panen.tph?.id
+            val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+            val limitTPH = panen.tph?.limit_tph
+            val workerNiks = panen.panen.karyawan_nik?.split(",")?.map { it.trim() } ?: emptyList()
+            val blokKode = panen.tph!!.blok_kode
+            val nomor = panen.tph.nomor
+
+            if (tphId != null && jenisTPHId != null) {
+                val existingData = tphDataMap[tphId]
+                if (existingData != null) {
+                    val mergedNiks = (existingData.workerNiks + workerNiks).distinct()
+                    tphDataMap[tphId] = existingData.copy(
+                        count = existingData.count + 1,
+                        workerNiks = mergedNiks,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                } else {
+                    tphDataMap[tphId] = TPHData(
+                        count = 1,
+                        jenisTPHId = jenisTPHId,
+                        limitTPH = limitTPH!!,
+                        workerNiks = workerNiks,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                }
+            }
+        }
+
+        panenStoredLocal.clear()
+        panenStoredLocal.putAll(tphDataMap)
+    }
+
+    private fun processMutuBuahData(list: List<MutuBuahWithRelations>) {
+        val tphDataMap = mutableMapOf<Int, TPHData>()
+
+        list.forEach { panen ->
+            val tphId = panen.tph?.id
+            val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+            val limitTPH = panen.tph?.limit_tph
+            val blokKode = panen.tph!!.blok_kode
+            val nomor = panen.tph.nomor
+
+            if (tphId != null && jenisTPHId != null) {
+                val existingData = tphDataMap[tphId]
+                if (existingData != null) {
+                    tphDataMap[tphId] = existingData.copy(
+                        count = existingData.count + 1,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                } else {
+                    tphDataMap[tphId] = TPHData(
+                        count = 1,
+                        jenisTPHId = jenisTPHId,
+                        limitTPH = limitTPH!!,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                }
+            }
+        }
+
+        panenStoredLocal.clear()
+        panenStoredLocal.putAll(tphDataMap)
+    }
+
+    private fun processAbsensiData(absensiData: List<AbsensiKemandoranRelations>) {
+        absensiList = absensiData
+
+        val newPresentNikSet = mutableSetOf<String>()
+        absensiData.forEach { absensiRelation ->
+            val niks = absensiRelation.absensi.karyawan_msk_nik.split(",")
+            newPresentNikSet.addAll(niks.filter { it.isNotEmpty() && it.trim().isNotEmpty() })
+        }
+
+        presentNikSet = newPresentNikSet
+        AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
+    }
+
+    private fun processKaryawanData(allKaryawan: List<KaryawanModel>) {
+        if (presentNikSet.isNotEmpty()) {
+            val presentKaryawan = allKaryawan.filter { karyawan ->
+                karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+            }
+
+            AppLogger.d("=== KARYAWAN SIMPLE LOGIC ===")
+            AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
+
+            karyawanList = presentKaryawan
+            karyawanLainList = presentKaryawan
+
+            AppLogger.d("All present karyawan assigned to both lists.")
+            AppLogger.d("===============================")
+        } else {
+            karyawanList = emptyList()
+            karyawanLainList = emptyList()
+        }
+
+        if (allKaryawan.isNotEmpty()) {
+            val nameCounts = mutableMapOf<String, Int>()
+            allKaryawan.forEach {
+                it.nama?.trim()?.let { nama ->
+                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                }
+            }
+
+            allKaryawan.forEach {
+                it.nama?.trim()?.let { nama ->
+                    val key = if (nameCounts[nama]!! > 1) {
+                        "$nama - ${it.nik}"
+                    } else {
+                        nama
+                    }
+                    karyawanIdMap[key] = it.id!!
+                    if (it.kemandoran_id != null) {
+                        kemandoranIdMap[key] = it.kemandoran_id!!
+                    }
+                }
+            }
+        }
+    }
+
     private fun setupDownloadOfflineMap(){
         btnDownloadMapPanenOffline.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
@@ -1372,9 +1294,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val matchedDownloads = downloadList
             .filter { it.estateAbbr in estateAbbrList }
             .groupBy { it.estateAbbr }
-            .mapValues { (estateAbbr, downloads) ->
-                AppLogger.d("Estate $estateAbbr has ${downloads.size} download(s), picking one")
-                downloads.maxByOrNull { it.totalSize }
+            .mapValues { (_, downloads) ->
+                downloads
+                    .maxByOrNull { Instant.parse(it.createdAt) } // <-- pick newest
             }
             .values
             .filterNotNull()

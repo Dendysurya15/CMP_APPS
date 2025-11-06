@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardMapPemanenBlok"
+    android:layout_width="match_parent"
+    android:layout_height="250dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginHorizontal="16dp"
+    android:visibility="gone"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="3dp"
+    app:strokeColor="@color/greenDarker"
+    app:strokeWidth="2dp">
+
+    <org.osmdroid.views.MapView
+        android:id="@+id/mapViewPemanenBlok"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</com.google.android.material.card.MaterialCardView>

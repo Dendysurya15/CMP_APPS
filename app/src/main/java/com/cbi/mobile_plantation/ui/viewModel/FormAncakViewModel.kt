@@ -146,6 +146,8 @@ class FormAncakViewModel : ViewModel() {
         val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
         val shouldSetDefault = _isStartFromTPH.value ?: true
 
+
+        AppLogger.d("shouldSetDefault $shouldSetDefault")
         if (shouldSetDefault) {
             // TPH mode: populate all workers
             val defaultPemanenMap = workers.associate { workerName ->
