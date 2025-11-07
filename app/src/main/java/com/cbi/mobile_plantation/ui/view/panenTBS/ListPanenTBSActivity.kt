@@ -1418,10 +1418,10 @@ class ListPanenTBSActivity : AppCompatActivity() {
         return match?.groupValues?.get(1)?.trim() ?: ""
     }
 
-    fun extractJjgJson(input: String): String {
-        // Extract the KP value from jjg_json field
-        val pattern = "jjg_json=\\{\"KP\":\\s*(\\d+)\\}".toRegex()
-        val match = pattern.find(input)
+    fun extractJjgJson(objStr: String): String {
+        // Extract nilai KP dari jjg_json field
+        val pattern = "\"KP\":\\s*(\\d+)".toRegex()
+        val match = pattern.find(objStr)
         return match?.groupValues?.get(1) ?: ""
     }
 
