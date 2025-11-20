@@ -179,8 +179,8 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
     val itemErrorMap: LiveData<Map<Int, String?>> get() = _itemErrorMap
 
     // Map to store responses for each upload item by ID
-    private val _itemResponseMap = MutableLiveData<Map<Int, UploadV3Response?>>(mutableMapOf())
-    val itemResponseMap: LiveData<Map<Int, UploadV3Response?>> get() = _itemResponseMap
+    private val _itemResponseMap = MutableLiveData<Map<Int, UploadCMPRepository.UploadCMPResult?>>()
+    val itemResponseMap: LiveData<Map<Int, UploadCMPRepository.UploadCMPResult?>> = _itemResponseMap
 
     // Track completed uploads count
     val _completedCount = MutableLiveData(0)
@@ -212,13 +212,12 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun uploadMultipleJsonsV4(items: List<UploadCMPItem>) {
         viewModelScope.launch {
-            // Reset counters - these operations are safe as they're in the viewModelScope
+            // Reset counters
             _completedCount.value = 0
             _totalCount.value = items.size
 
             val progressMap = items.associate { it.id to 0 }
             val statusMap = items.associate {
-                // First item should be UPLOADING, others WAITING
                 if (it.id == items.firstOrNull()?.id) {
                     it.id to AppUtils.UploadStatusUtils.UPLOADING
                 } else {
@@ -226,22 +225,22 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
             val errorMap = items.associate { it.id to null as String? }
-            val responseMap = items.associate { it.id to null as UploadV3Response? }
+            // ✅ Changed to store UploadCMPResult
+            val responseMap = items.associate { it.id to null as UploadCMPRepository.UploadCMPResult? }
 
             _itemProgressMap.value = progressMap
             _itemStatusMap.value = statusMap
             _itemErrorMap.value = errorMap
             _itemResponseMap.value = responseMap
 
-            // For each item, upload sequentially
+            // Upload each item sequentially
             for (item in items) {
                 if (item.id != items.firstOrNull()?.id) {
-                    // Update current item status to UPLOADING
                     AppLogger.d("Moving to next item: ${item.title}")
                     updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
                 }
 
-                // For current item, also update the original LiveData
+                // Update LiveData for current item
                 _uploadProgressCMP.value = 0
                 _uploadStatusCMP.value = AppUtils.UploadStatusUtils.UPLOADING
                 _uploadErrorCMP.value = null
@@ -253,6 +252,14 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 val type = item.type
                 val tableIds = item.tableIds
                 val databaseTable = item.databaseTable
+                val endpoint = item.endpoint // ✅ Get endpoint from item
+
+                AppLogger.d("═══════════════════════════════════════════════════════════")
+                AppLogger.d("Starting upload for item ${item.id}: ${item.title}")
+                AppLogger.d("  ├─ Endpoint: $endpoint")
+                AppLogger.d("  ├─ Type: $type")
+                AppLogger.d("  └─ Database Table: $databaseTable")
+                AppLogger.d("═══════════════════════════════════════════════════════════")
 
                 val result = repository.uploadJsonToServerV4(
                     jsonFilePath = jsonFilePath,
@@ -261,21 +268,23 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     type = type,
                     tableIds = tableIds,
                     databaseTable = databaseTable,
+                    endpoint = endpoint, // ✅ Pass endpoint
                     onProgressUpdate = { progress, isSuccess, error ->
                         // Update item's progress
                         updateItemProgress(item.id, progress)
 
-                        // FOR IMAGE UPLOADS: Only update status when progress reaches 100%
+                        // Handle image uploads
                         if (type == "image") {
                             if (progress >= 100) {
                                 AppLogger.d("Image upload completed for item ${item.id}: progress=$progress, isSuccess=$isSuccess")
 
                                 updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
-                                // FIXED: Only set actual errors, not success messages
+
+                                // Only set actual errors, not success messages
                                 if (!error.isNullOrEmpty() && !error.startsWith("✓") && !error.contains("uploaded successfully")) {
-                                    updateItemError(item.id, error) // Only actual errors
+                                    updateItemError(item.id, error)
                                 } else {
-                                    updateItemError(item.id, null) // Clear error for success messages
+                                    updateItemError(item.id, null)
                                 }
 
                                 _uploadProgressCMP.value = progress
@@ -284,13 +293,13 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
 
                                 AppLogger.d("Image upload progress 100% for item ${item.id} - waiting for final result")
                             } else {
-                                // For intermediate progress (1-99%), keep status as UPLOADING
+                                // Intermediate progress (1-99%)
                                 updateItemStatus(item.id, AppUtils.UploadStatusUtils.UPLOADING)
-                                // FIXED: Only set actual errors, not success messages
+
                                 if (!error.isNullOrEmpty() && !error.startsWith("✓") && !error.contains("uploaded successfully")) {
-                                    updateItemError(item.id, error) // Only actual errors
+                                    updateItemError(item.id, error)
                                 } else {
-                                    updateItemError(item.id, null) // Clear error for success messages
+                                    updateItemError(item.id, null)
                                 }
 
                                 _uploadProgressCMP.value = progress
@@ -300,7 +309,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                                 AppLogger.d("Intermediate progress for image item ${item.id}: $progress% - Status: UPLOADING - Message: $error")
                             }
                         } else {
-                            // FOR NON-IMAGE UPLOADS: Keep original logic
+                            // Non-image uploads
                             val status = when {
                                 !isSuccess && !error.isNullOrEmpty() -> AppUtils.UploadStatusUtils.FAILED
                                 isSuccess -> AppUtils.UploadStatusUtils.SUCCESS
@@ -308,11 +317,11 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                             }
 
                             updateItemStatus(item.id, status)
-                            // FIXED: Only set actual errors for non-image uploads too
+
                             if (!error.isNullOrEmpty() && status == AppUtils.UploadStatusUtils.FAILED) {
-                                updateItemError(item.id, error) // Only actual errors
+                                updateItemError(item.id, error)
                             } else {
-                                updateItemError(item.id, null) // Clear error for success
+                                updateItemError(item.id, null)
                             }
 
                             _uploadProgressCMP.value = progress
@@ -322,46 +331,102 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 )
 
+                // ✅ Handle result based on wrapper type
                 result.fold(
-                    onSuccess = { response ->
-                        AppLogger.d("Upload result for item ${item.id}: success=${response.success}")
+                    onSuccess = { uploadResult ->
+                        when (uploadResult) {
+                            is UploadCMPRepository.UploadCMPResult.V3Result -> {
+                                AppLogger.d("┌─────────────────────────────────────────────────┐")
+                                AppLogger.d("│ ✅ V3 UPLOAD RESULT FOR ITEM ${item.id}")
+                                AppLogger.d("├─────────────────────────────────────────────────┤")
+                                AppLogger.d("│ Success: ${uploadResult.response.success}")
+                                AppLogger.d("│ Message: ${uploadResult.response.message}")
+                                AppLogger.d("│ Tracking ID: ${uploadResult.response.trackingId}")
+                                AppLogger.d("│ Status: ${uploadResult.response.status}")
+                                AppLogger.d("└─────────────────────────────────────────────────┘")
 
-                        updateItemResponse(item.id, response)
+                                updateItemResponse(item.id, uploadResult)
 
-                        val finalStatus = if (response.success) {
-                            AppUtils.UploadStatusUtils.SUCCESS
-                        } else {
-                            AppUtils.UploadStatusUtils.FAILED
+                                val finalStatus = if (uploadResult.response.success) {
+                                    AppUtils.UploadStatusUtils.SUCCESS
+                                } else {
+                                    AppUtils.UploadStatusUtils.FAILED
+                                }
+
+                                updateItemStatus(item.id, finalStatus)
+
+                                if (!uploadResult.response.success) {
+                                    updateItemError(item.id, uploadResult.response.message ?: "Upload failed")
+                                } else {
+                                    updateItemError(item.id, null)
+                                }
+
+                                AppLogger.d("Final V3 status set for item ${item.id}: $finalStatus")
+
+                                _uploadStatusCMP.value = finalStatus
+                                _uploadErrorCMP.value = if (!uploadResult.response.success) uploadResult.response.message else null
+                            }
+
+                            is UploadCMPRepository.UploadCMPResult.HarvestResult -> {
+                                AppLogger.d("┌─────────────────────────────────────────────────┐")
+                                AppLogger.d("│ 🌾 HARVEST UPLOAD RESULT FOR ITEM ${item.id}")
+                                AppLogger.d("├─────────────────────────────────────────────────┤")
+                                AppLogger.d("│ Status: ${uploadResult.response.status}")
+                                AppLogger.d("│ Message: ${uploadResult.response.message}")
+                                AppLogger.d("│ ID: ${uploadResult.response.id}")
+                                AppLogger.d("│ No ESPB: ${uploadResult.response.noESPB}")
+                                AppLogger.d("│ isSuccess: ${uploadResult.isSuccess}")
+                                AppLogger.d("└─────────────────────────────────────────────────┘")
+
+                                updateItemResponse(item.id, uploadResult)
+
+                                val finalStatus = if (uploadResult.isSuccess) {
+                                    AppUtils.UploadStatusUtils.SUCCESS
+                                } else {
+                                    AppUtils.UploadStatusUtils.FAILED
+                                }
+
+                                updateItemStatus(item.id, finalStatus)
+
+                                if (!uploadResult.isSuccess) {
+                                    updateItemError(item.id, uploadResult.message ?: "Upload failed")
+                                } else {
+                                    updateItemError(item.id, null)
+                                }
+
+                                AppLogger.d("Final Harvest status set for item ${item.id}: $finalStatus")
+
+                                _uploadStatusCMP.value = finalStatus
+                                _uploadErrorCMP.value = if (!uploadResult.isSuccess) uploadResult.message else null
+                            }
                         }
-
-                        updateItemStatus(item.id, finalStatus)
-
-                        // FIXED: Only set error if it's actually a failure
-                        if (!response.success) {
-                            updateItemError(item.id, response.message ?: "Upload failed")
-                        } else {
-                            updateItemError(item.id, null) // Clear any previous errors on success
-                        }
-
-                        AppLogger.d("Final status set for item ${item.id}: $finalStatus")
-
-                        _uploadStatusCMP.value = finalStatus
-                        _uploadErrorCMP.value = if (!response.success) response.message else null
                     },
                     onFailure = { error ->
-                        AppLogger.d("Upload failed for ${item.title}: ${error.message}")
+                        AppLogger.d("┌─────────────────────────────────────────────────┐")
+                        AppLogger.d("│ ❌ UPLOAD FAILED FOR ITEM ${item.id}")
+                        AppLogger.d("├─────────────────────────────────────────────────┤")
+                        AppLogger.d("│ Title: ${item.title}")
+                        AppLogger.d("│ Error: ${error.message}")
+                        AppLogger.d("└─────────────────────────────────────────────────┘")
 
                         updateItemStatus(item.id, AppUtils.UploadStatusUtils.FAILED)
-                        updateItemError(item.id, error.message) // This is a real error
+                        updateItemError(item.id, error.message)
 
                         _uploadStatusCMP.value = AppUtils.UploadStatusUtils.FAILED
                         _uploadErrorCMP.value = error.message
                     }
                 )
 
-                // Increase completed count regardless of success or failure
+                // Increase completed count
                 _completedCount.value = (_completedCount.value ?: 0) + 1
+
+                AppLogger.d("Completed ${_completedCount.value}/${_totalCount.value} items")
             }
+
+            AppLogger.d("═══════════════════════════════════════════════════════════")
+            AppLogger.d("ALL UPLOADS COMPLETED")
+            AppLogger.d("Total: ${_totalCount.value}, Completed: ${_completedCount.value}")
+            AppLogger.d("═══════════════════════════════════════════════════════════")
         }
     }
 
@@ -385,10 +450,10 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun updateItemResponse(id: Int, response: UploadV3Response?) {
-        _itemResponseMap.value = _itemResponseMap.value?.toMutableMap()?.apply {
-            put(id, response)
-        }
+    private fun updateItemResponse(itemId: Int, response: UploadCMPRepository.UploadCMPResult) {
+        val currentMap = _itemResponseMap.value?.toMutableMap() ?: mutableMapOf()
+        currentMap[itemId] = response
+        _itemResponseMap.value = currentMap
     }
 
 

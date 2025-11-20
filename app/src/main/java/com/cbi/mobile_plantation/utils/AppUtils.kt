@@ -49,6 +49,8 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 object AppUtils {
 
@@ -234,6 +236,7 @@ object AppUtils {
 
     object DatabaseServer {
         const val CMP = "CMP"
+        const val STAGING_CMP = "STAGING_CMP"
         const val PPRO = "PPRO"
     }
 
@@ -276,6 +279,27 @@ object AppUtils {
 
     fun getAppVersion(context: Context): String {
         return context.getString(R.string.app_version)
+    }
+
+    fun getDeviceIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                val addresses = networkInterface.inetAddresses
+
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+
+                    if (!address.isLoopbackAddress && address is Inet4Address) {
+                        return address.hostAddress ?: "0.0.0.0"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error getting device IP: ${e.message}")
+        }
+        return "0.0.0.0"
     }
 
     private fun getCleanVersionNumber(version: String): String {

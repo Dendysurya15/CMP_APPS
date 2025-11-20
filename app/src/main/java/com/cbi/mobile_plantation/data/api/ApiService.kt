@@ -6,6 +6,7 @@ import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoUploadResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadHarvestResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
@@ -149,6 +150,12 @@ interface ApiService {
     suspend fun uploadJsonV4Raw(
         @Body jsonData: RequestBody
     ): Response<UploadV3Response>
+
+    @POST("api/harvest")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadHarvest(
+        @Body jsonData: RequestBody
+    ): Response<UploadHarvestResponse>
 
     @POST("org/fetch-estate")
     @Headers(

@@ -194,17 +194,18 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     private fun handleUpload(selectedItems: List<Map<String, Any>>) {
 
         var number = 0
+        val ip = selectedItems.firstOrNull()?.get("ip")?.toString() ?: ""
 
         val pproItems = selectedItems.map { item ->
             UploadCMPItem(
                 id = item["id"] as Int,
-                title = item["no_espb"] as String,
+                title = "PPRO (${item["no_espb"]})",
                 fullPath = "",
                 baseFilename = "",
                 data = Gson().toJson(
                     mapOf(
                         "id" to item["id"] as Int,
-                        "ip" to item["ip"].toString(),
+                        "ip" to AppUtils.getDeviceIpAddress(),
                         "num" to number++,
                         "dept_ppro" to (item["dept_ppro"] as Number).toInt(),
                         "divisi_ppro" to (item["divisi_ppro"] as Number).toInt(),
@@ -227,7 +228,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                     )
                 ),
                 type = AppUtils.DatabaseServer.PPRO,
-                databaseTable = ""
+                databaseTable = "",
             )
         }
 
@@ -236,18 +237,20 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
             UploadCMPItem(
                 id = pproItems.maxByOrNull { it.id }?.id?.plus(index + 1) ?: (index + 1),
-                title = "ESPB Data (${allJsonData.size} item)", // Use the noESPB in the title
+                title = "CMP STAGING ESPB (${allJsonData.size} item)", // Use the noESPB in the title
                 fullPath = "", // Empty since we don't have filePath
                 baseFilename = "", // Empty since we don't have fileName
                 data = Gson().toJson(mapOf(
                     "espb_json" to jsonData.data,
                     "espb_ids" to globalESPBIds,
+                    "ip" to AppUtils.getDeviceIpAddress(),
                     "uploader_info" to infoApp,
                     "uploaded_at" to currentDate,
                     "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),
                 )),
-                type = AppUtils.DatabaseServer.CMP,
-                databaseTable = ""
+                type = AppUtils.DatabaseServer.STAGING_CMP,
+                databaseTable = "",
+                endpoint = "harvest"
             )
         }
 
@@ -988,50 +991,92 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         idBlokList.joinToString(",")
                                                     val totalJjg =
                                                         blokJjgList.mapNotNull { it.second }.sum()
+                                                    val jjgArr = blokJjgList.mapNotNull { it.second }.joinToString(",")
+
 
                                                     val firstBlockId = idBlokList.firstOrNull()
 
                                                     // Create a CompletableDeferred to handle the async operation
-                                                    val tphDeferred =
-                                                        CompletableDeferred<TPHNewModel?>()
 
-                                                    // Fetch the TPH data if we have a block ID
-                                                    firstBlockId?.let { blockId ->
-                                                        weightBridgeViewModel.fetchTPHByBlockId(
-                                                            blockId
-                                                        )
+                                                    var tphDetails: TPHDao.TPHDetails? = null
+                                                    var est: String? = null
+                                                    var afd: String? = null
+                                                    var estNama: String? = null
+                                                    var afdNama: String? = null
 
-                                                        // Set up a one-time observer for the LiveData
-                                                        weightBridgeViewModel.tphData.observeOnce(
-                                                            this@ListHistoryWeighBridgeActivity
-                                                        ) { tphModel ->
-                                                            tphDeferred.complete(tphModel)
+                                                    val tph1Entries = data.tph1?.split(";")
+                                                    val tphSample = tph1Entries?.firstOrNull()
+
+                                                    if (!tphSample.isNullOrEmpty()) {
+                                                        val parts = tphSample.split(",")
+                                                        if (parts.isNotEmpty()) {
+                                                            val tphId = parts[0].toIntOrNull()
+                                                            if (tphId != null) {
+                                                                // Get TPH details
+                                                                tphDetails = withContext(Dispatchers.IO) {
+                                                                    try {
+                                                                        datasetViewModel.getTPHDetailsByID(tphId)
+                                                                    } catch (e: Exception) {
+                                                                        Log.e("DEBUG", "Error fetching TPH details: ${e.message}")
+                                                                        null
+                                                                    }
+                                                                }
+
+                                                                est = tphDetails?.dept_abbr
+                                                                afd = tphDetails?.divisi_abbr
+                                                                estNama = tphDetails?.dept_nama
+                                                                afdNama = tphDetails?.divisi_nama
+
+                                                                Log.d("DEBUG", "TPH ID: $tphId, Dept: $est, Division: $afd")
+                                                            }
                                                         }
                                                     }
-                                                        ?: tphDeferred.complete(null) // Complete with null if no block ID
 
-                                                    // Wait for the TPH data
-                                                    val tphData = tphDeferred.await()
+                                                    // Fetch the TPH data if we have a block ID
+                                                    val tphDeferred = CompletableDeferred<BlokModel?>()
+
+                                                    // Fetch dengan 3 parameter: est, afd, blokId
+                                                    if (est != null && afd != null && firstBlockId != null) {
+                                                        weightBridgeViewModel.fetchBlokByEstAfdBlokId(
+                                                            est = est,
+                                                            afd = afd,
+                                                            blokId = firstBlockId.toString()
+                                                        )
+
+                                                        weightBridgeViewModel.blokData.observeOnce(
+                                                            this@ListHistoryWeighBridgeActivity
+                                                        ) { blokModel ->
+                                                            tphDeferred.complete(blokModel)
+                                                        }
+                                                    } else {
+                                                        Log.e("DEBUG", "Missing parameters - est: $est, afd: $afd, blockId: $firstBlockId")
+                                                        tphDeferred.complete(null)
+                                                    }
+
+                                                    // Wait for the data
+                                                    val blokData = tphDeferred.await()
 
 
-                                                    AppLogger.d(tphData.toString())
+                                                    AppLogger.d("cek upload tph data $blokData")
                                                     mapOf(
                                                         "id" to data.id,
-                                                        "regional" to (tphData?.regional ?: ""),
-                                                        "wilayah" to (tphData?.wilayah ?: ""),
-                                                        "company" to (tphData?.company ?: ""),
-                                                        "dept" to (tphData?.dept ?: ""),
-                                                        "dept_abbr" to (tphData?.dept_abbr ?: ""),
-                                                        "dept_nama" to (tphData?.dept_nama ?: ""),
-                                                        "divisi" to (tphData?.divisi ?: ""),
-                                                        "divisi_abbr" to (tphData?.divisi_abbr ?: ""),
-                                                        "divisi_nama" to (tphData?.divisi_nama ?: ""),
+                                                        "regional" to (blokData?.regional?.toInt()?:0),
+                                                        "wilayah" to (blokData?.wilayah?.toInt()?:0),
+                                                        "company" to (blokData?.company?.toInt()?:0),
+                                                        "dept" to (blokData?.dept?.toInt()?:0),
+                                                        "dept_abbr" to (blokData?.dept_abbr ?: ""),
+                                                        "dept_nama" to (estNama ?: ""),
+                                                        "divisi" to (blokData?.divisi?.toInt()?:0),
+                                                        "divisi_abbr" to (blokData?.divisi_abbr ?: ""),
+                                                        "divisi_nama" to (afdNama ?: ""),
                                                         "blok_id" to concatenatedIds,
                                                         "blok_jjg" to data.blok_jjg,
                                                         "jjg" to totalJjg,
-                                                        "created_by_id" to data.created_by_id,
-                                                        "created_at" to data.created_at,
-                                                        "created_name" to data.created_name,
+                                                        "jjg_arr" to jjgArr,
+                                                        "tonase" to 0,
+//                                                        "created_by_id" to data.created_by_id,
+//                                                        "created_at" to data.created_at,
+//                                                        "created_name" to data.created_name,
                                                         "updated_by_wb" to (data.created_by_wb?:0),
                                                         "updated_name_wb" to (data.created_name_wb ?:""),
                                                         "updated_date_wb" to (data.created_at_wb ?: ""),
@@ -1041,17 +1086,24 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "pemuat_nama" to data.pemuat_nama,
                                                         "nopol" to data.nopol,
                                                         "driver" to data.driver,
-                                                        "updated_nama" to prefManager!!.nameUserLogin.toString(),
+//                                                        "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                                         "transporter_id" to data.transporter_id,
                                                         "mill_id" to data.mill_id,
-                                                        "creator_info" to data.creator_info,
-                                                        "no_espb" to data.noESPB,
+                                                        "mill_abbr" to data.mill_abbr,
+                                                        "mill_nama" to data.mill_name,
+//                                                        "no_espb" to data.noESPB,
+                                                        "noESPB" to data.noESPB,
                                                         "tph0" to data.tph0,
                                                         "tph1" to data.tph1,
-                                                        "update_info_sp" to data.update_info_sp,
-                                                        "app_version" to AppUtils.getDeviceInfo(this@ListHistoryWeighBridgeActivity)
-                                                            .toString(),
                                                         "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+                                                        "uploader_info_wb" to data.uploader_info_wb,
+                                                        "uploader_info_sp" to data.uploader_info_sp,
+                                                        "uploaded_by_id_wb" to  data.uploaded_by_id_wb,
+                                                        "uploaded_by_id_sp" to data.uploaded_by_id_sp,
+                                                        "uploader_name_wb" to data.uploader_name_wb,
+                                                        "uploader_name_sp" to data.uploader_name_sp,
+                                                        "uploaded_at_wb" to "",
+                                                        "uploaded_at_sp" to "",
                                                     )
                                                 }
                                                 globalESPBIds = mappedESPBData.map { it["id"] as Int }

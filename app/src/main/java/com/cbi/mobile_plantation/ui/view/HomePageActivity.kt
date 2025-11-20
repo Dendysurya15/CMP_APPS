@@ -2592,7 +2592,7 @@ class HomePageActivity : AppCompatActivity() {
                                     "no_espb" to data.noESPB,
                                     "tph0" to data.tph0,
                                     "tph1" to data.tph1,
-                                    "update_info_sp" to data.update_info_sp,
+//                                    "update_info_sp" to data.update_info_sp,
                                     "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
                                         .toString(),
                                     "jabatan" to prefManager!!.jabatanUserLogin.toString(),
@@ -4618,130 +4618,130 @@ class HomePageActivity : AppCompatActivity() {
             }
         }
 
-        uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
-            lifecycleScope.launch {
-                // Clear previous data
-                globalPanenIdsByPart.clear()
-                globalEspbIdsByPart.clear()
-                globalHektarPanenIdsByPart.clear()
-                globalAbsensiPanenIdsByPart.clear()
-                globalResponseJsonUploadList.clear()
-
-                AppLogger.d("responseMap $responseMap")
-
-                for ((_, response) in responseMap) {
-                    response?.let {
-                        // Check if response type is JSON
-                        if (response.type == "json") {
-                            globalResponseJsonUploadList.add(
-                                ResponseJsonUpload(
-                                    response.trackingId,
-                                    response.nama_file,
-                                    response.status,
-                                    response.tanggal_upload,
-                                    response.type
-                                )
-                            )
-
-                            val keyJsonName = response.trackingId.toString()
-
-                            if (response.success) {
-                                try {
-                                    // Extract table_ids from the response
-                                    val tableIds = response.table_ids
-                                    if (tableIds != null) {
-                                        // Parse the table_ids to determine if it's PANEN or ESPB
-                                        val tableIdsJson = JSONObject(tableIds)
-
-                                        AppLogger.d(tableIdsJson.toString())
-
-                                        if (tableIdsJson.has(AppUtils.DatabaseTables.PANEN)) {
-                                            val panenIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
-                                            val panenIds = (0 until panenIdsArray.length()).map {
-                                                panenIdsArray.getInt(it)
-                                            }
-                                            globalPanenIdsByPart[keyJsonName] = panenIds
-                                            AppLogger.d("Extracted PANEN IDs from response: $panenIds")
-                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.ESPB)) {
-                                            val espbIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
-                                            val espbIds = (0 until espbIdsArray.length()).map {
-                                                espbIdsArray.getInt(it)
-                                            }
-                                            globalEspbIdsByPart[keyJsonName] = espbIds
-                                            AppLogger.d("Extracted ESPB IDs from response: $espbIds")
-                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.HEKTAR_PANEN)) {
-                                            val hektarPanenIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.HEKTAR_PANEN)
-                                            val hektarPanenIds =
-                                                (0 until hektarPanenIdsArray.length()).map {
-                                                    hektarPanenIdsArray.getInt(it)
-                                                }
-                                            globalHektarPanenIdsByPart[keyJsonName] = hektarPanenIds
-                                            AppLogger.d("Extracted Hektar Panen IDs from response: $hektarPanenIds")
-                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.ABSENSI)) {
-                                            val absensiPanenIdsArray =
-                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ABSENSI)
-                                            val absensiPanenIds =
-                                                (0 until absensiPanenIdsArray.length()).map {
-                                                    absensiPanenIdsArray.getInt(it)
-                                                }
-                                            globalAbsensiPanenIdsByPart[keyJsonName] =
-                                                absensiPanenIds
-                                            AppLogger.d("Extracted Absensi IDs from response: $absensiPanenIds")
-                                        } else {
-
-                                        }
-                                    } else {
-                                        AppLogger.w("No table_ids found in response for $keyJsonName")
-                                        globalPanenIdsByPart[keyJsonName] = emptyList()
-                                        globalEspbIdsByPart[keyJsonName] = emptyList()
-                                        globalHektarPanenIdsByPart[keyJsonName] = emptyList()
-                                        globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
-                                    globalPanenIdsByPart[keyJsonName] = emptyList()
-                                    globalEspbIdsByPart[keyJsonName] = emptyList()
-                                    globalHektarPanenIdsByPart[keyJsonName] = emptyList()
-                                    globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
-                                }
-                            } else {
-                                globalPanenIdsByPart[keyJsonName] = emptyList()
-                                globalEspbIdsByPart[keyJsonName] = emptyList()
-                                globalHektarPanenIdsByPart[keyJsonName] = emptyList()
-                                globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
-                            }
-                        } else if (response.type == "image") {
-                            globalResponseJsonUploadList.add(
-                                ResponseJsonUpload(
-                                    trackingId = 0,
-                                    nama_file = "",
-                                    status = 0,
-                                    tanggal_upload = "",
-                                    type = response.type
-                                )
-                            )
-                            if (!response.success) {
-                                globalImageUploadError = response.imageFullPath ?: emptyList()
-                                globalImageNameError = response.imageName ?: emptyList()
-                                AppLogger.d("Failed images: ${globalImageNameError.size}")
-                                AppLogger.d("Failed image paths: $globalImageUploadError")
-                                AppLogger.d("Failed image names: $globalImageNameError")
-                            } else {
-
-                            }
-                        } else {
-                            AppLogger.d("Skipping non-JSON upload: type = ${response.type}")
-                        }
-                    }
-                }
-
-//                AppLogger.d("Stored IDs by part: ${globalPanenIdsByPart.keys}")
-//                AppLogger.d("Total IDs - PANEN: ${globalPanenIds.size}, ESPB: ${globalESPBIds.size}")
-            }
-        }
+//        uploadCMPViewModel.itemResponseMap.observe(this) { responseMap ->
+//            lifecycleScope.launch {
+//                // Clear previous data
+//                globalPanenIdsByPart.clear()
+//                globalEspbIdsByPart.clear()
+//                globalHektarPanenIdsByPart.clear()
+//                globalAbsensiPanenIdsByPart.clear()
+//                globalResponseJsonUploadList.clear()
+//
+//                AppLogger.d("responseMap $responseMap")
+//
+//                for ((_, response) in responseMap) {
+//                    response?.let {
+//                        // Check if response type is JSON
+//                        if (response.type == "json") {
+//                            globalResponseJsonUploadList.add(
+//                                ResponseJsonUpload(
+//                                    response.trackingId,
+//                                    response.nama_file,
+//                                    response.status,
+//                                    response.tanggal_upload,
+//                                    response.type
+//                                )
+//                            )
+//
+//                            val keyJsonName = response.trackingId.toString()
+//
+//                            if (response.success) {
+//                                try {
+//                                    // Extract table_ids from the response
+//                                    val tableIds = response.table_ids
+//                                    if (tableIds != null) {
+//                                        // Parse the table_ids to determine if it's PANEN or ESPB
+//                                        val tableIdsJson = JSONObject(tableIds)
+//
+//                                        AppLogger.d(tableIdsJson.toString())
+//
+//                                        if (tableIdsJson.has(AppUtils.DatabaseTables.PANEN)) {
+//                                            val panenIdsArray =
+//                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.PANEN)
+//                                            val panenIds = (0 until panenIdsArray.length()).map {
+//                                                panenIdsArray.getInt(it)
+//                                            }
+//                                            globalPanenIdsByPart[keyJsonName] = panenIds
+//                                            AppLogger.d("Extracted PANEN IDs from response: $panenIds")
+//                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.ESPB)) {
+//                                            val espbIdsArray =
+//                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ESPB)
+//                                            val espbIds = (0 until espbIdsArray.length()).map {
+//                                                espbIdsArray.getInt(it)
+//                                            }
+//                                            globalEspbIdsByPart[keyJsonName] = espbIds
+//                                            AppLogger.d("Extracted ESPB IDs from response: $espbIds")
+//                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.HEKTAR_PANEN)) {
+//                                            val hektarPanenIdsArray =
+//                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.HEKTAR_PANEN)
+//                                            val hektarPanenIds =
+//                                                (0 until hektarPanenIdsArray.length()).map {
+//                                                    hektarPanenIdsArray.getInt(it)
+//                                                }
+//                                            globalHektarPanenIdsByPart[keyJsonName] = hektarPanenIds
+//                                            AppLogger.d("Extracted Hektar Panen IDs from response: $hektarPanenIds")
+//                                        } else if (tableIdsJson.has(AppUtils.DatabaseTables.ABSENSI)) {
+//                                            val absensiPanenIdsArray =
+//                                                tableIdsJson.getJSONArray(AppUtils.DatabaseTables.ABSENSI)
+//                                            val absensiPanenIds =
+//                                                (0 until absensiPanenIdsArray.length()).map {
+//                                                    absensiPanenIdsArray.getInt(it)
+//                                                }
+//                                            globalAbsensiPanenIdsByPart[keyJsonName] =
+//                                                absensiPanenIds
+//                                            AppLogger.d("Extracted Absensi IDs from response: $absensiPanenIds")
+//                                        } else {
+//
+//                                        }
+//                                    } else {
+//                                        AppLogger.w("No table_ids found in response for $keyJsonName")
+//                                        globalPanenIdsByPart[keyJsonName] = emptyList()
+//                                        globalEspbIdsByPart[keyJsonName] = emptyList()
+//                                        globalHektarPanenIdsByPart[keyJsonName] = emptyList()
+//                                        globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
+//                                    }
+//                                } catch (e: Exception) {
+//                                    AppLogger.e("Error parsing table_ids for file $keyJsonName: ${e.message}")
+//                                    globalPanenIdsByPart[keyJsonName] = emptyList()
+//                                    globalEspbIdsByPart[keyJsonName] = emptyList()
+//                                    globalHektarPanenIdsByPart[keyJsonName] = emptyList()
+//                                    globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
+//                                }
+//                            } else {
+//                                globalPanenIdsByPart[keyJsonName] = emptyList()
+//                                globalEspbIdsByPart[keyJsonName] = emptyList()
+//                                globalHektarPanenIdsByPart[keyJsonName] = emptyList()
+//                                globalAbsensiPanenIdsByPart[keyJsonName] = emptyList()
+//                            }
+//                        } else if (response.type == "image") {
+//                            globalResponseJsonUploadList.add(
+//                                ResponseJsonUpload(
+//                                    trackingId = 0,
+//                                    nama_file = "",
+//                                    status = 0,
+//                                    tanggal_upload = "",
+//                                    type = response.type
+//                                )
+//                            )
+//                            if (!response.success) {
+//                                globalImageUploadError = response.imageFullPath ?: emptyList()
+//                                globalImageNameError = response.imageName ?: emptyList()
+//                                AppLogger.d("Failed images: ${globalImageNameError.size}")
+//                                AppLogger.d("Failed image paths: $globalImageUploadError")
+//                                AppLogger.d("Failed image names: $globalImageNameError")
+//                            } else {
+//
+//                            }
+//                        } else {
+//                            AppLogger.d("Skipping non-JSON upload: type = ${response.type}")
+//                        }
+//                    }
+//                }
+//
+////                AppLogger.d("Stored IDs by part: ${globalPanenIdsByPart.keys}")
+////                AppLogger.d("Total IDs - PANEN: ${globalPanenIds.size}, ESPB: ${globalESPBIds.size}")
+//            }
+//        }
     }
 
     private fun processUploadResponses(): Boolean {

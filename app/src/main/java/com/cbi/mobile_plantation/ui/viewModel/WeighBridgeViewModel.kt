@@ -147,11 +147,11 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     fun checkTPHDuplicates(millIP: String, espbJson: String) {
         viewModelScope.launch {
             try {
-                AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: $millIP")
+                AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: https://$millIP:3005")
 
                 // Update base URL with mill IP
                 StagingApiClient.updateBaseUrl("http://$millIP:3005")
-//                StagingApiClient.updateBaseUrl("http://10.9.116.125:3005")
+//                StagingApiClient.updateBaseUrl("http://10.9.116.157:8000")
 
                 // Create request body with raw JSON
                 val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())
@@ -218,6 +218,18 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load TPH data")
+                }
+        }
+    }
+
+    fun fetchBlokByEstAfdBlokId(est: String, afd: String, blokId: String) {
+        viewModelScope.launch {
+            repository.getBlokByEstAfdBlokId(est, afd, blokId)
+                .onSuccess { blok ->
+                    _blokData.postValue(blok) // atau _blokData jika berbeda
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load Blok data")
                 }
         }
     }
@@ -371,16 +383,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         pemuat_nama: String,
         pemuat_nik: String,
         mill_id: Int,
+        mill_abbr: String,
+        mill_name: String,
         archive: Int,
         tph0: String,
         tph1: String,
-        update_info_sp: String? = null,
         uploaded_by_id_wb: Int,
-        uploaded_at_wb: String,
+        uploaded_by_id_sp: Int,
+        uploader_name_wb:String,
+        uploader_name_sp:String,
         status_upload_cmp_wb: Int,
         status_upload_ppro_wb: Int,
         creator_info: String,
         uploader_info_wb: String,
+        uploader_info_sp: String,
         noESPB: String,
         scan_status: Int = 1,
         date_scan: String? = null, // New parameter with default null
@@ -404,21 +420,24 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     kemandoran_id = kemandoran_id,
                     pemuat_nik = pemuat_nik,
                     mill_id = mill_id,
+                    mill_abbr = mill_abbr,
+                    mill_name = mill_name,
                     archive = archive,
                     tph0 = tph0,
                     tph1 = tph1,
-                    update_info_sp = update_info_sp ?: "NULL",
                     uploaded_by_id_wb = uploaded_by_id_wb,
-                    uploaded_at_wb = uploaded_at_wb,
-                    uploaded_by_id_sp = 0,
-                    uploaded_at_sp = "NULL",
+                    uploaded_by_id_sp = uploaded_by_id_sp,
+                    uploader_name_sp = uploader_name_sp,
+                    uploader_name_wb = uploader_name_wb,
+                    uploaded_at_wb = "",
+                    uploaded_at_sp = "",
                     status_upload_cmp_sp = 0,
                     status_upload_cmp_wb = status_upload_cmp_wb,
                     status_upload_ppro_wb = status_upload_ppro_wb,
                     status_draft = 0,
                     status_mekanisasi = 0,
                     creator_info = creator_info,
-                    uploader_info_sp = "NULL",
+                    uploader_info_sp = uploader_info_sp,
                     uploader_info_wb = uploader_info_wb,
                     noESPB = noESPB,
                     scan_status = scan_status,

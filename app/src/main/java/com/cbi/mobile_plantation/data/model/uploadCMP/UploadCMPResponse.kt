@@ -80,6 +80,21 @@ data class UploadV3Response(
     val imageName: List<String>? = emptyList(),
     val table_ids: String? = null
 )
+
+data class UploadHarvestResponse(
+    @SerializedName("status")
+    val status: String,  // ← "success" bukan Int!
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("id")
+    val id: Int,
+
+    @SerializedName("noESPB")
+    val noESPB: String
+)
+
 data class UploadResults(
     val processed: Int,
     val created: Int,

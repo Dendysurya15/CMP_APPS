@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
 data class ESPBEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val blok_jjg: String, // jjg kirim pabrik X
+    val tonase : String?= "0",
     val created_by_id: Int, //X
     val created_name:String,
     val created_at: String,//X
@@ -22,10 +23,11 @@ data class ESPBEntity(
     val kemandoran_id: String, // "1,3,4" //X
     val pemuat_nik: String, // "1,3,4" //X
     val mill_id: Int, //X
+    val mill_abbr: String, //X
+    val mill_name: String, //X
     val archive: Int,
     val tph0: String, // {tph_id,date_created,jjg,status_espb=0 //X
     val tph1: String,// {tph_id,date_created,jjg,status_espb=1 jadi 2 pas diupload + no espb=noESPB //X
-    val update_info_sp: String = "NULL", // JSON {alasan, datetime, loc} //X
     val uploaded_by_id_wb: Int = 0, //X
     val uploaded_wb_response: String = "", //X
     val uploaded_ppro_response: String = "", //X
@@ -33,6 +35,8 @@ data class ESPBEntity(
     val uploaded_at_ppro_wb: String = "", //X
     val uploaded_by_id_sp: Int = 0, //X
     val uploaded_at_sp: String = "NULL", //X
+    val uploader_name_wb: String = "NULL", //X
+    val uploader_name_sp: String = "NULL", //X
     val status_upload_cmp_sp: Int = 0,  //X
     val status_upload_cmp_wb: Int = 0, //X
     val status_upload_ppro_wb: Int = 0, //X

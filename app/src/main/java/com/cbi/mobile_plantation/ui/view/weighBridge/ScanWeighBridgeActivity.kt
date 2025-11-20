@@ -2,10 +2,13 @@ package com.cbi.mobile_plantation.ui.view.weighBridge
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
+import android.content.pm.PackageManager
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -24,9 +27,11 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
+import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
+import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
 
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
@@ -43,6 +48,7 @@ import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -64,6 +70,7 @@ import java.util.Locale
 @Suppress("UNREACHABLE_CODE", "UNUSED_CHANGED_VALUE")
 class ScanWeighBridgeActivity : AppCompatActivity() {
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
+    private lateinit var espbViewModel: ESPBViewModel
     private var prefManager: PrefManager? = null
 
     private lateinit var barcodeView: DecoratedBarcodeView
@@ -99,6 +106,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalKemandoranId: String = ""
     var globalPemuatNik: String = ""
     var globalMillId: Int? = null
+    var globalMillAbbr: String? = ""
+    var globalMillName: String? = ""
     var globalTph0: String = ""
     var globalTph1: String = ""
     var globalCreatorInfo: String = ""
@@ -108,6 +117,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalNoESPB: String = ""
     var globalDeptPPRO: Int = 0
     var globalDivisiPPRO: Int = 0
+    private var globalJjgArr: String = ""
+    var globalUploaderInfoWB: String = ""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -245,16 +256,20 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         kemandoran_id = globalKemandoranId,
                         pemuat_nik = globalPemuatNik,
                         mill_id = globalMillId!!,
+                        mill_abbr = globalMillAbbr!!,
+                        mill_name = globalMillName!!,
                         archive = 0,
                         tph0 = globalTph0,
                         tph1 = globalTph1,
-                        update_info_sp = "", // Changed from update_info
-                        uploaded_by_id_wb = 0, // New field for WB
-                        uploaded_at_wb = "",   // New field for WB
-                        status_upload_cmp_wb = 0, // New field for WB
-                        status_upload_ppro_wb = 0, // New field for WB
-                        creator_info = globalCreatorInfo,
-                        uploader_info_wb = "", // New field for WB
+                        uploaded_by_id_wb = globalCreatedByWB?: 0,
+                        uploaded_by_id_sp = globalCreatedById?: 0,
+                        uploader_name_wb = globalCreatedNameWB,
+                        uploader_name_sp = globalCreatedName,
+                        status_upload_cmp_wb = 0,
+                        status_upload_ppro_wb = 0,
+                        creator_info = "",
+                        uploader_info_wb = globalUploaderInfoWB,
+                        uploader_info_sp = globalCreatorInfo,
                         noESPB = globalNoESPB,
                         scan_status = 1,
                         date_scan = globalCreatedAtWB
@@ -278,7 +293,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             // Data for PPRO Staging
                             val itemToUpload = mapOf(
                                 "num" to number++,
-                                "ip" to globalIpMill,
+                                "ip" to AppUtils.getDeviceIpAddress(),
                                 "id" to savedItemId,
                                 "endpoint" to "PPRO",
                                 "uploader_info" to globalCreatorInfo,
@@ -290,7 +305,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 "blok_jjg" to globalBlokPPROJjg,
                                 "nopol" to globalNopol,
                                 "driver" to globalDriver,
-                                "pemuat_id" to globalPemuatId.toString(),
+                                "pemuat_id" to globalPemuatId,
                                 "transporter_id" to (globalTransporterId
                                     ?: 0).toString(),
                                 "mill_id" to globalMillId.toString(),
@@ -308,12 +323,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang membuat file .zip untuk upload",
                                     true
                                 )
-// For CMP data
                                 var number = 0
 
                                 val espbData = mapOf(
                                     "num" to number++,
-                                    "ip" to globalIpMill,
+                                    "ip" to AppUtils.getDeviceIpAddress(),
                                     "id" to savedItemId,
                                     "regional" to globalRegional,
                                     "wilayah" to globalWilayah,
@@ -327,9 +341,11 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "blok_id" to globalBlokId,
                                     "blok_jjg" to globalBlokJjg,
                                     "jjg" to globalTotalJjg,
-                                    "created_by_id" to (globalCreatedById ?: 0),
-                                    "created_at" to globalCreatedAt,
-                                    "created_name" to globalCreatedName,
+                                    "jjg_arr" to globalJjgArr,
+                                    "tonase" to 0,
+//                                    "created_by_id" to (globalCreatedById ?: 0),
+//                                    "created_at" to globalCreatedAt,
+//                                    "created_name" to globalCreatedName,
                                     "updated_by_wb" to globalCreatedByWB,
                                     "updated_name_wb" to globalCreatedNameWB,
                                     "updated_date_wb" to globalCreatedAtWB,
@@ -339,20 +355,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "kemandoran_id" to globalKemandoranId,
                                     "nopol" to globalNopol,
                                     "driver" to globalDriver,
-                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
+//                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                     "transporter_id" to (globalTransporterId
                                         ?: 0),
                                     "mill_id" to globalMillId,
-                                    "creator_info" to globalCreatorInfo,
-                                    "no_espb" to globalNoESPB,
+                                    "mill_abbr" to globalMillAbbr,
+                                    "mill_nama" to globalMillName,
+//                                    "no_espb" to globalNoESPB,
+                                    "noESPB" to globalNoESPB,
                                     "tph0" to globalTph0,
                                     "tph1" to globalTph1,
-                                    "update_info_sp" to globalUpdateInfoSP,
-                                    "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
-                                        .toString(),
-                                    "jabatan" to prefManager!!.jabatanUserLogin
+                                    "jabatan" to prefManager!!.jabatanUserLogin,
+                                    "uploader_info_wb" to globalUploaderInfoWB,
+                                    "uploader_info_sp" to globalUpdateInfoSP,
+                                    "uploaded_at_wb" to "",
+                                    "uploaded_at_sp" to "",
+                                    "uploaded_by_id_wb" to globalCreatedByWB,
+                                    "uploaded_by_id_sp" to globalCreatedById,
+                                    "uploader_name_wb" to globalCreatedNameWB,
+                                    "uploader_name_sp" to globalCreatedName,
                                 )
-
 
                                 AppLogger.d("espbdata $espbData")
                                 val espbDataList = listOf(espbData)
@@ -369,10 +391,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "check_only" to false
                                 )
 
-                                AppLogger.d("test bro")
-
                                 val espbJsonCheckDuplicate = Gson().toJson(wrappedEspbDataCheck)
-                                weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJsonCheckDuplicate)
+                                weightBridgeViewModel.checkTPHDuplicates(AppUtils.getDeviceIpAddress(), espbJsonCheckDuplicate)
 
 
                                 val uploadDataList =
@@ -418,9 +438,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     )
                                     cmpItem = mapOf(
                                         "num" to number++,
-                                        "ip" to globalIpMill,
+                                        "ip" to AppUtils.getDeviceIpAddress(),
                                         "id" to savedItemId,
-                                        "endpoint" to "CMP",
+                                        "endpoint" to "STAGING_CMP",
                                         "uploader_info" to globalCreatorInfo,
                                         "uploaded_at" to globalCreatedAtWB,
                                         "uploaded_by_id" to (globalCreatedById
@@ -430,18 +450,18 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 } else {
                                     cmpItem = mapOf(
                                         "num" to number++,
-                                        "ip" to globalIpMill,
+                                        "ip" to AppUtils.getDeviceIpAddress(),
                                         "id" to savedItemId,
-                                        "endpoint" to "CMP",
+                                        "endpoint" to "STAGING_CMP",
                                         "uploader_info" to globalCreatorInfo,
                                         "uploaded_at" to globalCreatedAtWB,
                                         "uploaded_by_id" to (globalCreatedById
                                             ?: 0),
-                                        "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
+                                        "data" to espbJson
                                     )
                                 }
 
-                                val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                val itemsToUpload = listOf( itemToUpload, cmpItem)
                                 val globalIdEspb = listOf(savedItemId)
 
                                 loadingDialog.setMessage(
@@ -875,7 +895,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 // Create TPH duplicate check data
                                         val espbData = mapOf(
                                             "num" to 1,
-                                            "ip" to basicProcessingResult.millIP,
+                                            "ip" to AppUtils.getDeviceIpAddress(),
                                             "id" to 0,
                                             "regional" to basicProcessingResult.regional,
                                             "wilayah" to basicProcessingResult.wilayah,
@@ -889,25 +909,34 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             "blok_id" to basicProcessingResult.blokId,
                                             "blok_jjg" to basicProcessingResult.blokJjg,
                                             "jjg" to basicProcessingResult.totalJjg,
-                                            "created_by_id" to (prefManager!!.idUserLogin ?: 0),
-                                            "created_at" to basicProcessingResult.createdAt,
-                                            "created_name" to basicProcessingResult.createdName,
+                                            "jjg_arr" to globalJjgArr,
+                                            "tonase" to 0,
                                             "pemuat_id" to basicProcessingResult.pemuatId,
                                             "pemuat_nama" to basicProcessingResult.pemuatNama,
                                             "kemandoran_id" to basicProcessingResult.kemandoranId,
                                             "pemuat_nik" to basicProcessingResult.pemuatNik,
                                             "nopol" to basicProcessingResult.nopol,
                                             "driver" to basicProcessingResult.driver,
-                                            "updated_nama" to prefManager!!.nameUserLogin.toString(),
+//                                            "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                             "transporter_id" to basicProcessingResult.transporterId,
                                             "mill_id" to basicProcessingResult.millId,
-                                            "creator_info" to basicProcessingResult.creatorInfo,
-                                            "no_espb" to basicProcessingResult.noESPB,
+                                            "mill_abbr" to globalMillAbbr,
+                                            "mill_nama" to globalMillName,
+//                                            "creator_info" to basicProcessingResult.creatorInfo,
+//                                            "no_espb" to basicProcessingResult.noESPB,
+                                            "noESPB" to basicProcessingResult.noESPB,
                                             "tph0" to basicProcessingResult.tph0,
                                             "tph1" to basicProcessingResult.tph1,
-                                            "update_info_sp" to basicProcessingResult.updateInfoSP,
-                                            "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity).toString(),
-                                            "jabatan" to prefManager!!.jabatanUserLogin
+//                                            "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity).toString(),
+                                            "jabatan" to prefManager!!.jabatanUserLogin,
+                                            "uploader_info_wb" to globalUploaderInfoWB,
+                                            "uploader_info_sp" to globalUpdateInfoSP,
+                                            "uploaded_at_wb" to "",
+                                            "uploaded_at_sp" to "",
+                                            "uploaded_by_id_wb" to globalCreatedByWB,
+                                            "uploaded_by_id_sp" to globalCreatedById,
+                                            "uploader_name_wb" to globalCreatedNameWB,
+                                            "uploader_name_sp" to globalCreatedName,
                                         )
 
                                         val espbDataList = listOf(espbData)
@@ -918,7 +947,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
                                         AppLogger.d("espbJson $espbJson")
-                                        weightBridgeViewModel.checkTPHDuplicates(basicProcessingResult.millIP, espbJson)
+                                        weightBridgeViewModel.checkTPHDuplicates(AppUtils.getDeviceIpAddress(), espbJson)
                                         delay(100)
 
 // Observe TPH duplicate result
@@ -1241,6 +1270,33 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     }
 
     private fun continueQRProcessing(jsonStr: String) {
+        val appVersion: String = try {
+            this.packageManager.getPackageInfo(this.packageName, 0).versionName
+        } catch (e: Exception) {
+            Log.e("DeviceInfo", "Failed to get app version", e)
+            "Unknown"
+        }
+
+        val osVersion: String = try {
+            Build.VERSION.RELEASE
+        } catch (e: Exception) {
+            Log.e("DeviceInfo", "Failed to get OS version", e)
+            "Unknown"
+        }
+
+        val phoneModel: String = try {
+            "${Build.MANUFACTURER} ${Build.MODEL}"
+        } catch (e: Exception) {
+            Log.e("DeviceInfo", "Failed to get phone model", e)
+            "Unknown"
+        }
+
+        globalUploaderInfoWB = createCreatorInfo(
+            appVersion = appVersion,
+            osVersion = osVersion,
+            phoneModel = phoneModel
+        ).toString()
+
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
                 loadingDialog.setMessage("Sedang mempersiapkan data e-SPB ", true)
@@ -1430,6 +1486,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }.joinToString(";")
 
+                    val jjgArr = blokJjgList.mapNotNull { (_, jjg) -> jjg }.joinToString(",")
+
                     AppLogger.d("formattedBlokList:\n$formattedBlokList")
                     AppLogger.d("BlokPPROJjg: $BlokPPROJjg")
                     AppLogger.d("firstBlok $firstBlok")
@@ -1440,18 +1498,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val createdAt = modifiedParsedData?.espb?.createdAt ?: "-"
                     val createAtFormatted = formatToIndonesianDate(createdAt)
 
+
+                    val userMillAbbr = extractMillAbbrFromName(prefManager!!.nameUserLogin)
+                    AppLogger.d("Extracted Mill Abbr = $userMillAbbr")
+
                     val millDataDeferred = async {
                         try {
-                            weightBridgeViewModel.getMillName(millId)
+                            espbViewModel.getMillByAbbr(userMillAbbr)
                         } catch (e: Exception) {
                             AppLogger.e("Gagal mendapatkan data mill")
                             null
                         }
                     }
 
-                    val millData = millDataDeferred.await() ?: emptyList()
-                    val millAbbr = millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
-                    val millIP = millData.firstOrNull()?.let { "${it.ip_address}" } ?: "-"
+                    val millData = millDataDeferred.await()
+
+                    val millAbbr = millData?.let { "${it.abbr} (${it.nama})" } ?: "-"
+                    val millAbbr2 = millData?.abbr ?: "-"
+                    val millName = millData?.nama ?: "-"
+                    val millIP = millData?.ip_address ?: "-"
+
 
                     val transporterName = if (transporterId == 0) {
                         "Internal"
@@ -1491,6 +1557,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
+                    globalJjgArr = jjgArr
                     globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: ""
                     globalCreatedById = modifiedParsedData?.espb?.createdById ?: 0
                     globalCreatedName = modifiedParsedData?.espb?.createdName ?: ""
@@ -1502,15 +1569,16 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: ""
                     globalPemuatNik = nikValues
                     globalMillId = millId
+                    globalMillAbbr = millAbbr2
+                    globalMillName = millName
                     globalTph0 = modifiedParsedData?.tph0 ?: "-"
                     globalTph1 = modifiedParsedData?.tph1 ?: "-"
                     globalCreatedAt = modifiedParsedData?.espb?.createdAt.toString() ?: "-"
                     globalCreatorInfo = modifiedParsedData?.espb?.creatorInfo?.toString() ?: "-"
                     globalNoESPB = modifiedParsedData?.espb?.noEspb ?: "-"
-                    globalUpdateInfoSP = modifiedParsedData?.espb?.update_info_sp ?: "-"
-                    globalIpMill = millIP
+                    globalUpdateInfoSP = globalCreatorInfo
+                    globalIpMill = AppUtils.getDeviceIpAddress()
 
-                    // REMOVED TPH DUPLICATE CHECK CODE FROM HERE - IT'S NOW IN processQRResult
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
@@ -1792,10 +1860,41 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         )
     }
 
+    private fun extractMillAbbrFromName(name: String?): String {
+        if (name.isNullOrBlank()) return "-"
+
+        val clean = name.trim()
+
+        val emailMatch = Regex("@([A-Za-z]{2,4})$").find(clean)
+        if (emailMatch != null) {
+            return emailMatch.groupValues[1].uppercase()
+        }
+
+        val upperTokens = clean.split(" ")
+            .filter { it.length in 2..4 && it.uppercase() == it }
+        if (upperTokens.isNotEmpty()) {
+            return upperTokens.last().uppercase()   // take last uppercase token
+        }
+
+        val letters = clean.split(" ")
+            .map { it.replace("[^A-Za-z]".toRegex(), "") }
+            .filter { it.length in 2..4 }
+        if (letters.isNotEmpty()) {
+            return letters.last().uppercase()
+        }
+
+        val last = clean.split(" ").last()
+        return last.take(4).uppercase()
+    }
+
+
 
     private fun initViewModel() {
         val factory = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
         weightBridgeViewModel = ViewModelProvider(this, factory)[WeighBridgeViewModel::class.java]
+        val appRepository = AppRepository(application)
+        val factory4 = ESPBViewModel.ESPBViewModelFactory(appRepository)
+        espbViewModel = ViewModelProvider(this, factory4)[ESPBViewModel::class.java]
         val factory2 = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory2)[DatasetViewModel::class.java]
         val factory3 = PanenViewModel.PanenViewModelFactory(application)
@@ -1812,6 +1911,14 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 delay(100)
                 resumeScanner()
             }
+        }
+    }
+
+    fun createCreatorInfo(appVersion: String, osVersion: String, phoneModel: String): JsonObject {
+        return JsonObject().apply {
+            addProperty("app_version", appVersion)
+            addProperty("os_version", osVersion)
+            addProperty("device_model", phoneModel)
         }
     }
 

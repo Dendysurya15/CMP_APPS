@@ -119,7 +119,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             )
             val statusContainer = view.findViewById<LinearLayout>(R.id.statusContainer)
 
-            setStatusCard("CMP", statusContainer, item.status_upload_cmp_wb!!, item.uploaded_at_wb ?: "", item.uploaded_wb_response ?:"")
+            setStatusCard("STAGING CMP", statusContainer, item.status_upload_cmp_wb!!, item.uploaded_at_wb ?: "", item.uploaded_wb_response ?:"")
             setStatusCard("PPRO", statusContainer, item.status_upload_ppro_wb!!, item.uploaded_at_ppro_wb ?: "", item.uploaded_ppro_response ?:"")
 
             infoItems.forEach { (type, value) ->
@@ -193,7 +193,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
 
                 // CMP Text
                 addView(TextView(context).apply {
-                    text = "CMP"
+                    text = "STG CMP"
                     gravity = Gravity.START
                     typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
                     setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))

@@ -20,10 +20,11 @@ data class UploadCMPItem(
     val title: String,
     val fullPath: String,
     val baseFilename: String,
-    val data :String,
-    val type:String,
+    val data: String,
+    val type: String,
     val tableIds: String? = null,
-    val databaseTable : String,
+    val databaseTable: String,
+    val endpoint: String = "v3"
 )
 
 class UploadProgressCMPDataAdapter(

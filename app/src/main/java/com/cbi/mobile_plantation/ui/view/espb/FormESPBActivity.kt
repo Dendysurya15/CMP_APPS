@@ -2182,6 +2182,8 @@ class FormESPBActivity : AppCompatActivity() {
                     transporter_id = transporter_id,
                     pemuat_id = pemuat_id,
                     mill_id = mill_id,
+                    mill_abbr = "",
+                    mill_name = "",
                     archive = 0,
                     tph0 = "",
                     tph1 = tph1,
