@@ -192,11 +192,14 @@ class ListPanenTBSActivity : AppCompatActivity() {
     private var nopol = "NULL"
     private var driver = "NULL"
     private var pemuat_id = "NULL"
+    private var pemuat_nama = "NULL"
     private var kemandoran_id = "NULL"
     private var pemuat_nik = "NULL"
     private var transporter_id = 0
     private var mill_id = 0
     private var created_by_id = 0
+
+    private var created_name = ""
     private var no_espb = "NULL"
     private var tph0QR = "NULL"
     private var tph1QR = "NULL"
@@ -597,9 +600,11 @@ class ListPanenTBSActivity : AppCompatActivity() {
                             nopol = espb.nopol
                             driver = espb.driver
                             pemuat_id = espb.pemuat_id
+                            pemuat_nama = espb.pemuat_nama
                             transporter_id = espb.transporter_id
                             mill_id = espb.mill_id
                             created_by_id = espb.created_by_id
+                            created_name = espb.created_name
                             no_espb = espb.noESPB
                             tph0QR = espb.tph0
                             tph1QR = espb.tph1
@@ -3102,35 +3107,88 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                 if (featureName == "Detail eSPB") {
 
                                     val gson = Gson()
+                                    val creatorInfoObject = try {
+                                        gson.fromJson(creatorInfo, JsonObject::class.java)
+                                    } catch (e: Exception) {
+                                        JsonObject()
+                                    }
                                     val espbObject = JsonObject().apply {
                                         addProperty("blok_jjg", blok_jjg)
                                         addProperty("nopol", nopol)
                                         addProperty("driver", driver)
                                         addProperty("pemuat_id", pemuat_id)
+                                        addProperty("pemuat_nama", pemuat_nama)
                                         addProperty("kemandoran_id", kemandoran_id)
                                         addProperty("pemuat_nik", pemuat_nik)
                                         addProperty("transporter_id", transporter_id)
                                         addProperty("mill_id", mill_id)
                                         addProperty("created_by_id", created_by_id)
-                                        addProperty("creator_info", creatorInfo)
+                                        addProperty("created_name", created_name)
+                                        add("creator_info", creatorInfoObject)
                                         addProperty("no_espb", no_espb)
                                         addProperty("created_at", dateTime)
                                     }
 
-                                    val rootObject = JsonObject().apply {
-                                        add("espb", espbObject)
-                                        addProperty("tph_0", tph0)
-                                        addProperty("tph_1", tph1)
+                                    val rootObject = JsonObject()
+                                    rootObject.add("espb", espbObject)
+
+                                    val tglObject = JsonObject()
+                                    val dateToIndexMap = mutableMapOf<String, Int>()
+                                    var dateIndexCounter = 0
+
+                                    fun processAllTph1(tph: String?): String {
+                                        if (tph.isNullOrBlank()) return ""
+
+                                        // Split by semicolon to get all TPH entries
+                                        val tphEntries = tph.split(";")
+                                        val processedEntries = mutableListOf<String>()
+
+                                        tphEntries.forEach { entry ->
+                                            val parts = entry.split(",")
+                                            if (parts.size < 3) {
+                                                processedEntries.add(entry)
+                                                return@forEach
+                                            }
+
+                                            val dateTimeRaw = parts[1]                        // full datetime
+                                            val dateOnly = dateTimeRaw.split(" ").getOrNull(0) ?: dateTimeRaw
+                                            val timeOnly = dateTimeRaw.split(" ").getOrNull(1) ?: ""
+
+                                            // Get or create index for this date
+                                            val dateIndex = dateToIndexMap.getOrPut(dateOnly) {
+                                                val newIndex = dateIndexCounter
+                                                tglObject.addProperty(newIndex.toString(), dateOnly)
+                                                dateIndexCounter++
+                                                newIndex
+                                            }
+
+                                            // Build the processed entry with date index
+                                            val processedEntry = buildString {
+                                                append(parts[0])       // tph id
+                                                append(",")
+                                                append(dateIndex)      // replace date with its unique index
+                                                append(",")
+                                                append(timeOnly)       // put time only
+                                                for (i in 2 until parts.size) {
+                                                    append(",")
+                                                    append(parts[i])
+                                                }
+                                            }
+                                            processedEntries.add(processedEntry)
+                                        }
+
+                                        return processedEntries.joinToString(";")
                                     }
 
+                                    rootObject.addProperty("tph_0", tph0)
+                                    rootObject.addProperty("tph_1", processAllTph1(tph1))
+                                    rootObject.add("tgl", tglObject)
+
                                     gson.toJson(rootObject)
+
                                 } else {
-                                    val effectiveLimit =
-                                        if (limitFun == 0) mappedData.size else limitFun
-
-                                    // Take only the required number of items
+                                    val effectiveLimit = if (limitFun == 0) mappedData.size else limitFun
                                     val limitedData = mappedData.take(effectiveLimit)
-
                                     formatPanenDataForQR(limitedData)
                                 }
                             } catch (e: Exception) {
