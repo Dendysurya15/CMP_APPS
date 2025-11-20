@@ -300,11 +300,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         RADIO,
     }
 
-
     companion object {
         private const val CAMERA_PERMISSION_REQUEST_CODE = 100
     }
-
+    private var isSaving = false
+    private var lastClickTime = 0L
+    private val CLICK_DELAY = 1000L // 1 second debounce
 
     private var ancakInput: String = ""
     private var nomorPemanenInput: String = ""
@@ -3926,7 +3927,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private fun checkScannedTPHInsideRadius() {
-        if (lat != null && lon != null) {
+//        if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
 
             AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
@@ -3978,16 +3979,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 emptyScannedTPHInsideRadius.visibility = View.VISIBLE
                 isEmptyScannedTPH = true
             }
-        } else {
-            Toasty.error(
-                this,
-                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
-                Toast.LENGTH_LONG,
-                true
-            )
-                .show()
-            isEmptyScannedTPH = true
-        }
+//        } else {
+//            Toasty.error(
+//                this,
+//                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
+//                Toast.LENGTH_LONG,
+//                true
+//            )
+//                .show()
+//            isEmptyScannedTPH = true
+//        }
 
         if (progressBarScanTPHManual.visibility == View.VISIBLE) {
             progressBarScanTPHManual.visibility = View.GONE
