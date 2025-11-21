@@ -350,8 +350,8 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//        return 5000F
+//        return prefManager?.radiusMinimum ?:15F
+        return 5000F
     }
 
     val listRadioItems: Map<String, Map<String, String>> = mapOf(
