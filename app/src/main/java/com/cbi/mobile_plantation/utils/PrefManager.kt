@@ -31,6 +31,14 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var isDownloadedMapOffline: Boolean
+        get() = pref.getBoolean(IS_DOWNLOADED_MAP_OFFLINE, false)
+        set(value) {
+            editor.putBoolean(IS_DOWNLOADED_MAP_OFFLINE, value)
+            editor.commit()
+        }
+
+
     var nameUserLogin: String?
         get() = pref.getString("nameUserLogin", "")
         set(nameUserLogin) {
@@ -467,6 +475,7 @@ class PrefManager(_context: Context) {
         const val PASSWORD = "password"
 
         private const val REGISTERED_DEVICE_USERNAME = "registered_device_username"
+        private const val IS_DOWNLOADED_MAP_OFFLINE = "is_downloaded_map_offline"
     }
 
     init {

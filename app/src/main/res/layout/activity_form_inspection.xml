@@ -16,7 +16,7 @@
         android:gravity="center"
         android:orientation="vertical"
         android:padding="40dp"
-        android:visibility="gone"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -41,7 +41,7 @@
             android:backgroundTint="@color/bluedarklight"
             android:fontFamily="@font/manrope_bold"
             android:paddingVertical="12dp"
-            android:text="Mulai dari TPH"
+            android:text="Berdasarkan TPH"
             android:textColor="@color/white"
             android:textSize="18sp"
             app:cornerRadius="12dp"
@@ -57,12 +57,13 @@
             android:backgroundTint="@color/orange"
             android:fontFamily="@font/manrope_bold"
             android:paddingVertical="12dp"
-            android:text="Mulai dari Baris / Pasar Tengah"
+            android:text="Berdasarkan Pemanen"
             android:textColor="@color/white"
             android:textSize="18sp"
             app:cornerRadius="12dp"
-            app:icon="@drawable/baseline_grain_24"
+            app:icon="@drawable/user_solid"
             app:iconGravity="start"
+            app:iconSize="15dp"
             app:iconTint="@color/white"
             tools:ignore="HardcodedText" />
 
@@ -73,7 +74,7 @@
         android:id="@+id/mainContentWrapper"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="visible">
+        android:visibility="gone">
 
         <include
             android:id="@+id/headerFormInspection"
@@ -112,23 +113,23 @@
                     android:paddingBottom="150dp">
 
                     <TextView
+                        android:id="@+id/titleDetailTrackingMap"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
+                        android:layout_marginTop="10dp"
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
-                        android:layout_marginTop="10dp"
                         android:text="Detail Tracking Inspeksi"
                         android:textColor="@color/black"
                         android:textSize="@dimen/l"
-                        android:id="@+id/titleDetailTrackingMap"
                         android:visibility="gone"
                         tools:ignore="HardcodedText,RtlHardcoded" />
 
                     <!-- Map Container -->
                     <androidx.cardview.widget.CardView
+                        android:id="@+id/cardMap"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:id="@+id/cardMap"
                         android:layout_marginBottom="16dp"
                         android:visibility="gone">
 
@@ -199,24 +200,24 @@
                     </androidx.cardview.widget.CardView>
 
                     <TextView
+                        android:id="@+id/titleInformasiBlok"
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
                         android:layout_marginTop="10dp"
-                        android:id="@+id/titleInformasiBlok"
                         android:fontFamily="@font/manrope_extrabold"
                         android:gravity="center|left"
                         android:text="Informasi Blok"
                         android:textColor="@color/black"
-                        android:textSize="23dp"
+                        android:textSize="@dimen/xl"
                         tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
 
                     <TextView
+                        android:id="@+id/descTitleBlokInspeksi"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:layout_marginBottom="10dp"
                         android:fontFamily="@font/manrope_medium"
                         android:gravity="center|left"
-                        android:id="@+id/descTitleBlokInspeksi"
                         android:text="Lengkapi informasi data blok berikut."
                         android:textColor="@color/black"
                         android:textSize="15dp"
@@ -225,41 +226,41 @@
                         tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
 
                     <LinearLayout
+                        android:id="@+id/detailInspeksiForFollowUp"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:visibility="gone"
-                        android:id="@+id/detailInspeksiForFollowUp"
                         android:layout_marginBottom="-10dp"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
                         <!-- LEFT COLUMN -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
                             android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:layout_marginEnd="8dp">
+                            android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="2dp"
+                                android:background="@color/graylight"
                                 android:fontFamily="@font/manrope_bold"
                                 android:text="Est/Afd/Blok"
-                                android:background="@color/graylight"
                                 android:textColor="@color/black"
-                                android:textStyle="italic"
                                 android:textSize="@dimen/m"
-                                android:layout_marginBottom="2dp" />
+                                android:textStyle="italic" />
 
                             <TextView
                                 android:id="@+id/tvEstAfdBlok"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
                                 android:fontFamily="@font/manrope_medium"
                                 android:text="-"
                                 android:textColor="@color/black"
-                                android:textSize="@dimen/m"
-                                android:layout_marginBottom="12dp" />
+                                android:textSize="@dimen/m" />
 
                             <!-- Item 2 Left -->
 
@@ -270,9 +271,9 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginBottom="2dp"
+                                android:background="@color/graylight"
                                 android:fontFamily="@font/manrope_bold"
                                 android:text="Jalur Masuk"
-                                android:background="@color/graylight"
                                 android:textColor="@color/black"
                                 android:textSize="@dimen/m"
                                 android:textStyle="italic" />
@@ -281,53 +282,52 @@
                                 android:id="@+id/tvJalurMasuk"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
                                 android:fontFamily="@font/manrope_medium"
                                 android:text="-"
                                 android:textColor="@color/black"
-                                android:textSize="@dimen/m"
-                                android:layout_marginBottom="12dp" />
+                                android:textSize="@dimen/m" />
 
                             <TextView
                                 android:id="@+id/tvTitleRight1"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/manrope_bold"
+                                android:layout_marginBottom="2dp"
                                 android:background="@color/graylight"
+                                android:fontFamily="@font/manrope_bold"
                                 android:text="Baris"
                                 android:textColor="@color/black"
-                                android:textStyle="italic"
                                 android:textSize="@dimen/m"
-                                android:layout_marginBottom="2dp" />
+                                android:textStyle="italic" />
 
                             <TextView
                                 android:id="@+id/tvBaris"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
                                 android:fontFamily="@font/manrope_medium"
                                 android:textColor="@color/black"
-                                android:textSize="@dimen/m"
-                                android:layout_marginBottom="12dp" />
+                                android:textSize="@dimen/m" />
 
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/manrope_bold"
+                                android:layout_marginBottom="2dp"
                                 android:background="@color/graylight"
+                                android:fontFamily="@font/manrope_bold"
                                 android:text="Tanggal Panen"
                                 android:textColor="@color/black"
-                                android:textStyle="italic"
                                 android:textSize="@dimen/m"
-                                android:layout_marginBottom="2dp" />
+                                android:textStyle="italic" />
 
                             <TextView
                                 android:id="@+id/tvTglPanen"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
                                 android:fontFamily="@font/manrope_medium"
                                 android:textColor="@color/black"
-                                android:textSize="@dimen/m"
-                                android:layout_marginBottom="12dp" />
-
+                                android:textSize="@dimen/m" />
 
 
                         </LinearLayout>
@@ -336,74 +336,74 @@
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
+                            android:layout_marginStart="8dp"
                             android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:layout_marginStart="8dp">
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/tvTitleLeft2"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="2dp"
                                 android:background="@color/graylight"
                                 android:fontFamily="@font/manrope_bold"
                                 android:text="Tanggal Inspeksi"
                                 android:textColor="@color/black"
-                                android:textStyle="italic"
                                 android:textSize="@dimen/m"
-                                android:layout_marginBottom="2dp" />
+                                android:textStyle="italic" />
 
                             <TextView
                                 android:id="@+id/tvTanggalInspeksi"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
                                 android:fontFamily="@font/manrope_medium"
                                 android:text="-"
                                 android:textColor="@color/black"
-                                android:textSize="@dimen/m"
-                                android:layout_marginBottom="12dp" />
+                                android:textSize="@dimen/m" />
 
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/manrope_bold"
+                                android:layout_marginBottom="2dp"
                                 android:background="@color/graylight"
+                                android:fontFamily="@font/manrope_bold"
                                 android:text="Pemanen"
                                 android:textColor="@color/black"
-                                android:textStyle="italic"
                                 android:textSize="@dimen/m"
-                                android:layout_marginBottom="2dp" />
+                                android:textStyle="italic" />
 
                             <androidx.recyclerview.widget.RecyclerView
                                 android:id="@+id/rvSelectedPemanenFollowUp"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:overScrollMode="never"
-                                android:visibility="gone"/>
+                                android:visibility="gone" />
 
                             <!-- Item 2 Right -->
                             <TextView
                                 android:id="@+id/tvTitleRight2"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/manrope_bold"
+                                android:layout_marginBottom="2dp"
                                 android:background="@color/graylight"
+                                android:fontFamily="@font/manrope_bold"
                                 android:text="Komentar Temuan TPH"
                                 android:textColor="@color/black"
-                                android:textStyle="italic"
                                 android:textSize="@dimen/m"
-                                android:layout_marginBottom="2dp" />
+                                android:textStyle="italic" />
 
                             <TextView
                                 android:id="@+id/tvKomentarTPH"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                android:ellipsize="end"
                                 android:fontFamily="@font/manrope_medium"
+                                android:maxLines="4"
                                 android:text="-"
                                 android:textColor="@color/black"
-                                android:textSize="@dimen/m"
-                                android:layout_marginBottom="12dp"
-                                android:maxLines="4"
-                                android:ellipsize="end" />
+                                android:textSize="@dimen/m" />
 
 
                         </LinearLayout>
@@ -418,6 +418,217 @@
                     <include
                         android:id="@+id/lyAfdInspect"
                         layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/lyBlokInspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+
+                    <TextView
+                        android:id="@+id/titleLiveMapPanen"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_extrabold"
+                        android:gravity="left"
+                        android:layout_marginTop="10dp"
+                        android:text="Fitur Live Map Panen"
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/xl"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@+id/dashedLine"
+                        tools:ignore="MissingConstraints" />
+
+
+                    <TextView
+                        android:id="@+id/descTitleLiveMapPanen"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="left"
+                        android:text="Anda dapat melihat posisi Anda saat ini beserta titik panen TPH terdekat. Silakan menuju titik tersebut dan scan untuk mendapatakan titik panen TPH."
+                        android:textColor="@color/black"
+                        android:textSize="@dimen/m"
+                        android:layout_marginBottom="10dp"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@+id/titleAfterScanQR"
+                        tools:ignore="MissingConstraints" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardMapPanenBlok"
+                        android:layout_width="match_parent"
+                        android:layout_height="300dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:visibility="gone"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="3dp"
+                        app:strokeColor="@color/greenDarker"
+                        app:strokeWidth="2dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical">
+
+                            <!-- Map Container -->
+                            <FrameLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="0dp"
+                                android:layout_weight="1">
+
+                                <org.osmdroid.views.MapView
+                                    android:id="@+id/mapViewPanenBlok"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent" />
+
+                            </FrameLayout>
+
+                            <!-- Legend and Buttons Row -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@color/white"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:padding="8dp">
+
+                                <!-- Legend (Left Side) -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="5dp"
+                                        android:fontFamily="@font/manrope_bold"
+                                        android:text="Simbol Map:"
+                                        android:textColor="@color/black"
+                                        android:textSize="@dimen/m" />
+
+                                    <!-- User Location Legend -->
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="4dp"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal">
+
+                                        <View
+                                            android:id="@+id/legendOrangeCircle"
+                                            android:layout_width="12dp"
+                                            android:layout_height="12dp"
+                                            android:background="@drawable/legend_circle" />
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="4dp"
+                                            android:fontFamily="@font/manrope_medium"
+                                            android:text="Lokasi Anda"
+                                            android:textColor="@color/black"
+                                            android:textSize="@dimen/s" />
+                                    </LinearLayout>
+
+                                    <!-- Blue Transaction Legend -->
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="4dp"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal">
+
+                                        <View
+                                            android:id="@+id/legendBlueCircle"
+                                            android:layout_width="12dp"
+                                            android:layout_height="12dp"
+                                            android:background="@drawable/legend_circle" />
+
+                                        <TextView
+                                            android:id="@+id/legentTitleBlueCircle"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="4dp"
+                                            android:fontFamily="@font/manrope_medium"
+                                            android:text="Ada Transaksi"
+                                            android:textColor="@color/black"
+                                            android:textSize="@dimen/s" />
+                                    </LinearLayout>
+
+                                    <!-- Red No Transaction Legend -->
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal">
+
+                                        <View
+                                            android:id="@+id/legendRedCircle"
+                                            android:layout_width="12dp"
+                                            android:layout_height="12dp"
+                                            android:background="@drawable/legend_circle" />
+
+                                        <TextView
+                                            android:id="@+id/legentTitleRedCircle"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="4dp"
+                                            android:fontFamily="@font/manrope_medium"
+                                            android:text="Tidak Ada Transaksi"
+                                            android:textColor="@color/black"
+                                            android:textSize="@dimen/s" />
+                                    </LinearLayout>
+
+                                </LinearLayout>
+
+                                <!-- Buttons (Right Side) - Stacked Vertically -->
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:gravity="center_vertical">
+
+                                    <!-- Map Penuh Button (Top) -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnDetailMapPanen"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginBottom="8dp"
+                                        android:minWidth="140dp"
+                                        android:backgroundTint="@color/greenDarker"
+                                        android:fontFamily="@font/manrope_medium"
+                                        android:text="Map Penuh"
+                                        android:textAllCaps="false"
+                                        android:textSize="@dimen/s"
+                                        app:icon="@drawable/baseline_fullscreen_24"
+                                        app:iconGravity="start"
+                                        app:iconSize="20dp" />
+
+                                    <!-- Download Map Button (Bottom) -->
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnDownloadMapPanenOffline"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:minWidth="140dp"
+                                        android:backgroundTint="@color/bluedarklight"
+                                        android:fontFamily="@font/manrope_medium"
+                                        android:text="Download Map"
+                                        android:textAllCaps="false"
+                                        android:textSize="@dimen/s"
+                                        app:icon="@drawable/map_offline"
+                                        app:iconGravity="start"
+                                        app:iconSize="20dp" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
 
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/alertCardScanRadius"
@@ -650,7 +861,8 @@
 
                     <include
                         android:id="@+id/lyPemanenOtomatis"
-                        layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvSelectedPemanenOtomatisInspection"
@@ -662,7 +874,8 @@
 
                     <include
                         android:id="@+id/lyPemanenManual"
-                        layout="@layout/pertanyaan_spinner_layout" android:visibility="gone" />
+                        layout="@layout/pertanyaan_spinner_layout"
+                        android:visibility="gone" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvSelectedPemanenManualInspection"
@@ -699,6 +912,18 @@
                         android:layout_height="wrap_content"
                         android:visibility="gone" />
 
+                    <!--                    <include-->
+                    <!--                        android:id="@+id/lyConditionType"-->
+                    <!--                        layout="@layout/pertanyaan_spinner_layout" />-->
+
+                    <include
+                        android:id="@+id/lyBaris1Inspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
+                    <include
+                        android:id="@+id/lyBaris2Inspect"
+                        layout="@layout/pertanyaan_spinner_layout" />
+
                     <include
                         android:id="@+id/lyBrdTglInspect"
                         layout="@layout/pane_number_layout" />
@@ -712,17 +937,6 @@
                         layout="@layout/pertanyaan_spinner_layout"
                         android:visibility="gone" />
 
-                    <include
-                        android:id="@+id/lyConditionType"
-                        layout="@layout/pertanyaan_spinner_layout" />
-
-                    <include
-                        android:id="@+id/lyBaris1Inspect"
-                        layout="@layout/pertanyaan_spinner_layout" />
-
-                    <include
-                        android:id="@+id/lyBaris2Inspect"
-                        layout="@layout/pertanyaan_spinner_layout" />
 
                 </LinearLayout>
 
@@ -738,12 +952,12 @@
                 android:layout_marginBottom="95dp"
                 android:backgroundTint="@color/yellowbutton"
                 android:src="@drawable/baseline_manage_search_24"
+                android:visibility="gone"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:maxImageSize="30dp"
                 app:pressedTranslationZ="0dp"
-                android:visibility="gone"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
@@ -771,13 +985,13 @@
                 android:id="@+id/badgePhotoFUTPH"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:background="@drawable/circle_white_background"
                 android:backgroundTint="@color/greenDarker"
+                android:elevation="10dp"
+                android:padding="3dp"
                 android:src="@drawable/baseline_check_24"
                 android:tint="@android:color/white"
-                android:padding="3dp"
-                android:background="@drawable/circle_white_background"
                 android:visibility="gone"
-                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabFollowUpTPH"
                 app:layout_constraintTop_toTopOf="@id/fabFollowUpTPH"
                 tools:ignore="UseAppTint" />
@@ -791,11 +1005,11 @@
                 android:layout_marginBottom="15dp"
                 android:backgroundTint="@color/orange"
                 android:src="@drawable/baseline_add_a_photo_24"
+                android:visibility="gone"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:maxImageSize="30dp"
-                android:visibility="gone"
                 app:pressedTranslationZ="0dp"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
@@ -804,14 +1018,14 @@
                 android:id="@+id/badgePhotoInfoBlok"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:backgroundTint="@color/greenDarker"
-                android:src="@drawable/baseline_check_24"
-                android:tint="@android:color/white"
-                android:padding="3dp"
                 android:layout_marginLeft="45dp"
                 android:background="@drawable/circle_white_background"
-                android:visibility="gone"
+                android:backgroundTint="@color/greenDarker"
                 android:elevation="10dp"
+                android:padding="3dp"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:visibility="gone"
                 app:layout_constraintStart_toStartOf="@id/fabPhotoInfoBlok"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoInfoBlok"
                 tools:ignore="UseAppTint" />
@@ -885,12 +1099,12 @@
                 android:layout_marginBottom="165dp"
                 android:backgroundTint="@color/redblack"
                 android:src="@drawable/circle_user_solid"
+                android:visibility="gone"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:maxImageSize="30dp"
                 app:pressedTranslationZ="0dp"
-                android:visibility="gone"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
@@ -900,7 +1114,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-android:background="@drawable/rounded_label_background"
+                android:background="@drawable/rounded_label_background"
                 android:paddingStart="12dp"
                 android:paddingTop="6dp"
                 android:paddingEnd="12dp"
@@ -919,17 +1133,15 @@ android:background="@drawable/rounded_label_background"
                 android:id="@+id/badgePhotoUser"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:background="@drawable/circle_white_background"
                 android:backgroundTint="@color/greenDarker"
+                android:elevation="10dp"
+                android:padding="3dp"
                 android:src="@drawable/baseline_check_24"
                 android:tint="@android:color/white"
-                android:padding="3dp"
-                android:background="@drawable/circle_white_background"
                 android:visibility="gone"
-                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabPhotoUser"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoUser" />
-
-
 
 
             <!-- fabFollowUpNow - Middle FAB with Label -->
@@ -942,12 +1154,12 @@ android:background="@drawable/rounded_label_background"
                 android:layout_marginBottom="90dp"
                 android:backgroundTint="@color/yellowbutton"
                 android:src="@drawable/baseline_manage_search_24"
+                android:visibility="gone"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:maxImageSize="30dp"
                 app:pressedTranslationZ="0dp"
-                android:visibility="gone"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
@@ -976,13 +1188,13 @@ android:background="@drawable/rounded_label_background"
                 android:id="@+id/badgeFollowUpNow"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:background="@drawable/circle_white_background"
                 android:backgroundTint="@color/greenDarker"
+                android:elevation="10dp"
+                android:padding="3dp"
                 android:src="@drawable/baseline_check_24"
                 android:tint="@android:color/white"
-                android:padding="3dp"
-                android:background="@drawable/circle_white_background"
                 android:visibility="gone"
-                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabFollowUpNow"
                 app:layout_constraintTop_toTopOf="@id/fabFollowUpNow" />
 
@@ -1030,13 +1242,13 @@ android:background="@drawable/rounded_label_background"
                 android:id="@+id/badgePhotoInspect"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
+                android:background="@drawable/circle_white_background"
                 android:backgroundTint="@color/greenDarker"
+                android:elevation="10dp"
+                android:padding="3dp"
                 android:src="@drawable/baseline_check_24"
                 android:tint="@android:color/white"
-                android:padding="3dp"
-                android:background="@drawable/circle_white_background"
                 android:visibility="gone"
-                android:elevation="10dp"
                 app:layout_constraintEnd_toEndOf="@id/fabPhotoFormInspect"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoFormInspect" />
 
@@ -1223,12 +1435,12 @@ android:background="@drawable/rounded_label_background"
                 android:layout_marginBottom="15dp"
                 android:backgroundTint="@color/redblack"
                 android:src="@drawable/circle_user_solid"
+                android:visibility="gone"
                 app:fabCustomSize="65dp"
                 app:layout_constraintBottom_toTopOf="@+id/fabSaveFormInspect"
                 app:layout_constraintStart_toStartOf="@+id/fabSaveFormInspect"
                 app:maxImageSize="35dp"
                 app:pressedTranslationZ="0dp"
-                android:visibility="gone"
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
@@ -1236,14 +1448,14 @@ android:background="@drawable/rounded_label_background"
                 android:id="@+id/badgePhotoUser2"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:backgroundTint="@color/greenDarker"
-                android:src="@drawable/baseline_check_24"
-                android:tint="@android:color/white"
-                android:padding="3dp"
                 android:layout_marginLeft="45dp"
                 android:background="@drawable/circle_white_background"
-                android:visibility="gone"
+                android:backgroundTint="@color/greenDarker"
                 android:elevation="10dp"
+                android:padding="3dp"
+                android:src="@drawable/baseline_check_24"
+                android:tint="@android:color/white"
+                android:visibility="gone"
                 app:layout_constraintStart_toStartOf="@id/fabPhotoUser2"
                 app:layout_constraintTop_toTopOf="@id/fabPhotoUser2"
                 tools:ignore="UseAppTint" />

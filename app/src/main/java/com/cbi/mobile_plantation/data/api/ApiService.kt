@@ -1,11 +1,12 @@
 package com.cbi.mobile_plantation.data.api
 
-import androidx.room.Query
+import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
+import com.cbi.mobile_plantation.data.model.DownloadMapResponse
 import com.cbi.mobile_plantation.data.model.LoginResponse
+import com.cbi.mobile_plantation.data.model.MissingPhotosResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoUploadResponse
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
@@ -24,6 +25,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Streaming
 
 interface ApiService {
@@ -120,22 +122,6 @@ interface ApiService {
     )
 
     @Multipart
-    @POST("cmpmain/upload")
-    suspend fun uploadZip(
-        @Part zipFile: MultipartBody.Part
-    ): Response<UploadWBCMPResponse>
-
-    //for testing
-    @Multipart
-    @POST("cmpmain/uploadv2")
-    suspend fun uploadZipV2(
-        @Part zipFile: MultipartBody.Part,
-        @Part("uuid") uuid: RequestBody,
-        @Part("part") part: RequestBody,
-        @Part("total") total: RequestBody
-    ): Response<UploadCMPResponse>
-
-    @Multipart
     @POST("cmpmain/uploadv3")
     suspend fun uploadJsonV3(
         @Part jsonFile: MultipartBody.Part,
@@ -147,6 +133,12 @@ interface ApiService {
     @POST("cmpmain/uploadv3")
     @Headers("Content-Type: application/json")
     suspend fun uploadJsonV3Raw(
+        @Body jsonData: RequestBody
+    ): Response<UploadV3Response>
+
+    @POST("cmpmain/uploadv5")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadJsonV5Raw(
         @Body jsonData: RequestBody
     ): Response<UploadV3Response>
 
@@ -173,6 +165,21 @@ interface ApiService {
         @Field("idData") ids: String // Send list as a comma-separated string
     ):  Response<checkStatusUploadedData>
 
+    @GET("cmpmain/maps/downloads")
+    @Headers("Accept: application/json")
+    suspend fun getDownloadMapList(): Response<DownloadMapResponse>
+
+    @GET("cmpmain/maps/progress/{downloadId}")
+    @Headers("Accept: application/json")
+    suspend fun getDownloadMapProgress(@Path("downloadId") downloadId: String): Response<DownloadMapProgressResponse>
+
+    @GET("cmpmain/maps/download-chunk/{downloadId}/{chunkIndex}")
+    @Streaming
+    suspend fun downloadMapChunk(
+        @Path("downloadId") downloadId: String,
+        @Path("chunkIndex") chunkIndex: Int
+    ): Response<ResponseBody>
+
     @POST("check_duplicates/")
     suspend fun checkTPHDuplicates(@Body requestBody: RequestBody): Response<CheckDuplicateResponse>
 
@@ -184,5 +191,13 @@ interface ApiService {
         @Part("datasetType") datasetType: RequestBody,
         @Part("path") path: RequestBody,
     ): Response<PhotoUploadResponse>
+
+    @GET("cmpmain/missing-photos")
+    @Headers("Accept: application/json")
+    suspend fun getMissingPhotos(
+        @Query("tanggal") tanggal: String,
+        @Query("dept_abbr") deptAbbr: String,
+        @Query("created_by") createdBy: Int
+    ): Response<MissingPhotosResponse>
 
 }

@@ -7,7 +7,6 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
 import com.cbi.mobile_plantation.data.model.TPHNewModel
-import com.cbi.mobile_plantation.data.repository.DatasetRepository
 import com.cbi.mobile_plantation.utils.AppLogger
 
 
@@ -80,6 +79,9 @@ abstract class TPHDao {
     @Query("SELECT * FROM tph WHERE blok = :blockId LIMIT 1")
     abstract suspend fun getTPHByBlockId(blockId: Int): TPHNewModel?
 
+    @Query("SELECT * FROM tph WHERE blok_ppro = :blockId LIMIT 1")
+    abstract suspend fun getTPHByBlockPPRO(blockId: Int): TPHNewModel?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertTPHAsistensi(tph: List<TPHNewModel>)
 
@@ -129,13 +131,13 @@ abstract class TPHDao {
 SELECT * FROM tph 
 WHERE dept = :idEstate 
 AND divisi = :idDivisi
-AND id IN (:tphIds)
+AND blok_kode = :blokKode
 """
     )
-    abstract fun getLatLonByDivisiAndTPHIds(
+    abstract fun getAllTPHInBlock(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>
+        blokKode: String
     ): List<TPHNewModel>
 
     // If you need the values separately, keep these queries as well

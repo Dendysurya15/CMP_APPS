@@ -1,13 +1,16 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.ParameterDao
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
+import okhttp3.Headers
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Response
@@ -17,8 +20,9 @@ import java.util.Locale
 
 class DataPanenInspectionRepository(
     context: Context,
+//    private val apiService: ApiService = ApiProvider.currentApiService
+//    private val apiService: ApiService = TestingAPIClient.instance,
     private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
 ){
 
     suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
@@ -33,8 +37,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.MILLISECOND, 999)
         val endDate = formatter.format(calendar.time)
 
-        // Start of 7 days ago (00:00:00 seven days ago)
-        calendar.add(Calendar.DAY_OF_YEAR, -6) // Go back 6 more days (total 7 days from today)
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -42,77 +45,196 @@ class DataPanenInspectionRepository(
         val startDate = formatter.format(calendar.time)
 
         AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
-
         AppLogger.d("estate $estate")
-        // Create the JSON request using JSONObject
-        val jsonObject = JSONObject().apply {
-            put("table", "panen")
-            put("select", JSONArray().apply {
-                put("id")
-                put("tph")
-                put("tph_nomor")
-                put("ancak")
-                put("tipe")
-                put("dept_abbr")
-                put("jjg_kirim")
-                put("spb_kode")
-                put("status_espb")
-                put("created_date")
-                put("created_by")
-                put("created_name")
-                put("kemandoran")
-            })
 
-            // Build WHERE clause with multiple conditions
-            put("where", JSONObject().apply {
-                // Estate condition - handle both Int and List<Int>
-                when (estate) {
-                    is Int -> {
-                        put("dept", estate)
-                    }
-                    is String -> {
-                        // Convert string to int, or handle as string depending on your API
-                        put("dept", estate.toIntOrNull() ?: estate)
-                        // OR if your API expects string IDs:
-                        // put("dept", estate)
-                    }
-                    is List<*> -> {
-                        put("dept", JSONObject().apply {
-                            put("in", JSONArray().apply {
-                                (estate as List<Int>).forEach { estateId ->
-                                    put(estateId)
-                                }
-                            })
-                        })
-                    }
-                    else -> {
-                        // Fallback to Int
-                        put("dept", estate as Int)
-                    }
+        // Helper function to build estate condition
+        fun buildEstateCondition(): Any {
+            return when (estate) {
+                is Int -> estate
+                is String -> estate.toIntOrNull() ?: estate
+                is List<*> -> JSONObject().apply {
+                    put("in", JSONArray().apply {
+                        (estate as List<Int>).forEach { estateId -> put(estateId) }
+                    })
                 }
+                else -> estate as Int
+            }
+        }
 
-                // Date range condition using BETWEEN with full datetime
-                put("created_date", JSONObject().apply {
-                    put("between", JSONArray().apply {
-                        put(startDate)
-                        put(endDate)
+        val allRecords = mutableListOf<JSONObject>()
+
+        // Step 1: Try to fetch records with standard fields (created_date)
+        try {
+            val standardQuery = JSONObject().apply {
+                put("table", "panen")
+                put("select", JSONArray().apply {
+                    put("id")
+                    put("tph")
+                    put("tph_nomor")
+                    put("asistensi")
+                    put("asistensi_dept")
+                    put("asistensi_dept_nama")
+                    put("asistensi_divisi")
+                    put("ancak")
+                    put("tipe")
+                    put("dept_abbr")
+                    put("jjg_kirim")
+                    put("jjg_masak")
+                    put("jjg_mentah")
+                    put("jjg_lewat_masak")
+                    put("jjg_kosong")
+                    put("jjg_abnormal")
+                    put("jjg_bayar")
+                    put("spb_kode")
+                    put("status_espb")
+                    put("created_date")
+                    put("created_by")
+                    put("created_name")
+                    put("kemandoran")
+                })
+
+                put("where", JSONObject().apply {
+                    put("dept", buildEstateCondition())
+                    put("created_date", JSONObject().apply {
+                        put("between", JSONArray().apply {
+                            put(startDate)
+                            put(endDate)
+                        })
                     })
                 })
+            }
+
+            val requestBody = standardQuery.toString().toRequestBody("application/json".toMediaType())
+            AppLogger.d("🔍 Query with created_date: $standardQuery")
+
+            val response = apiService.getDataRaw(requestBody)
+            val responseBody = response.body()?.string()
+
+            if (!responseBody.isNullOrEmpty()) {
+                val json = JSONObject(responseBody)
+                if (json.optBoolean("success")) {
+                    val data = json.optJSONArray("data")
+                    if (data != null && data.length() > 0) {
+                        for (i in 0 until data.length()) {
+                            allRecords.add(data.getJSONObject(i))
+                        }
+                        AppLogger.d("✅ Found ${data.length()} records with created_date")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("❌ Error fetching created_date records: ${e.message}")
+        }
+
+        // Step 2: Try to fetch records with _kp fields (created_date_kp)
+        try {
+            val kpQuery = JSONObject().apply {
+                put("table", "panen")
+                put("select", JSONArray().apply {
+                    put("id")
+                    put("tph")
+                    put("tph_nomor")
+                    put("asistensi")
+                    put("asistensi_dept")
+                    put("asistensi_dept_nama")
+                    put("asistensi_divisi")
+                    put("ancak")
+                    put("tipe")
+                    put("dept_abbr")
+                    put("jjg_kirim")
+                    put("jjg_masak")
+                    put("jjg_mentah")
+                    put("jjg_lewat_masak")
+                    put("jjg_kosong")
+                    put("jjg_abnormal")
+                    put("jjg_bayar")
+                    put("spb_kode")
+                    put("status_espb")
+                    put("created_date_kp")
+                    put("created_by_kp")
+                    put("created_name_kp")
+                    put("kemandoran")
+                })
+
+                put("where", JSONObject().apply {
+                    put("dept", buildEstateCondition())
+                    put("created_date_kp", JSONObject().apply {
+                        put("between", JSONArray().apply {
+                            put(startDate)
+                            put(endDate)
+                        })
+                    })
+                })
+            }
+
+            val requestBody = kpQuery.toString().toRequestBody("application/json".toMediaType())
+            AppLogger.d("🔍 Query with created_date_kp: $kpQuery")
+
+            val response = apiService.getDataRaw(requestBody)
+            val responseBody = response.body()?.string()
+
+            if (!responseBody.isNullOrEmpty()) {
+                val json = JSONObject(responseBody)
+                if (json.optBoolean("success")) {
+                    val data = json.optJSONArray("data")
+                    if (data != null && data.length() > 0) {
+                        // Normalize _kp fields to standard names before adding
+                        for (i in 0 until data.length()) {
+                            val item = data.getJSONObject(i)
+
+                            // Remap _kp fields to standard names
+                            if (item.has("created_date_kp")) {
+                                item.put("created_date", item.get("created_date_kp"))
+                                item.remove("created_date_kp")
+                            }
+                            if (item.has("created_by_kp")) {
+                                item.put("created_by", item.get("created_by_kp"))
+                                item.remove("created_by_kp")
+                            }
+                            if (item.has("created_name_kp")) {
+                                item.put("created_name", item.get("created_name_kp"))
+                                item.remove("created_name_kp")
+                            }
+
+                            allRecords.add(item)
+                        }
+                        AppLogger.d("✅ Found ${data.length()} records with created_date_kp (normalized)")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("❌ Error fetching created_date_kp records: ${e.message}")
+        }
+
+        // Step 3: Build final response with combined records
+        AppLogger.d("🎯 Total records found: ${allRecords.size}")
+
+        if (allRecords.isEmpty()) {
+            return Response.success(
+                ResponseBody.create("application/json".toMediaType(),
+                    """{"success":false,"message":"No data found"}""")
+            )
+        }
+
+        val finalResponse = JSONObject().apply {
+            put("success", true)
+            put("data", JSONArray().apply {
+                allRecords.forEach { record -> put(record) }
             })
         }
 
-        // Convert JSONObject to RequestBody
-        val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaType())
+        AppLogger.d("📤 Final combined response: ${finalResponse.toString(2)}")
 
-        AppLogger.d("jsonObject $jsonObject")
-        AppLogger.d("Data Panen Inspeksi API Request: ${jsonObject.toString()}")
+        val headers = Headers.Builder()
+            .add("Content-Type", "application/json")
+            .build()
 
-        return apiService.getDataRaw(requestBody)
+        val finalResponseBody = finalResponse.toString().toResponseBody("application/json".toMediaType())
+        return Response.success(finalResponseBody, headers)
     }
 
     suspend fun getDataInspeksi(
-        estate: Any, // Changed from Int to Any
-        afdeling: String,
+        estate: Any,
         joinTable: Boolean = true,
         parameterDao: ParameterDao
     ): Response<ResponseBody> {
@@ -160,13 +282,14 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        calendar.add(Calendar.WEEK_OF_YEAR, -1)
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val oneWeekAgo = formatter.format(calendar.time)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $oneWeekAgo to $today (inclusive, full datetime)")
+        AppLogger.d("Date range: $startDate to $today (inclusive, full datetime)")
 
 
 
@@ -189,6 +312,10 @@ class DataPanenInspectionRepository(
                 put("blok_nama")
                 put("tph_nomor")
                 put("ancak")
+                put("kemandoran_ppro_pemuat")
+                put("kemandoran_nama_pemuat")
+                put("nik_pemuat")
+                put("nama_pemuat")
                 put("tph")
                 put("tgl_inspeksi")
                 put("tgl_panen")
@@ -233,7 +360,7 @@ class DataPanenInspectionRepository(
                 // Date range condition using BETWEEN
                 put("tgl_inspeksi", JSONObject().apply {
                     put("between", JSONArray().apply {
-                        put(oneWeekAgo)
+                        put(startDate)
                         put(today)
                     })
                 })
@@ -244,7 +371,6 @@ class DataPanenInspectionRepository(
                 })
             })
 
-            // Add join if requested
             if (joinTable) {
                 put("join", JSONArray().apply {
                     put(JSONObject().apply {

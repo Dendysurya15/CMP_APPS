@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="Data yang akan dikirim:\n• Blok: -\n• Total JJG: 0\n• Total TPH: 0"
-        android:textSize="@dimen/m"
+        android:textSize="@dimen/s"
         android:fontFamily="@font/manrope_medium"
         android:textStyle="italic"
         app:layout_constraintTop_toBottomOf="@+id/dashedLine"

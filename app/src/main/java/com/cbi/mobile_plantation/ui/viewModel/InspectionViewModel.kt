@@ -151,16 +151,19 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
         jalur_masuk: String,
         jenis_kondisi: Int,
         baris: String,
-        foto_user:String,
-        jjg_panen : Int,
-        foto_user_pemulihan:String?= null,
+        foto_user: String,
+        jjg_panen: Int,
+        foto_user_pemulihan: String? = null,
         inspeksi_putaran: Int? = 1,
         jml_pkk_inspeksi: Int,
         tracking_path: String,
         app_version: String,
         status_upload: String,
         status_uploaded_image: String,
-        // New parameters for follow-up
+        kemandoran_ppro_pemuat: String = "",
+        kemandoran_nama_pemuat: String = "",
+        nik_pemuat: String = "",
+        nama_pemuat: String = "",
         isFollowUp: Boolean = false,
         existingInspectionId: Int? = null,
         tracking_path_pemulihan: String? = null,
@@ -192,6 +195,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                 }
             } else {
 
+                AppLogger.d( "kemandoran_ppro_pemuat = $kemandoran_ppro_pemuat")
+                AppLogger.d( "kemandoran_nama_pemuat = $kemandoran_nama_pemuat")
+                AppLogger.d( "nik_pemuat = $nik_pemuat")
+                AppLogger.d( "nama_pemuat = $nama_pemuat")
+                // Create new inspection with pemuat data
                 val inspectionData = InspectionModel(
                     created_date = created_date_start,
                     created_by = created_by,
@@ -209,7 +217,11 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     tracking_path = tracking_path,
                     app_version = app_version,
                     status_upload = status_upload,
-                    status_uploaded_image = status_uploaded_image
+                    status_uploaded_image = status_uploaded_image,
+                    kemandoran_ppro_pemuat = kemandoran_ppro_pemuat,
+                    kemandoran_nama_pemuat = kemandoran_nama_pemuat,
+                    nik_pemuat = nik_pemuat,
+                    nama_pemuat = nama_pemuat
                 )
 
                 val inspectionId = repository.insertInspectionData(inspectionData)
@@ -442,14 +454,14 @@ class InspectionViewModel(application: Application) : AndroidViewModel(applicati
                     parameterInspeksi.find { it.id == 4 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
-                    7, { pageData, _, _ -> if (pageData.neatPelepah == 1) 1 else 0 },
+                    7, { pageData, _, _ -> if (pageData.neatPelepah == 2) 1 else 0 },
                     parameterInspeksi.find { it.id == 7 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 7 }?.nama
                         ?: AppUtils.kodeInspeksi.susunanPelepahTidakSesuai,
                     parameterInspeksi.find { it.id == 7 }?.temuan_pokok ?: 1
                 ),
                 InspectionMapping(
-                    8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 1) 1 else 0 },
+                    8, { pageData, _, _ -> if (pageData.pelepahSengkleh == 2) 1 else 0 },
                     parameterInspeksi.find { it.id == 8 }?.status_ppro ?: 0,
                     parameterInspeksi.find { it.id == 8 }?.nama
                         ?: AppUtils.kodeInspeksi.terdapatPelepahSengkleh,

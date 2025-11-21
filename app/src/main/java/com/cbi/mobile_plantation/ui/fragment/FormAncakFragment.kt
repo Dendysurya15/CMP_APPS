@@ -58,39 +58,6 @@ class FormAncakFragment : Fragment() {
     private val errorViewsMap = mutableMapOf<Int, TextView>()
     private var isFragmentInitializing = false // Add this flag
     private var isUpdatingData = false
-    private val listRadioItems: Map<String, Map<String, String>> = mapOf(
-        "YesOrNoOrTitikKosong" to mapOf(
-            "1" to "Ya",
-            "2" to "Tidak",
-            "3" to "Titik Kosong"
-        ),
-        "YesOrNo" to mapOf(
-            "1" to "Ya",
-            "2" to "Tidak"
-        ),
-        "HighOrLow" to mapOf(
-            "1" to "Tinggi",
-            "2" to "Rendah"
-        ),
-            "ExistsOrNot" to mapOf(
-            "1" to "Ada",
-            "2" to "Tidak"
-        ),
-        "NeatOrNot" to mapOf(
-            "1" to "Standar",
-            "2" to "Tidak Standar"
-        ),
-        "PelepahType" to mapOf(
-            "1" to "Ada",
-            "2" to "Tidak ada"
-        ),
-        "PruningType" to mapOf(
-            "1" to "Normal",
-            "2" to "Over Pruning",
-            "3" to "Under Pruning"
-        )
-    )
-
     private var pageNumber: Int = 1
     private var featureName: String? = null
 
@@ -139,6 +106,12 @@ class FormAncakFragment : Fragment() {
         val tvNoPokok = view.findViewById<TextView>(R.id.tvNoPokokInspect)
         tvNoPokok.text = pageNumber.toString()
 
+//        val tvTotalPokok = view.findViewById<TextView>(R.id.tvTotalPokokInspect)
+//        viewModel.totalPages.observe(viewLifecycleOwner) { totalPages ->
+//            tvTotalPokok.text = totalPages.toString()
+//        }
+
+
         // Setup title observers
         setupTitleObservers(view)
 
@@ -149,17 +122,24 @@ class FormAncakFragment : Fragment() {
             if (pageData != null) {
                 AppLogger.d("Fragment $pageNumber received pageData update: ${pageData.pemanen.size} workers in pemanen")
 
-                // Populate RecyclerView based on pemanen field
-                populateRecyclerViewFromPemanen(pageData.pemanen)
+                val isStartFromTPH = viewModel.isStartFromTPH.value ?: true
+                populateRecyclerViewFromPemanen(pageData.pemanen, isStartFromTPH)
 
-                updateSpinnerWithAvailableWorkers(pageData.pemanen)
+                // Only call this when starting from TPH
+                if (isStartFromTPH) {
+                    updateSpinnerWithAvailableWorkers(pageData.pemanen)
+                }
             }
         }
 
         viewModel.availableWorkers.observe(viewLifecycleOwner) { allWorkers ->
             val currentPageData = viewModel.getPageData(pageNumber)
             if (currentPageData != null) {
-                updateSpinnerWithAvailableWorkers(currentPageData.pemanen)
+                // Only call this when starting from TPH
+                val isStartFromTPH = viewModel.isStartFromTPH.value ?: true
+                if (isStartFromTPH) {
+                    updateSpinnerWithAvailableWorkers(currentPageData.pemanen)
+                }
             }
         }
 
@@ -198,30 +178,80 @@ class FormAncakFragment : Fragment() {
         val linearLayout = view?.findViewById<LinearLayout>(R.id.lyPemanenTemuan) ?: return
         val spinner = linearLayout.findViewById<MaterialSpinner>(R.id.spPanenTBS) ?: return
 
-        if (availableWorkersForSpinner.isEmpty()) {
+        val isStartFromTPH = viewModel.isStartFromTPH.value ?: true
 
-            AppLogger.d("masuk sini ges")
-            spinner.hint = "Semua pemanen terpilih"
+        if (isStartFromTPH) {
+            // Original behavior - for TPH scan mode
+            if (availableWorkersForSpinner.isEmpty()) {
+                spinner.hint = "Semua pemanen terpilih"
+                spinner.setItems(emptyList<String>())
+                return
+            }
 
-            spinner.setItems(emptyList<String>())
-            return
+            spinner.hint = "Tambah Pemanen (${availableWorkersForSpinner.size} tersedia)"
+            spinner.setItems(availableWorkersForSpinner)
+
+            // Handle spinner selection
+            spinner.setOnItemSelectedListener { view, position, id, item ->
+                val selectedWorker = item.toString()
+                addWorkerBackToPage(selectedWorker)
+                spinner.text = ""
+                AppLogger.d("Selected worker from spinner: $selectedWorker")
+            }
+
+            AppLogger.d("Jared Drummler MaterialSpinner updated with ${availableWorkersForSpinner.size} available workers")
+        } else {
+            // New behavior - for Blok/Afdeling selection mode
+            if (availableWorkersForSpinner.isEmpty()) {
+                spinner.hint = "Tidak ada pemanen tersedia"
+                spinner.setItems(emptyList<String>())
+                return
+            }
+
+            spinner.hint = "Pilih Pemanen (${availableWorkersForSpinner.size} tersedia)"
+            spinner.setItems(availableWorkersForSpinner)
+
+            // Handle spinner selection
+            spinner.setOnItemSelectedListener { view, position, id, item ->
+                val selectedWorker = item.toString()
+
+                val firstDashIndex = selectedWorker.indexOf(" - ")
+                if (firstDashIndex != -1) {
+                    val nik = selectedWorker.substring(0, firstDashIndex).trim()
+                    val name = selectedWorker.substring(firstDashIndex + 3).trim()
+                    val worker = Worker(nik, selectedWorker)
+
+                    // Add directly to adapter
+                    selectedPemanenTemuanAdapter.addWorker(worker)
+                    updateRecyclerViewVisibility()
+
+                    // ✅ UPDATE VIEWMODEL
+                    val currentPageData = viewModel.getPageData(pageNumber) ?: PageData(pokokNumber = pageNumber)
+                    val updatedPemanen = currentPageData.pemanen.toMutableMap()
+                    updatedPemanen[nik] = name
+                    val updatedPageData = currentPageData.copy(pemanen = updatedPemanen)
+                    viewModel.updatePageData(pageNumber, updatedPageData)
+
+                    // Remove from spinner list and update spinner directly
+                    availableWorkersForSpinner.remove(selectedWorker)
+
+                    if (availableWorkersForSpinner.isEmpty()) {
+                        spinner.hint = "Tidak ada pemanen tersedia"
+                        spinner.setItems(emptyList<String>())
+                    } else {
+                        spinner.hint = "Pilih Pemanen (${availableWorkersForSpinner.size} tersedia)"
+                        spinner.setItems(availableWorkersForSpinner)
+                    }
+                }
+
+                spinner.text = ""
+                AppLogger.d("Selected worker from spinner (Blok/Afdeling mode): $selectedWorker")
+            }
+
+
+
+            AppLogger.d("Spinner populated with ${availableWorkersForSpinner.size} workers for Blok/Afdeling mode")
         }
-
-        spinner.hint = "Tambah Pemanen (${availableWorkersForSpinner.size} tersedia)"
-
-        spinner.setItems(availableWorkersForSpinner)
-
-        // Handle spinner selection
-        spinner.setOnItemSelectedListener { view, position, id, item ->
-            val selectedWorker = item.toString()
-            addWorkerBackToPage(selectedWorker)
-
-            spinner.text = ""
-
-            AppLogger.d("Selected worker from spinner: $selectedWorker")
-        }
-
-        AppLogger.d("Jared Drummler MaterialSpinner updated with ${availableWorkersForSpinner.size} available workers")
     }
 
     private fun addWorkerBackToPage(workerName: String) {
@@ -261,11 +291,46 @@ class FormAncakFragment : Fragment() {
 
     // Update the existing removePemanenFromPageData function
     private fun removePemanenFromPageData(removedWorker: Worker) {
-        val currentPageData = viewModel.getPageData(pageNumber) ?: return
+        val isStartFromTPH = viewModel.isStartFromTPH.value ?: true
 
+        if (!isStartFromTPH) {
+            // For Blok/Afdeling mode: handle manually without triggering observer
+            AppLogger.d("Manual remove for isStartFromTPH=false mode")
+
+            // ✅ UPDATE VIEWMODEL
+            val currentPageData = viewModel.getPageData(pageNumber) ?: return
+            val nik = removedWorker.id
+            val updatedPemanen = currentPageData.pemanen.toMutableMap()
+            updatedPemanen.remove(nik)
+            val updatedPageData = currentPageData.copy(pemanen = updatedPemanen)
+            viewModel.updatePageData(pageNumber, updatedPageData)
+
+            // Recalculate available workers based on current RecyclerView state
+            val currentWorkersInRecyclerView = selectedPemanenTemuanAdapter.getSelectedWorkers()
+            val allWorkers = viewModel.availableWorkers.value ?: emptyList()
+
+            availableWorkersForSpinner.clear()
+            allWorkers.forEach { workerName ->
+                val firstDashIndex = workerName.indexOf(" - ")
+                if (firstDashIndex != -1) {
+                    val nik = workerName.substring(0, firstDashIndex).trim()
+                    // Only add if NOT in RecyclerView
+                    val isInRecyclerView = currentWorkersInRecyclerView.any { it.id == nik }
+                    if (!isInRecyclerView) {
+                        availableWorkersForSpinner.add(workerName)
+                    }
+                }
+            }
+
+            updatePemanenSpinnerDropdown()
+
+            AppLogger.d("Added worker back to spinner: ${removedWorker.name}, Total available: ${availableWorkersForSpinner.size}")
+            return
+        }
+
+        val currentPageData = viewModel.getPageData(pageNumber) ?: return
         val nik = removedWorker.id
 
-        // Remove from page data
         val updatedPemanen = currentPageData.pemanen.toMutableMap()
         updatedPemanen.remove(nik)
 
@@ -273,34 +338,69 @@ class FormAncakFragment : Fragment() {
         viewModel.updatePageData(pageNumber, updatedPageData)
 
         AppLogger.d("Removed pemanen from page $pageNumber data: ${removedWorker.name}")
-
     }
 
-    private fun populateRecyclerViewFromPemanen(pemanenMap: Map<String, String>) {
+    private fun populateRecyclerViewFromPemanen(pemanenMap: Map<String, String>, isStartFromTPH: Boolean) {
         if (pemanenMap.isEmpty()) {
             AppLogger.d("No pemanen data for page $pageNumber")
             selectedPemanenTemuanAdapter.clearAllWorkers()
             updateRecyclerViewVisibility()
+
+            // For isStartFromTPH = false, populate spinner with ALL workers
+            if (!isStartFromTPH) {
+                availableWorkersForSpinner.clear()
+                val allWorkers = viewModel.availableWorkers.value ?: emptyList()
+                availableWorkersForSpinner.addAll(allWorkers)
+            } else {
+                availableWorkersForSpinner.clear()
+            }
+
+            updatePemanenSpinnerDropdown()
             return
         }
 
-        // Clear existing workers first
+        if (!isStartFromTPH) {
+
+            selectedPemanenTemuanAdapter.clearAllWorkers()
+
+            pemanenMap.forEach { (nik, name) ->
+                val workerDisplayName = "$nik - $name"
+                val worker = Worker(nik, workerDisplayName)
+                selectedPemanenTemuanAdapter.addWorker(worker)
+            }
+
+            updateRecyclerViewVisibility()
+
+            // Update spinner with remaining workers
+            availableWorkersForSpinner.clear()
+            val allWorkers = viewModel.availableWorkers.value ?: emptyList()
+
+            allWorkers.forEach { workerName ->
+                val firstDashIndex = workerName.indexOf(" - ")
+                if (firstDashIndex != -1) {
+                    val nik = workerName.substring(0, firstDashIndex).trim()
+                    if (!pemanenMap.containsKey(nik)) {
+                        availableWorkersForSpinner.add(workerName)
+                    }
+                }
+            }
+
+            updatePemanenSpinnerDropdown()
+            AppLogger.d("Updated - RecyclerView: ${pemanenMap.size} workers, Spinner: ${availableWorkersForSpinner.size} remaining")
+            return
+        }
+
+        // isStartFromTPH = true: populate RecyclerView
         selectedPemanenTemuanAdapter.clearAllWorkers()
 
-        // Convert pemanen map to Worker objects and add to RecyclerView
         pemanenMap.forEach { (nik, name) ->
             val workerDisplayName = "$nik - $name"
             val worker = Worker(nik, workerDisplayName)
-
-            // Add worker to RecyclerView
             selectedPemanenTemuanAdapter.addWorker(worker)
-
             AppLogger.d("Added worker to page $pageNumber RecyclerView: $workerDisplayName")
         }
 
-        // Show RecyclerView since it now has items
         updateRecyclerViewVisibility()
-
         AppLogger.d("Populated RecyclerView for page $pageNumber with ${pemanenMap.size} workers from pemanen field")
     }
 
@@ -347,7 +447,7 @@ class FormAncakFragment : Fragment() {
             ),
             InputMapping(
                 R.id.lyHarvestTreeNumber,
-                "", // You can change this title or leave empty ""
+                "Jumlah Janjang Panen", // You can change this title or leave empty ""
                 InputType.EDITTEXT,
                 { currentData, value -> currentData.copy(harvestJjg = value) }, // Assuming you have this field
                 { it.harvestJjg } // Assuming you have this field
@@ -423,7 +523,7 @@ class FormAncakFragment : Fragment() {
                 InputType.RADIO -> setupRadioGroup(
                     layoutId = layoutId,
                     titleText = label,
-                    itemList = listRadioItems[itemListMapping[layoutId] ?: "YesOrNo"] ?: emptyMap(),
+                    itemList = AppUtils.listRadioItems[itemListMapping[layoutId] ?: "YesOrNo"] ?: emptyMap(),
                     dataField = dataField,
                     currentValue = valueForThisPage
                 )
@@ -481,6 +581,7 @@ class FormAncakFragment : Fragment() {
     private fun updateRecyclerViewVisibility() {
         val rvSelectedPemanenTemuan = view?.findViewById<RecyclerView>(R.id.rvSelectedPemanenTemuan)
         val selectedWorkers = selectedPemanenTemuanAdapter.getSelectedWorkers()
+
 
         rvSelectedPemanenTemuan?.visibility = if (selectedWorkers.isNotEmpty()) {
             View.VISIBLE
@@ -671,7 +772,9 @@ class FormAncakFragment : Fragment() {
             updateHarvestTreeNumberVisibility(currentPageData.harvestTree)
             updateDependentLayoutVisibility(currentPageData.emptyTree)
 
-            populateRecyclerViewFromPemanen(currentPageData.pemanen)
+            // Get isStartFromTPH from ViewModel
+            val isStartFromTPH = viewModel.isStartFromTPH.value ?: true
+            populateRecyclerViewFromPemanen(currentPageData.pemanen, isStartFromTPH)
         }
 
         view?.post {
@@ -762,26 +865,34 @@ class FormAncakFragment : Fragment() {
                         return
                     }
 
-                    if (!s.isNullOrBlank()) {
-                        try {
-                            val enteredValue = s.toString().toInt()
+                    // Handle empty or blank text (user deleted everything)
+                    if (s.isNullOrBlank()) {
+                        editText.setText(minValue.toString())
+                        editText.setSelection(editText.text.length)
+                        saveNumericValue(minValue, dataField)
+                        return
+                    }
 
-                            val validatedValue = when {
-                                enteredValue < minValue -> minValue
-                                maxValue != null && enteredValue > maxValue -> maxValue
-                                else -> enteredValue
-                            }
+                    // Handle non-empty text
+                    try {
+                        val enteredValue = s.toString().toInt()
 
-                            if (enteredValue != validatedValue) {
-                                editText.setText(validatedValue.toString())
-                                editText.setSelection(editText.text.length)
-                            }
-
-                            saveNumericValue(validatedValue, dataField)
-                        } catch (e: NumberFormatException) {
-                            editText.setText(minValue.toString())
-                            saveNumericValue(minValue, dataField)
+                        val validatedValue = when {
+                            enteredValue < minValue -> minValue
+                            maxValue != null && enteredValue > maxValue -> maxValue
+                            else -> enteredValue
                         }
+
+                        if (enteredValue != validatedValue) {
+                            editText.setText(validatedValue.toString())
+                            editText.setSelection(editText.text.length)
+                        }
+
+                        saveNumericValue(validatedValue, dataField)
+                    } catch (e: NumberFormatException) {
+                        editText.setText(minValue.toString())
+                        editText.setSelection(editText.text.length)
+                        saveNumericValue(minValue, dataField)
                     }
                 }
             })
@@ -797,12 +908,36 @@ class FormAncakFragment : Fragment() {
     private fun updateDependentLayoutVisibility(selectedValue: Int) {
         val detailFormLayout = view?.findViewById<View>(R.id.lyDetailFormInspect)
         val jjgPanenLayout = view?.findViewById<View>(R.id.lyJjgPanenAKPInspect)
+        val harvestTreeInspectLayout = view?.findViewById<View>(R.id.lyHarvestTreeInspect)
+        val harvestTreeNumberLayout = view?.findViewById<View>(R.id.lyHarvestTreeNumber)
 
         val isInspection = viewModel.isInspection.value ?: true
         if (isInspection) {
-            detailFormLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
+            when (selectedValue) {
+                1 -> { // Ya - Show all elements
+                    harvestTreeInspectLayout?.visibility = View.VISIBLE
+                    detailFormLayout?.visibility = View.VISIBLE
+                }
+                2 -> { // Tidak - Show only harvest tree elements
+                    harvestTreeInspectLayout?.visibility = View.VISIBLE
+
+                    detailFormLayout?.visibility = View.GONE // Hide other elements
+                }
+                3 -> { // Titik Kosong - Hide everything
+                    harvestTreeInspectLayout?.visibility = View.GONE
+                    harvestTreeNumberLayout?.visibility = View.GONE
+                    detailFormLayout?.visibility = View.GONE
+                }
+                else -> { // Default case (including 0) - Hide everything initially
+                    harvestTreeInspectLayout?.visibility = View.GONE
+                    harvestTreeNumberLayout?.visibility = View.GONE
+                    detailFormLayout?.visibility = View.GONE
+                }
+            }
             jjgPanenLayout?.visibility = View.GONE
         } else {
+            harvestTreeInspectLayout?.visibility = View.GONE
+            harvestTreeNumberLayout?.visibility = View.GONE
             detailFormLayout?.visibility = View.GONE
             jjgPanenLayout?.visibility = if (selectedValue == 1) View.VISIBLE else View.GONE
         }

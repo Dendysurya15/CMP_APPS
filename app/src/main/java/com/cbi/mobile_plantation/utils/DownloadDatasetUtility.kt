@@ -19,9 +19,11 @@ class DownloadDatasetUtility(
     var isTriggerButtonSinkronisasiData = false
 
     fun getDatasetsToDownload(
+        creatorInfo:String,
+        createdBy:Int,
         regionalId: Int,
         estateId: Any,
-        afdelingId: String,
+        afdelingId: Any?,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetJenisTPH: String?,
@@ -37,32 +39,60 @@ class DownloadDatasetUtility(
         val jabatan = prefManager.jabatanUserLogin
         val regionalUser = prefManager.regionalIdUserLogin!!.toInt()
 
-        // Define user roles
         val userRole = getUserRole(jabatan!!)
 
         AppLogger.d("$TAG - User role: $userRole")
 
-        // Add role-specific datasets
         addRoleSpecificDatasets(
-            datasets, userRole, regionalId, estateId, afdelingId, regionalUser,lastModifiedDatasetKemandoran,
+            creatorInfo, createdBy,datasets, userRole, regionalId, estateId, regionalUser,lastModifiedDatasetKemandoran,
             lastModifiedDatasetEstate, lastModifiedDatasetTPH, lastModifiedDatasetBlok,
             lastModifiedDatasetPemanen
         )
 
-
-//        // Handle special triggers first (these override normal role-based logic)
         if (handleSpecialTriggers(datasets, userRole, estateId, afdelingId)) {
             return datasets
         }
 
-
         addCommonDatasets(
-            datasets,userRole, regionalId, estateId,afdelingId, lastModifiedDatasetJenisTPH,
-            lastModifiedDatasetKemandoran, lastModifiedDatasetTransporter,
+            datasets,userRole, regionalId,  lastModifiedDatasetJenisTPH,
+             lastModifiedDatasetTransporter,
             lastModifiedDatasetKendaraan, lastModifiedSettingJSON
         )
 
+//        addLateLoadingDatasets(
+//            creatorInfo, createdBy, datasets, userRole, estateId, afdelingId
+//        )
+
         return datasets
+    }
+
+    private fun addLateLoadingDatasets(
+        creatorInfo: String,
+        createdBy: Int,
+        datasets: MutableList<DatasetRequest>,
+        userRole: UserRole,
+        estateId: Any,
+        afdelingId: Any?
+    ) {
+        when (userRole) {
+            UserRole.MANDOR_PANEN -> {
+                datasets.add(
+                    DatasetRequest(
+                        estate = estateId,
+                        lastModified = "",
+                        afdeling = afdelingId,
+                        createdBy = createdBy,
+                        creatorInfo = creatorInfo,
+                        dataset = AppUtils.DatasetNames.hektaran
+                    )
+                )
+
+            }
+
+            else -> {
+
+            }
+        }
     }
 
     private enum class UserRole {
@@ -74,6 +104,7 @@ class DownloadDatasetUtility(
         ASKEP,
         MANAGER,
         GM,
+        RH,
         OTHER
     }
 
@@ -119,6 +150,11 @@ class DownloadDatasetUtility(
                 ignoreCase = true
             ) -> UserRole.GM
 
+            jabatan.contains(
+                AppUtils.ListFeatureByRoleUser.RH,
+                ignoreCase = true
+            ) -> UserRole.RH
+
             else -> UserRole.OTHER
         }
     }
@@ -127,10 +163,10 @@ class DownloadDatasetUtility(
         datasets: MutableList<DatasetRequest>,
         userRole: UserRole,
         estateId: Any,
-        afdelingId: String
+        afdelingId: Any?
     ): Boolean {
 
-        // Only add other datasets if NOT follow-up trigger
+//        // Only add other datasets if NOT follow-up trigger
         if (isTriggerButtonSinkronisasiData && userRole != UserRole.KERANI_PANEN && userRole != UserRole.KERANI_TIMBANG) {
             datasets.add(
                 DatasetRequest(
@@ -242,34 +278,39 @@ class DownloadDatasetUtility(
             DatasetRequest(
                 lastModified = null,
                 idUser = prefManager.idUserLogin,
+                estate = prefManager.estateIdUserLogin,
                 dataset = AppUtils.DatasetNames.sinkronisasiDataUser
             )
         )
     }
 
     private fun addRoleSpecificDatasets(
+        creatorInfo:String,
+        createdBy:Int,
         datasets: MutableList<DatasetRequest>,
         userRole: UserRole,
         regionalId: Int,
         estateId: Any,
-        afdelingId: String,
         regionalUser: Int,
-        lastModifiedDatasetKemandoran:String?,
+        lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetEstate: String?,
         lastModifiedDatasetTPH: String?,
         lastModifiedDatasetBlok: String?,
         lastModifiedDatasetPemanen: String?
     ) {
-        AppLogger.d("alskjdlkajsd flkjsflk j")
+        AppLogger.d("userRole $userRole")
+
         when (userRole) {
             UserRole.KERANI_TIMBANG -> {
                 addKeraniTimbangDatasets(
-                    datasets, regionalUser, estateId, regionalId,lastModifiedDatasetEstate,lastModifiedDatasetKemandoran,
+                    datasets, regionalUser, estateId, regionalId,
+                    lastModifiedDatasetEstate, lastModifiedDatasetKemandoran,
                     lastModifiedDatasetBlok, lastModifiedDatasetTPH, lastModifiedDatasetPemanen
                 )
             }
 
-            UserRole.MANDOR_PANEN, UserRole.MANDOR_1, UserRole.ASISTEN -> {
+            // MANDOR_1 and ASISTEN share the same datasets
+            UserRole.MANDOR_1, UserRole.ASISTEN -> {
                 addMandorDatasets(
                     datasets,
                     regionalUser,
@@ -282,57 +323,91 @@ class DownloadDatasetUtility(
                 )
             }
 
-            UserRole.KERANI_PANEN, UserRole.MANAGER, UserRole.ASKEP, UserRole.OTHER -> {
-                addDefaultUserDatasets(
-                    datasets, estateId, regionalUser,lastModifiedDatasetKemandoran,lastModifiedDatasetBlok,
-                    lastModifiedDatasetTPH, lastModifiedDatasetPemanen, lastModifiedDatasetEstate
+
+            UserRole.MANDOR_PANEN -> {
+                addMandorPanenDatasets(
+                    datasets,
+                    regionalUser,
+                    estateId,
+                    lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetBlok,
+                    lastModifiedDatasetTPH,
+                    lastModifiedDatasetPemanen,
+                    lastModifiedDatasetEstate
                 )
             }
 
-            UserRole.GM -> {
-                addGMDatasets(
-                    datasets,  regionalUser,estateId,lastModifiedDatasetKemandoran,lastModifiedDatasetBlok,
-                    lastModifiedDatasetPemanen, lastModifiedDatasetEstate
+
+            UserRole.KERANI_PANEN, UserRole.MANAGER, UserRole.ASKEP, UserRole.OTHER -> {
+                addDefaultUserDatasets(
+                    datasets,
+                    estateId,
+                    regionalUser,
+                    lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetBlok,
+                    lastModifiedDatasetTPH,
+                    lastModifiedDatasetPemanen,
+                    lastModifiedDatasetEstate
+                )
+            }
+
+            UserRole.GM, UserRole.RH -> {
+                val userRole = if (userRole == UserRole.GM) {
+                    AppUtils.ListFeatureByRoleUser.GM
+                } else {
+                    AppUtils.ListFeatureByRoleUser.RH
+                }
+
+                addGMandRHDatasets(
+                    datasets,
+                    regionalUser,
+                    estateId,
+                    lastModifiedDatasetBlok,
+                    lastModifiedDatasetKemandoran,
+                    lastModifiedDatasetTPH,
+                    lastModifiedDatasetPemanen,
+                    userRole
                 )
             }
         }
     }
 
-    private fun addGMDatasets(
+
+    private fun addGMandRHDatasets(
         datasets: MutableList<DatasetRequest>,
         regionalId: Int,
         estateId: Any,
         lastModifiedDatasetBlok: String?,
-        lastModifiedDatasetKemandoran:String?,
+        lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTPH: String?,
-        lastModifiedDatasetPemanen: String?
+        lastModifiedDatasetPemanen: String?,
+        userRole: String  // ✅ Pass the actual role (GM or RH)
     ) {
-        AppLogger.d("ksjdlkfjs lkfjsldfj")
         datasets.addAll(
             listOf(
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetBlok,
                     dataset = AppUtils.DatasetNames.blok,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 ),
                 DatasetRequest(
                     estate = estateId,
                     lastModified = lastModifiedDatasetTPH,
                     dataset = AppUtils.DatasetNames.tph,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetKemandoran,
                     dataset = AppUtils.DatasetNames.kemandoran,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 ),
                 DatasetRequest(
                     regional = regionalId,
                     lastModified = lastModifiedDatasetPemanen,
                     dataset = AppUtils.DatasetNames.pemanen,
-                    jabatan = AppUtils.ListFeatureByRoleUser.GM
+                    jabatan = userRole  // ✅ Use the actual role
                 )
             )
         )
@@ -379,6 +454,29 @@ class DownloadDatasetUtility(
             )
         )
     }
+
+    private fun addMandorPanenDatasets(
+        datasets: MutableList<DatasetRequest>,
+        regionalUser: Int,
+        estateId: Any,
+        lastModifiedDatasetKemandoran: String?,
+        lastModifiedDatasetBlok: String?,
+        lastModifiedDatasetTPH: String?,
+        lastModifiedDatasetPemanen: String?,
+        lastModifiedDatasetEstate: String?
+    ) {
+        addMandorDatasets(
+            datasets,
+            regionalUser,
+            estateId,
+            lastModifiedDatasetKemandoran,
+            lastModifiedDatasetBlok,
+            lastModifiedDatasetTPH,
+            lastModifiedDatasetPemanen,
+            lastModifiedDatasetEstate
+        )
+    }
+
 
     private fun addMandorDatasets(
         datasets: MutableList<DatasetRequest>,
@@ -466,10 +564,8 @@ class DownloadDatasetUtility(
         datasets: MutableList<DatasetRequest>,
         userRole: UserRole,
         regionalId: Int,
-        estateId: Any,
-        afdelingId: String,
+
         lastModifiedDatasetJenisTPH: String?,
-        lastModifiedDatasetKemandoran: String?,
         lastModifiedDatasetTransporter: String?,
         lastModifiedDatasetKendaraan: String?,
         lastModifiedSettingJSON: String?
@@ -484,6 +580,7 @@ class DownloadDatasetUtility(
             UserRole.ASKEP -> AppUtils.ListFeatureByRoleUser.ASKEP
             UserRole.MANAGER -> AppUtils.ListFeatureByRoleUser.Manager
             UserRole.GM -> AppUtils.ListFeatureByRoleUser.GM
+            UserRole.RH -> AppUtils.ListFeatureByRoleUser.RH
             UserRole.OTHER -> null
         }
 

@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -575,6 +576,10 @@ class CameraRepository(
                                                 ""
                                             }
 
+
+                                        AppLogger.d("lat $latitude")
+                                        AppLogger.d("long $longitude")
+
                                         AppLogger.d("sourceFoto $sourceFoto")
                                         val userInfo =
                                             "${sourceFoto}\n${prefManager!!.nameUserLogin}"
@@ -769,9 +774,12 @@ class CameraRepository(
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.apply {
             setOnClickListener {
+
+                AppLogger.d("=== CAMERA CAPTURE CLICKED ===")
+
                 // Check if in portrait mode before capturing
                 if (isInPortraitMode(orientationHandler)) {
-                    // Prevent capture in portrait mode
+                    AppLogger.d("❌ CAPTURE FAILED: Portrait mode")
                     vibrate(context)
                     Toast.makeText(
                         context,
@@ -781,14 +789,69 @@ class CameraRepository(
                     return@setOnClickListener
                 }
 
+                // Check if button is already disabled (processing)
+                if (!isEnabled) {
+                    AppLogger.d("❌ CAPTURE FAILED: Button already disabled/processing")
+                    Toast.makeText(
+                        context,
+                        "Sedang memproses foto, mohon tunggu...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                // Check camera components
+                AppLogger.d("Camera state check:")
+                AppLogger.d("- cameraDevice: ${cameraDevice != null}")
+                AppLogger.d("- imageReader: ${imageReader != null}")
+                AppLogger.d("- cameraCaptureSession: ${cameraCaptureSession != null}")
+                AppLogger.d("- latitude: $latitude")
+                AppLogger.d("- longitude: $longitude")
+
+                // Validate required components
+                when {
+                    cameraDevice == null -> {
+                        AppLogger.e("❌ CAPTURE FAILED: cameraDevice is null")
+                        showCameraError(context, "Kamera tidak tersedia. Silakan coba lagi.")
+                        return@setOnClickListener
+                    }
+
+                    imageReader == null -> {
+                        AppLogger.e("❌ CAPTURE FAILED: imageReader is null")
+                        showCameraError(context, "ImageReader tidak tersedia. Silakan restart kamera.")
+                        return@setOnClickListener
+                    }
+
+                    cameraCaptureSession == null -> {
+                        AppLogger.e("❌ CAPTURE FAILED: cameraCaptureSession is null")
+                        showCameraError(context, "Sesi kamera tidak aktif. Silakan restart kamera.")
+                        return@setOnClickListener
+                    }
+
+                    latitude == null || longitude == null -> {
+                        AppLogger.e("❌ CAPTURE FAILED: Location not available - lat: $latitude, lon: $longitude")
+                        showCameraError(context, "Lokasi tidak tersedia. Pastikan GPS aktif dan coba lagi.")
+                        return@setOnClickListener
+                    }
+
+                    latitude == 0.0 || longitude == 0.0 -> {
+                        AppLogger.e("❌ CAPTURE FAILED: Invalid location coordinates - lat: $latitude, lon: $longitude")
+                        showCameraError(context, "Koordinat lokasi tidak valid. Pastikan GPS mendapat sinyal yang baik.")
+                        return@setOnClickListener
+                    }
+                }
+
+                // All checks passed, proceed with capture
+                AppLogger.d("✅ All checks passed, proceeding with capture")
                 isEnabled = false
 
-                if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
+                try {
                     capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                     capReq.addTarget(imageReader!!.surface)
 
                     // Apply the same flash settings for the actual photo capture
                     if (isFlashlightOn) {
+                        AppLogger.d("Applying flash settings for capture")
                         capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
                         capReq.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                         capReq.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 2)
@@ -796,6 +859,7 @@ class CameraRepository(
                         capReq.set(CaptureRequest.CONTROL_AE_LOCK, true)
                     }
 
+                    AppLogger.d("Starting capture...")
                     cameraCaptureSession?.capture(
                         capReq.build(),
                         object : CameraCaptureSession.CaptureCallback() {
@@ -805,10 +869,12 @@ class CameraRepository(
                                 result: TotalCaptureResult
                             ) {
                                 super.onCaptureCompleted(session, request, result)
+                                AppLogger.d("✅ Capture completed successfully")
 
                                 // Re-enable button after a short delay
                                 Handler(Looper.getMainLooper()).postDelayed({
                                     isEnabled = true
+                                    AppLogger.d("Capture button re-enabled")
                                 }, 800)
                             }
 
@@ -818,21 +884,57 @@ class CameraRepository(
                                 failure: CaptureFailure
                             ) {
                                 super.onCaptureFailed(session, request, failure)
+                                AppLogger.e("❌ Capture failed: ${failure.reason}")
 
-                                // Re-enable button after a short delay
                                 Handler(Looper.getMainLooper()).postDelayed({
                                     isEnabled = true
+                                    showCameraError(context, "Gagal mengambil foto. Silakan coba lagi.")
                                 }, 800)
+                            }
+
+                            override fun onCaptureStarted(
+                                session: CameraCaptureSession,
+                                request: CaptureRequest,
+                                timestamp: Long,
+                                frameNumber: Long
+                            ) {
+                                super.onCaptureStarted(session, request, timestamp, frameNumber)
+                                AppLogger.d("Capture started at timestamp: $timestamp")
+
+                                // Provide immediate feedback
+                                vibrate(context)
+
+                                // Optional: Show a brief "capturing" indicator
+                                Handler(Looper.getMainLooper()).post {
+                                    Toast.makeText(context, "Mengambil foto...", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         },
                         null
                     )
-                } else {
+                } catch (e: Exception) {
+                    AppLogger.e("❌ Exception during capture: ${e.message}")
                     isEnabled = true
+                    showCameraError(context, "Error saat mengambil foto: ${e.message}")
                 }
             }
         }
 
+    }
+
+    private fun showCameraError(context: Context, message: String) {
+        if (context is Activity) {
+            AlertDialogUtility.withSingleAction(
+                context,
+                "OK",
+                "Error Kamera",
+                message,
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+        } else {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
     }
 
 

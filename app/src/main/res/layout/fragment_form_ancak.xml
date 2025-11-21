@@ -143,10 +143,33 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:fontFamily="@font/manrope_extrabold"
-
+android:text="1"
                     android:textColor="@color/black"
                     android:textSize="40dp"
                     tools:ignore="HardcodedText,RtlHardcoded,SpUsage" />
+
+<!--                <TextView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="match_parent"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:fontFamily="@font/manrope_bold"-->
+<!--                    android:text="/"-->
+<!--                    android:gravity="center"-->
+<!--                    android:textColor="@color/graydarker"-->
+<!--                    android:textSize="25dp"-->
+<!--                    tools:ignore="HardcodedText,SpUsage" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvTotalPokokInspect"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="match_parent"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:fontFamily="@font/manrope_bold"-->
+<!--                    android:text="100"-->
+<!--                    android:gravity="center"-->
+<!--                    android:textColor="@color/graydarker"-->
+<!--                    android:textSize="25dp"-->
+<!--                    tools:ignore="HardcodedText,SpUsage" />-->
 
             </LinearLayout>
 
@@ -161,6 +184,15 @@
             layout="@layout/pane_number_layout"
             android:visibility="gone" />
 
+        <include
+            android:id="@+id/lyHarvestTreeInspect"
+            layout="@layout/pertanyaan_spinner_layout" />
+
+        <include
+            android:id="@+id/lyHarvestTreeNumber"
+            layout="@layout/pane_number_wide_layout" />
+
+
         <LinearLayout
             android:id="@+id/lyDetailFormInspect"
             android:layout_width="match_parent"
@@ -173,13 +205,6 @@
 <!--                android:id="@+id/lyPrioritasInspect"-->
 <!--                layout="@layout/pertanyaan_spinner_layout" />-->
 
-            <include
-                android:id="@+id/lyHarvestTreeInspect"
-                layout="@layout/pertanyaan_spinner_layout" />
-
-            <include
-                android:id="@+id/lyHarvestTreeNumber"
-                layout="@layout/pane_number_wide_layout" />
 
             <include
                 android:id="@+id/lyNeatPelepahInspect"

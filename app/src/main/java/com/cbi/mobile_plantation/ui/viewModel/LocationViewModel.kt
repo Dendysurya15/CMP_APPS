@@ -41,7 +41,7 @@ import com.google.android.material.snackbar.Snackbar
 
 class LocationViewModel(
     application: Application,
-    private val imageView: ImageView,
+    private val imageView: ImageView?,
     private val activity: Activity,
     private val boundaryAccuracy: Float = 10f  // Add this parameter
 ) : AndroidViewModel(application) {
@@ -120,8 +120,8 @@ class LocationViewModel(
                         if (isAirplaneMode) {
                             stopLocationUpdates()
                             showAirplaneModeSnackbar()
-                            imageView.setImageResource(R.drawable.baseline_wrong_location_24)
-                            imageView.imageTintList = ColorStateList.valueOf(
+                            imageView?.setImageResource(R.drawable.baseline_wrong_location_24)
+                            imageView?.imageTintList = ColorStateList.valueOf(
                                 activity.resources.getColor(R.color.colorRedDark)
                             )
                         } else {
@@ -172,8 +172,8 @@ class LocationViewModel(
         val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
 
         if (!isLocationEnabled) {
-            imageView.setImageResource(R.drawable.baseline_wrong_location_24)
-            imageView.imageTintList = ColorStateList.valueOf(
+            imageView?.setImageResource(R.drawable.baseline_wrong_location_24)
+            imageView?.imageTintList = ColorStateList.valueOf(
                 activity.resources.getColor(R.color.colorRedDark)
             )
             promptLocationSettings()
@@ -333,8 +333,8 @@ class LocationViewModel(
                 }
             }
             .addOnFailureListener { e ->
-                imageView.setImageResource(R.drawable.baseline_wrong_location_24)
-                imageView.imageTintList = ColorStateList.valueOf(
+                imageView?.setImageResource(R.drawable.baseline_wrong_location_24)
+                imageView?.imageTintList = ColorStateList.valueOf(
                     activity.resources.getColor(R.color.colorRedDark)
                 )
 
@@ -365,19 +365,18 @@ class LocationViewModel(
     private fun updateLocationIcon(isEnabled: Boolean, accuracy: Float? = null) {
         _locationIconState.value = isEnabled
 
-        // Determine if location is good based on both enabled state and accuracy
         val isLocationGood = isEnabled && (accuracy == null || accuracy <= boundaryAccuracy)
 
-        imageView.setImageResource(
+        // Only update if imageView exists
+        imageView?.setImageResource(
             if (isLocationGood) R.drawable.baseline_location_on_24
             else R.drawable.baseline_wrong_location_24
         )
-        imageView.imageTintList = ColorStateList.valueOf(
+        imageView?.imageTintList = ColorStateList.valueOf(
             activity.resources.getColor(
                 if (isLocationGood) R.color.greenbutton else R.color.colorRedDark
             )
         )
-
     }
 
     fun refreshLocationStatus() {
@@ -411,7 +410,7 @@ class LocationViewModel(
     @Suppress("UNCHECKED_CAST")
     class Factory(
         private val application: Application,
-        private val imageView: ImageView,
+        private val imageView: ImageView?,
         private val activity: Activity,
         private val boundaryAccuracy: Float = 10f  // Add this parameter
     ) : ViewModelProvider.Factory {

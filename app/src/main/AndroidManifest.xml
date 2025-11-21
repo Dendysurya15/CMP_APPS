@@ -87,6 +87,7 @@
         <!-- android:exported="false" /> -->
         <activity
             android:name=".ui.view.Inspection.FormInspectionActivity"
+            android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".ui.view.Inspection.ListInspectionActivity"

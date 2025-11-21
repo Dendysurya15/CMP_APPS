@@ -335,7 +335,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Upload Data CMP"
 
-            uploadCMPViewModel.uploadMultipleJsonsV3(itemsToUpload)
+            uploadCMPViewModel.uploadMultipleJsonsV5(itemsToUpload,prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
 
         }
 
@@ -997,7 +997,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                                     // Fetch the TPH data if we have a block ID
                                                     firstBlockId?.let { blockId ->
-                                                        weightBridgeViewModel.fetchTPHByBlockId(
+                                                        weightBridgeViewModel.fetchTPHByBlockPPRO(
                                                             blockId
                                                         )
 
@@ -1021,15 +1021,21 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "wilayah" to (tphData?.wilayah ?: ""),
                                                         "company" to (tphData?.company ?: ""),
                                                         "dept" to (tphData?.dept ?: ""),
+                                                        "dept_abbr" to (tphData?.dept_abbr ?: ""),
+                                                        "dept_nama" to (tphData?.dept_nama ?: ""),
                                                         "divisi" to (tphData?.divisi ?: ""),
+                                                        "divisi_abbr" to (tphData?.divisi_abbr ?: ""),
+                                                        "divisi_nama" to (tphData?.divisi_nama ?: ""),
                                                         "blok_id" to concatenatedIds,
                                                         "blok_jjg" to data.blok_jjg,
                                                         "jjg" to totalJjg,
                                                         "created_by_id" to data.created_by_id,
                                                         "created_at" to data.created_at,
+                                                        "created_name" to data.created_name,
                                                         "pemuat_id" to data.pemuat_id,
                                                         "kemandoran_id" to data.kemandoran_id,
                                                         "pemuat_nik" to data.pemuat_nik,
+                                                        "pemuat_nama" to data.pemuat_nama,
                                                         "nopol" to data.nopol,
                                                         "driver" to data.driver,
                                                         "updated_nama" to prefManager!!.nameUserLogin.toString(),

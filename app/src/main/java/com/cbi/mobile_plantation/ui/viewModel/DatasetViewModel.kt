@@ -25,18 +25,26 @@ import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
+
 import com.cbi.mobile_plantation.data.database.DepartmentInfo
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
+import com.cbi.mobile_plantation.data.model.DownloadMapResponse
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.InspectionDetailModel
 import com.cbi.mobile_plantation.data.model.InspectionModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.PanenEntity
+import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.ParameterModel
+import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.repository.DataPanenInspectionRepository
+import com.cbi.mobile_plantation.data.repository.DownloadIDMapRepository
+import com.cbi.mobile_plantation.data.repository.HektaranPanenRepository
 import com.cbi.mobile_plantation.data.repository.RestanRepository
+import com.cbi.mobile_plantation.data.repository.SaveTPHResult
 import com.cbi.mobile_plantation.data.repository.SyncDataUserRepository
 import com.cbi.mobile_plantation.data.repository.VersioningAppRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
@@ -65,6 +73,9 @@ import retrofit2.Response
 import java.io.File
 import java.lang.reflect.Parameter
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -73,6 +84,10 @@ import java.util.Locale
 @Suppress("NAME_SHADOWING")
 class DatasetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: DatasetRepository = DatasetRepository(application)
+
+    private val appRepository: AppRepository = AppRepository(application)
+    private val hektarPanenRepository: HektaranPanenRepository =
+        HektaranPanenRepository(application)
     private val restanRepository: RestanRepository = RestanRepository(application)
     private val syncDataUserRepository: SyncDataUserRepository = SyncDataUserRepository(application)
     private val versioningAppRepository: VersioningAppRepository =
@@ -80,6 +95,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
     private val dataPanenInspectionRepository: DataPanenInspectionRepository =
         DataPanenInspectionRepository(application)
     private val prefManager = PrefManager(application)
+
+    private val downloadMapRepository = DownloadIDMapRepository()
 
     private val database = AppDatabase.getDatabase(application)
     private val uploadCMPDao = database.uploadCMPDao()
@@ -139,6 +156,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
     private val _tphStatus = MutableStateFlow<Result<Boolean>>(Result.success(false))
     val tphStatus: StateFlow<Result<Boolean>> = _tphStatus.asStateFlow()
+
+    private val _downloadMapList = MutableLiveData<Result<DownloadMapResponse>>()
+    val downloadMapList: LiveData<Result<DownloadMapResponse>> = _downloadMapList
+
+    private val _downloadMapProgress = MutableLiveData<Result<DownloadMapProgressResponse>>()
+    val downloadMapProgress: LiveData<Result<DownloadMapProgressResponse>> = _downloadMapProgress
+
 
     private val _fetchStatusUploadCMPLiveData = MutableLiveData<List<FetchResponseItem>>()
     val fetchStatusUploadCMPLiveData: LiveData<List<FetchResponseItem>> =
@@ -771,12 +795,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         return repository.getLatLonDivisi(idEstate, idDivisi)
     }
 
-    suspend fun getLatLonDivisiByTPHIds(
+    suspend fun getAllTPHInBlock(
         idEstate: Int,
         idDivisi: Int,
-        tphIds: List<Int>
+        blokKode: String
     ): List<TPHNewModel> {
-        return repository.getLatLonDivisiByTPHIds(idEstate, idDivisi, tphIds)
+        return repository.getAllTPHInBlock(idEstate, idDivisi, blokKode)
     }
 
     private val _isCompleted = MutableLiveData<Boolean>(false)
@@ -786,6 +810,31 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         val fileName: String,
         val message: String
     )
+
+
+
+    fun getDownloadMapList() {
+        viewModelScope.launch {
+            try {
+                val result = downloadMapRepository.getDownloadMapList()
+                _downloadMapList.postValue(result)
+            } catch (e: Exception) {
+                AppLogger.e("Error in getDownloadMapList: ${e.message}")
+                _downloadMapList.postValue(Result.failure(e))
+            }
+        }
+    }
+
+    // Change this function signature
+    suspend fun getDownloadMapProgress(downloadId: String): Result<DownloadMapProgressResponse> {
+        return try {
+            // Call repository directly and return the result
+            downloadMapRepository.getDownloadMapProgress(downloadId)
+        } catch (e: Exception) {
+            AppLogger.e("Error in getDownloadMapProgress: ${e.message}")
+            Result.failure(e)
+        }
+    }
 
     fun updateLocalUploadCMP(
         uploadData: List<Pair<String, String>>,
@@ -1110,7 +1159,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             progressMap[item.id] = 0
             errorMap[item.id] = null
         }
-
         // Update LiveData with initial values
         _itemStatusMap.value = statusMap.toMap()
         _itemProgressMap.value = progressMap.toMap()
@@ -1207,20 +1255,36 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     AppLogger.d("Downloading dataset for ${modifiedRequest.estateAbbr}/ ${modifiedRequest.dataset}")
 
-
                     var response: Response<ResponseBody>? = null
                     if (request.dataset == AppUtils.DatasetNames.mill) {
                         response = repository.downloadSmallDataset(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.estate) {
                         response = repository.downloadListEstate(request.regional ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
-                        response =
-                            restanRepository.getDataRestan(
+                        // Skip restan data for askep and manager users since they can have multiple afdelings
+                        if (
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager
+                        ) {
+
+                            response = restanRepository.getDataRestan(
                                 request.estate.toString().toInt(),
-                                request.afdeling!!
+                                request.afdeling.toString()
                             )
+                        } else {
+                            progressMap[itemId] = 100
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.UPTODATE
+                            errorMap[itemId] = "Skipped for multiple afdeling users"
+
+                            _itemProgressMap.postValue(progressMap.toMap())
+                            _itemStatusMap.postValue(statusMap.toMap())
+                            _itemErrorMap.postValue(errorMap.toMap())
+
+                            incrementCompletedCount()
+                            continue // Skip to next item
+                        }
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
-                        response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
+                            response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
@@ -1245,7 +1309,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             estateId!!,
-                            request.afdeling!!,
                             true,
                             parameterDao
                         )
@@ -1253,6 +1316,139 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadSettingJson(request.lastModified ?: "")
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
+                    } else if (request.dataset == AppUtils.DatasetNames.hektaran) {
+                        val estateId: Int = when (val estate = request.estate) {
+                            is Int -> estate
+                            is String -> estate.toIntOrNull() ?: 0
+                            is List<*> -> (estate.firstOrNull() as? Int) ?: 0
+                            else -> 0
+                        }
+
+                        val afdelingId: Int = when (val estate = request.afdeling) {
+                            is Int -> estate
+                            is String -> estate.toIntOrNull() ?: 0
+                            is List<*> -> (estate.firstOrNull() as? Int) ?: 0
+                            else -> 0
+                        }
+                        response =
+                            hektarPanenRepository.getDataHektaranHektarDetail(estateId, afdelingId)
+
+                    } else if (request.downloadIdMap != null && request.totalChunks != null) {
+                        // Handle offline map download
+                        try {
+                            // Use fields directly - no need to parse data
+                            val downloadId = request.downloadIdMap!!
+                            val totalChunks = request.totalChunks!!
+
+                            AppLogger.d("Starting offline map download - ID: $downloadId, Chunks: $totalChunks")
+
+                            // Create map offline directory
+                            val mapOfflineDir = File(
+                                getApplication<Application>().getExternalFilesDir(null),
+                                "map_offline/${request.estateAbbr}"
+                            )
+
+                            if (!mapOfflineDir.exists()) {
+                                mapOfflineDir.mkdirs()
+                            }
+
+                            AppLogger.d("Map offline directory: ${mapOfflineDir.absolutePath}")
+
+                            // Download each chunk with progress
+                            var downloadedChunks = 0
+                            val chunkFiles = mutableListOf<File>()
+
+                            for (chunkIndex in 0 until totalChunks) {
+                                try {
+                                    // Calculate progress (0-100%)
+                                    val progress =
+                                        ((chunkIndex.toFloat() / totalChunks) * 100).toInt()
+                                    progressMap[itemId] = progress
+                                    statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADING
+                                    _itemProgressMap.postValue(progressMap.toMap())
+                                    _itemStatusMap.postValue(statusMap.toMap())
+
+                                    // Log with 1-based indexing for readability (chunk 1 of 10)
+                                    AppLogger.d("Downloading chunk ${chunkIndex + 1}/$totalChunks (${progress}%)")
+
+                                    // Download chunk using 0-based index for API
+                                    val chunkResponse = downloadMapRepository.downloadMapChunk(
+                                        downloadId,
+                                        chunkIndex
+                                    )
+
+                                    if (chunkResponse.isSuccessful) {
+                                        val chunkFile = File(
+                                            mapOfflineDir,
+                                            "chunk_${String.format("%03d", chunkIndex)}.bin"
+                                        )
+
+                                        // Save chunk to file
+                                        withContext(Dispatchers.IO) {
+                                            chunkResponse.body()?.byteStream()?.use { input ->
+                                                chunkFile.outputStream().use { output ->
+                                                    input.copyTo(output)
+                                                }
+                                            }
+                                        }
+
+                                        chunkFiles.add(chunkFile)
+                                        downloadedChunks++
+
+                                        AppLogger.d("Chunk ${chunkIndex + 1}/$totalChunks saved: ${chunkFile.name} (${chunkFile.length()} bytes)")
+                                    } else {
+                                        throw Exception("Failed to download chunk ${chunkIndex + 1}/$totalChunks: ${chunkResponse.code()}")
+                                    }
+
+                                } catch (e: Exception) {
+                                    AppLogger.e("Error downloading chunk ${chunkIndex + 1}/$totalChunks: ${e.message}")
+                                    throw e
+                                }
+                            }
+
+                            // All chunks downloaded successfully
+                            if (downloadedChunks == totalChunks) {
+                                progressMap[itemId] = 100
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.DOWNLOADED
+                                errorMap[itemId] = null
+
+                                AppLogger.d("Map download completed - ${downloadedChunks} chunks saved to ${mapOfflineDir.absolutePath}")
+
+                                // Save metadata
+                                val metadataFile = File(mapOfflineDir, "metadata.json")
+                                val metadata = JSONObject().apply {
+                                    put("downloadId", downloadId)
+                                    put("estateAbbr", request.estateAbbr)
+                                    put("totalChunks", totalChunks)
+                                    put("downloadedAt", System.currentTimeMillis())
+                                }
+
+                                withContext(Dispatchers.IO) {
+                                    metadataFile.writeText(metadata.toString())
+                                }
+
+                            } else {
+                                statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                                errorMap[itemId] =
+                                    "Downloaded $downloadedChunks/$totalChunks chunks"
+                            }
+
+                            _itemProgressMap.postValue(progressMap.toMap())
+                            _itemStatusMap.postValue(statusMap.toMap())
+                            _itemErrorMap.postValue(errorMap.toMap())
+
+                            incrementCompletedCount()
+                            continue // Skip normal response processing
+
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in offline map download: ${e.message}")
+                            statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                            errorMap[itemId] = "Map download error: ${e.message}"
+                            _itemStatusMap.postValue(statusMap.toMap())
+                            _itemErrorMap.postValue(errorMap.toMap())
+                            incrementCompletedCount()
+                            continue
+                        }
                     } else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
@@ -1358,8 +1554,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                         incrementCompletedCount()
                         continue // Skip the normal response processing since we handled everything here
-                    }
-                    else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
+                    } else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
                         AppLogger.d("Starting TPH regional download for ${request.estateAbbr}")
 
                         // Get all estates first
@@ -1496,6 +1691,9 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         AppLogger.d("modifiedRequest $modifiedRequest")
                         response = repository.downloadDataset(modifiedRequest)
                     }
+
+
+                    AppLogger.d("")
 
                     if (response.isSuccessful && response.code() == 200) {
                         val contentType = response.headers()["Content-Type"]
@@ -1870,10 +2068,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 // If error is JSON, parse it
                                 val jsonError = JSONObject(errorBody)
 
-                                // Priority order for error messages:
-                                // 1. message field if available
-                                // 2. error field if available
-                                // 3. Fallback to raw error body
                                 errorMessage = when {
                                     jsonError.has("message") -> "API Error ${response.code()}: ${
                                         jsonError.getString(
@@ -1962,11 +2156,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val response = withContext(Dispatchers.IO) {
                     // ✅ Pass parameterDao to the repository method
+
+                    AppLogger.d("estate salkjfksdf $estate")
                     dataPanenInspectionRepository.getDataInspeksi(
                         estate = estate,
-                        afdeling = afdeling,
-                        joinTable = false, // ✅ Set to true to include inspeksi_detail join
-                        parameterDao = parameterDao // You'll need to inject this
+                        joinTable = false,
+                        parameterDao = parameterDao
                     )
                 }
 
@@ -1975,7 +2170,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     val jsonString = response.body()?.string() ?: ""
                     AppLogger.d(jsonString.toString())
 
-                    val formattedData = processPreviewDataInspeksi(jsonString)
+
+                    val formattedData = processPreviewDataInspeksi(jsonString,estate)
                     _followUpInspeksiPreview.value = formattedData
                 } else {
                     _followUpInspeksiPreview.value = "Gagal memuat data: ${response.message()}"
@@ -2038,7 +2234,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         AppLogger.d("Received JSON: $responseBodyString")
 
         // Update to 50% after reading the response
-        progressMap[itemId] = 50
+        progressMap[itemId] = 45
         _itemProgressMap.postValue(progressMap.toMap())
 
         // Check if it's an "up to date" response
@@ -2335,7 +2531,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val nomorPemanen = item.optInt("nomor_pemanen", 0)
                             val createdName = item.optString("created_name", "")
-                            // For spb_kode, check specifically for null vs. empty string
                             val spbKode: String? =
                                 if (item.has("spb_kode") && !item.isNull("spb_kode")) {
                                     item.optString("spb_kode")
@@ -2353,7 +2548,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 extractUsernameFromCreatedName(createdName)
                             }
 
-                            // Count status_espb values and check spb_kode relationship (for logging only)
                             when (statusEspb) {
                                 0 -> {
                                     status0Count++
@@ -2391,6 +2585,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val panenEntity = PanenEntity(
                                 tph_id = tphId.toString(),
                                 date_created = createdDate,
+                                created_name = createdName,
                                 created_by = 0,
                                 karyawan_id = "",
                                 kemandoran_id = "",
@@ -2408,11 +2603,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 archive = 0,
                                 nomor_pemanen = nomorPemanen,
                                 status_banjir = 0,
-                                status_espb = statusEspb, // Use actual status from server
+                                status_espb = statusEspb,
                                 status_restan = 1,
                                 scan_status = 1,
                                 dataIsZipped = 0,
-                                no_espb = spbKode ?: "", // Use actual spb_kode or empty
+                                no_espb = spbKode ?: "",
                                 username = username,
                                 status_upload = 0,
                                 status_uploaded_image = "0",
@@ -2427,30 +2622,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             panenList.add(panenEntity)
                         }
 
-                        // Enhanced summary with spb_kode relationship check
-                        AppLogger.d("=== RESTAN PROCESSING SUMMARY ===")
-                        AppLogger.d("Total records processed: ${dataArray.length()}")
-                        AppLogger.d("Status_espb = 0: $status0Count")
-                        AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (will INSERT/UPDATE)")
-                        AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb")
-                        AppLogger.d("Status_espb = 1: $status1Count")
-                        AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
-                        AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (normal)")
-                        AppLogger.d("Status_espb = 2: $status2Count")
-                        AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
-                        AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (normal)")
-                        AppLogger.d("Records to INSERT/UPDATE: ${panenList.size}")
-
-                        // Data consistency check
-                        if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
-                            AppLogger.e("🚨 DATA INCONSISTENCY DETECTED!")
-                            AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
-                            AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
-                            AppLogger.e("This suggests data quality issues in the backend!")
-                        } else {
-                            AppLogger.d("✅ Data consistency check passed - no inconsistencies found")
-                        }
-                        AppLogger.d("==================================")
 
                         // Update to 80% when processing is complete
                         progressMap[itemId] = 80
@@ -2461,7 +2632,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 var successCount = 0
                                 var failCount = 0
 
-                                // STEP: Insert or Update records that should be in local DB
                                 if (panenList.isNotEmpty()) {
                                     AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
@@ -2504,6 +2674,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         panen.username
                                                     } else {
                                                         existingRecord.username
+                                                    },
+
+                                                    created_name = if (existingRecord.created_name.isNullOrEmpty() || existingRecord.created_name == "NULL") {
+                                                        panen.created_name
+                                                    } else {
+                                                        existingRecord.created_name
                                                     },
 
                                                     nomor_pemanen = if (existingRecord.nomor_pemanen == 0) {
@@ -2607,38 +2783,32 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
             AppUtils.DatasetNames.sinkronisasiDataUser -> {
                 try {
-                    // Parsing - update to 60%
                     progressMap[itemId] = 60
                     _itemProgressMap.postValue(progressMap.toMap())
 
                     val jsonObject = JSONObject(responseBodyString)
                     AppLogger.d(jsonObject.toString())
 
-                    // Check if response is successful
                     if (jsonObject.optBoolean("success", false)) {
                         val dataArray = jsonObject.optJSONArray("data")
 
                         if (dataArray != null && dataArray.length() > 0) {
-                            // Update to 75% before processing data
                             progressMap[itemId] = 75
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            val userData = dataArray.getJSONObject(0) // Get first user data
-
-                            // Extract user basic info
+                            val userData = dataArray.getJSONObject(0)
                             val username = userData.optString("username", "")
                             val nama = userData.optString("nama", "")
                             val jabatan = userData.optString("jabatan", "")
-                            // Note: kemandoran fields are extracted but not saved to preferences
 
-                            // Extract kemandoranData for kode (only if exists)
+                            // Kemandoran kode
                             val kemandoranDataObject = userData.optJSONObject("kemandoranData")
                             var kemandoranKode = ""
                             if (kemandoranDataObject != null) {
                                 kemandoranKode = kemandoranDataObject.optString("kode", "")
                             }
 
-                            // Extract userOrg data
+                            // userOrg
                             val userOrgArray = userData.optJSONArray("userOrg")
                             var dept = ""
                             var divisi = ""
@@ -2648,10 +2818,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 divisi = userOrg.optString("divisi", "")
                             }
 
-                            // Extract Depts data
                             val deptsArray = userData.optJSONArray("Depts")
                             var regional = ""
-                            var wilayah = 0
                             var company = 0
                             var companyAbbr = ""
                             var companyNama = ""
@@ -2659,26 +2827,54 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             var estateNama = ""
 
                             if (deptsArray != null && deptsArray.length() > 0) {
-                                val deptData = deptsArray.getJSONObject(0)
-                                regional = deptData.optString("regional", "")
-                                wilayah = deptData.optInt("wilayah", 0)
-                                company = deptData.optInt("company", 0)
-                                companyAbbr = deptData.optString("company_abbr", "")
-                                companyNama = deptData.optString("company_nama", "")
-                                estateAbbr = deptData.optString("abbr", "")
-                                estateNama = deptData.optString("nama", "")
+                                val estateAbbrList = mutableListOf<String>()
+                                val estateNamaList = mutableListOf<String>()
+                                val regionalList = mutableListOf<String>()
+                                val companyList = mutableListOf<Int>()
+                                val companyAbbrList = mutableListOf<String>()
+                                val companyNamaList = mutableListOf<String>()
+
+                                for (i in 0 until deptsArray.length()) {
+                                    val deptData = deptsArray.getJSONObject(i)
+
+                                    val abbr = deptData.optString("abbr", "")
+                                    val nama = deptData.optString("nama", "")
+                                    val reg = deptData.optString("regional", "")
+                                    val comp = deptData.optInt("company", 0)
+                                    val compAbbr = deptData.optString("company_abbr", "")
+                                    val compNama = deptData.optString("company_nama", "")
+
+                                    if (abbr.isNotEmpty()) estateAbbrList.add(abbr)
+                                    if (nama.isNotEmpty()) estateNamaList.add(nama)
+                                    if (reg.isNotEmpty()) regionalList.add(reg)
+                                    if (comp > 0) companyList.add(comp)
+                                    if (compAbbr.isNotEmpty()) companyAbbrList.add(compAbbr)
+                                    if (compNama.isNotEmpty()) companyNamaList.add(compNama)
+                                }
+
+                                estateAbbr = estateAbbrList.joinToString(",")
+                                estateNama = estateNamaList.joinToString(",")
+                                regional = regionalList.distinct().joinToString(",")
+                                company = companyList.firstOrNull() ?: 0
+                                companyAbbr = companyAbbrList.distinct().joinToString(",")
+                                companyNama = companyNamaList.distinct().joinToString(",")
+
+                                AppLogger.d("🏡 Combined Estates -> Abbr: $estateAbbr | Nama: $estateNama")
+                                AppLogger.d("🌍 Regional: $regional | 🏢 Company: $companyAbbr ($companyNama)")
                             }
 
-                            // Update to 85% before saving to preferences
+
+
                             progressMap[itemId] = 85
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            // Extract kemandoran data (check if they exist)
                             val kemandoran = userData.optInt("kemandoran", 0)
                             val kemandoranPpro = userData.optInt("kemandoran_ppro", 0)
                             val kemandoranNama = userData.optString("kemandoran_nama", "")
 
                             try {
+
+
                                 prefManager.apply {
                                     nameUserLogin = nama
                                     jabatanUserLogin = jabatan
@@ -2691,29 +2887,26 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     companyNamaUserLogin = companyNama
                                     afdelingIdUserLogin = divisi
 
-                                    // Only save kemandoran data if kemandoran_ppro exists and is valid
                                     if (kemandoranPpro > 0) {
                                         kemandoranPPROUserLogin = kemandoranPpro.toString()
                                         kemandoranUserLogin = kemandoranPpro.toString()
                                         kemandoranNamaUserLogin = kemandoranNama
                                         kemandoranKodeUserLogin = kemandoranKode
-                                        AppLogger.d("Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")
+                                        AppLogger.d("✅ Saved kemandoran data - PPRO: $kemandoranPpro, Kode: $kemandoranKode")
                                     } else {
-                                        // Clear kemandoran preferences if no valid data
                                         kemandoranPPROUserLogin = ""
                                         kemandoranUserLogin = ""
                                         kemandoranNamaUserLogin = ""
                                         kemandoranKodeUserLogin = ""
-                                        AppLogger.d("Cleared kemandoran data - no valid kemandoran_ppro found")
+                                        AppLogger.d("🚫 Cleared kemandoran data (no valid PPRO)")
                                     }
                                 }
 
                                 progressMap[itemId] = 95
                                 _itemProgressMap.postValue(progressMap.toMap())
 
-                                AppLogger.d("Successfully updated user data in preferences")
+                                AppLogger.d("✅ Successfully updated user data in preferences")
 
-                                // Final update - 100%
                                 progressMap[itemId] = 100
                                 _itemProgressMap.postValue(progressMap.toMap())
 
@@ -2730,7 +2923,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 progressMap[itemId] = 100
                                 _itemProgressMap.postValue(progressMap.toMap())
 
-                                AppLogger.e("Error updating preferences: ${prefException.message}")
+                                AppLogger.e("❌ Error updating preferences: ${prefException.message}")
                                 statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                                 errorMap[itemId] =
                                     "Error updating preferences: ${prefException.message}"
@@ -2740,7 +2933,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             progressMap[itemId] = 100
                             _itemProgressMap.postValue(progressMap.toMap())
 
-                            AppLogger.e("No user data found in response")
+                            AppLogger.e("❌ No user data found in response")
                             statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                             errorMap[itemId] = "No user data found in response"
                         }
@@ -2749,20 +2942,21 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         _itemProgressMap.postValue(progressMap.toMap())
 
                         val message = jsonObject.optString("message", "Unknown error")
-                        AppLogger.e("API returned error: $message")
+                        AppLogger.e("❌ API returned error: $message")
                         statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                         errorMap[itemId] = "API error: $message"
                     }
 
                 } catch (e: Exception) {
-                    progressMap[itemId] = 100  // Still show 100% even on error
+                    progressMap[itemId] = 100
                     _itemProgressMap.postValue(progressMap.toMap())
 
-                    AppLogger.e("Error processing user data: ${e.message}")
+                    AppLogger.e("💥 Error processing user data: ${e.message}")
                     statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
                     errorMap[itemId] = "Error processing user data: ${e.message}"
                 }
             }
+
 
             AppUtils.DatasetNames.checkAppVersion -> {
                 try {
@@ -2836,6 +3030,454 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
 
+            AppUtils.DatasetNames.hektaran -> {
+                try {
+                    progressMap[itemId] = 50
+                    _itemProgressMap.postValue(progressMap.toMap())
+                    statusMap[itemId] = "Sedang Mempersiapkan data Hektaran"
+                    _itemStatusMap.postValue(statusMap.toMap())
+                    AppLogger.d("responseBodyString $responseBodyString")
+
+                    if (responseBodyString.isNotBlank()) {
+                        try {
+                            val jsonObject = JSONObject(responseBodyString)
+                            val success = jsonObject.optBoolean("success", false)
+
+                            if (success) {
+                                val dataArray = jsonObject.optJSONArray("data")
+                                if (dataArray != null && dataArray.length() > 0) {
+
+                                    // ======================
+// 🔹 STEP 1: Filter Hektaran with Valid date_panen
+// ======================
+
+                                    val validHektaranArray = JSONArray()
+                                    var skippedCount = 0
+
+                                    for (i in 0 until dataArray.length()) {
+                                        val item = dataArray.getJSONObject(i)
+                                        val blokKode = item.optString("blok_kode", "")
+                                        val details = item.optJSONArray("HektaranDetails")
+
+                                        // Find valid date_panen entries
+                                        val validDates = mutableListOf<String>()
+                                        if (details != null) {
+                                            for (j in 0 until details.length()) {
+                                                val d = details.getJSONObject(j)
+                                                val datePanenRaw =
+                                                    d.opt("date_panen") // this keeps it as nullable Any
+                                                val datePanen =
+                                                    if (datePanenRaw != null && datePanenRaw != JSONObject.NULL) {
+                                                        datePanenRaw.toString().trim()
+                                                    } else {
+                                                        ""
+                                                    }
+
+                                                // ✅ Exclude blank, "null", and null values
+                                                if (datePanen.isNotBlank() && !datePanen.equals(
+                                                        "null",
+                                                        ignoreCase = true
+                                                    )
+                                                ) {
+                                                    validDates.add(datePanen)
+                                                }
+                                            }
+                                        }
+
+                                        if (validDates.isEmpty()) {
+                                            skippedCount++
+//      AppLogger.d("⏩ Skipped Hektaran id=${item.optInt("id")} blok=$blokKode → all date_panen=null")
+                                        } else {
+                                            AppLogger.d(
+                                                "✅ Valid Hektaran id=${item.optInt("id")} blok=$blokKode → date_panen=${
+                                                    validDates.joinToString(
+                                                        ","
+                                                    )
+                                                }"
+                                            )
+                                            validHektaranArray.put(item)
+                                        }
+                                    }
+
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    AppLogger.d("📦 Raw Server Hektaran: ${dataArray.length()}")
+                                    AppLogger.d("📊 Filtered Hektaran (valid date_panen): ${validHektaranArray.length()}")
+                                    AppLogger.d("⏩ Skipped Hektaran (no valid date_panen): $skippedCount")
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                                    val filteredDataArray = validHektaranArray
+
+// ======================
+// 🔹 STEP 2: Load Local Panen Data
+// ======================
+
+                                    val formatterDate = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+                                    val today = LocalDate.now()
+                                    val startDate = today.minusDays(2).format(formatterDate) + " 00:00:00"
+                                    val endDate = today.format(formatterDate) + " 23:59:59"
+
+                                    val afdelingId = request.afdeling.toString().toIntOrNull() ?: 0
+                                    val panenList = panenDao.findPanenLast3DaysByAfdeling(
+                                        startDate,
+                                        endDate,
+                                        afdelingId
+                                    )
+
+                                    AppLogger.d("📦 Loaded Local Panen (with relations): ${panenList.size}")
+
+// ======================
+// 🔹 STEP 3: Parse & Flatten Server Hektaran
+// ======================
+
+                                    data class HektaranDetailRecord(
+                                        val datePanen: LocalDate,
+                                        val blokKode: String,
+                                        val kemandoranId: Int,
+                                        val nik: String,
+                                        val nama: String,
+                                        val jjgMasak: Double,
+                                        val jjgMentah: Double,
+                                        val jjgLewatMasak: Double,
+                                        val jjgKosong: Double,
+                                        val jjgAbnormal: Double,
+                                        val jjgBayar: Double,
+                                        val jjgKirim: Double
+                                    )
+
+                                    val gson = Gson()
+                                    val dateArrayType = object : TypeToken<List<String>>() {}.type
+
+                                    val hektaranRecords = mutableListOf<HektaranDetailRecord>()
+
+                                    for (i in 0 until filteredDataArray.length()) {
+                                        val header = filteredDataArray.getJSONObject(i)
+                                        val blokKode = header.optString("blok_kode", "")
+                                        val details = header.optJSONArray("HektaranDetails") ?: continue
+
+                                        for (j in 0 until details.length()) {
+                                            val d = details.getJSONObject(j)
+
+                                            // Parse "date_panen" (string that looks like ["2025-10-22 08:42:55", ...])
+                                            val rawDatePanen = d.optString("date_panen", "")
+                                            val dateList: List<String> = try {
+                                                gson.fromJson(rawDatePanen, dateArrayType)
+                                            } catch (e: Exception) {
+                                                emptyList()
+                                            }
+
+                                            for (dateStr in dateList) {
+                                                val dateParsed = try {
+                                                    LocalDate.parse(dateStr.substring(0, 10), formatterDate)
+                                                } catch (e: Exception) {
+                                                    continue
+                                                }
+
+                                                val record = HektaranDetailRecord(
+                                                    datePanen = dateParsed,
+                                                    blokKode = blokKode,
+                                                    kemandoranId = d.optInt("kemandoran_ppro", 0),
+                                                    nik = d.optString("pemanen_nik", ""),
+                                                    nama = d.optString("pemanen_nama", ""),
+                                                    jjgMasak = d.optDouble("jjg_masak", 0.0),
+                                                    jjgMentah = d.optDouble("jjg_mentah", 0.0),
+                                                    jjgLewatMasak = d.optDouble("jjg_lewat_masak", 0.0),
+                                                    jjgKosong = d.optDouble("jjg_kosong", 0.0),
+                                                    jjgAbnormal = d.optDouble("jjg_abnormal", 0.0),
+                                                    jjgBayar = d.optDouble("jjg_panen", 0.0),
+                                                    jjgKirim = d.optDouble("jjg_kirim", 0.0)
+                                                )
+                                                hektaranRecords.add(record)
+                                            }
+                                        }
+                                    }
+
+                                    AppLogger.d("📊 Flattened Server Hektaran Records: ${hektaranRecords.size}")
+                                    AppLogger.d("👥 Unique Names in Hektaran: ${hektaranRecords.map { it.nama }.distinct().joinToString()}")
+
+// ======================
+// 🔹 STEP 4: Group Local Panen by (date, blok, nik)
+// ======================
+
+                                    data class PanenKey(val date: LocalDate, val blokKode: String, val nik: String)
+                                    data class GroupedPanen(
+                                        val key: PanenKey,
+                                        val panenList: List<PanenEntityWithRelations>,
+                                        val totalJjgMasak: Double,
+                                        val totalJjgMentah: Double,
+                                        val totalJjgLewatMasak: Double,
+                                        val totalJjgKosong: Double,
+                                        val totalJjgAbnormal: Double,
+                                        val totalJjgBayar: Double,
+                                        val totalJjgKirim: Double
+                                    )
+
+                                    val groupedPanenMap = panenList.groupBy { panen ->
+                                        val date = try {
+                                            LocalDate.parse(panen.panen.date_created.substring(0, 10), formatterDate)
+                                        } catch (_: Exception) {
+                                            LocalDate.MIN
+                                        }
+                                        PanenKey(date, panen.tph?.blok_kode ?: "", panen.panen.karyawan_nik)
+                                    }.mapValues { (key, panens) ->
+                                        var sumMasak = 0.0
+                                        var sumMentah = 0.0
+                                        var sumLewat = 0.0
+                                        var sumKosong = 0.0
+                                        var sumAbnormal = 0.0
+                                        var sumBayar = 0.0
+                                        var sumKirim = 0.0
+
+                                        panens.forEach { panen ->
+                                            val jjgJson = try {
+                                                JSONObject(panen.panen.jjg_json ?: "{}")
+                                            } catch (_: Exception) {
+                                                JSONObject()
+                                            }
+                                            sumMasak += jjgJson.optDouble("TO", 0.0)
+                                            sumMentah += jjgJson.optDouble("UN", 0.0)
+                                            sumLewat += jjgJson.optDouble("OV", 0.0)
+                                            sumKosong += jjgJson.optDouble("EM", 0.0)
+                                            sumAbnormal += jjgJson.optDouble("AB", 0.0)
+                                            sumBayar += jjgJson.optDouble("PA", 0.0)
+                                            sumKirim += jjgJson.optDouble("KP", 0.0)
+                                        }
+
+                                        GroupedPanen(key, panens, sumMasak, sumMentah, sumLewat, sumKosong, sumAbnormal, sumBayar, sumKirim)
+                                    }
+
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    AppLogger.d("📦 Total Local Panen Records: ${panenList.size}")
+                                    AppLogger.d("📊 Grouped Local Panen Keys: ${groupedPanenMap.size}")
+                                    AppLogger.d("📊 Server Hektaran Records: ${hektaranRecords.size}")
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+// ======================
+// 🔹 STEP 5: Create Hektaran Index with DEDUPLICATION
+// ======================
+
+                                    data class HektaranKey(val date: LocalDate, val blokKode: String, val nik: String)
+
+                                    val hektaranMap = hektaranRecords.groupBy { hekt ->
+                                        HektaranKey(hekt.datePanen, hekt.blokKode, hekt.nik)
+                                    }.mapValues { (key, hektList) ->
+                                        // ⚠️ Check if all records have identical values (duplicates) or need summing
+                                        val first = hektList.first()
+                                        val allIdentical = hektList.all {
+                                            it.jjgMasak == first.jjgMasak &&
+                                                    it.jjgMentah == first.jjgMentah &&
+                                                    it.jjgLewatMasak == first.jjgLewatMasak &&
+                                                    it.jjgKosong == first.jjgKosong &&
+                                                    it.jjgAbnormal == first.jjgAbnormal &&
+                                                    it.jjgBayar == first.jjgBayar &&
+                                                    it.jjgKirim == first.jjgKirim
+                                        }
+
+                                        if (allIdentical && hektList.size > 1) {
+                                            AppLogger.d("⚠️ DUPLICATE detected: ${first.nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | count=${hektList.size} → using single value (${first.jjgMasak})")
+                                            // Use only one record's values (they're all the same)
+                                            mapOf(
+                                                "masak" to first.jjgMasak,
+                                                "mentah" to first.jjgMentah,
+                                                "lewat" to first.jjgLewatMasak,
+                                                "kosong" to first.jjgKosong,
+                                                "abnormal" to first.jjgAbnormal,
+                                                "bayar" to first.jjgBayar,
+                                                "kirim" to first.jjgKirim
+                                            )
+                                        } else {
+                                            // Sum all records (they have different values)
+                                            var sumMasak = 0.0
+                                            var sumMentah = 0.0
+                                            var sumLewat = 0.0
+                                            var sumKosong = 0.0
+                                            var sumAbnormal = 0.0
+                                            var sumBayar = 0.0
+                                            var sumKirim = 0.0
+
+                                            hektList.forEach { h ->
+                                                sumMasak += h.jjgMasak
+                                                sumMentah += h.jjgMentah
+                                                sumLewat += h.jjgLewatMasak
+                                                sumKosong += h.jjgKosong
+                                                sumAbnormal += h.jjgAbnormal
+                                                sumBayar += h.jjgBayar
+                                                sumKirim += h.jjgKirim
+                                            }
+
+                                            if (hektList.size > 1) {
+                                                AppLogger.d("📊 SUMMING: ${first.nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | count=${hektList.size} → total=$sumMasak")
+                                            }
+
+                                            mapOf(
+                                                "masak" to sumMasak,
+                                                "mentah" to sumMentah,
+                                                "lewat" to sumLewat,
+                                                "kosong" to sumKosong,
+                                                "abnormal" to sumAbnormal,
+                                                "bayar" to sumBayar,
+                                                "kirim" to sumKirim
+                                            )
+                                        }
+                                    }
+
+// ======================
+// 🔹 STEP 6: Find Local Panen NOT in Hektaran (need to upload)
+// ======================
+
+                                    val notInHektaranList = mutableListOf<PanenEntityWithRelations>()
+                                    val alreadyInHektaranList = mutableListOf<PanenEntityWithRelations>()
+
+                                    fun Double.eq(other: Double) = kotlin.math.abs(this - other) < 0.001
+
+                                    groupedPanenMap.forEach { (key, grouped) ->
+                                        val hektaranData = hektaranMap[HektaranKey(key.date, key.blokKode, key.nik)]
+
+                                        if (hektaranData != null) {
+                                            // Check if JJG values match
+                                            val jjgMatch =
+                                                grouped.totalJjgMasak.eq(hektaranData["masak"] ?: 0.0) &&
+                                                        grouped.totalJjgMentah.eq(hektaranData["mentah"] ?: 0.0) &&
+                                                        grouped.totalJjgLewatMasak.eq(hektaranData["lewat"] ?: 0.0) &&
+                                                        grouped.totalJjgKosong.eq(hektaranData["kosong"] ?: 0.0) &&
+                                                        grouped.totalJjgAbnormal.eq(hektaranData["abnormal"] ?: 0.0) &&
+                                                        grouped.totalJjgBayar.eq(hektaranData["bayar"] ?: 0.0) &&
+                                                        grouped.totalJjgKirim.eq(hektaranData["kirim"] ?: 0.0)
+
+                                            if (jjgMatch) {
+                                                alreadyInHektaranList.addAll(grouped.panenList)
+                                                AppLogger.d("✅ Already in Hektaran — ${grouped.panenList.first().panen.karyawan_nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | records=${grouped.panenList.size}")
+                                            } else {
+                                                notInHektaranList.addAll(grouped.panenList)
+                                                AppLogger.d("⚠️ JJG Mismatch — ${grouped.panenList.first().panen.karyawan_nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date}")
+                                                AppLogger.d("   📊 Local:  TO=${grouped.totalJjgMasak}, PA=${grouped.totalJjgBayar}, KP=${grouped.totalJjgKirim}")
+                                                AppLogger.d("   📊 Server: TO=${hektaranData["masak"]}, PA=${hektaranData["bayar"]}, KP=${hektaranData["kirim"]}")
+                                            }
+                                        } else {
+                                            // Not found in hektaran server → needs to be uploaded!
+                                            notInHektaranList.addAll(grouped.panenList)
+                                            AppLogger.d("🆕 NOT in Hektaran (new) — ${grouped.panenList.first().panen.karyawan_nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | records=${grouped.panenList.size}")
+                                        }
+                                    }
+// ======================
+// 🔹 STEP 7: Summary & Prepare Upload
+// ======================
+
+                                    AppLogger.d("──────────── SUMMARY ────────────")
+                                    AppLogger.d("📋 Total Local Panen: ${panenList.size}")
+                                    AppLogger.d("✅ Already in Hektaran: ${alreadyInHektaranList.size}")
+                                    AppLogger.d("🆕 NOT in Hektaran (need upload): ${notInHektaranList.size}")
+                                    AppLogger.d("─────────────────────────────────")
+
+                                    if (notInHektaranList.isNotEmpty()) {
+                                        notInHektaranList.take(20).forEachIndexed { index, panen ->
+                                            AppLogger.d("  ${index + 1}. ${panen.panen.karyawan_nama} (${panen.panen.karyawan_nik}) | blok=${panen.tph?.blok_kode} | date=${panen.panen.date_created}")
+                                            AppLogger.d("     🔸 local_jjg_json=${panen.panen.jjg_json}")
+                                        }
+//                                        if (notInHektaranList.size > 10) {
+//                                            AppLogger.d("  ... and ${notInHektaranList.size - 10} more")
+//                                        }
+                                    }
+
+                                    val saveDataMPanenList = notInHektaranList.map { relation ->
+                                        val p = relation.panen
+                                        PanenEntity(
+                                            tph_id = p.tph_id ?: "0",
+                                            date_created = p.date_created,
+                                            karyawan_nik = p.karyawan_nik ?: "",
+                                            jjg_json = p.jjg_json ?: "",
+                                            foto = p.foto ?: "",
+                                            komentar = p.komentar ?: "",
+                                            asistensi = p.asistensi ?: 0,
+                                            lat = p.lat ?: 0.0,
+                                            lon = p.lon ?: 0.0,
+                                            jenis_panen = p.jenis_panen ?: 0,
+                                            ancak = p.ancak ?: 0,
+                                            info = p.info ?: "NULL",
+                                            scan_status = p.scan_status ?: 0,
+                                            nomor_pemanen = p.nomor_pemanen ?: 0,
+                                            dataIsZipped = p.dataIsZipped ?: 0,
+                                            created_by = p.created_by ?: 0,
+                                            karyawan_id = p.karyawan_id ?: "NULL",
+                                            kemandoran_id = p.kemandoran_id ?: "",
+                                            karyawan_nama = p.karyawan_nama ?: "NULL",
+                                            jumlah_pemanen = p.jumlah_pemanen ?: 1,
+                                            status_scan_mpanen = 1
+                                        )
+                                    }
+
+                                    AppLogger.d("💾 Ready to save new Panen count: ${saveDataMPanenList.size}")
+                                    AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                                    progressMap[itemId] = 75
+                                    _itemProgressMap.postValue(progressMap.toMap())
+                                    statusMap[itemId] = "Sedang menyimpan data hektaran baru"
+                                    _itemStatusMap.postValue(statusMap.toMap())
+
+                                        val result = appRepository.saveScanMPanen(
+                                            saveDataMPanenList,
+                                            request.createdBy.toString(),
+                                            request.creatorInfo,
+                                            null,
+                                        )
+
+                                    result.fold(
+                                        onSuccess = { saveResult ->
+                                            when (saveResult) {
+                                                is SaveTPHResult.AllSuccess -> {
+                                                    progressMap[itemId] = 100
+                                                    _itemProgressMap.postValue(progressMap.toMap())
+                                                    statusMap[itemId] =
+                                                        AppUtils.UploadStatusUtils.SAVED.format("Hektaran")
+                                                    _itemStatusMap.postValue(statusMap.toMap())
+                                                }
+
+                                                is SaveTPHResult.PartialSuccess -> {
+                                                    progressMap[itemId] = 100
+                                                    _itemProgressMap.postValue(progressMap.toMap())
+                                                    statusMap[itemId] =
+                                                        AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL.format(
+                                                            saveResult.duplicateCount
+                                                        )
+                                                    _itemStatusMap.postValue(statusMap.toMap())
+                                                }
+
+                                                is SaveTPHResult.AllDuplicate -> {
+                                                    progressMap[itemId] = 100
+                                                    _itemProgressMap.postValue(progressMap.toMap())
+                                                    statusMap[itemId] =
+                                                        AppUtils.UploadStatusUtils.DUPLICATE
+                                                    _itemStatusMap.postValue(statusMap.toMap())
+                                                }
+                                            }
+                                        },
+                                        onFailure = { exception ->
+                                            progressMap[itemId] = 100
+                                            _itemProgressMap.postValue(progressMap.toMap())
+                                            statusMap[itemId] = AppUtils.UploadStatusUtils.DUPLICATE
+                                            _itemStatusMap.postValue(statusMap.toMap())
+
+                                        }
+                                    )
+
+
+                                }
+                            }
+                        } catch (e: JSONException) {
+                            AppLogger.e("Error parsing JSON: ${e.message}")
+                        }
+                    }
+
+                } catch (e: Exception) {
+                    progressMap[itemId] = 100
+                    _itemProgressMap.postValue(progressMap.toMap())
+
+                    AppLogger.e("Error processing hektaran response: ${e.message}")
+                    statusMap[itemId] = AppUtils.UploadStatusUtils.FAILED
+                    errorMap[itemId] = "Error processing app version: ${e.message}"
+                }
+            }
+
             AppUtils.DatasetNames.sinkronisasiDataPanen -> {
                 try {
                     // We're already at 50% when this code starts
@@ -2864,9 +3506,47 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val createdDate = item.optString("created_date", "")
                             val createdBy = item.optInt("created_by", 0)
                             val ancak = item.optInt("ancak", 0)
+                            val asistensi = item.optInt("asistensi", 0)
+
+                            // Extract new asistensi fields with proper null handling
+                            val asistensiDept = if (item.isNull("asistensi_dept")) {
+                                null
+                            } else {
+                                item.optInt("asistensi_dept", 0).takeIf { it != 0 }
+                            }
+
+                            val asistensiDeptNama = if (item.isNull("asistensi_dept_nama")) {
+                                null
+                            } else {
+                                item.optString("asistensi_dept_nama", "").takeIf {
+                                    it.isNotEmpty() && !it.equals("null", ignoreCase = true)
+                                }
+                            }
+
+                            val asistensiDivisi = if (item.isNull("asistensi_divisi")) {
+                                null
+                            } else {
+                                item.optInt("asistensi_divisi", 0).takeIf { it != 0 }
+                            }
+
                             val jenis_panen = item.optInt("tipe", 0)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
-                            val jjgJson = "{\"KP\": $jjgKirim}"
+                            val jjgMasak = item.optInt("jjg_masak", 0)
+                            val jjgMentah = item.optInt("jjg_mentah", 0)
+                            val jjgLewatMasak = item.optInt("jjg_lewat_masak", 0)
+                            val jjgKosong = item.optInt("jjg_kosong", 0)
+                            val jjgAbnormal = item.optInt("jjg_abnormal", 0)
+                            val jjgBayar = item.optInt("jjg_bayar", 0)
+                            val jjgJson = JSONObject().apply {
+                                put("TO", jjgMasak)
+                                put("UN", jjgMentah)
+                                put("OV", jjgLewatMasak)
+                                put("EM", jjgKosong)
+                                put("AB", jjgAbnormal)
+                                put("KP", jjgKirim)
+                                put("PA", jjgBayar)
+                            }.toString()
+
                             val createdName = item.optString("created_name", "")
                             val username = if (createdName.isNullOrEmpty() || createdName.equals(
                                     "NULL",
@@ -2955,6 +3635,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 tph_id = tphId.toString(),
                                 date_created = createdDate,
                                 created_by = createdBy,
+                                created_name = createdName,
                                 karyawan_id = karyawanId,
                                 kemandoran_id = kemandoranId,
                                 karyawan_nik = karyawanNik,
@@ -2962,7 +3643,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 jjg_json = jjgJson,
                                 foto = "",
                                 komentar = "",
-                                asistensi = 0,
+                                asistensi = asistensi,
+                                asistensi_dept = asistensiDept,
+                                asistensi_dept_nama = asistensiDeptNama,
+                                asistensi_divisi = asistensiDivisi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = jenis_panen,
@@ -3006,7 +3690,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                                 AppLogger.d("Processing ${panenList.size} records for insert/update...")
 
-                                // Batch processing - process in chunks of 50
+                                // Batch processing - process in chunks of 500
                                 val batchSize = 500
                                 val batches = panenList.chunked(batchSize)
 
@@ -3030,16 +3714,40 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 insertList.add(panen)
                                                 AppLogger.d("Queued for insert: ID=${panen.id}, ${panen.tph_id}, ${panen.date_created}")
                                             } else {
-                                                // Record exists -> UPDATE (check for null/""/0 values and update them)
+                                                // Record exists -> UPDATE
                                                 AppLogger.d("Record exists, queued for update: TPH=${panen.tph_id}, Date=${panen.date_created}")
 
                                                 val updatedRecord = existingRecord.copy(
                                                     // Update basic info from server
                                                     created_by = panen.created_by,
+                                                    created_name = if (existingRecord.created_name.isNullOrEmpty() || existingRecord.created_name == "NULL") {
+                                                        panen.created_name
+                                                    } else {
+                                                        existingRecord.created_name
+                                                    },
                                                     jenis_panen = if (existingRecord.jenis_panen == 0 && panen.jenis_panen != 0) {
                                                         panen.jenis_panen
                                                     } else {
                                                         existingRecord.jenis_panen
+                                                    },
+                                                    asistensi = panen.asistensi,
+
+                                                    asistensi_dept = if (panen.asistensi_dept != null) {
+                                                        panen.asistensi_dept
+                                                    } else {
+                                                        existingRecord.asistensi_dept
+                                                    },
+
+                                                    asistensi_dept_nama = if (panen.asistensi_dept_nama != null) {
+                                                        panen.asistensi_dept_nama
+                                                    } else {
+                                                        existingRecord.asistensi_dept_nama
+                                                    },
+
+                                                    asistensi_divisi = if (panen.asistensi_divisi != null) {
+                                                        panen.asistensi_divisi
+                                                    } else {
+                                                        existingRecord.asistensi_divisi
                                                     },
 
                                                     ancak = if (existingRecord.ancak == 0 && panen.ancak != 0) {
@@ -3047,7 +3755,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     } else {
                                                         existingRecord.ancak
                                                     },
-
                                                     jjg_json = if ((existingRecord.jjg_json.isNullOrEmpty() ||
                                                                 existingRecord.jjg_json == "NULL" ||
                                                                 existingRecord.jjg_json == "{}" ||
@@ -3182,13 +3889,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     }
                                 }
 
-                                // Final summary
-                                AppLogger.d("=== PANEN SYNC COMPLETE ===")
-                                AppLogger.d("Inserted/Updated: $successCount")
-                                AppLogger.d("Failed: $failCount")
-                                AppLogger.d("Total records processed: ${panenList.size}")
-                                AppLogger.d("============================")
-
                                 // Final update - 100%
                                 progressMap[itemId] = 100
                                 _itemProgressMap.postValue(progressMap.toMap())
@@ -3294,6 +3994,14 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         val createdBy = item.optInt("created_by", 0)
                                         val trackingPath = item.optString("tracking_path", "")
 
+                                        // NEW: Parse the 4 pemuat fields
+                                        val kemandoranPproPemuat =
+                                            item.optString("kemandoran_ppro_pemuat", "")
+                                        val kemandoranNamaPemuat =
+                                            item.optString("kemandoran_nama_pemuat", "")
+                                        val nikPemuat = item.optString("nik_pemuat", "")
+                                        val namaPemuat = item.optString("nama_pemuat", "")
+
                                         // Handle nullable fields
                                         val dept =
                                             if (item.has("dept") && !item.isNull("dept")) item.optInt(
@@ -3352,9 +4060,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 "ancak"
                                             ) else null
 
-                                        // Create InspectionModel
                                         val inspectionEntity = InspectionModel(
-                                            id = 0, // Always 0 for auto-increment
+                                            id = 0,
                                             created_date = tglInspeksi,
                                             created_by = createdBy.toString(),
                                             created_name = createdName,
@@ -3386,7 +4093,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             app_version = app_version,
                                             status_upload = "0",
                                             status_uploaded_image = "0",
-                                            isPushedToServer = 1
+                                            isPushedToServer = 1,
+                                            kemandoran_ppro_pemuat = kemandoranPproPemuat,
+                                            kemandoran_nama_pemuat = kemandoranNamaPemuat,
+                                            nik_pemuat = nikPemuat,
+                                            nama_pemuat = namaPemuat
                                         )
 
                                         // Check if inspection has details first - if not, skip the entire inspection
@@ -3467,8 +4178,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
 
                                     } catch (e: Exception) {
+                                        AppLogger.e("Error processing inspection item: ${e.message}")
                                         failCount++
-                                        AppLogger.e("Error processing inspection record: ${e.message}")
                                     }
                                 }
 
@@ -3551,8 +4262,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         localInspectionId: Int,
         tglInspeksi: String
     ) {
-        AppLogger.d(">>> Starting insertAllDetailRecords for inspection ID=$localInspectionId")
-        AppLogger.d("Processing ${inspectionDetails.length()} details for inspection ID=$localInspectionId")
 
         var detailSuccessCount = 0
         var detailFailCount = 0
@@ -3618,7 +4327,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         AppLogger.d("Detail results: Success=$detailSuccessCount, Failed=$detailFailCount")
     }
 
-    fun processPreviewDataInspeksi(jsonResponse: String): String {
+    fun processPreviewDataInspeksi(jsonResponse: String, estate: Any): String {
         try {
             val jsonObject = JSONObject(jsonResponse)
 
@@ -3629,83 +4338,171 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
-                // Today
+                // Today at end of day
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
-                val todayDisplay = displayFormatter.format(todayDate)
 
-                // 1 week ago
                 calendar.add(Calendar.DAY_OF_YEAR, -7)
-                val oneWeekAgoDate = calendar.time
-                val oneWeekAgo = inputFormatter.format(oneWeekAgoDate)
-                val oneWeekAgoDisplay = displayFormatter.format(oneWeekAgoDate)
+                val sevenDaysAgoDate = calendar.time
+                val sevenDaysAgo = inputFormatter.format(sevenDaysAgoDate)
 
                 // Create all dates in range
                 val allDates = mutableListOf<String>()
                 val tempCalendar = Calendar.getInstance()
-                tempCalendar.time = oneWeekAgoDate
+                tempCalendar.time = sevenDaysAgoDate
 
                 while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
 
-                val inspeksiCountByDate = mutableMapOf<String, Int>()
-                for (date in allDates) {
-                    inspeksiCountByDate[date] = 0
-                }
-
-                // Process inspections
-                for (i in 0 until dataArray.length()) {
-                    val item = dataArray.getJSONObject(i)
-
-                    val inspeksiDateFull = item.optString("tgl_inspeksi", "")
-                    val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
-                        inspeksiDateFull.split(" ")[0]
-                    } else {
-                        continue
-                    }
-
-                    if (!allDates.contains(inspeksiDate)) continue
-
-                    val idPanen = item.optString("id_panen", "")
-                    val tphNomor = item.optString("tph_nomor", "")
-                    val ancak = item.optString("ancak", "")
-
-                    if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
-                        inspeksiCountByDate[inspeksiDate] =
-                            inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
-                    }
-                }
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
+                val endDateDisplay = displayFormatter.format(todayDate)
 
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Inspeksi ($oneWeekAgoDisplay - $todayDisplay)\n")
+                resultBuilder.append("Data Inspeksi ($startDateDisplay - $endDateDisplay)\n")
 
-                var hasValidData = false
-                for (date in allDates.sortedDescending()) {
-                    val inspeksiCount = inspeksiCountByDate[date] ?: 0
-                    if (inspeksiCount > 0) {
-                        hasValidData = true
-                        val dateObj = inputFormatter.parse(date)
-                        val dateDisplay = displayFormatter.format(dateObj!!)
-                        resultBuilder.append("$dateDisplay - $inspeksiCount Inspeksi\n")
+                // Check if we need grouping by dept_abbr
+                AppLogger.d("processPreviewDataInspeksi - Is estate a List? ${estate is List<*>}")
+
+                if (estate is List<*>) {
+                    AppLogger.d("processPreviewDataInspeksi - Processing multiple estates")
+
+                    // Group by dept_abbr for multiple estates
+                    val dataByEstate = mutableMapOf<String, MutableList<JSONObject>>()
+
+                    // Categorize data by dept_abbr
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+                        val deptAbbr = item.optString("dept_abbr", "Unknown")
+
+                        AppLogger.d("processPreviewDataInspeksi - Item $i dept_abbr: $deptAbbr")
+
+                        if (!dataByEstate.containsKey(deptAbbr)) {
+                            dataByEstate[deptAbbr] = mutableListOf()
+                        }
+                        dataByEstate[deptAbbr]!!.add(item)
+                    }
+
+                    AppLogger.d("processPreviewDataInspeksi - Found ${dataByEstate.size} estates")
+                    AppLogger.d("processPreviewDataInspeksi - Estate keys: ${dataByEstate.keys}")
+
+                    resultBuilder.append("\n")
+
+                    // Process each estate
+                    dataByEstate.forEach { (deptAbbr, estateData) ->
+                        AppLogger.d("processPreviewDataInspeksi - Processing estate: $deptAbbr with ${estateData.size} items")
+
+                        resultBuilder.append("=== $deptAbbr ===\n")
+
+                        val inspeksiCountByDate = mutableMapOf<String, Int>()
+                        for (date in allDates) {
+                            inspeksiCountByDate[date] = 0
+                        }
+
+                        // Process inspections for this estate
+                        for (item in estateData) {
+                            val inspeksiDateFull = item.optString("tgl_inspeksi", "")
+                            val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
+                                inspeksiDateFull.split(" ")[0]
+                            } else {
+                                continue
+                            }
+
+                            if (!allDates.contains(inspeksiDate)) continue
+
+                            val idPanen = item.optString("id_panen", "")
+                            val tphNomor = item.optString("tph_nomor", "")
+                            val ancak = item.optString("ancak", "")
+
+                            if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
+                                inspeksiCountByDate[inspeksiDate] =
+                                    inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                            }
+                        }
+
+                        // Add this estate's data
+                        var hasValidData = false
+                        for (date in allDates.sortedDescending()) {
+                            val inspeksiCount = inspeksiCountByDate[date] ?: 0
+
+                            if (inspeksiCount == 0) {
+                                continue
+                            }
+
+                            hasValidData = true
+                            val dateObj = inputFormatter.parse(date)
+                            val dateDisplay = displayFormatter.format(dateObj!!)
+                            resultBuilder.append("$dateDisplay - $inspeksiCount Transaksi\n")
+                        }
+
+                        if (!hasValidData) {
+                            resultBuilder.append("Tidak ada data inspeksi dalam periode ini.\n")
+                        }
+
+                        resultBuilder.append("\n")
+                    }
+                } else {
+                    AppLogger.d("processPreviewDataInspeksi - Processing single estate")
+
+                    // Single estate - use original logic
+                    val inspeksiCountByDate = mutableMapOf<String, Int>()
+                    for (date in allDates) {
+                        inspeksiCountByDate[date] = 0
+                    }
+
+                    // Process inspections
+                    for (i in 0 until dataArray.length()) {
+                        val item = dataArray.getJSONObject(i)
+
+                        val inspeksiDateFull = item.optString("tgl_inspeksi", "")
+                        val inspeksiDate = if (inspeksiDateFull.isNotEmpty()) {
+                            inspeksiDateFull.split(" ")[0]
+                        } else {
+                            continue
+                        }
+
+                        if (!allDates.contains(inspeksiDate)) continue
+
+                        val idPanen = item.optString("id_panen", "")
+                        val tphNomor = item.optString("tph_nomor", "")
+                        val ancak = item.optString("ancak", "")
+
+                        if (idPanen.isNotEmpty() || tphNomor.isNotEmpty() || ancak.isNotEmpty()) {
+                            inspeksiCountByDate[inspeksiDate] =
+                                inspeksiCountByDate.getOrDefault(inspeksiDate, 0) + 1
+                        }
+                    }
+
+                    var hasValidData = false
+                    for (date in allDates.sortedDescending()) {
+                        val inspeksiCount = inspeksiCountByDate[date] ?: 0
+                        if (inspeksiCount > 0) {
+                            hasValidData = true
+                            val dateObj = inputFormatter.parse(date)
+                            val dateDisplay = displayFormatter.format(dateObj!!)
+                            resultBuilder.append("$dateDisplay - $inspeksiCount Transaksi\n")
+                        }
+                    }
+
+                    if (!hasValidData) {
+                        resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
                     }
                 }
 
-                if (!hasValidData) {
-                    resultBuilder.append("Tidak ada data inspeksi dalam periode ini.")
-                }
+                val finalResult = resultBuilder.toString().trim()
+                AppLogger.d("processPreviewDataInspeksi - Final result:\n$finalResult")
 
-                return resultBuilder.toString().trim()
+                return finalResult
             } else {
                 return "Failed to process data: Success flag is false"
             }
         } catch (e: Exception) {
-            AppLogger.e("Error processing data: ${e.message}")
+            AppLogger.e("processPreviewDataInspeksi - Error: ${e.message}")
+            e.printStackTrace()
             return "Error processing data: ${e.message}"
         }
     }
-
 
     fun processPreviewDataPanenInspeksi(jsonResponse: String, estate: Any): String {
         try {
@@ -3721,15 +4518,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
-                // Yesterday
-                calendar.set(Calendar.HOUR_OF_DAY, 23)
-                calendar.set(Calendar.MINUTE, 59)
-                calendar.set(Calendar.SECOND, 59)
+                // Today at end of day
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                // 7 days ago
-                calendar.add(Calendar.DAY_OF_YEAR, -6)
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -3743,8 +4536,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     tempCalendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
 
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
+                val endDateDisplay = displayFormatter.format(todayDate)
+
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Panen dalam 7 hari terakhir\n")
+                resultBuilder.append("Data Panen ($startDateDisplay - $endDateDisplay)\n")
+
 
                 // Check if we need grouping by dept_abbr
                 if (estate is List<*>) {
@@ -3812,7 +4609,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             hasValidData = true
                             val dateObj = inputFormatter.parse(date)
                             val dateDisplay = displayFormatter.format(dateObj!!)
-                            resultBuilder.append("$dateDisplay - $tphCount TPH\n")
+                            resultBuilder.append("$dateDisplay - $tphCount Transaksi\n")
                         }
 
                         if (!hasValidData) {
@@ -3909,27 +4706,25 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                 // Set up date range
                 val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormatter =
-                    SimpleDateFormat("d MMMM", Locale("id", "ID")) // Indonesian date format
+                val displayFormatter = SimpleDateFormat("d MMMM", Locale("id", "ID"))
                 val calendar = Calendar.getInstance()
 
-                // Today (changed from yesterday)
+                // Today
                 val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
 
-                // 6 days ago (to get 7 days including today)
-                calendar.add(Calendar.DAY_OF_YEAR, -6)
-                val sixDaysAgo = inputFormatter.format(calendar.time)
-                val sixDaysAgoDate = calendar.time
+                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                val sevenDaysAgo = inputFormatter.format(calendar.time)
+                val sevenDaysAgoDate = calendar.time
 
                 // Format the date range for display (e.g., "28 April - 5 Mei")
                 val endDateDisplay = displayFormatter.format(todayDate)
-                val startDateDisplay = displayFormatter.format(sixDaysAgoDate)
+                val startDateDisplay = displayFormatter.format(sevenDaysAgoDate)
 
                 // Create a list of all dates in the range
                 val allDates = mutableListOf<String>()
                 val tempCalendar = Calendar.getInstance()
-                tempCalendar.time = sixDaysAgoDate
+                tempCalendar.time = sevenDaysAgoDate
 
                 while (!tempCalendar.time.after(todayDate)) {
                     allDates.add(inputFormatter.format(tempCalendar.time))
@@ -4051,37 +4846,13 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                // NEW: Log the data consistency check results
-                AppLogger.d("=== PREVIEW DATA CONSISTENCY CHECK ===")
-                AppLogger.d("Total records in response: ${dataArray.length()}")
-                AppLogger.d("Status_espb = 0: $status0Count")
-                AppLogger.d("  - With null/empty spb_kode: $status0WithNullSpb (shown in preview)")
-                AppLogger.d("  - With non-null spb_kode: $status0WithNonNullSpb (hidden from preview)")
-                AppLogger.d("Status_espb = 1: $status1Count")
-                AppLogger.d("  - With null/empty spb_kode: $status1WithNullSpb (⚠️ INCONSISTENT)")
-                AppLogger.d("  - With non-null spb_kode: $status1WithNonNullSpb (expected)")
-                AppLogger.d("Status_espb = 2: $status2Count")
-                AppLogger.d("  - With null/empty spb_kode: $status2WithNullSpb (⚠️ INCONSISTENT)")
-                AppLogger.d("  - With non-null spb_kode: $status2WithNonNullSpb (expected)")
-
-                // Data consistency verdict
-                if (status1WithNullSpb > 0 || status2WithNullSpb > 0) {
-                    AppLogger.e("🚨 DATA INCONSISTENCY DETECTED IN PREVIEW!")
-                    AppLogger.e("Found ${status1WithNullSpb} records with status_espb=1 but null spb_kode")
-                    AppLogger.e("Found ${status2WithNullSpb} records with status_espb=2 but null spb_kode")
-                    AppLogger.e("This indicates backend data quality issues!")
-                } else {
-                    AppLogger.d("✅ Data consistency check PASSED")
-                    AppLogger.d("All status_espb=1&2 records have non-null spb_kode as expected")
-                }
-                AppLogger.d("=====================================")
 
                 // Calculate total jjg_kirim for all dates
                 val totalJjgKirim = jjgKirimByDate.values.sum()
 
                 // Build the final string
                 val resultBuilder = StringBuilder()
-                resultBuilder.append("Data Restan dalam 7 hari terakhir ($startDateDisplay - $endDateDisplay):\n")
+                resultBuilder.append("Data Restan ($startDateDisplay - $endDateDisplay):\n")
 
                 // Add each date's transactions with jjg_kirim count, but only if they have data
                 var hasValidData = false
@@ -4097,11 +4868,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                     hasValidData = true
 
-                    // Format date for display (e.g., "5 Mei")
+
                     val dateObj = inputFormatter.parse(date)
                     val dateDisplay = displayFormatter.format(dateObj!!)
 
-                    resultBuilder.append("$dateDisplay: $jjgKirimCount jjg dari $tphCount TPH\n")
+                    resultBuilder.append("$dateDisplay: $jjgKirimCount jjg dari $tphCount Transaksi\n")
                 }
 
                 // If no valid restan data found
@@ -4319,33 +5090,55 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = repository.downloadListEstate(request.regional ?: 0)
                     }
                     else if (request.dataset == AppUtils.DatasetNames.sinkronisasiRestan) {
-                        response =
-                            restanRepository.getDataRestan(
+                        if (request.jabatan != AppUtils.ListFeatureByRoleUser.ASKEP &&
+                            request.jabatan != AppUtils.ListFeatureByRoleUser.Manager
+                        ) {
+                            response = restanRepository.getDataRestan(
                                 request.estate as Int,
-                                request.afdeling!!
+                                request.afdeling.toString()
                             )
-                    } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
+                        } else {
+                            return@forEach
+                        }
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.settingJSON) {
                         response = repository.downloadSettingJson(request.lastModified!!)
                     } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                         response = repository.getParameter()
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
-                        AppLogger.d("sinkronisasi data panen")
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.hektaran) {
+
+                        val estateId: Int = when (val estate = request.estate) {
+                            is Int -> estate
+                            is String -> estate.toIntOrNull() ?: 0
+                            is List<*> -> (estate.firstOrNull() as? Int) ?: 0
+                            else -> 0
+                        }
+
+                        val afdelingId: Int = when (val estate = request.afdeling) {
+                            is Int -> estate
+                            is String -> estate.toIntOrNull() ?: 0
+                            is List<*> -> (estate.firstOrNull() as? Int) ?: 0
+                            else -> 0
+                        }
+                        response =
+                            hektarPanenRepository.getDataHektaranHektarDetail(estateId, afdelingId)
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
                         )
-                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
-                        AppLogger.d("sinkronisasi inspeksi")
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                         response = dataPanenInspectionRepository.getDataInspeksi(
                             request.estate!!,
-                            request.afdeling!!,
                             true,
                             parameterDao
                         )
                     }
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.estate is List<*>) {
-                        AppLogger.d("masuk sini gess")
                         val estateId = request.estate as List<*>
                         val allTphData = mutableListOf<TPHNewModel>()
                         var lastSuccessResponse: Response<ResponseBody>? = null
@@ -4408,8 +5201,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     else if (request.dataset == AppUtils.DatasetNames.tph && request.regional != null) {
 
                         val estatesResult = repository.getAllEstates()
-
-                        AppLogger.d("estate Resutl $estatesResult")
                         if (estatesResult.isSuccess) {
                             val estates = estatesResult.getOrNull() ?: emptyList()
                             val allTphData = mutableListOf<TPHNewModel>()
@@ -4479,7 +5270,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             _downloadStatuses.postValue(results.toMap())
                             return@forEach
                         }
-                    } else {
+                    }
+                    else {
                         response = repository.downloadDataset(modifiedRequest)
                     }
 
@@ -4709,8 +5501,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                     results[request.dataset] =
                                         Resource.Error("ZIP response body is null")
                                 }
-                            }
-                            else if (contentType?.contains("application/json") == true) {
+                            } else if (contentType?.contains("application/json") == true) {
                                 Log.d("DownloadResponse", request.lastModified.toString())
                                 val responseBodyString =
                                     response.body()?.string() ?: "Empty Response"
@@ -4784,6 +5575,22 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             val trackingPath =
                                                                 item.optString("tracking_path", "")
 
+                                                            // NEW: Parse the 4 pemuat fields for follow-up inspection
+                                                            val kemandoranPproPemuat =
+                                                                item.optString(
+                                                                    "kemandoran_ppro_pemuat",
+                                                                    ""
+                                                                )
+                                                            val kemandoranNamaPemuat =
+                                                                item.optString(
+                                                                    "kemandoran_nama_pemuat",
+                                                                    ""
+                                                                )
+                                                            val nikPemuat =
+                                                                item.optString("nik_pemuat", "")
+                                                            val namaPemuat =
+                                                                item.optString("nama_pemuat", "")
+
                                                             // Handle nullable fields
                                                             val dept =
                                                                 if (item.has("dept") && !item.isNull(
@@ -4856,7 +5663,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                     )
                                                                 ) item.optString("ancak") else null
 
-                                                            // Create InspectionModel
+                                                            // Create InspectionModel with new pemuat fields
                                                             val inspectionEntity = InspectionModel(
                                                                 id = 0, // Always 0 for auto-increment
                                                                 created_date = tglInspeksi,
@@ -4890,7 +5697,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                                 app_version = app_version,
                                                                 status_upload = "0",
                                                                 status_uploaded_image = "0",
-                                                                isPushedToServer = 1
+                                                                isPushedToServer = 1,
+                                                                // NEW: Add the 4 pemuat fields for follow-up inspection
+                                                                kemandoran_ppro_pemuat = kemandoranPproPemuat,
+                                                                kemandoran_nama_pemuat = kemandoranNamaPemuat,
+                                                                nik_pemuat = nikPemuat,
+                                                                nama_pemuat = namaPemuat
                                                             )
 
                                                             // Check if inspection has details - if not, skip the entire inspection
@@ -4935,14 +5747,12 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
 
                                                         } catch (e: Exception) {
+                                                            AppLogger.e("Error processing follow-up inspection item: ${e.message}")
                                                             failCount++
                                                         }
                                                     }
 
                                                     if (dataArray.length() == 0) {
-//                                                        AppLogger.d("Masuk terus geesss kesinii ")
-//                                                        results[request.dataset] = Resource.UpToDate(request.dataset)
-
                                                         results[request.dataset] = Resource.Success(
                                                             response,
                                                             "Partial success: $successCount processed, $failCount failed, $skippedCount skipped"
@@ -5005,7 +5815,6 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
 //            AppLogger.d("Processing ${dataArray.length()} panen records for first-time download...")
 
-                                            // STEP 1: Parse ALL JSON records into entities (FAST - no DB checks)
                                             for (i in 0 until dataArray.length()) {
                                                 val item = dataArray.getJSONObject(i)
 
@@ -5014,14 +5823,64 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                 val tphId = item.optString("tph", "")
                                                 val createdDate = item.optString("created_date", "")
                                                 val createdBy = item.optInt("created_by", 0)
+                                                val asistensi = item.optInt("asistensi", 0)
+                                                val asistensiDept =
+                                                    if (item.isNull("asistensi_dept")) {
+                                                        null
+                                                    } else {
+                                                        item.optInt("asistensi_dept", 0)
+                                                            .takeIf { it != 0 }
+                                                    }
+
+                                                val asistensiDeptNama =
+                                                    if (item.isNull("asistensi_dept_nama")) {
+                                                        null
+                                                    } else {
+                                                        item.optString("asistensi_dept_nama", "")
+                                                            .takeIf {
+                                                                it.isNotEmpty() && !it.equals(
+                                                                    "null",
+                                                                    ignoreCase = true
+                                                                )
+                                                            }
+                                                    }
+                                                val asistensiDivisi =
+                                                    if (item.isNull("asistensi_divisi")) {
+                                                        null
+                                                    } else {
+                                                        item.optInt("asistensi_divisi", 0)
+                                                            .takeIf { it != 0 }
+                                                    }
                                                 val ancak = item.optInt("ancak", 0)
                                                 val jenis_panen = item.optInt("tipe", 0)
                                                 val jjgKirim = item.optInt("jjg_kirim", 0)
+                                                val jjgMasak = item.optInt("jjg_masak", 0)
+                                                val jjgMentah = item.optInt("jjg_mentah", 0)
+                                                val jjgLewatMasak =
+                                                    item.optInt("jjg_lewat_masak", 0)
+                                                val jjgKosong = item.optInt("jjg_kosong", 0)
+                                                val jjgAbnormal = item.optInt("jjg_abnormal", 0)
+                                                val jjgBayar = item.optInt("jjg_bayar", 0)
                                                 val spb_kode = item.optString("spb_kode", "").let {
-                                                    if (it.equals("null", ignoreCase = true)) "" else it
+                                                    if (it.equals(
+                                                            "null",
+                                                            ignoreCase = true
+                                                        )
+                                                    ) "" else it
                                                 }
                                                 val status_espb = item.optInt("status_espb", 0)
-                                                val jjgJson = "{\"KP\": $jjgKirim}"
+                                                val jjgJson = JSONObject().apply {
+                                                    put(
+                                                        "TO",
+                                                        jjgMasak
+                                                    )         // example: "TO" -> total masak
+                                                    put("UN", jjgMentah)
+                                                    put("OV", jjgLewatMasak)
+                                                    put("EM", jjgKosong)
+                                                    put("AB", jjgAbnormal)
+                                                    put("KP", jjgKirim)
+                                                    put("PA", jjgBayar)
+                                                }.toString()
                                                 val createdName = item.optString("created_name", "")
                                                 val username =
                                                     if (createdName.isNullOrEmpty() || createdName.equals(
@@ -5029,7 +5888,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             ignoreCase = true
                                                         )
                                                     ) {
-                                                        ""  // Keep it empty if null/NULL
+                                                        ""
                                                     } else {
                                                         extractUsernameFromCreatedName(createdName)
                                                     }
@@ -5077,24 +5936,19 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                             }
                                                         }
                                                     } catch (e: Exception) {
-//                        AppLogger.e("Error parsing kemandoran JSON for record ${item.optInt("id", 0)}: ${e.message}")
-//                        AppLogger.d("Kemandoran raw value: '$kemandoranString'")
+                                                        // Error handling
                                                     }
-                                                } else {
-//                    AppLogger.d("Kemandoran data is null or empty for record ${item.optInt("id", 0)}")
                                                 }
 
                                                 // Store NIK list for bulk karyawan lookup
                                                 allKaryawanNikLists.add(karyawanNikList.toList())
 
-
-                                                AppLogger.d("fj d")
-                                                AppLogger.d("spb_kode $spb_kode")
                                                 // Create entity with empty karyawan_id (will be filled after bulk lookup)
                                                 val panenEntity = PanenEntity(
                                                     id = idPanen,
                                                     tph_id = tphId.toString(),
                                                     date_created = createdDate,
+                                                    created_name = createdName,
                                                     created_by = createdBy,
                                                     karyawan_id = "", // Will be filled after bulk lookup
                                                     kemandoran_id = kemandoranId,
@@ -5103,7 +5957,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     jjg_json = jjgJson,
                                                     foto = "",
                                                     komentar = "",
-                                                    asistensi = 0,
+                                                    asistensi = asistensi,
+                                                    asistensi_dept = asistensiDept,
+                                                    asistensi_dept_nama = asistensiDeptNama,
+                                                    asistensi_divisi = asistensiDivisi,
                                                     lat = 0.0,
                                                     lon = 0.0,
                                                     jenis_panen = jenis_panen,
@@ -5352,8 +6209,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             Resource.Error("Error parsing JSON: ${e.message}")
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.parameter) {
+                                } else if (request.dataset == AppUtils.DatasetNames.parameter) {
                                     try {
                                         // Use your existing parseParameter function
                                         val parameterList = parseParameter(responseBodyString)
@@ -5399,8 +6255,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         }
                                         _downloadStatuses.postValue(results.toMap())
                                     }
-                                }
-                                else if (request.dataset == AppUtils.DatasetNames.mill) {
+                                } else if (request.dataset == AppUtils.DatasetNames.mill) {
 
                                     try {
                                         fun <T> parseMillJsonToList(
@@ -5456,7 +6311,480 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                         _downloadStatuses.postValue(results.toMap())
                                     }
                                 }
-                                else if (request.dataset == AppUtils.DatasetNames.estate) {
+                                else if (request.dataset == AppUtils.DatasetNames.hektaran) {
+                                    if (responseBodyString.isBlank()) {
+                                        AppLogger.e("Received empty JSON response for hektaran")
+                                        results[request.dataset] =
+                                            Resource.Error("Empty JSON response")
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+
+                                    try {
+                                        // Log the complete JSON response
+                                        AppLogger.d("hektaran JSON Response: $responseBodyString")
+
+                                        // Show storing status
+                                        results[request.dataset] = Resource.Storing(request.dataset)
+                                        _downloadStatuses.postValue(results.toMap())
+
+                                        // Parse JSON
+                                        val jsonObject = JSONObject(responseBodyString)
+                                        val success = jsonObject.optBoolean("success", false)
+
+                                        if (success) {
+                                            val dataArray = jsonObject.optJSONArray("data")
+
+                                            if (dataArray != null && dataArray.length() > 0) {
+
+                                                // ======================
+                                                // 🔹 STEP 1: Filter Hektaran with Valid date_panen
+                                                // ======================
+
+                                                val validHektaranArray = JSONArray()
+                                                var skippedCount = 0
+
+                                                for (i in 0 until dataArray.length()) {
+                                                    val item = dataArray.getJSONObject(i)
+                                                    val blokKode = item.optString("blok_kode", "")
+                                                    val details = item.optJSONArray("HektaranDetails")
+
+                                                    // Find valid date_panen entries
+                                                    val validDates = mutableListOf<String>()
+                                                    if (details != null) {
+                                                        for (j in 0 until details.length()) {
+                                                            val d = details.getJSONObject(j)
+                                                            val datePanenRaw =
+                                                                d.opt("date_panen") // this keeps it as nullable Any
+                                                            val datePanen =
+                                                                if (datePanenRaw != null && datePanenRaw != JSONObject.NULL) {
+                                                                    datePanenRaw.toString().trim()
+                                                                } else {
+                                                                    ""
+                                                                }
+
+                                                            // ✅ Exclude blank, "null", and null values
+                                                            if (datePanen.isNotBlank() && !datePanen.equals(
+                                                                    "null",
+                                                                    ignoreCase = true
+                                                                )
+                                                            ) {
+                                                                validDates.add(datePanen)
+                                                            }
+                                                        }
+                                                    }
+
+                                                    if (validDates.isEmpty()) {
+                                                        skippedCount++
+                                                    } else {
+                                                        AppLogger.d(
+                                                            "✅ Valid Hektaran id=${item.optInt("id")} blok=$blokKode → date_panen=${
+                                                                validDates.joinToString(
+                                                                    ","
+                                                                )
+                                                            }"
+                                                        )
+                                                        validHektaranArray.put(item)
+                                                    }
+                                                }
+
+                                                AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                                AppLogger.d("📦 Raw Server Hektaran: ${dataArray.length()}")
+                                                AppLogger.d("📊 Filtered Hektaran (valid date_panen): ${validHektaranArray.length()}")
+                                                AppLogger.d("⏩ Skipped Hektaran (no valid date_panen): $skippedCount")
+                                                AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                                                val filteredDataArray = validHektaranArray
+
+                                                // ======================
+                                                // 🔹 STEP 2: Load Local Panen Data
+                                                // ======================
+
+                                                val formatterDate = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+                                                val today = LocalDate.now()
+                                                val startDate = today.minusDays(2).format(formatterDate) + " 00:00:00"
+                                                val endDate = today.format(formatterDate) + " 23:59:59"
+
+                                                val afdelingId = request.afdeling.toString().toIntOrNull() ?: 0
+                                                val panenList = panenDao.findPanenLast3DaysByAfdeling(
+                                                    startDate,
+                                                    endDate,
+                                                    afdelingId
+                                                )
+
+                                                AppLogger.d("📦 Loaded Local Panen (with relations): ${panenList.size}")
+
+                                                // ======================
+                                                // 🔹 STEP 3: Parse & Flatten Server Hektaran
+                                                // ======================
+
+                                                data class HektaranDetailRecord(
+                                                    val datePanen: LocalDate,
+                                                    val blokKode: String,
+                                                    val kemandoranId: Int,
+                                                    val nik: String,
+                                                    val nama: String,
+                                                    val jjgMasak: Double,
+                                                    val jjgMentah: Double,
+                                                    val jjgLewatMasak: Double,
+                                                    val jjgKosong: Double,
+                                                    val jjgAbnormal: Double,
+                                                    val jjgBayar: Double,
+                                                    val jjgKirim: Double
+                                                )
+
+                                                val gson = Gson()
+                                                val dateArrayType = object : TypeToken<List<String>>() {}.type
+
+                                                val hektaranRecords = mutableListOf<HektaranDetailRecord>()
+
+                                                for (i in 0 until filteredDataArray.length()) {
+                                                    val header = filteredDataArray.getJSONObject(i)
+                                                    val blokKode = header.optString("blok_kode", "")
+                                                    val details = header.optJSONArray("HektaranDetails") ?: continue
+
+                                                    for (j in 0 until details.length()) {
+                                                        val d = details.getJSONObject(j)
+
+                                                        // Parse "date_panen" (string that looks like ["2025-10-22 08:42:55", ...])
+                                                        val rawDatePanen = d.optString("date_panen", "")
+                                                        val dateList: List<String> = try {
+                                                            gson.fromJson(rawDatePanen, dateArrayType)
+                                                        } catch (e: Exception) {
+                                                            emptyList()
+                                                        }
+
+                                                        for (dateStr in dateList) {
+                                                            val dateParsed = try {
+                                                                LocalDate.parse(dateStr.substring(0, 10), formatterDate)
+                                                            } catch (e: Exception) {
+                                                                continue
+                                                            }
+
+                                                            val record = HektaranDetailRecord(
+                                                                datePanen = dateParsed,
+                                                                blokKode = blokKode,
+                                                                kemandoranId = d.optInt("kemandoran_ppro", 0),
+                                                                nik = d.optString("pemanen_nik", ""),
+                                                                nama = d.optString("pemanen_nama", ""),
+                                                                jjgMasak = d.optDouble("jjg_masak", 0.0),
+                                                                jjgMentah = d.optDouble("jjg_mentah", 0.0),
+                                                                jjgLewatMasak = d.optDouble("jjg_lewat_masak", 0.0),
+                                                                jjgKosong = d.optDouble("jjg_kosong", 0.0),
+                                                                jjgAbnormal = d.optDouble("jjg_abnormal", 0.0),
+                                                                jjgBayar = d.optDouble("jjg_panen", 0.0),
+                                                                jjgKirim = d.optDouble("jjg_kirim", 0.0)
+                                                            )
+                                                            hektaranRecords.add(record)
+                                                        }
+                                                    }
+                                                }
+
+                                                AppLogger.d("📊 Flattened Server Hektaran Records: ${hektaranRecords.size}")
+                                                AppLogger.d("👥 Unique Names in Hektaran: ${hektaranRecords.map { it.nama }.distinct().joinToString()}")
+
+                                                // ======================
+                                                // 🔹 STEP 4: Group Local Panen by (date, blok, nik)
+                                                // ======================
+
+                                                data class PanenKey(val date: LocalDate, val blokKode: String, val nik: String)
+                                                data class GroupedPanen(
+                                                    val key: PanenKey,
+                                                    val panenList: List<PanenEntityWithRelations>,
+                                                    val totalJjgMasak: Double,
+                                                    val totalJjgMentah: Double,
+                                                    val totalJjgLewatMasak: Double,
+                                                    val totalJjgKosong: Double,
+                                                    val totalJjgAbnormal: Double,
+                                                    val totalJjgBayar: Double,
+                                                    val totalJjgKirim: Double
+                                                )
+
+                                                val groupedPanenMap = panenList.groupBy { panen ->
+                                                    val date = try {
+                                                        LocalDate.parse(panen.panen.date_created.substring(0, 10), formatterDate)
+                                                    } catch (_: Exception) {
+                                                        LocalDate.MIN
+                                                    }
+                                                    PanenKey(date, panen.tph?.blok_kode ?: "", panen.panen.karyawan_nik)
+                                                }.mapValues { (key, panens) ->
+                                                    var sumMasak = 0.0
+                                                    var sumMentah = 0.0
+                                                    var sumLewat = 0.0
+                                                    var sumKosong = 0.0
+                                                    var sumAbnormal = 0.0
+                                                    var sumBayar = 0.0
+                                                    var sumKirim = 0.0
+
+                                                    panens.forEach { panen ->
+                                                        val jjgJson = try {
+                                                            JSONObject(panen.panen.jjg_json ?: "{}")
+                                                        } catch (_: Exception) {
+                                                            JSONObject()
+                                                        }
+                                                        sumMasak += jjgJson.optDouble("TO", 0.0)
+                                                        sumMentah += jjgJson.optDouble("UN", 0.0)
+                                                        sumLewat += jjgJson.optDouble("OV", 0.0)
+                                                        sumKosong += jjgJson.optDouble("EM", 0.0)
+                                                        sumAbnormal += jjgJson.optDouble("AB", 0.0)
+                                                        sumBayar += jjgJson.optDouble("PA", 0.0)
+                                                        sumKirim += jjgJson.optDouble("KP", 0.0)
+                                                    }
+
+                                                    GroupedPanen(key, panens, sumMasak, sumMentah, sumLewat, sumKosong, sumAbnormal, sumBayar, sumKirim)
+                                                }
+
+                                                AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                                AppLogger.d("📦 Total Local Panen Records: ${panenList.size}")
+                                                AppLogger.d("📊 Grouped Local Panen Keys: ${groupedPanenMap.size}")
+                                                AppLogger.d("📊 Server Hektaran Records: ${hektaranRecords.size}")
+                                                AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                                                // ======================
+                                                // 🔹 STEP 5: Create Hektaran Index with DEDUPLICATION
+                                                // ======================
+
+                                                data class HektaranKey(val date: LocalDate, val blokKode: String, val nik: String)
+
+                                                val hektaranMap = hektaranRecords.groupBy { hekt ->
+                                                    HektaranKey(hekt.datePanen, hekt.blokKode, hekt.nik)
+                                                }.mapValues { (key, hektList) ->
+                                                    // ⚠️ Check if all records have identical values (duplicates) or need summing
+                                                    val first = hektList.first()
+                                                    val allIdentical = hektList.all {
+                                                        it.jjgMasak == first.jjgMasak &&
+                                                                it.jjgMentah == first.jjgMentah &&
+                                                                it.jjgLewatMasak == first.jjgLewatMasak &&
+                                                                it.jjgKosong == first.jjgKosong &&
+                                                                it.jjgAbnormal == first.jjgAbnormal &&
+                                                                it.jjgBayar == first.jjgBayar &&
+                                                                it.jjgKirim == first.jjgKirim
+                                                    }
+
+                                                    if (allIdentical && hektList.size > 1) {
+                                                        AppLogger.d("⚠️ DUPLICATE detected: ${first.nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | count=${hektList.size} → using single value (${first.jjgMasak})")
+                                                        // Use only one record's values (they're all the same)
+                                                        mapOf(
+                                                            "masak" to first.jjgMasak,
+                                                            "mentah" to first.jjgMentah,
+                                                            "lewat" to first.jjgLewatMasak,
+                                                            "kosong" to first.jjgKosong,
+                                                            "abnormal" to first.jjgAbnormal,
+                                                            "bayar" to first.jjgBayar,
+                                                            "kirim" to first.jjgKirim
+                                                        )
+                                                    } else {
+                                                        // Sum all records (they have different values)
+                                                        var sumMasak = 0.0
+                                                        var sumMentah = 0.0
+                                                        var sumLewat = 0.0
+                                                        var sumKosong = 0.0
+                                                        var sumAbnormal = 0.0
+                                                        var sumBayar = 0.0
+                                                        var sumKirim = 0.0
+
+                                                        hektList.forEach { h ->
+                                                            sumMasak += h.jjgMasak
+                                                            sumMentah += h.jjgMentah
+                                                            sumLewat += h.jjgLewatMasak
+                                                            sumKosong += h.jjgKosong
+                                                            sumAbnormal += h.jjgAbnormal
+                                                            sumBayar += h.jjgBayar
+                                                            sumKirim += h.jjgKirim
+                                                        }
+
+                                                        if (hektList.size > 1) {
+                                                            AppLogger.d("📊 SUMMING: ${first.nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | count=${hektList.size} → total=$sumMasak")
+                                                        }
+
+                                                        mapOf(
+                                                            "masak" to sumMasak,
+                                                            "mentah" to sumMentah,
+                                                            "lewat" to sumLewat,
+                                                            "kosong" to sumKosong,
+                                                            "abnormal" to sumAbnormal,
+                                                            "bayar" to sumBayar,
+                                                            "kirim" to sumKirim
+                                                        )
+                                                    }
+                                                }
+
+                                                // ======================
+                                                // 🔹 STEP 6: Find Local Panen NOT in Hektaran (need to upload)
+                                                // ======================
+
+                                                val notInHektaranList = mutableListOf<PanenEntityWithRelations>()
+                                                val alreadyInHektaranList = mutableListOf<PanenEntityWithRelations>()
+
+                                                fun Double.eq(other: Double) = kotlin.math.abs(this - other) < 0.001
+
+                                                groupedPanenMap.forEach { (key, grouped) ->
+                                                    val hektaranData = hektaranMap[HektaranKey(key.date, key.blokKode, key.nik)]
+
+                                                    if (hektaranData != null) {
+                                                        // Check if JJG values match
+                                                        val jjgMatch =
+                                                            grouped.totalJjgMasak.eq(hektaranData["masak"] ?: 0.0) &&
+                                                                    grouped.totalJjgMentah.eq(hektaranData["mentah"] ?: 0.0) &&
+                                                                    grouped.totalJjgLewatMasak.eq(hektaranData["lewat"] ?: 0.0) &&
+                                                                    grouped.totalJjgKosong.eq(hektaranData["kosong"] ?: 0.0) &&
+                                                                    grouped.totalJjgAbnormal.eq(hektaranData["abnormal"] ?: 0.0) &&
+                                                                    grouped.totalJjgBayar.eq(hektaranData["bayar"] ?: 0.0) &&
+                                                                    grouped.totalJjgKirim.eq(hektaranData["kirim"] ?: 0.0)
+
+                                                        if (jjgMatch) {
+                                                            alreadyInHektaranList.addAll(grouped.panenList)
+                                                            AppLogger.d("✅ Already in Hektaran — ${grouped.panenList.first().panen.karyawan_nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | records=${grouped.panenList.size}")
+                                                        } else {
+                                                            notInHektaranList.addAll(grouped.panenList)
+                                                            AppLogger.d("⚠️ JJG Mismatch — ${grouped.panenList.first().panen.karyawan_nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date}")
+                                                            AppLogger.d("   📊 Local:  TO=${grouped.totalJjgMasak}, PA=${grouped.totalJjgBayar}, KP=${grouped.totalJjgKirim}")
+                                                            AppLogger.d("   📊 Server: TO=${hektaranData["masak"]}, PA=${hektaranData["bayar"]}, KP=${hektaranData["kirim"]}")
+                                                        }
+                                                    } else {
+                                                        // Not found in hektaran server → needs to be uploaded!
+                                                        notInHektaranList.addAll(grouped.panenList)
+                                                        AppLogger.d("🆕 NOT in Hektaran (new) — ${grouped.panenList.first().panen.karyawan_nama} (${key.nik}) | blok=${key.blokKode} | date=${key.date} | records=${grouped.panenList.size}")
+                                                    }
+                                                }
+
+                                                // ======================
+                                                // 🔹 STEP 7: Summary & Prepare Upload
+                                                // ======================
+
+                                                AppLogger.d("──────────── SUMMARY ────────────")
+                                                AppLogger.d("📋 Total Local Panen: ${panenList.size}")
+                                                AppLogger.d("✅ Already in Hektaran: ${alreadyInHektaranList.size}")
+                                                AppLogger.d("🆕 NOT in Hektaran (need upload): ${notInHektaranList.size}")
+                                                AppLogger.d("─────────────────────────────────")
+
+                                                if (notInHektaranList.isNotEmpty()) {
+                                                    notInHektaranList.forEachIndexed { index, panen ->
+                                                        AppLogger.d("  ${index + 1}. ${panen.panen.karyawan_nama} (${panen.panen.karyawan_nik}) | blok=${panen.tph?.blok_kode} | date=${panen.panen.date_created}")
+                                                        AppLogger.d("     🔸 local_jjg_json=${panen.panen.jjg_json}")
+                                                    }
+                                                }
+
+                                                val saveDataMPanenList = notInHektaranList.map { relation ->
+                                                    val p = relation.panen
+                                                    PanenEntity(
+                                                        tph_id = p.tph_id ?: "0",
+                                                        date_created = p.date_created,
+                                                        karyawan_nik = p.karyawan_nik ?: "",
+                                                        jjg_json = p.jjg_json ?: "",
+                                                        foto = p.foto ?: "",
+                                                        komentar = p.komentar ?: "",
+                                                        asistensi = p.asistensi ?: 0,
+                                                        lat = p.lat ?: 0.0,
+                                                        lon = p.lon ?: 0.0,
+                                                        jenis_panen = p.jenis_panen ?: 0,
+                                                        ancak = p.ancak ?: 0,
+                                                        info = p.info ?: "NULL",
+                                                        scan_status = p.scan_status ?: 0,
+                                                        nomor_pemanen = p.nomor_pemanen ?: 0,
+                                                        dataIsZipped = p.dataIsZipped ?: 0,
+                                                        created_by = p.created_by ?: 0,
+                                                        karyawan_id = p.karyawan_id ?: "NULL",
+                                                        kemandoran_id = p.kemandoran_id ?: "",
+                                                        karyawan_nama = p.karyawan_nama ?: "NULL",
+                                                        jumlah_pemanen = p.jumlah_pemanen ?: 1,
+                                                        status_scan_mpanen = 1
+                                                    )
+                                                }
+
+                                                AppLogger.d("💾 Ready to save new Panen count: ${saveDataMPanenList.size}")
+                                                AppLogger.d("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+
+
+                                                val result = appRepository.saveScanMPanen(
+                                                    saveDataMPanenList,
+                                                    request.createdBy.toString(),
+                                                    request.creatorInfo,
+                                                    null
+                                                )
+
+                                                result.fold(
+                                                    onSuccess = { saveResult ->
+                                                        when (saveResult) {
+                                                            is SaveTPHResult.AllSuccess -> {
+
+
+
+
+                                                                prefManager?.addDataset(request.dataset)
+                                                                results[request.dataset] = Resource.Success(
+                                                                    response,
+                                                                    "Data Hektaran baru berhasil tersimpan!"
+                                                                )
+                                                                _downloadStatuses.postValue(results.toMap())
+                                                            }
+
+                                                            is SaveTPHResult.PartialSuccess -> {
+
+
+
+
+                                                                AppLogger.d("Partial duplicates:\n${saveResult.duplicateInfo}")
+
+                                                                prefManager?.addDataset(request.dataset)
+                                                                results[request.dataset] = Resource.Success(
+                                                                    response,
+                                                                    "Sebagian data berhasil disimpan (${saveResult.duplicateCount} duplikat)"
+                                                                )
+                                                                _downloadStatuses.postValue(results.toMap())
+                                                            }
+
+                                                            is SaveTPHResult.AllDuplicate -> {
+
+
+
+
+                                                                prefManager?.addDataset(request.dataset)
+                                                                results[request.dataset] = Resource.Success(
+                                                                    response,
+                                                                    "Semua data duplikat, tidak ada hektaran baru tersimpan!"
+                                                                )
+                                                                _downloadStatuses.postValue(results.toMap())
+                                                            }
+                                                        }
+                                                    },
+                                                    onFailure = { exception ->
+
+                                                        AppLogger.d("Error saving hektaran: ${exception.message}")
+
+
+
+                                                        prefManager?.addDataset(request.dataset)
+                                                        results[request.dataset] = Resource.Success(
+                                                            response,
+                                                            "Semua data duplikat, tidak ada hektaran baru tersimpan!"
+                                                        )
+                                                        _downloadStatuses.postValue(results.toMap())
+                                                    }
+                                                )
+
+                                            } else {
+                                                AppLogger.w("No data array or empty data in response")
+                                                results[request.dataset] = Resource.Error("No data in response")
+                                                _downloadStatuses.postValue(results.toMap())
+                                            }
+                                        } else {
+                                            AppLogger.w("API response success is false")
+                                            results[request.dataset] = Resource.Error("API response failed")
+                                            _downloadStatuses.postValue(results.toMap())
+                                        }
+
+                                    } catch (e: JSONException) {
+                                        AppLogger.e("Error parsing hektaran JSON: ${e.message}", e.toString())
+                                        results[request.dataset] = Resource.Error("Error parsing JSON: ${e.message}")
+                                        _downloadStatuses.postValue(results.toMap())
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error processing hektaran response: ${e.message}")
+                                        results[request.dataset] = Resource.Error("Error processing: ${e.message}")
+                                        _downloadStatuses.postValue(results.toMap())
+                                    }
+                                } else if (request.dataset == AppUtils.DatasetNames.estate) {
                                     try {
                                         // Define the lists outside the function
                                         val estateList = mutableListOf<EstateModel>()
@@ -5726,6 +7054,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     _downloadStatuses.postValue(results.toMap())
 
                 } catch (e: Exception) {
+                    AppLogger.d("msuk geesssssdj lsjd")
                     results[request.dataset] = Resource.Error(
                         "Network error: ${e.message ?: "Unknown error"}",
                         null

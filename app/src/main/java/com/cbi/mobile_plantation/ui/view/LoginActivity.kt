@@ -201,7 +201,7 @@ class LoginActivity : AppCompatActivity() {
                 AlertDialogUtility.withSingleAction(
                     this@LoginActivity,
                     stringXML(R.string.al_back),
-                    stringXML(R.string.al_no_internet_connection),
+                    stringXML(R.string.al_failed_fetch_data),
                     stringXML(R.string.al_no_internet_connection_description_login),
                     "network_error.json",
                     R.color.colorRedDark

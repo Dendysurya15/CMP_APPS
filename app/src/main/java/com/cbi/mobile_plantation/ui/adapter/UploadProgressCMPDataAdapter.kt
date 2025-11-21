@@ -96,11 +96,13 @@ class UploadProgressCMPDataAdapter(
     override fun onBindViewHolder(holder: UploadViewHolder, position: Int) {
         val item = dataList[position]
         val fileSize = fileSizeMap[item.id] ?: 0L
-        // Your existing binding code
+
+        // Your existing title binding code...
         if (item.title.contains("Master")) {
             holder.tvNameProgress.text = item.title
+        } else if(item.title.contains("Map")) {
+            holder.tvNameProgress.text = item.title
         } else {
-            // Check if the title contains any of the standard dataset names
             val containsStandardDataset = AppUtils.DatasetNames::class.java.declaredFields
                 .filter { it.type == String::class.java }
                 .map { it.get(AppUtils.DatasetNames) as String }
@@ -112,7 +114,6 @@ class UploadProgressCMPDataAdapter(
                 holder.tvNameProgress.text = "${item.title} (${formatFileSize(fileSize)})"
             }
         }
-
 
         val progress = uploadProgressMap[item.id] ?: 0
         val status = uploadStatusMap[item.id] ?: AppUtils.UploadStatusUtils.WAITING
@@ -133,26 +134,20 @@ class UploadProgressCMPDataAdapter(
                 }
             }
             AppUtils.UploadStatusUtils.UPLOADING -> {
-                // Show error message if available while uploading
                 if (!errorMessage.isNullOrEmpty()) {
-                    // Show "Sedang Upload" + error message
-                    startDotsAnimation(item.id, holder) // Keep the animation running
+                    startDotsAnimation(item.id, holder)
                     holder.statusProgress.text = "Sedang Upload - $errorMessage"
 
-                    // Set red color for error messages
                     if (errorMessage.contains("✗") || errorMessage.contains("error") || errorMessage.contains("failed")) {
                         holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
                     } else {
-                        // Green color for success messages
                         holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
                     }
                 } else {
-                    // No error message, show normal uploading with dots
                     startDotsAnimation(item.id, holder)
                     holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
                 }
             }
-
             AppUtils.UploadStatusUtils.DOWNLOADING -> {
                 startDotsAnimation(item.id, holder)
             }
@@ -180,8 +175,25 @@ class UploadProgressCMPDataAdapter(
                 stopDotsAnimation(item.id)
                 holder.statusProgress.text = errorMessage ?: status
             }
+            AppUtils.UploadStatusUtils.DUPLICATE -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = errorMessage ?: status
+            }
+            AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = errorMessage ?: status
+            }
+            AppUtils.UploadStatusUtils.SAVED -> {
+                stopDotsAnimation(item.id)
+                holder.statusProgress.text = errorMessage ?: status
+            }
+            else -> {
+                startDotsAnimation(item.id, holder)  // Keep animation running!
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
+            }
         }
 
+        // Handle icon visibility and styling
         when (status) {
             AppUtils.UploadStatusUtils.WAITING -> {
                 holder.iconStatus.visibility = View.INVISIBLE
@@ -197,7 +209,6 @@ class UploadProgressCMPDataAdapter(
                 holder.iconStatus.visibility = View.INVISIBLE
                 holder.loadingCircular.visibility = View.VISIBLE
                 holder.statusProgress.visibility = View.VISIBLE
-
             }
             AppUtils.UploadStatusUtils.DOWNLOADING -> {
                 holder.iconStatus.visibility = View.INVISIBLE
@@ -239,6 +250,33 @@ class UploadProgressCMPDataAdapter(
                 holder.iconStatus.visibility = View.VISIBLE
                 holder.loadingCircular.visibility = View.INVISIBLE
                 holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorRedDark))
+            }
+            AppUtils.UploadStatusUtils.SAVED -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                holder.iconStatus.visibility = View.VISIBLE
+                holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
+            AppUtils.UploadStatusUtils.DUPLICATE -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                holder.iconStatus.visibility = View.VISIBLE
+                holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
+            AppUtils.UploadStatusUtils.DUPLICATE_PARTIAL -> {
+                holder.iconStatus.setImageResource(R.drawable.baseline_check_24)
+                holder.iconStatus.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+                holder.iconStatus.visibility = View.VISIBLE
+                holder.loadingCircular.visibility = View.INVISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.greendarkerbutton))
+            }
+            else -> {
+                holder.iconStatus.visibility = View.INVISIBLE
+                holder.loadingCircular.visibility = View.VISIBLE  // Show loading spinner
+                holder.statusProgress.visibility = View.VISIBLE
+                holder.statusProgress.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.black))
             }
         }
     }

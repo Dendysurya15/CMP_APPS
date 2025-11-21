@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 
 import com.cbi.mobile_plantation.data.model.InspectionModel
@@ -21,6 +20,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
+import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
 import com.cbi.mobile_plantation.data.model.PanenEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.TPHBlokInfo
@@ -29,8 +29,6 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.MathFun
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.math.BigDecimal
@@ -236,9 +234,10 @@ class AppRepository(context: Context) {
 
     suspend fun getCountPanenForTransferInspeksi(
         datetime: String? = null,
-        archive_transfer_inspeksi: Int
+        archive_transfer_inspeksi: Int,
+        afdelingId: Int? = null
     ): Int {
-        return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi)
+        return panenDao.getCountPanenForTransferInspeksi(datetime, archive_transfer_inspeksi, afdelingId)
     }
 
     suspend fun resetEspbStatus(
@@ -261,6 +260,21 @@ class AppRepository(context: Context) {
     }
 
 
+    suspend fun updateArchiveByFeature(
+        featureName: String,
+        recordIds: List<Int>,
+        archiveStatus: Int
+    ) = withContext(Dispatchers.IO) {
+        try {
+            panenDao.updateArchiveByFeature(featureName, recordIds, archiveStatus)
+            AppLogger.d("Repository: Updated archive status for ${recordIds.size} records with feature: $featureName")
+        } catch (e: Exception) {
+            AppLogger.e("Repository error updating archive status: ${e.message}")
+            throw e
+        }
+    }
+
+
     suspend fun saveMutuBuah(data: MutuBuahEntity) {
         mutuBuahDao.insert(data)
     }
@@ -269,7 +283,7 @@ class AppRepository(context: Context) {
         tphDataList: List<PanenEntity>,
         createdBy: String? = null,
         creatorInfo: String? = null,
-        context: Context
+        context: Context? = null
     ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
         try {
             database.withTransaction {
@@ -305,6 +319,8 @@ class AppRepository(context: Context) {
                             )
                         } else {
                             if (existingRecord.panen.isPushedToServer == 1) {
+
+                                AppLogger.d("masuk gess")
                                 // Server record exists, update specific fields only
                                 val updatedRecord = existingRecord.copy(
                                     panen = existingRecord.panen.copy(
@@ -551,14 +567,18 @@ class AppRepository(context: Context) {
                         val blokId = try {
                             blokIdDate.split("$")[0].toInt()
                         } catch (e: Exception) {
-                            Toasty.error(context, "Error parsing blokId: ${e.message}").show()
+                            context?.let {
+                                Toasty.error(it, "Error parsing blokId: ${blokIdDate}").show()
+                            }
                             0
                         }
 
                         val date = try {
                             blokIdDate.split("$")[1]
                         } catch (e: Exception) {
-                            Toasty.error(context, "Error parsing date: ${e.message}").show()
+                            context?.let {
+                                Toasty.error(it, "Error parsing date from blokIdDate: ${blokIdDate}").show()
+                            }
                             ""
                         }
 
@@ -968,7 +988,8 @@ class AppRepository(context: Context) {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.tph_id}, Date: ${it.date_created}"
                         }
-                        Result.failure(Exception("All data is duplicate:\n$duplicateInfo"))
+
+                        Result.failure(Exception("Semua data duplikat:\n$duplicateInfo"))
                     }
 
                     else -> {
@@ -1014,6 +1035,11 @@ class AppRepository(context: Context) {
         return kemandoranDao.getKemandoranById(idKemandoran)
     }
 
+    suspend fun getKemandoranByIdDeptDivisi(idKemandoran: List<String>, dept: Int, divisi: Int): List<KemandoranModel> {
+        return kemandoranDao.getKemandoranById(idKemandoran, dept, divisi)
+    }
+
+
     suspend fun getAllKaryawan(): Result<List<KaryawanModel>> = withContext(Dispatchers.IO) {
         try {
             val data = karyawanDao.getAllKaryawan()
@@ -1027,6 +1053,17 @@ class AppRepository(context: Context) {
         hektarPanenDao.updateStatusUploadHektarPanen(ids, statusUpload)
     }
 
+
+    suspend fun updateArchiveMpanenStatusByIds(recordIds: List<Int>, archiveStatus: Int) = withContext(Dispatchers.IO) {
+        try {
+            panenDao.updateArchiveMpanenStatusByIds(recordIds, archiveStatus)
+            AppLogger.d("Repository: Updated archive status for ${recordIds.size} records")
+        } catch (e: Exception) {
+            AppLogger.e("Repository error updating archive status: ${e.message}")
+            throw e
+        }
+    }
+
     suspend fun saveTransferInspeksi(
         transferInspeksiList: List<PanenEntity>,
         createdBy: String,
@@ -1034,19 +1071,16 @@ class AppRepository(context: Context) {
         context: Context
     ): Result<SaveTPHResult> = withContext(Dispatchers.IO) {
         try {
-            val processedIds = mutableListOf<Long>()
+            AppLogger.d("=== SAVE TRANSFER INSPEKSI START ===")
+            AppLogger.d("Total items to process: ${transferInspeksiList.size}")
 
-            Log.d(
-                "TransferInspeksi",
-                "Starting saveTransferInspeksi with ${transferInspeksiList.size} items"
-            )
+            val savedIds = mutableListOf<Long>()
+            val updatedIds = mutableListOf<Long>()
+            val duplicates = mutableListOf<PanenEntity>()
 
             // Check each item individually
             for ((index, transferInspeksi) in transferInspeksiList.withIndex()) {
-                Log.d(
-                    "TransferInspeksi",
-                    "Processing item $index: tph_id=${transferInspeksi.tph_id}, date_created=${transferInspeksi.date_created}"
-                )
+                AppLogger.d("Processing item ${index + 1}/${transferInspeksiList.size}: tph_id=${transferInspeksi.tph_id}, date_created=${transferInspeksi.date_created}")
 
                 // Check if this specific item exists based on tph_id and date_created
                 val existingEntity = panenDao.findByTphAndDate(
@@ -1055,113 +1089,218 @@ class AppRepository(context: Context) {
                 )
 
                 if (existingEntity != null) {
-                    // EXISTS: Update fields if they are empty/null and set status_scan_inspeksi = 1
-                    Log.d(
-                        "TransferInspeksi",
-                        "EXISTING RECORD FOUND - ID: ${existingEntity.id}, updating fields and status_scan_inspeksi to 1"
-                    )
+                    AppLogger.d("🔍 COMPARISON DETAILS for tph_id=${transferInspeksi.tph_id}:")
+                    AppLogger.d("   tph_id: '${transferInspeksi.tph_id}' vs '${existingEntity.tph_id}' → ${transferInspeksi.tph_id == existingEntity.tph_id}")
+                    AppLogger.d("   date_created: '${transferInspeksi.date_created}' vs '${existingEntity.date_created}' → ${transferInspeksi.date_created == existingEntity.date_created}")
 
-                    val updatedRecord = existingEntity.copy(
-                        // Always update status_scan_inspeksi to 1
-                        status_scan_inspeksi = 1,
+                    // Helper function to check if a value should be ignored
+                    fun shouldIgnoreValue(value: String?): Boolean {
+                        return value == null || value.isEmpty() || value == "NULL"
+                    }
 
-                        // Update kemandoran_id if existing is null/empty
-                        kemandoran_id = if (existingEntity.kemandoran_id.isNullOrEmpty() || existingEntity.kemandoran_id == "NULL") {
-                            transferInspeksi.kemandoran_id
-                        } else {
-                            existingEntity.kemandoran_id
-                        },
+                    // Compare kemandoran_id
+                    val kemandoranMatches = if (shouldIgnoreValue(transferInspeksi.kemandoran_id)) {
+                        true
+                    } else {
+                        transferInspeksi.kemandoran_id == existingEntity.kemandoran_id
+                    }
+                    AppLogger.d("   kemandoran_id: '${transferInspeksi.kemandoran_id}' vs '${existingEntity.kemandoran_id}' → $kemandoranMatches ${if (shouldIgnoreValue(transferInspeksi.kemandoran_id)) "(skipped)" else ""}")
 
-                        // Update karyawan_nik if existing is null/empty
-                        karyawan_nik = if (existingEntity.karyawan_nik.isNullOrEmpty() || existingEntity.karyawan_nik == "NULL") {
-                            transferInspeksi.karyawan_nik
-                        } else {
-                            existingEntity.karyawan_nik
-                        },
+                    // Compare karyawan_nik
+                    val nikMatches = if (shouldIgnoreValue(transferInspeksi.karyawan_nik)) {
+                        true
+                    } else {
+                        transferInspeksi.karyawan_nik == existingEntity.karyawan_nik
+                    }
+                    AppLogger.d("   karyawan_nik: '${transferInspeksi.karyawan_nik}' vs '${existingEntity.karyawan_nik}' → $nikMatches ${if (shouldIgnoreValue(transferInspeksi.karyawan_nik)) "(skipped)" else ""}")
 
-                        // Update karyawan_nama if existing is null/empty
-                        karyawan_nama = if (existingEntity.karyawan_nama.isNullOrEmpty() || existingEntity.karyawan_nama == "NULL") {
-                            transferInspeksi.karyawan_nama
-                        } else {
-                            existingEntity.karyawan_nama
-                        },
+                    // Compare karyawan_nama
+                    val namaMatches = if (shouldIgnoreValue(transferInspeksi.karyawan_nama)) {
+                        true
+                    } else {
+                        transferInspeksi.karyawan_nama == existingEntity.karyawan_nama
+                    }
+                    AppLogger.d("   karyawan_nama: '${transferInspeksi.karyawan_nama}' vs '${existingEntity.karyawan_nama}' → $namaMatches ${if (shouldIgnoreValue(transferInspeksi.karyawan_nama)) "(skipped)" else ""}")
 
-                        // Update jenis_panen if existing is 0 (default/empty)
-                        jenis_panen = if (existingEntity.jenis_panen == 0) {
-                            transferInspeksi.jenis_panen
-                        } else {
-                            existingEntity.jenis_panen
-                        },
+                    // Compare jenis_panen
+                    val jenisPanenMatches = if (transferInspeksi.jenis_panen == 0) {
+                        true
+                    } else {
+                        transferInspeksi.jenis_panen == existingEntity.jenis_panen
+                    }
+                    AppLogger.d("   jenis_panen: '${transferInspeksi.jenis_panen}' vs '${existingEntity.jenis_panen}' → $jenisPanenMatches ${if (transferInspeksi.jenis_panen == 0) "(skipped)" else ""}")
 
-                        // Update ancak if existing is 0 (default/empty)
-                        ancak = if (existingEntity.ancak == 0) {
-                            transferInspeksi.ancak
-                        } else {
-                            existingEntity.ancak
-                        },
+                    // Compare ancak
+                    val ancakMatches = if (transferInspeksi.ancak == 0) {
+                        true
+                    } else {
+                        transferInspeksi.ancak == existingEntity.ancak
+                    }
+                    AppLogger.d("   ancak: '${transferInspeksi.ancak}' vs '${existingEntity.ancak}' → $ancakMatches ${if (transferInspeksi.ancak == 0) "(skipped)" else ""}")
 
-                        // Also update karyawan_id if existing is empty
-                        karyawan_id = if (existingEntity.karyawan_id.isNullOrEmpty()) {
-                            transferInspeksi.karyawan_id
-                        } else {
-                            existingEntity.karyawan_id
-                        }
-                    )
+                    // Compare karyawan_id
+                    val karyawanIdMatches = if (shouldIgnoreValue(transferInspeksi.karyawan_id)) {
+                        true
+                    } else {
+                        transferInspeksi.karyawan_id == existingEntity.karyawan_id
+                    }
+                    AppLogger.d("karyawan_id: '${transferInspeksi.karyawan_id}' vs '${existingEntity.karyawan_id}' → $karyawanIdMatches ${if (shouldIgnoreValue(transferInspeksi.karyawan_id)) "(skipped)" else ""}")
 
-                    // Use the general update method instead of specific status update
-                    panenDao.update(listOf(updatedRecord))
-                    processedIds.add(existingEntity.id.toLong())
+                    // Determine if it's an exact duplicate
+                    val isExactDuplicate = (
+                            transferInspeksi.tph_id == existingEntity.tph_id &&
+                                    transferInspeksi.date_created == existingEntity.date_created &&
+                                    kemandoranMatches &&
+                                    nikMatches &&
+                                    namaMatches &&
+                                    jenisPanenMatches &&
+                                    ancakMatches &&
+                                    karyawanIdMatches
+                            )
 
-                    Log.d(
-                        "TransferInspeksi",
-                        "Successfully updated existing record ID: ${existingEntity.id}"
-                    )
-                    Log.d(
-                        "TransferInspeksi",
-                        "Updated fields - kemandoran_id: ${updatedRecord.kemandoran_id}, karyawan_nik: ${updatedRecord.karyawan_nik}, karyawan_nama: ${updatedRecord.karyawan_nama}, jenis_panen: ${updatedRecord.jenis_panen}, ancak: ${updatedRecord.ancak}"
-                    )
+                    if (isExactDuplicate) {
+                        // Add to duplicates list
+                        duplicates.add(transferInspeksi)
+                        AppLogger.w("⚠️ Exact duplicate found: tph_id=${transferInspeksi.tph_id}, date=${transferInspeksi.date_created}")
+                    } else {
+                        // Not duplicate, update the existing record
+                        AppLogger.d("🔄 Data is different, updating existing record")
+
+                        val updatedRecord = existingEntity.copy(
+                            // Always update status_scan_inspeksi to 1
+                            status_scan_inspeksi = 1,
+
+                            // Update kemandoran_id if existing is null/empty
+                            kemandoran_id = if (existingEntity.kemandoran_id.isNullOrEmpty() || existingEntity.kemandoran_id == "NULL") {
+                                transferInspeksi.kemandoran_id
+                            } else {
+                                existingEntity.kemandoran_id
+                            },
+
+                            // Update karyawan_nik if existing is null/empty
+                            karyawan_nik = if (existingEntity.karyawan_nik.isNullOrEmpty() || existingEntity.karyawan_nik == "NULL") {
+                                transferInspeksi.karyawan_nik
+                            } else {
+                                existingEntity.karyawan_nik
+                            },
+
+                            // Update karyawan_nama if existing is null/empty
+                            karyawan_nama = if (existingEntity.karyawan_nama.isNullOrEmpty() || existingEntity.karyawan_nama == "NULL") {
+                                transferInspeksi.karyawan_nama
+                            } else {
+                                existingEntity.karyawan_nama
+                            },
+
+                            // Update jenis_panen if existing is 0
+                            jenis_panen = if (existingEntity.jenis_panen == 0) {
+                                transferInspeksi.jenis_panen
+                            } else {
+                                existingEntity.jenis_panen
+                            },
+
+                            // Update ancak if existing is 0
+                            ancak = if (existingEntity.ancak == 0) {
+                                transferInspeksi.ancak
+                            } else {
+                                existingEntity.ancak
+                            },
+
+                            // Update karyawan_id if existing is empty
+                            karyawan_id = if (existingEntity.karyawan_id.isNullOrEmpty()) {
+                                transferInspeksi.karyawan_id
+                            } else {
+                                existingEntity.karyawan_id
+                            }
+                        )
+
+                        panenDao.update(listOf(updatedRecord))
+                        updatedIds.add(existingEntity.id.toLong())
+                        AppLogger.d("✅ Successfully updated: tph_id=${transferInspeksi.tph_id}, ID=${existingEntity.id}")
+                    }
 
                 } else {
                     // DOESN'T EXIST: Insert new record
-                    Log.d(
-                        "TransferInspeksi",
-                        "NEW RECORD - No existing record found, inserting new record"
-                    )
+                    AppLogger.d("Creating new record for tph_id=${transferInspeksi.tph_id}, date=${transferInspeksi.date_created}")
 
                     val entityToSave = transferInspeksi.copy(
                         created_by = createdBy.toIntOrNull() ?: 0,
-                        info = creatorInfo
+                        info = creatorInfo,
+                        status_scan_inspeksi = 1
                     )
 
                     val result = panenDao.insertWithTransaction(entityToSave)
 
                     result.fold(
                         onSuccess = { id ->
-                            processedIds.add(id)
-                            Log.d(
-                                "TransferInspeksi",
-                                "Successfully inserted new record with ID: $id"
-                            )
+                            savedIds.add(id)
+                            AppLogger.d("✅ Successfully inserted new record: tph_id=${transferInspeksi.tph_id}, ID=$id")
                         },
                         onFailure = {
-                            Log.e("TransferInspeksi", "Failed to insert new record: ${it.message}")
+                            AppLogger.e("❌ Failed to insert: tph_id=${transferInspeksi.tph_id}, Error: ${it.message}")
                             throw it
                         }
                     )
                 }
             }
 
-            Log.d(
-                "TransferInspeksi",
-                "Completed processing. Total processed IDs: ${processedIds.size}"
-            )
+            AppLogger.d("=== PROCESSING SUMMARY ===")
+            AppLogger.d("Total processed: ${transferInspeksiList.size}")
+            AppLogger.d("Successfully saved (new): ${savedIds.size}")
+            AppLogger.d("Successfully updated: ${updatedIds.size}")
+            AppLogger.d("Duplicates found: ${duplicates.size}")
+            AppLogger.d("==========================")
 
-            // Always return success
-            Result.success(SaveTPHResult.AllSuccess(processedIds))
+            // Create result based on what happened
+            val result = when {
+                duplicates.isEmpty() && updatedIds.isEmpty() -> {
+                    // All items were saved as new records
+                    AppLogger.d("All ${savedIds.size} items saved successfully!")
+                    SaveTPHResult.AllSuccess(savedIds)
+                }
+
+                duplicates.isEmpty() && savedIds.isEmpty() -> {
+                    // All items were updates of existing records
+                    AppLogger.d("All ${updatedIds.size} items were updates!")
+                    SaveTPHResult.AllSuccess(updatedIds)
+                }
+
+                savedIds.isEmpty() && updatedIds.isEmpty() -> {
+                    // Everything was a duplicate
+                    val duplicateInfo = duplicates.joinToString("\n") {
+                        "TPH ID: ${it.tph_id}, Date: ${it.date_created}, Nama: ${it.karyawan_nama}"
+                    }
+                    AppLogger.w("Duplicate details:\n$duplicateInfo")
+                    SaveTPHResult.AllDuplicate(
+                        duplicateCount = duplicates.size,
+                        duplicateInfo = duplicateInfo
+                    )
+                }
+
+                else -> {
+                    // Mixed results: saves, updates, and/or duplicates
+                    val duplicateInfo = duplicates.joinToString("\n") {
+                        "TPH ID: ${it.tph_id}, Date: ${it.date_created}, Nama: ${it.karyawan_nama}"
+                    }
+                    AppLogger.w("Partial success: ${savedIds.size} saved, ${updatedIds.size} updated, ${duplicates.size} duplicates")
+                    AppLogger.d("Saved IDs: $savedIds")
+                    AppLogger.d("Updated IDs: $updatedIds")
+                    AppLogger.w("Duplicate details:\n$duplicateInfo")
+                    SaveTPHResult.PartialSuccess(
+                        savedIds = savedIds + updatedIds, // combine both lists
+                        duplicateCount = duplicates.size,
+                        duplicateInfo = duplicateInfo
+                    )
+                }
+            }
+
+            Result.success(result)
 
         } catch (e: Exception) {
-            Log.e("TransferInspeksi", "Error in saveTransferInspeksi: ${e.message}", e)
+            AppLogger.e("💥 Error saving transfer inspeksi: ${e.message}")
+            AppLogger.e("Exception details: ${e.stackTraceToString()}")
             Result.failure(e)
+        } finally {
+            AppLogger.d("=== SAVE TRANSFER INSPEKSI END ===")
         }
     }
 
@@ -1183,27 +1322,43 @@ class AppRepository(context: Context) {
                     val existingRecord = panenDao.existsModel(tphData.namaBlok, tphData.time)
 
                     if (existingRecord != null) {
-                        AppLogger.d("🔍 COMPARISON DETAILS for TPH=${tphData.namaBlok}:")
-                        AppLogger.d("   namaBlok: '${tphData.namaBlok}' vs '${existingRecord.tph?.id}' → ${tphData.namaBlok == existingRecord.tph?.id.toString()}")
-                        AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
-                        AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
+//                        AppLogger.d("🔍 COMPARISON DETAILS for TPH=${tphData.namaBlok}:")
+//                        AppLogger.d("   namaBlok: '${tphData.namaBlok}' vs '${existingRecord.tph?.id}' → ${tphData.namaBlok == existingRecord.tph?.id.toString()}")
+//                        AppLogger.d("   time: '${tphData.time}' vs '${existingRecord.panen.date_created}' → ${tphData.time == existingRecord.panen.date_created}")
+//                        AppLogger.d("   nomor_pemanen: '${tphData.nomor_pemanen}' vs '${existingRecord.panen.nomor_pemanen}' → ${tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen}")
+//                        AppLogger.d("   asistensi: '${tphData.asistensi}' vs '${existingRecord.panen.asistensi}' → ${tphData.asistensi == existingRecord.panen.asistensi}")
+//                        AppLogger.d("   asistensi_divisi: '${tphData.asistensi_divisi}' vs '${existingRecord.panen.asistensi_divisi}' → ${tphData.asistensi_divisi == existingRecord.panen.asistensi_divisi}")
 
                         // Helper function to check if a value should be ignored
                         fun shouldIgnoreValue(value: String?): Boolean {
                             return value == null || value.isEmpty() || value == "NULL"
                         }
 
-                        // Only compare username if incoming value is not NULL/empty
+                        fun shouldIgnoreIntValue(value: Int): Boolean {
+                            return value == null || value == 0
+                        }
+
                         val usernameMatches = if (shouldIgnoreValue(tphData.username)) {
-                            true // Skip comparison if incoming is NULL/empty
+                            true
                         } else {
                             tphData.username == existingRecord.panen.username
                         }
-                        AppLogger.d("   username: '${tphData.username}' vs '${existingRecord.panen.username}' → $usernameMatches ${if (shouldIgnoreValue(tphData.username)) "(skipped - incoming NULL/empty)" else ""}")
+
+                        val createdNameMatches = if (shouldIgnoreValue(tphData.created_name)) {
+                            true
+                        } else {
+                            tphData.created_name == existingRecord.panen.created_name
+                        }
+
+                        val createdByMatches = if (shouldIgnoreIntValue(tphData.created_by)) {
+                            true
+                        } else {
+                            tphData.created_by == existingRecord.panen.created_by
+                        }
 
                         val existingJJG = extractJJGFromJson(existingRecord.panen.jjg_json)
                         val jjgMatches = if (shouldIgnoreValue(tphData.jjg)) {
-                            true // Skip comparison if incoming is NULL/empty
+                            true
                         } else {
                             tphData.jjg == existingJJG
                         }
@@ -1225,11 +1380,18 @@ class AppRepository(context: Context) {
                         }
                         AppLogger.d("   ancak: '${tphData.ancak}' vs '${existingRecord.panen.ancak}' → $ancakMatches ${if (incomingAncak == null) "(skipped - incoming NULL/empty)" else ""}")
 
+                        // Check asistensi_divisi match
+                        val asistensiDivisiMatches = tphData.asistensi_divisi == existingRecord.panen.asistensi_divisi
+
                         val isExactDuplicate = (
                                 tphData.namaBlok == existingRecord.tph?.id.toString() &&
                                         tphData.time == existingRecord.panen.date_created &&
                                         tphData.nomor_pemanen == existingRecord.panen.nomor_pemanen &&
+                                        tphData.asistensi == existingRecord.panen.asistensi &&
+                                        asistensiDivisiMatches &&
                                         usernameMatches &&
+                                        createdNameMatches &&
+                                        createdByMatches &&
                                         jjgMatches &&
                                         tipePanenMatches &&
                                         ancakMatches
@@ -1246,8 +1408,14 @@ class AppRepository(context: Context) {
                                 panen = existingRecord.panen.copy(
                                     nomor_pemanen = if (tphData.nomor_pemanen != 0)
                                         tphData.nomor_pemanen else existingRecord.panen.nomor_pemanen,
+                                    asistensi = tphData.asistensi,
+                                    asistensi_divisi = tphData.asistensi_divisi,
                                     username = if (!shouldIgnoreValue(tphData.username))
                                         tphData.username else existingRecord.panen.username,
+                                    created_name = if (!shouldIgnoreValue(tphData.created_name))
+                                        tphData.created_name else existingRecord.panen.created_name,
+                                    created_by = if (!shouldIgnoreIntValue(tphData.created_by))
+                                        tphData.created_by else existingRecord.panen.created_by,
                                     jjg_json = if (!shouldIgnoreValue(tphData.jjg))
                                         "{\"KP\": ${tphData.jjg}}" else existingRecord.panen.jjg_json,
                                     jenis_panen = if (incomingTipePanen != null) {
@@ -1265,7 +1433,7 @@ class AppRepository(context: Context) {
                             updatedIds.add(existingRecord.panen.id.toLong())
                             AppLogger.d("✅ Successfully updated: TPH=${tphData.namaBlok}")
                         }
-                    }else {
+                    } else {
                         AppLogger.d("Creating new record for TPH=${tphData.namaBlok}, Date=${tphData.time}")
 
                         // Save non-duplicate
@@ -1273,7 +1441,8 @@ class AppRepository(context: Context) {
                             PanenEntity(
                                 tph_id = tphData.namaBlok,
                                 date_created = tphData.time,
-                                created_by = 0,
+                                created_name = tphData.created_name,
+                                created_by = tphData.created_by,
                                 karyawan_id = "",
                                 kemandoran_id = "",
                                 karyawan_nik = "",
@@ -1281,7 +1450,8 @@ class AppRepository(context: Context) {
                                 jjg_json = "{\"KP\": ${tphData.jjg}}",
                                 foto = "",
                                 komentar = "",
-                                asistensi = 0,
+                                asistensi = tphData.asistensi,
+                                asistensi_divisi = tphData.asistensi_divisi,
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = 0,
@@ -1316,8 +1486,6 @@ class AppRepository(context: Context) {
                 AppLogger.d("==========================")
 
                 // Create result based on what happened
-                // In your saveTPHDataList function, change the result handling:
-
                 when {
                     duplicates.isEmpty() && updatedIds.isEmpty() -> {
                         // All items were saved as new records
@@ -1328,7 +1496,7 @@ class AppRepository(context: Context) {
                     duplicates.isEmpty() && savedIds.isEmpty() -> {
                         // All items were updates of existing records
                         AppLogger.d("All ${updatedIds.size} items were updates!")
-                        Result.success(SaveTPHResult.AllSuccess(updatedIds)) // or create AllUpdated if you prefer
+                        Result.success(SaveTPHResult.AllSuccess(updatedIds))
                     }
 
                     savedIds.isEmpty() && updatedIds.isEmpty() -> {
@@ -1336,7 +1504,7 @@ class AppRepository(context: Context) {
                         val duplicateInfo = duplicates.joinToString("\n") {
                             "TPH ID: ${it.namaBlok}, Date: ${it.time}"
                         }
-                        AppLogger.w("All data is duplicate - returning as success to show alert")
+
                         AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.AllDuplicate(
@@ -1357,7 +1525,7 @@ class AppRepository(context: Context) {
                         AppLogger.w("Duplicate details:\n$duplicateInfo")
                         Result.success(
                             SaveTPHResult.PartialSuccess(
-                                savedIds = savedIds + updatedIds, // combine both lists
+                                savedIds = savedIds + updatedIds,
                                 duplicateCount = duplicates.size,
                                 duplicateInfo = duplicateInfo
                             )
@@ -1437,18 +1605,18 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun countESPB(
+    suspend fun getESPBList(
         archive: Int,
         statusTransferRestan: Int,
         hasNoEspb: Boolean,
         scanStatus: Int,
         date: String? = null
-    ): Int {
+    ): List<PanenEntityWithRelations> {
         return try {
-            panenDao.countESPB(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
+            panenDao.getESPBList(archive, statusTransferRestan, hasNoEspb, scanStatus, date)
         } catch (e: Exception) {
-            AppLogger.e("Error counting ESPB: ${e.message}")
-            0  // Return 0 if there's an error
+            AppLogger.e("Error getting ESPB list: ${e.message}")
+            emptyList()
         }
     }
 
@@ -1507,12 +1675,12 @@ class AppRepository(context: Context) {
         tphDao.getNomorTPHbyId(tphId)
     }
 
-    suspend fun getPanenCount(): Int {
-        return panenDao.getCount()
+    suspend fun getPanenCount(afdelingId: Int): Int {
+        return panenDao.getCount(afdelingId)
     }
 
-    suspend fun getPanenCountForTransferInspeksi(): Int {
-        return panenDao.getCountForTransferInspeksi()
+    suspend fun getPanenCountForTransferInspeksi(afdelingId: Int): Int {
+        return panenDao.getCountForTransferInspeksi(afdelingId)
     }
 
     suspend fun countWhereLuasPanenIsZeroAndDateToday(): Int {
@@ -1576,8 +1744,8 @@ class AppRepository(context: Context) {
         return panenDao.getCountArchive()
     }
 
-    suspend fun getPanenCountApproval(): Int {
-        return panenDao.getCountApproval()
+    suspend fun getPanenCountApprovalByAfdeling(afdelingId: Int): Int {
+        return panenDao.getCountApprovalByAfdeling(afdelingId)
     }
 
     suspend fun getTPHAndBlokInfo(id: Int): TPHBlokInfo? = withContext(Dispatchers.IO) {
@@ -1652,11 +1820,21 @@ class AppRepository(context: Context) {
             }
         }
 
-
-    suspend fun getAllTPHinWeek(estateId: Int): Result<List<PanenEntityWithRelations>> =
+    suspend fun getAllTPHHasBeenSelectedMB(): Result<List<MutuBuahWithRelations>> =
         withContext(Dispatchers.IO) {
             try {
-                val data = panenDao.getAllTPHinWeek(estateId)
+                val data = mutuBuahDao.getAllTPHHasBeenSelectedMB()
+                Result.success(data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+
+    suspend fun getAllTPHinWeek(estateIds: List<Int>): Result<List<PanenEntityWithRelations>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = panenDao.getAllTPHinWeek(estateIds)
                 Result.success(data)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -1902,13 +2080,17 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun getCountScanMPanen(status_scan_mpanen: Int = 0): Int {
+    suspend fun getCountScanMPanen(status_scan_mpanen: Int, afdelingId: Int): Int {
         return try {
-            panenDao.getCountScanMPanen(status_scan_mpanen)
+            panenDao.getCountScanMPanen(status_scan_mpanen, afdelingId)
         } catch (e: Exception) {
             AppLogger.e("Error counting ESPB created today: ${e.message}")
             0
         }
+    }
+
+    suspend fun findPanenWithRelationsByTphAndDate(tphId: String, dateCreated: String): PanenEntityWithRelations? {
+        return panenDao.findPanenWithRelationsByTphAndDate(tphId, dateCreated)
     }
 
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {

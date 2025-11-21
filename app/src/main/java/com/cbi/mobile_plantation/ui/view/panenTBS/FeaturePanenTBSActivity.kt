@@ -1,5 +1,6 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
+import PulsingUserLocationOverlay
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -8,12 +9,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.net.Uri
 import android.os.Build
@@ -40,8 +50,10 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -57,8 +69,10 @@ import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -70,9 +84,13 @@ import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
 import com.cbi.mobile_plantation.data.model.AfdelingModel
+import com.cbi.mobile_plantation.data.model.DownloadMapItem
+import com.cbi.mobile_plantation.data.model.DownloadMapProgressResponse
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
+import com.cbi.mobile_plantation.data.model.LocationManager
+import com.cbi.mobile_plantation.data.model.MutuBuahWithRelations
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
@@ -85,6 +103,7 @@ import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.ui.adapter.UploadProgressCMPDataAdapter
 import com.cbi.mobile_plantation.ui.adapter.Worker
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
+import com.cbi.mobile_plantation.ui.view.Inspection.FormInspectionActivity.MarkerData
 import com.cbi.mobile_plantation.ui.viewModel.AbsensiViewModel
 import com.cbi.mobile_plantation.ui.viewModel.CameraViewModel
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
@@ -97,11 +116,13 @@ import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.LoadingDialog
+import com.cbi.mobile_plantation.utils.MapUtils
 import com.cbi.mobile_plantation.utils.MathFun
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.ScannedTPHLocation
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.cbi.mobile_plantation.utils.awaitValue
 import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
@@ -115,14 +136,40 @@ import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
+import org.osmdroid.tileprovider.MapTileProviderArray
+import org.osmdroid.tileprovider.MapTileProviderBasic
+import org.osmdroid.tileprovider.modules.IArchiveFile
+import org.osmdroid.tileprovider.modules.MapTileFileArchiveProvider
+import org.osmdroid.tileprovider.modules.MapTileModuleProviderBase
+import org.osmdroid.tileprovider.tilesource.BitmapTileSourceBase
+import org.osmdroid.tileprovider.tilesource.ITileSource
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.MapTileIndex
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import java.io.File
+import java.io.FileFilter
+import java.io.FileInputStream
+import java.io.InputStream
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import kotlin.reflect.KMutableProperty0
@@ -138,7 +185,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private val photoFiles = mutableListOf<String>() // Store filenames
     private val photoFilesSelfie = mutableListOf<String>() // Store filenames
     private val komentarFoto = mutableListOf<String>() // Store filenames
-
+    private var currentZoomLevel = 15.0
+    private val ZOOM_THRESHOLD_SHOW_TEXT = 16.0
+    private val markerCache = mutableMapOf<String, Drawable>()
+    private var zoomUpdateJob: Job? = null
+    private var lastShowTextState: Boolean? = null
     private lateinit var layoutSelfiePhoto: View
     private var selfiePhotoFile: File? = null
 
@@ -157,9 +208,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var selectedTPHIdByScan: Int? = null
     private var tph_otomatis_estate: Int? = null
     var currentAccuracy: Float = 0F
+    private lateinit var titleLiveMapPanen: TextView
+    private lateinit var descTitleLiveMapPanen: TextView
+
+    private var locationUpdateJob: Job? = null
+    private var mapViewPanenBlok: MapView? = null
+    private var cardMapPanenBlok: MaterialCardView? = null
+    private var btnDetailMapPanen: MaterialButton? = null
+
+    private var sensorManager: SensorManager? = null
+    private var rotationSensor: Sensor? = null
+    private var currentBearing: Float = 0f
     private var prefManager: PrefManager? = null
     private val _masterEstateChoice = MutableLiveData<Map<String, Boolean>>(mutableMapOf())
     val masterEstateChoice: LiveData<Map<String, Boolean>> = _masterEstateChoice
+    private var isProcessingMapDownload = false
 
     // Change this from Map<Int, Boolean> to Map<String, Boolean>
     val masterEstateHasBeenChoice = mutableMapOf<String, Boolean>()
@@ -167,6 +230,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var featureName: String? = null
     private lateinit var cameraViewModel: CameraViewModel
     private lateinit var locationViewModel: LocationViewModel
+    private var pulsingUserOverlay: PulsingUserLocationOverlay? = null
     private lateinit var panenTBSViewModel: PanenTBSViewModel
     private var locationEnable: Boolean = false
     private lateinit var btnScanTPHRadius: MaterialButton
@@ -191,7 +255,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private lateinit var layoutBlok: LinearLayout
     private lateinit var layoutSelAsistensi: LinearLayout
     private lateinit var tvErrorScannedNotSelected: TextView
+
     private lateinit var mbSaveDataPanenTBS: MaterialButton
+    private lateinit var btnDownloadMapPanenOffline: MaterialButton
     private lateinit var progressBarScanTPHManual: ProgressBar
     private lateinit var progressBarScanTPHAuto: ProgressBar
     private var keyboardBeingDismissed = false
@@ -203,11 +269,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
     private var masterDeptInfoMap: Map<String, String> = emptyMap()
+    private val tphMarkersList = mutableListOf<Marker>()
     private var estateList: List<EstateModel> = emptyList()
     private var divisiList: List<TPHNewModel> = emptyList()
     private var absensiList: List<AbsensiKemandoranRelations> = emptyList()
     private var blokList: List<TPHNewModel> = emptyList()
     private var karyawanList: List<KaryawanModel> = emptyList()
+
+    private var panenTPH: List<PanenEntityWithRelations> = emptyList()
+    private var fullscreenUserOverlay: PulsingUserLocationOverlay? = null
+    private var currentLocationMarker: Marker? = null
     private var karyawanLainList: List<KaryawanModel> = emptyList()
     private var kemandoranList: List<KemandoranModel> = emptyList()
     private var afdelingList: List<AfdelingModel> = emptyList()
@@ -215,7 +286,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private val karyawanNamaMap = mutableMapOf<String, String>()
     private val karyawanNamaLainMap = mutableMapOf<String, String>()
     private var tphList: List<TPHNewModel> = emptyList()
-
+    private var estateAbbr: String? = null
     private lateinit var loadingDialog: LoadingDialog
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter
     private lateinit var selectedPemanenLainAdapter: SelectedWorkerAdapter
@@ -229,13 +300,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         RADIO,
     }
 
+    companion object {
+        private const val CAMERA_PERMISSION_REQUEST_CODE = 100
+    }
+    private var isSaving = false
+    private var lastClickTime = 0L
+    private val CLICK_DELAY = 1000L // 1 second debounce
+
     private var ancakInput: String = ""
     private var nomorPemanenInput: String = ""
-    private var asistensi: Int = 0
+    private var asistensi: Int = 1
     private var blokBanjir: Int = 0
     private var selectedTipePanen: String = ""
     private var selectedAfdeling: String = ""
     private var selectedAfdelingIdSpinner: Int = 0
+    private var selectedDivisiId: Int? = null
+
     private var selectedKemandoranIdSpinner: Int = 0
     private var selectedTahunTanamIdSpinner: Int = 0
     private var selectedKemandoranLainIdSpinner: Int = 0
@@ -352,10 +432,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 200F
-        boundaryAccuracy = 200F
-
-
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
 
         initViewModel()
         initUI()
@@ -374,9 +452,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
         setupTitleEachGroupInput()
         setupHeader()
-        if (featureName==AppUtils.ListFeatureNames.MutuBuah) {
+        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
             val tvDescFoto = findViewById<TextView>(R.id.tvDescFoto)
-            tvDescFoto.text =  "Upload foto sebagai bukti pengisian form Mutu Buah (Minimal 1 Foto Selfie dan 1 foto TPH untuk simpan)"
+            tvDescFoto.text =
+                "Upload foto sebagai bukti pengisian form Mutu Buah (Minimal 1 Foto Selfie dan 1 foto TPH untuk simpan)"
         }
 
         infoApp = AppUtils.getDeviceInfo(this@FeaturePanenTBSActivity).toString()
@@ -395,387 +474,84 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (!estateIdStr.isNullOrEmpty() && estateIdStr.toIntOrNull() != null) {
                     val estateIdInt = estateIdStr.toInt()
 
-                    val divisiDeferred = async {
+                    // 1. Fetch divisi list
+                    divisiList = withContext(Dispatchers.IO) {
                         try {
                             datasetViewModel.getDivisiList(estateIdInt)
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching divisiList: ${e.message}")
-                            emptyList() // Return an empty list to prevent crash
+                            emptyList()
                         }
                     }
-
-                    divisiList = divisiDeferred.await()
 
                     if (divisiList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset TPH dengan melakukan Sinkronisasi Data!")
                     }
 
-                    if (featureName != AppUtils.ListFeatureNames.MutuBuah){
-                        val panenDeferred = CompletableDeferred<List<PanenEntityWithRelations>>()
-
-                        panenViewModel.getAllTPHHasBeenSelected()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            panenViewModel.activePanenList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val tphDataMap = mutableMapOf<Int, TPHData>()
-
-                                list?.forEach { panen ->
-                                    val tphId = panen.tph?.id
-                                    val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
-                                    val limitTPH = panen.tph?.limit_tph
-                                    val workerNiks =
-                                        panen.panen.karyawan_nik?.split(",")?.map { it.trim() }
-                                            ?: emptyList()
-                                    val blokKode = panen.tph!!.blok_kode
-                                    val nomor = panen.tph.nomor
-
-                                    if (tphId != null && jenisTPHId != null) {
-                                        val existingData = tphDataMap[tphId]
-                                        if (existingData != null) {
-                                            // Merge worker NIKs and increment count
-                                            val mergedNiks =
-                                                (existingData.workerNiks + workerNiks).distinct()
-                                            tphDataMap[tphId] = existingData.copy(
-                                                count = existingData.count + 1,
-                                                workerNiks = mergedNiks,
-                                                blokKode = blokKode,
-                                                nomor = nomor
-                                            )
-                                        } else {
-                                            // Create new entry for this TPH
-                                            tphDataMap[tphId] = TPHData(
-                                                count = 1,
-                                                jenisTPHId = jenisTPHId,
-                                                limitTPH = limitTPH!!,
-                                                workerNiks = workerNiks,
-                                                blokKode = blokKode,
-                                                nomor = nomor
-                                            )
-                                        }
-                                    }
-                                }
-
-                                panenStoredLocal.clear()
-                                panenStoredLocal.putAll(tphDataMap)
-
-                                panenDeferred.complete(list ?: emptyList())
-                            }
-                        }
-
-                        val jenisTPHDeferred = CompletableDeferred<List<JenisTPHModel>>()
-
+                    // 2. Fetch jenis TPH list - properly on Main thread
+                    jenisTPHListGlobal = withContext(Dispatchers.Main) {
                         panenViewModel.getAllJenisTPH()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            panenViewModel.jenisTPHList.observe(this@FeaturePanenTBSActivity) { list ->
-                                jenisTPHListGlobal = list ?: emptyList()
-                                jenisTPHDeferred.complete(list ?: emptyList())
-                            }
-                        }
-
-
-
-                        val absensiDeferred = CompletableDeferred<List<AbsensiKemandoranRelations>>()
-
-                        absensiViewModel.loadActiveAbsensi()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            absensiViewModel.activeAbsensiList.observe(this@FeaturePanenTBSActivity) { absensiWithRelations ->
-                                val absensiData = absensiWithRelations ?: emptyList()
-
-                                // Store the absensi models in the global variable
-                                absensiList = absensiData
-
-
-                                AppLogger.d("absensiList $absensiList")
-                                // Extract all NIKs of present karyawan from all absensi entries
-                                val newPresentNikSet = mutableSetOf<String>()
-
-                                absensiData.forEach { absensiRelation ->
-                                    val absensi = absensiRelation.absensi
-                                    // Split the comma-separated NIK string and add each NIK to the set
-                                    val niks = absensi.karyawan_msk_nik.split(",")
-                                    newPresentNikSet.addAll(niks.filter {
-                                        it.isNotEmpty() && it.trim().isNotEmpty()
-                                    })
-                                }
-
-                                // Update the global set
-                                presentNikSet = newPresentNikSet
-
-                                AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
-                                absensiDeferred.complete(absensiData)
-                            }
-                        }
-
-                        val karyawanDeferred = CompletableDeferred<List<KaryawanModel>>()
-
-                        panenViewModel.getAllKaryawan()
-                        delay(100)
-
-                        withContext(Dispatchers.Main) {
-                            panenViewModel.allKaryawanList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val allKaryawan = list ?: emptyList()
-
-                                // Get user's afdeling ID
-                                val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-                                AppLogger.d("User's afdeling ID: $userAfdelingId")
-
-                                // Only filter if presentNikSet has values
-                                if (presentNikSet.isNotEmpty()) {
-                                    // Filter to get only present karyawan
-                                    val presentKaryawan = allKaryawan.filter { karyawan ->
-                                        karyawan.nik != null && presentNikSet.contains(karyawan.nik)
-                                    }
-
-                                    AppLogger.d("=== KARYAWAN FILTERING LOGIC ===")
-                                    AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
-                                    AppLogger.d("User afdeling ID: $userAfdelingId")
-                                    AppLogger.d("Available divisi list: $divisiList")
-
-                                    // Get divisi from present kemandoran (absensi data)
-                                    val presentKemandoranDivisi = if (absensiList.isNotEmpty()) {
-                                        val firstAbsensi = absensiList.firstOrNull()
-                                        firstAbsensi?.kemandoran?.divisi
-                                    } else {
-                                        null
-                                    }
-
-                                    AppLogger.d("Present kemandoran divisi: $presentKemandoranDivisi")
-
-                                    // Apply filtering logic
-                                    if (userAfdelingId != null && presentKemandoranDivisi != null) {
-
-                                        // Check if present kemandoran divisi exists in divisiList
-                                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
-                                            divisiList.any { it.divisi == presentKemandoranDivisi }
-                                        } else {
-                                            false
-                                        }
-                                        AppLogger.d("Is present divisi in divisi list: $isPresentDivisiInList")
-
-                                        if (isPresentDivisiInList) {
-                                            // Present divisi exists in divisiList
-                                            if (presentKemandoranDivisi == userAfdelingId) {
-                                                // Same divisi as user -> karyawanList
-                                                karyawanList = presentKaryawan
-                                                karyawanLainList = emptyList()
-                                                AppLogger.d("CASE 1: Present divisi matches user afdeling -> All to karyawanList")
-                                            } else {
-                                                // Different divisi from user -> karyawanLainList
-                                                karyawanList = emptyList()
-                                                karyawanLainList = presentKaryawan
-                                                AppLogger.d("CASE 2: Present divisi differs from user afdeling -> All to karyawanLainList")
-                                            }
-                                        } else {
-                                            // Present divisi NOT in divisiList -> karyawanList (as requested)
-                                            karyawanList = presentKaryawan
-                                            karyawanLainList = emptyList()
-                                            AppLogger.d("CASE 3: Present divisi not in divisi list -> All to karyawanList")
-                                        }
-
-                                    } else {
-                                        // Fallback: if we can't determine divisi, put all in karyawanList
-                                        karyawanList = presentKaryawan
-                                        karyawanLainList = emptyList()
-                                        AppLogger.d("FALLBACK: Cannot determine divisi -> All to karyawanList")
-                                    }
-
-                                    AppLogger.d("Final result:")
-                                    AppLogger.d("- karyawanList: ${karyawanList.size}")
-                                    AppLogger.d("- karyawanLainList: ${karyawanLainList.size}")
-                                    AppLogger.d("===============================")
-
-                                    // Complete the deferred with all present karyawan
-                                    karyawanDeferred.complete(presentKaryawan)
-                                } else {
-                                    karyawanList = emptyList()
-                                    karyawanLainList = emptyList()
-                                    karyawanDeferred.complete(allKaryawan)
-                                }
-                            }
-                        }
-
-                        val allKaryawan = karyawanDeferred.await()
-
-                        if (allKaryawan.isNotEmpty()) {
-                            // Setup the karyawan dropdown
-                            val nameCounts = mutableMapOf<String, Int>()
-                            allKaryawan.forEach {
-                                it.nama?.trim()?.let { nama ->
-                                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
-                                }
-                            }
-
-                            allKaryawan.forEach {
-                                it.nama?.trim()?.let { nama ->
-                                    val key = if (nameCounts[nama]!! > 1) {
-                                        "$nama - ${it.nik}"
-                                    } else {
-                                        nama
-                                    }
-                                    karyawanIdMap[key] = it.id!!
-                                    if (it.kemandoran_id != null) {
-                                        kemandoranIdMap[key] = it.kemandoran_id!!
-                                    }
-                                }
-                            }
-                        }
+                        panenViewModel.jenisTPHList.awaitValue()
                     }
 
-                    val tphOtomatisDeferred = async {
+                    // 3. Fetch TPH selections based on feature
+                    if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+                        withContext(Dispatchers.Main) {
+                            mutuBuahViewModel.getAllTPHHasBeenSelected()
+                            mutuBuahViewModel.activeMBList.awaitValue()
+                        }.also { list ->
+                            processMutuBuahData(list)
+                        }
+                    } else {
+                        // 4. Fetch panen data
+                        val panenList = withContext(Dispatchers.Main) {
+                            panenViewModel.getAllTPHHasBeenSelected()
+                            panenViewModel.activePanenList.awaitValue()
+                        }
+                        processPanenData(panenList)
+
+                        // 5. Fetch absensi data
+                        val absensiData = withContext(Dispatchers.Main) {
+                            absensiViewModel.loadActiveAbsensi()
+                            absensiViewModel.activeAbsensiList.awaitValue()
+                        }
+                        processAbsensiData(absensiData)
+
+                        // 6. Fetch karyawan data
+                        val allKaryawan = withContext(Dispatchers.Main) {
+                            panenViewModel.getAllKaryawan()
+                            panenViewModel.allKaryawanList.awaitValue()
+                        }
+                        processKaryawanData(allKaryawan)
+                    }
+
+                    // 7. Fetch TPH otomatis
+                    tph_otomatis_estate = withContext(Dispatchers.IO) {
                         try {
                             val estateAbbr = prefManager!!.estateUserLogin
                             datasetViewModel.getTphOtomatisByEstate(estateAbbr!!)
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching tph_otomatis: ${e.message}")
-                            null // Return null if error occurs
+                            null
                         }
                     }
 
-                    tph_otomatis_estate = tphOtomatisDeferred.await()
-
-
-
-                    datasetViewModel.getAllEstates()
-                    delay(100)
-
-                    withContext(Dispatchers.Main) {
-                        datasetViewModel.allEstatesList.observe(this@FeaturePanenTBSActivity) { list ->
-                            val allEstates = list ?: emptyList()
-                            estateList = allEstates
-                        }
+                    // 8. Fetch estates
+                    estateList = withContext(Dispatchers.Main) {
+                        datasetViewModel.getAllEstates()
+                        datasetViewModel.allEstatesList.awaitValue()
                     }
 
                     if (estateList.isNullOrEmpty()) {
                         throw Exception("Periksa kembali dataset estate dengan melakukan Sinkronisasi Data!")
                     }
 
+                    // 9. Fetch department info if needed
                     if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
-
-                        withContext(Dispatchers.Main) {
-                            datasetViewModel.distinctDeptInfoList.observe(this@FeaturePanenTBSActivity) { list ->
-                                val distinctDeptInfos = list ?: emptyList()
-                                val deptInfoMap =
-                                    distinctDeptInfos.associate { it.dept to it.dept_abbr }
-                                masterDeptInfoMap = deptInfoMap
-                                departmentInfoDeferred.complete(deptInfoMap)
-                            }
-
-                            // Trigger the data fetch on the main thread
+                        masterDeptInfoMap = withContext(Dispatchers.Main) {
                             datasetViewModel.getDistinctMasterDeptInfo()
-                        }
-
-                        // Wait for the department info to be loaded
-                        masterDeptInfoMap = departmentInfoDeferred.await()
-                    }
-
-                    // KEMANDORAN SETUP - Added proper error handling
-                    try {
-                        // Get the user's logged-in afdeling ID from prefManager
-                        val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-                        AppLogger.d("User's logged-in afdeling ID: $userAfdelingId")
-
-                        if (userAfdelingId != null) {
-                            // Get all divisi IDs except the user's afdeling
-                            val allIdAfdeling = try {
-                                divisiList.map { it.divisi }
-                            } catch (e: Exception) {
-                                AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
-                                throw Exception("Error mapping afdeling data: ${e.message}")
-                            }
-
-                            val otherDivisiIds = try {
-                                allIdAfdeling.filter { divisiId ->
-                                    userAfdelingId != divisiId
-                                }
-                            } catch (e: Exception) {
-                                AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
-                                throw Exception("Error filtering afdeling data: ${e.message}")
-                            }
-
-                            // Load kemandoran data based on user's afdeling
-                            if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                val kemandoranDeferred = async {
-                                    try {
-                                        datasetViewModel.getKemandoranEstateExcept(
-                                            estateId!!.toInt(),
-                                            otherDivisiIds as List<Int>
-                                        )
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Error fetching kemandoranList: ${e.message}")
-                                        throw Exception("Error fetching kemandoran data: ${e.message}")
-                                    }
-                                }
-                                kemandoranList = kemandoranDeferred.await()
-                            }
-
-                            // Fetch all kemandoran for the estate
-                            val allKemandoranDeferred = async {
-                                try {
-                                    datasetViewModel.getKemandoranEstate(estateId!!.toInt())
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error fetching kemandoran: ${e.message}")
-                                    throw Exception("Error fetching kemandoran data: ${e.message}")
-                                }
-                            }
-
-                            val allKemandoran = allKemandoranDeferred.await()
-
-// Filter kemandoran based on user's afdeling/divisi
-                            val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
-
-                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                kemandoranList = allKemandoran
-                            } else {
-                                // For other features: Only set kemandoranLainList (kemandoranList already set elsewhere)
-
-                                // Lain kemandoran: Different divisi from user
-                                kemandoranLainList = allKemandoran.filter { kemandoran ->
-                                    kemandoran.divisi != userAfdelingId
-                                }
-
-                                AppLogger.d("User afdeling ID: $userAfdelingId")
-                                AppLogger.d("Other divisi kemandoran count: ${kemandoranLainList.size}")
-                            }
-
-// Setup the kemandoran spinners on main thread
-                            withContext(Dispatchers.Main) {
-                                try {
-                                    // Setup main kemandoran spinner
-                                    val kemandoranNames = kemandoranList.map { it.nama }
-                                    AppLogger.d("kemandoranNames: $kemandoranNames")
-                                    setupSpinnerView(
-                                        layoutKemandoran,
-                                        if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
-                                    )
-
-                                    // Setup lain kemandoran spinner (only for non-AsistensiEstateLain features)
-                                    if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                        val kemandoranLainNames = kemandoranLainList.map { it.nama }
-                                        AppLogger.d("kemandoranLainNames: $kemandoranLainNames")
-                                        setupSpinnerView(
-                                            layoutKemandoranLain,
-                                            if (kemandoranLainNames.isNotEmpty()) kemandoranLainNames as List<String> else emptyList()
-                                        )
-                                    }
-
-                                    AppLogger.d("Kemandoran spinners setup completed")
-                                } catch (e: Exception) {
-                                    AppLogger.e("Error setting up kemandoran spinners: ${e.message}")
-                                    throw Exception("Error setting up kemandoran spinners: ${e.message}")
-                                }
-                            }
-                        } else {
-                            throw Exception("User afdeling ID is null - cannot load kemandoran data")
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error in kemandoran setup: ${e.message}")
-                        throw Exception("Kemandoran setup failed: ${e.message}")
+                            datasetViewModel.distinctDeptInfoList.awaitValue()
+                        }.associate { it.dept to it.dept_abbr }
                     }
                 }
 
@@ -783,24 +559,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     loadingDialog.dismiss()
                     setupLayout()
                 }
-            } catch (e: Exception) {
+            }  catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     loadingDialog.dismiss()
-                    val errorMessage = e.message?.let { "1. $it" } ?: "1. Unknown error"
 
-                    val estateInfo = estateId?.takeIf { it.isBlank() }
-                        ?.let { "2. ID Estate User Login: \"$it\"" }
-
-                    // Combine messages dynamically (avoid extra \n\n if estateInfo is null)
-                    val fullMessage = listOfNotNull(errorMessage, estateInfo).joinToString("\n\n")
-
-                    AppLogger.e("Error fetching data: ${e.message}")
+                    val errorMessage = e.toString()
 
                     AlertDialogUtility.withSingleAction(
                         this@FeaturePanenTBSActivity,
                         stringXML(R.string.al_back),
                         stringXML(R.string.al_failed_fetch_data),
-                        fullMessage,
+                        errorMessage,
                         "warning.json",
                         R.color.colorRedDark
                     ) {
@@ -822,10 +591,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
             false
         }
-
-//        masterEstateChoice.observe(this) { selections ->
-//            updateDownloadMasterDataButtonText(selections)
-//        }
 
         mbSaveDataPanenTBS.setOnClickListener {
             if (validateAndShowErrors()) {
@@ -1159,12 +924,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             created_by = userId!!,
                                             jjgAbnormal = abnormal,
                                             foto_selfie = photoFilesSelfieString,
-                                            createdName = userName!!)
-                                    }else{
+                                            createdName = userName!!
+                                        )
+                                    } else {
+
+                                        val asistensiValue =
+                                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
+                                                ?: 0)
+
+                                        AppLogger.d("prefManager?.estateUserLogin ${prefManager?.estateUserLogin}")
                                         panenViewModel.saveDataPanen(
                                             tph_id = tph_id,
                                             date_created = date_created,
-                                            created_by = userId!!,  // Prevent crash if userId is null
+                                            created_by = userId!!,
                                             karyawan_id = uniqueIdKaryawan,
                                             kemandoran_id = uniqueKemandoranId,
                                             karyawan_nik = uniqueNikPemanen,
@@ -1172,24 +944,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             jjg_json = jjg_json,
                                             foto = photoFilesString,
                                             komentar = komentarFotoString ?: "",
-                                            asistensi = if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
-                                                ?: 0),
+                                            asistensi = asistensiValue,
                                             lat = finalLat ?: 0.0,
                                             lon = finalLon ?: 0.0,
-                                            jenis_panen = selectedTipePanen.toIntOrNull()
-                                                ?: 0, // Avoid NumberFormatException
+                                            jenis_panen = selectedTipePanen.toIntOrNull() ?: 0,
                                             ancakInput = ancakInput.toInt(),
                                             nomorPemanenInput = nomorPemanenInput.toInt(),
                                             info = infoApp ?: "",
                                             archive = 0,
-                                            blokBanjir = blokBanjir
+                                            blokBanjir = blokBanjir,
+                                            asistensiDept = if (asistensiValue == 2) prefManager?.estateIdUserLogin?.toInt() else null,
+                                            asistensiDeptNama = if (asistensiValue == 2) prefManager?.estateUserLengkapLogin else null,
+                                            asistensiDivisi = if (asistensiValue == 2) prefManager?.afdelingIdUserLogin?.toIntOrNull() else null
                                         )
                                     }
                                 }
 
                                 when (result) {
                                     is AppRepository.SaveResultPanen.Success,
-                                    is AppRepository.SaveResultMutuBuah.Success  -> {
+                                    is AppRepository.SaveResultMutuBuah.Success -> {
                                         playSound(R.raw.berhasil_simpan)
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1234,6 +1007,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             resetFormAfterSaveData()
                                         }
                                     }
+
                                     is AppRepository.SaveResultPanen.Error -> {
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1244,6 +1018,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             R.color.colorRedDark
                                         ) {}
                                     }
+
                                     is AppRepository.SaveResultMutuBuah.Error -> {
                                         AlertDialogUtility.withSingleAction(
                                             this@FeaturePanenTBSActivity,
@@ -1277,6 +1052,355 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     }
                 )
             }
+        }
+
+        initializeMapView()
+        setupDownloadOfflineMap()
+    }
+
+    private fun processPanenData(list: List<PanenEntityWithRelations>) {
+        val tphDataMap = mutableMapOf<Int, TPHData>()
+
+        list.forEach { panen ->
+            val tphId = panen.tph?.id
+            val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+            val limitTPH = panen.tph?.limit_tph
+            val workerNiks = panen.panen.karyawan_nik?.split(",")?.map { it.trim() } ?: emptyList()
+            val blokKode = panen.tph!!.blok_kode
+            val nomor = panen.tph.nomor
+
+            if (tphId != null && jenisTPHId != null) {
+                val existingData = tphDataMap[tphId]
+                if (existingData != null) {
+                    val mergedNiks = (existingData.workerNiks + workerNiks).distinct()
+                    tphDataMap[tphId] = existingData.copy(
+                        count = existingData.count + 1,
+                        workerNiks = mergedNiks,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                } else {
+                    tphDataMap[tphId] = TPHData(
+                        count = 1,
+                        jenisTPHId = jenisTPHId,
+                        limitTPH = limitTPH!!,
+                        workerNiks = workerNiks,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                }
+            }
+        }
+
+        panenStoredLocal.clear()
+        panenStoredLocal.putAll(tphDataMap)
+    }
+
+    private fun processMutuBuahData(list: List<MutuBuahWithRelations>) {
+        val tphDataMap = mutableMapOf<Int, TPHData>()
+
+        list.forEach { panen ->
+            val tphId = panen.tph?.id
+            val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+            val limitTPH = panen.tph?.limit_tph
+            val blokKode = panen.tph!!.blok_kode
+            val nomor = panen.tph.nomor
+
+            if (tphId != null && jenisTPHId != null) {
+                val existingData = tphDataMap[tphId]
+                if (existingData != null) {
+                    tphDataMap[tphId] = existingData.copy(
+                        count = existingData.count + 1,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                } else {
+                    tphDataMap[tphId] = TPHData(
+                        count = 1,
+                        jenisTPHId = jenisTPHId,
+                        limitTPH = limitTPH!!,
+                        blokKode = blokKode,
+                        nomor = nomor
+                    )
+                }
+            }
+        }
+
+        panenStoredLocal.clear()
+        panenStoredLocal.putAll(tphDataMap)
+    }
+
+    private fun processAbsensiData(absensiData: List<AbsensiKemandoranRelations>) {
+        absensiList = absensiData
+
+        val newPresentNikSet = mutableSetOf<String>()
+        absensiData.forEach { absensiRelation ->
+            val niks = absensiRelation.absensi.karyawan_msk_nik.split(",")
+            newPresentNikSet.addAll(niks.filter { it.isNotEmpty() && it.trim().isNotEmpty() })
+        }
+
+        presentNikSet = newPresentNikSet
+        AppLogger.d("Found ${presentNikSet.size} present NIKs from absensi data")
+    }
+
+    private fun processKaryawanData(allKaryawan: List<KaryawanModel>) {
+        if (presentNikSet.isNotEmpty()) {
+            val presentKaryawan = allKaryawan.filter { karyawan ->
+                karyawan.nik != null && presentNikSet.contains(karyawan.nik)
+            }
+
+            AppLogger.d("=== KARYAWAN SIMPLE LOGIC ===")
+            AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
+
+            karyawanList = presentKaryawan
+            karyawanLainList = presentKaryawan
+
+            AppLogger.d("All present karyawan assigned to both lists.")
+            AppLogger.d("===============================")
+        } else {
+            karyawanList = emptyList()
+            karyawanLainList = emptyList()
+        }
+
+        if (allKaryawan.isNotEmpty()) {
+            val nameCounts = mutableMapOf<String, Int>()
+            allKaryawan.forEach {
+                it.nama?.trim()?.let { nama ->
+                    nameCounts[nama] = (nameCounts[nama] ?: 0) + 1
+                }
+            }
+
+            allKaryawan.forEach {
+                it.nama?.trim()?.let { nama ->
+                    val key = if (nameCounts[nama]!! > 1) {
+                        "$nama - ${it.nik}"
+                    } else {
+                        nama
+                    }
+                    karyawanIdMap[key] = it.id!!
+                    if (it.kemandoran_id != null) {
+                        kemandoranIdMap[key] = it.kemandoran_id!!
+                    }
+                }
+            }
+        }
+    }
+
+    private fun setupDownloadOfflineMap(){
+        btnDownloadMapPanenOffline.setOnClickListener {
+            if (AppUtils.isNetworkAvailable(this)) {
+                // Check if offline map already downloaded
+                val isMapAlreadyDownloaded = prefManager!!.isDownloadedMapOffline
+
+                val dialogMessage = if (isMapAlreadyDownloaded) {
+                    "Peta offline sudah pernah diunduh sebelumnya.\n\nApakah Anda yakin ingin memperbarui data peta offline CMP?"
+                } else {
+                    getString(R.string.al_confirm_download_offline_map)
+                }
+
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    "Download",
+                    getString(R.string.confirmation_dialog_title),
+                    dialogMessage,
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.bluedarklight),
+                    function = { getDownloadIdMap() },
+                    cancelFunction = { }
+                )
+            } else {
+                AlertDialogUtility.withSingleAction(
+                    this@FeaturePanenTBSActivity,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_data_cmp),
+                    stringXML(R.string.al_no_internet_connection_description_login),
+                    "network_error.json",
+                    R.color.colorRedDark
+                ) { }
+            }
+        }
+    }
+
+    private fun getDownloadIdMap() {
+        lifecycleScope.launch {
+            loadingDialog.show()
+            loadingDialog.setMessage("Sedang memproses data...")
+
+            try {
+                // Call API through datasetViewModel
+                datasetViewModel.getDownloadMapList()
+
+                // Observe ONCE - auto-removes after first trigger
+                datasetViewModel.downloadMapList.observeOnce(this@FeaturePanenTBSActivity) { result ->
+                    result.onSuccess { response ->
+                        if (response.success && response.data.downloads.isNotEmpty()) {
+                            AppLogger.d("Download map list: ${response.data.downloads.size} items")
+                            startDownloadOfflineMap(response.data.downloads)
+                        } else {
+                            loadingDialog.dismiss()
+                            Toast.makeText(
+                                this@FeaturePanenTBSActivity,
+                                "Tidak ada data peta offline tersedia",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }.onFailure { error ->
+                        loadingDialog.dismiss()
+                        AppLogger.e("Error getting download map list: ${error.message}")
+                        Toast.makeText(
+                            this@FeaturePanenTBSActivity,
+                            "Gagal mengambil data: ${error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+
+            } catch (e: Exception) {
+                loadingDialog.dismiss()
+                AppLogger.e("Error in getDownloadIdMap: ${e.message}")
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun startDownloadOfflineMap(downloadList: List<DownloadMapItem>) {
+        // Guard to prevent multiple simultaneous calls
+        if (isProcessingMapDownload) {
+            AppLogger.d("Map download already in progress, ignoring duplicate call")
+            return
+        }
+
+        isProcessingMapDownload = true
+
+        val userEstates = prefManager!!.estateUserLogin?.trim()
+
+        // Convert to list of estate abbreviations
+        val estateAbbrList = if (!userEstates.isNullOrEmpty()) {
+            if (userEstates.contains(",")) {
+                userEstates.split(",").map { it.trim() }
+            } else {
+                listOf(userEstates)
+            }
+        } else {
+            emptyList()
+        }
+
+        AppLogger.d("User estates: $estateAbbrList")
+
+        // Find all matching downloads and keep only ONE per estate
+        val matchedDownloads = downloadList
+            .filter { it.estateAbbr in estateAbbrList }
+            .groupBy { it.estateAbbr }
+            .mapValues { (_, downloads) ->
+                downloads
+                    .maxByOrNull { Instant.parse(it.createdAt) } // <-- pick newest
+            }
+            .values
+            .filterNotNull()
+            .toList()
+
+        AppLogger.d("Found ${matchedDownloads.size} unique matching estate(s) after deduplication")
+
+        if (matchedDownloads.isNotEmpty()) {
+            loadingDialog.setMessage("Mengambil detail peta...")
+
+            // ✅ Use coroutine to process sequentially
+            lifecycleScope.launch {
+                val datasetRequests = mutableListOf<DatasetRequest>()
+
+                matchedDownloads.forEachIndexed { index, matchedDownload ->
+                    val result = processEstateMapDownloadSuspend(
+                        matchedDownload = matchedDownload,
+                        currentIndex = index,
+                        totalMaps = matchedDownloads.size
+                    )
+
+                    result?.let { datasetRequests.add(it) }
+                }
+
+                // All done
+                isProcessingMapDownload = false
+                loadingDialog.dismiss()
+
+                if (datasetRequests.isNotEmpty()) {
+                    setupDownloadDialog(datasetRequests)
+                } else {
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Gagal mendapatkan detail peta untuk semua estate",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+        } else {
+            isProcessingMapDownload = false
+            loadingDialog.dismiss()
+            AppLogger.e("No matching estates found for: $estateAbbrList")
+
+            AlertDialogUtility.withSingleAction(
+                this@FeaturePanenTBSActivity,
+                stringXML(R.string.al_back),
+                stringXML(R.string.al_no_map_offline),
+                "Estate(s) ${estateAbbrList.joinToString(", ")} tidak ditemukan dalam daftar download map",
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+        }
+    }
+
+    private suspend fun processEstateMapDownloadSuspend(
+        matchedDownload: DownloadMapItem,
+        currentIndex: Int,
+        totalMaps: Int
+    ): DatasetRequest? {
+        val downloadId = matchedDownload.downloadId
+
+        AppLogger.d("Processing estate ${currentIndex + 1}/$totalMaps: ${matchedDownload.estateName} (${matchedDownload.estateAbbr})")
+        AppLogger.d("Download ID: $downloadId")
+        AppLogger.d("Status: ${matchedDownload.status}")
+        AppLogger.d("Total Size: ${matchedDownload.totalSize}")
+
+        withContext(Dispatchers.Main) {
+            loadingDialog.setMessage("Mengambil detail peta... (${currentIndex + 1}/$totalMaps)")
+        }
+
+        return try {
+            // ✅ Call suspend function directly - no LiveData, no observers
+            val progressResult = datasetViewModel.getDownloadMapProgress(downloadId)
+
+            progressResult.getOrNull()?.let { progressResponse ->
+                if (progressResponse.success) {
+                    val progressData = progressResponse.data
+
+                    AppLogger.d("✅ Estate ${progressData.estateAbbr} - Chunks: ${progressData.chunksCount}, Tiles: ${progressData.totalTiles}")
+
+                    DatasetRequest(
+                        estate = progressData.estateAbbr,
+                        estateAbbr = progressData.estateAbbr,
+                        lastModified = null,
+                        dataset = "Map ${progressData.estateAbbr} (${progressData.totalSize})",
+                        isDownloadMasterTPHAsistensi = false,
+                        downloadIdMap = downloadId,
+                        totalChunks = progressData.chunksCount
+                    )
+                } else {
+                    AppLogger.e("Failed to get progress for ${matchedDownload.estateAbbr}")
+                    null
+                }
+            } ?: run {
+                progressResult.exceptionOrNull()?.let { error ->
+                    AppLogger.e("Error getting map progress for ${matchedDownload.estateAbbr}: ${error.message}")
+                }
+                null
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Exception in processEstateMapDownloadSuspend: ${e.message}")
+            null
         }
     }
 
@@ -1326,6 +1450,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 //        findViewById<TextView>(R.id.tvPercentBuahMasak).text = "($persenMasak)%"
     }
 
+    private fun <T> LiveData<T>.observeOnce(owner: LifecycleOwner, observer: (T) -> Unit) {
+        observe(owner, object : Observer<T> {
+            override fun onChanged(value: T) {
+                removeObserver(this)
+                observer(value)
+            }
+        })
+    }
+
 
     private fun initUI() {
         backButton = findViewById<ImageView>(R.id.btn_back)
@@ -1340,7 +1473,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         progressBarScanTPHManual = findViewById(R.id.progressBarScanTPHManual)
         progressBarScanTPHAuto = findViewById(R.id.progressBarScanTPHAuto)
         mbSaveDataPanenTBS = findViewById(R.id.mbSaveDataPanenTBS)
-
+        btnDownloadMapPanenOffline = findViewById(R.id.btnDownloadMapPanenOffline)
+        titleLiveMapPanen = findViewById(R.id.titleLiveMapPanen)
+        descTitleLiveMapPanen = findViewById(R.id.descTitleLiveMapPanen)
         layoutEstate = findViewById(R.id.layoutEstate)
         layoutAncak = findViewById(R.id.layoutAncak)
         layoutNomorPemanen = findViewById(R.id.layoutNomorPemanen)
@@ -1364,14 +1499,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
 
-        if (blokBanjir == 0) {
-            tphScannedResultRecyclerView.visibility = View.GONE
-            titleScannedTPHInsideRadius.visibility = View.GONE
-            descScannedTPHInsideRadius.visibility = View.GONE
-            emptyScannedTPHInsideRadius.visibility = View.GONE
-        }
-
         val kemandoranLayout = findViewById<LinearLayout>(R.id.layoutKemandoran)
+        val pemanenLayout = findViewById<LinearLayout>(R.id.layoutPemanen)
+
+
+
+
         val kemandoranLainLayout = findViewById<LinearLayout>(R.id.layoutKemandoranLain)
         val tahunTanamLayout = findViewById<LinearLayout>(R.id.layoutTahunTanam)
 
@@ -1803,11 +1936,822 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         photoFiles.clear()
         komentarFoto.clear()
         takeFotoPreviewAdapter?.resetAllSections()
+
+        if (blokBanjir == 0) {
+            tphScannedResultRecyclerView.visibility = View.GONE
+            titleScannedTPHInsideRadius.visibility = View.GONE
+            descScannedTPHInsideRadius.visibility = View.GONE
+            emptyScannedTPHInsideRadius.visibility = View.GONE
+            kemandoranLayout.visibility = View.GONE
+            pemanenLayout.visibility = View.GONE
+
+            layoutSelAsistensi.visibility = View.GONE
+
+        }
     }
 
-    companion object {
-        private const val CAMERA_PERMISSION_REQUEST_CODE = 100
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initializeMapView() {
+        Configuration.getInstance().apply {
+            userAgentValue = packageName
+            osmdroidBasePath = File(cacheDir, "osmdroid")
+            osmdroidTileCache = File(osmdroidBasePath, "tiles")
+
+            tileFileSystemCacheMaxBytes = 50L * 1024 * 1024
+            tileFileSystemCacheTrimBytes = 40L * 1024 * 1024
+        }
+
+        cardMapPanenBlok = findViewById(R.id.cardMapPanenBlok)
+        mapViewPanenBlok = findViewById(R.id.mapViewPanenBlok)
+        btnDetailMapPanen = findViewById(R.id.btnDetailMapPanen)
+
+        setupLegend(
+            findViewById(android.R.id.content),
+            listOf(
+                LegendItem(R.color.orange, "Lokasi Anda"),
+                LegendItem(R.color.bluedarklight, "Titik TPH"),
+                LegendItem(R.color.colorRedDark, "", isVisible = false)
+            )
+        )
+
+        mapViewPanenBlok?.apply {
+            // ✅ Use when expression that calls the right function
+            val tileSource = MapUtils.getTileSource(
+                context = this@FeaturePanenTBSActivity,
+                prefManager = prefManager!!,
+                mapView = this,
+                selectedEstateAbbr = estateAbbr
+            )
+
+            setTileSource(tileSource)
+            setMultiTouchControls(true)
+            setBuiltInZoomControls(false)
+            minZoomLevel = 17.0
+            maxZoomLevel = 20.0
+            controller.setZoom(15.0)
+
+            addMapListener(object : MapListener {
+                override fun onScroll(event: ScrollEvent?): Boolean = false
+
+                override fun onZoom(event: ZoomEvent?): Boolean {
+                    event?.let {
+                        val newZoom = it.zoomLevel
+                        if (newZoom != currentZoomLevel) {
+                            currentZoomLevel = newZoom
+                            updateMarkerVisibility()
+                        }
+                    }
+                    return false
+                }
+            })
+
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        v.parent.requestDisallowInterceptTouchEvent(true)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        v.parent.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            }
+
+            pulsingUserOverlay = PulsingUserLocationOverlay(this@FeaturePanenTBSActivity, this)
+            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
+            overlays.add(0, pulsingUserOverlay)
+        }
+
+        btnDetailMapPanen?.setOnClickListener {
+            showDetailPokokDialog()
+        }
     }
+
+    private fun updateMapTileSource() {
+        AppLogger.d("updateMapTileSource called")
+        AppLogger.d("isDownloadedMapOffline: ${prefManager!!.isDownloadedMapOffline}")
+
+        mapViewPanenBlok?.apply {
+            // ✅ Use the utility helper
+            val tileSource = MapUtils.getTileSource(
+                context = this@FeaturePanenTBSActivity,
+                prefManager = prefManager!!,
+                mapView = this,
+                selectedEstateAbbr = estateAbbr
+            )
+
+            setTileSource(tileSource)
+            invalidate()
+            AppLogger.d("Tile source updated and map invalidated")
+        } ?: run {
+            AppLogger.e("mapViewPanenBlok is null, cannot update tile source")
+        }
+    }
+    private fun updateMarkerVisibility() {
+        zoomUpdateJob?.cancel()
+        zoomUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            delay(300) // Debounce
+
+            try {
+                val showText = currentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                if (lastShowTextState == showText) {
+                    AppLogger.d("Marker visibility unchanged, skipping update")
+                    return@launch
+                }
+                lastShowTextState = showText
+
+                tphMarkersList.forEachIndexed { index, marker ->
+                    val tphData = latLonMap.entries.elementAtOrNull(index)
+                    if (tphData != null) {
+                        val colorInt = ContextCompat.getColor(
+                            this@FeaturePanenTBSActivity,
+                            R.color.bluedarklight
+                        )
+
+                        marker.icon = getCachedMarker(
+                            colorInt,
+                            if (showText) tphData.value.nomor else null,
+                            showText
+                        )
+                    }
+                }
+
+                mapViewPanenBlok?.invalidate()
+
+            } catch (e: Exception) {
+                AppLogger.e("Error updating marker visibility: ${e.message}")
+            }
+        }
+    }
+
+    private fun createColoredMarker(color: Int): Drawable {
+        val size = 40
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val paint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color
+        }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        // Draw white border
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, paint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun showDetailPokokDialog() {
+        if (latLonMap.isEmpty()) {
+            Toast.makeText(this, "Tidak ada data TPH", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Pause the main map view to avoid conflicts
+        mapViewPanenBlok?.onPause()
+
+        var bottomSheetDialog: BottomSheetDialog? = null
+        var fullscreenMapView: MapView? = null
+        var fullscreenCurrentZoomLevel = 15.0
+
+        lifecycleScope.launch {
+            try {
+                // Show loading dialog
+                withContext(Dispatchers.Main) {
+                    loadingDialog.show()
+                    loadingDialog.setMessage("Memuat peta fullscreen...")
+                }
+
+                // Prepare marker data in background thread
+                val markerDataList = withContext(Dispatchers.IO) {
+                    try {
+                        latLonMap.map { (tphId, location) ->
+                            MarkerData(
+                                tphId = tphId,
+                                lat = location.lat,
+                                lon = location.lon,
+                                nomor = location.nomor,
+                                hasTransaction = false,
+                                transactionCount = 0
+                            )
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.e("Error preparing map data: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal menyiapkan data peta: ${e.message}", e)
+                    }
+                }
+
+                // Now switch to Main thread for UI operations
+                withContext(Dispatchers.Main) {
+                    try {
+                        // Re-initialize OSMDroid Configuration for fullscreen map
+                        Configuration.getInstance().apply {
+                            userAgentValue = packageName
+                            osmdroidBasePath = File(cacheDir, "osmdroid")
+                            osmdroidTileCache = File(osmdroidBasePath, "tiles")
+                        }
+
+                        bottomSheetDialog = BottomSheetDialog(this@FeaturePanenTBSActivity)
+                        val view = LayoutInflater.from(this@FeaturePanenTBSActivity)
+                            .inflate(R.layout.layout_bottom_sheet_fullscreen_map, null)
+
+                        val titleDialog = view.findViewById<TextView>(R.id.titleDialogMap)
+                        val mapContainer = view.findViewById<FrameLayout>(R.id.mapContainer)
+                        val btnClose = view.findViewById<Button>(R.id.btnCloseMap)
+
+                        setupLegend(
+                            view,
+                            listOf(
+                                LegendItem(R.color.orange, "Lokasi Anda"),
+                                LegendItem(R.color.bluedarklight, "Titik TPH"),
+                                LegendItem(R.color.colorRedDark, "", isVisible = false)
+                            )
+                        )
+
+                        titleDialog.text = "Peta TPH - $selectedBlok (${latLonMap.size} titik)"
+
+                        // Create NEW map view instance for fullscreen
+                        fullscreenMapView = MapView(this@FeaturePanenTBSActivity).apply {
+                            id = View.generateViewId()
+
+                            layoutParams = FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                FrameLayout.LayoutParams.MATCH_PARENT
+                            )
+
+                            // ✅ USE OFFLINE OR ONLINE TILE SOURCE
+                            val tileSource = if (prefManager!!.isDownloadedMapOffline) {
+                                AppLogger.d("Using offline tiles for fullscreen map")
+                                MapUtils.loadOfflineMapTileSourceForFullscreen(
+                                    context = this@FeaturePanenTBSActivity,
+                                    prefManager = prefManager!!,
+                                    mapView = this,
+                                    selectedEstateAbbr = estateAbbr
+                                )
+                            } else {
+                                AppLogger.d("Using online tiles for fullscreen map")
+                                object : OnlineTileSourceBase(
+                                    "GoogleSatelliteFullscreen",
+                                    0, 18, 256, ".png",
+                                    arrayOf("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
+                                ) {
+                                    override fun getTileURLString(pMapTileIndex: Long): String {
+                                        val zoom = MapTileIndex.getZoom(pMapTileIndex)
+                                        val x = MapTileIndex.getX(pMapTileIndex)
+                                        val y = MapTileIndex.getY(pMapTileIndex)
+                                        return baseUrl.replace("{x}", x.toString())
+                                            .replace("{y}", y.toString())
+                                            .replace("{z}", zoom.toString())
+                                    }
+                                }
+                            }
+
+                            setTileSource(tileSource)
+                            setMultiTouchControls(true)
+                            setBuiltInZoomControls(false)
+                            minZoomLevel = 17.0
+                            maxZoomLevel = 20.0
+
+                            // Add zoom listener for fullscreen map
+                            addMapListener(object : MapListener {
+                                override fun onScroll(event: ScrollEvent?): Boolean {
+                                    return false
+                                }
+
+                                override fun onZoom(event: ZoomEvent?): Boolean {
+                                    event?.let {
+                                        val newZoom = it.zoomLevel
+                                        if (newZoom != fullscreenCurrentZoomLevel) {
+                                            fullscreenCurrentZoomLevel = newZoom
+                                            // Update fullscreen markers
+                                            updateFullscreenMarkers(
+                                                this@apply,
+                                                markerDataList,
+                                                fullscreenCurrentZoomLevel
+                                            )
+                                        }
+                                    }
+                                    return false
+                                }
+                            })
+
+                            // Prevent parent from intercepting touch events
+                            setOnTouchListener { v, event ->
+                                when (event.action) {
+                                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                    }
+
+                                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                        v.parent.requestDisallowInterceptTouchEvent(false)
+                                    }
+                                }
+                                false
+                            }
+
+                            // Set initial zoom and center
+                            if (markerDataList.isNotEmpty()) {
+                                controller.setCenter(
+                                    GeoPoint(
+                                        markerDataList.first().lat,
+                                        markerDataList.first().lon
+                                    )
+                                )
+                            } else if (lat != null && lon != null) {
+                                controller.setCenter(GeoPoint(lat!!, lon!!))
+                            }
+                            controller.setZoom(15.0)
+                        }
+
+                        mapContainer.addView(fullscreenMapView, 0)
+                        val mapView = fullscreenMapView!!
+
+                        AppLogger.d("Adding ${markerDataList.size} markers to fullscreen map")
+
+                        // Add all markers using the SAME function as main map
+                        try {
+                            val showText = fullscreenCurrentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                            markerDataList.forEach { data ->
+                                val marker = Marker(mapView).apply {
+                                    position = GeoPoint(data.lat, data.lon)
+                                    title = "TPH ${data.nomor}"
+
+                                    icon = if (showText) {
+                                        createColoredMarkerWithNumber(
+                                            ContextCompat.getColor(
+                                                this@FeaturePanenTBSActivity,
+                                                R.color.bluedarklight
+                                            ),
+                                            data.nomor
+                                        )
+                                    } else {
+                                        createColoredMarkerWithoutNumber(
+                                            ContextCompat.getColor(
+                                                this@FeaturePanenTBSActivity,
+                                                R.color.bluedarklight
+                                            )
+                                        )
+                                    }
+
+                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                }
+                                mapView.overlays.add(marker)
+                            }
+                            AppLogger.d("Successfully added all ${markerDataList.size} markers")
+                        } catch (e: Exception) {
+                            AppLogger.e("Error adding markers to map: ${e.message}\n${e.stackTraceToString()}")
+                            throw Exception("Gagal menambahkan marker ke peta: ${e.message}", e)
+                        }
+
+                        // Add user location with pulsing overlay
+                        try {
+                            if (lat != null && lon != null) {
+                                val userOverlay = PulsingUserLocationOverlay(
+                                    this@FeaturePanenTBSActivity,
+                                    mapView
+                                )
+                                userOverlay.setUserLocation(GeoPoint(lat!!, lon!!))
+                                userOverlay.setUserBearing(currentBearing)
+                                userOverlay.setBoundaryMeters(
+                                    AppUtils.getBoundaryAccuracy(
+                                        prefManager
+                                    )
+                                )
+                                mapView.overlays.add(0, userOverlay)
+
+                                fullscreenUserOverlay = userOverlay
+
+                                AppLogger.d("Added user location overlay")
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error adding user location: ${e.message}\n${e.stackTraceToString()}")
+                        }
+
+                        mapView.onResume()
+                        mapView.invalidate()
+
+                        AppLogger.d("Fullscreen map initialized and resumed")
+
+                        btnClose.setOnClickListener {
+                            try {
+                                AppLogger.d("Closing fullscreen map")
+                                mapView.onPause()
+                                mapView.onDetach()
+                                bottomSheetDialog?.dismiss()
+                                mapViewPanenBlok?.onResume()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error closing map: ${e.message}")
+                                bottomSheetDialog?.dismiss()
+                                mapViewPanenBlok?.onResume()
+                            }
+                        }
+
+                        bottomSheetDialog?.setContentView(view)
+                        bottomSheetDialog?.setCancelable(false)
+
+                        bottomSheetDialog?.setOnShowListener { dialog ->
+                            try {
+                                val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(
+                                    com.google.android.material.R.id.design_bottom_sheet
+                                )
+                                if (bottomSheet != null) {
+                                    val screenHeight = resources.displayMetrics.heightPixels
+                                    val desiredHeight = (screenHeight * 0.9).toInt()
+
+                                    val layoutParams = bottomSheet.layoutParams
+                                    layoutParams.height = desiredHeight
+                                    bottomSheet.layoutParams = layoutParams
+
+                                    val behavior = BottomSheetBehavior.from(bottomSheet)
+                                    behavior.isDraggable = false
+                                    behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                                    behavior.isHideable = false
+                                    behavior.skipCollapsed = true
+                                    behavior.peekHeight = desiredHeight
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("Error setting bottom sheet behavior: ${e.message}")
+                            }
+                        }
+
+                        bottomSheetDialog?.setOnDismissListener {
+                            try {
+                                AppLogger.d("Bottom sheet dismissed")
+                                mapView.onPause()
+                                mapView.onDetach()
+                                mapViewPanenBlok?.onResume()
+                            } catch (e: Exception) {
+                                AppLogger.e("Error on dismiss: ${e.message}")
+                                mapViewPanenBlok?.onResume()
+                            }
+                        }
+
+                        loadingDialog.dismiss()
+                        bottomSheetDialog?.show()
+
+                        AppLogger.d("Fullscreen map dialog shown successfully")
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating map UI: ${e.message}\n${e.stackTraceToString()}")
+                        throw Exception("Gagal membuat tampilan peta: ${e.message}", e)
+                    }
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    try {
+                        loadingDialog.dismiss()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error dismissing loading dialog: ${ex.message}")
+                    }
+
+                    try {
+                        fullscreenMapView?.onPause()
+                        fullscreenMapView?.onDetach()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error cleaning up map view: ${ex.message}")
+                    }
+
+                    try {
+                        bottomSheetDialog?.dismiss()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error dismissing bottom sheet: ${ex.message}")
+                    }
+
+                    try {
+                        mapViewPanenBlok?.onResume()
+                    } catch (ex: Exception) {
+                        AppLogger.e("Error resuming main map: ${ex.message}")
+                    }
+
+                    val errorMessage = e.message ?: "Unknown error"
+                    AppLogger.e("Full error creating fullscreen map: $errorMessage\n${e.stackTraceToString()}")
+
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Error menampilkan peta fullscreen.\nDetail: $errorMessage",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun setupLegend(rootView: View, legendItems: List<LegendItem>) {
+        legendItems.forEachIndexed { index, item ->
+            when (index) {
+                0 -> {
+                    // Orange circle - Lokasi Anda
+                    rootView.findViewById<View>(R.id.legendOrangeCircle)?.background?.setTint(
+                        ContextCompat.getColor(this, item.color)
+                    )
+                }
+
+                1 -> {
+                    // Blue circle - Titik TPH
+                    rootView.findViewById<View>(R.id.legendBlueCircle)?.background?.setTint(
+                        ContextCompat.getColor(this, item.color)
+                    )
+                    rootView.findViewById<TextView>(R.id.legentTitleBlueCircle)?.apply {
+                        text = item.title
+                        visibility = View.VISIBLE
+                    }
+                }
+
+                2 -> {
+                    // Red circle - Hide this completely
+                    rootView.findViewById<View>(R.id.legendRedCircle)?.apply {
+                        background?.setTint(
+                            ContextCompat.getColor(
+                                this@FeaturePanenTBSActivity,
+                                item.color
+                            )
+                        )
+                    }
+                    rootView.findViewById<TextView>(R.id.legentTitleRedCircle)?.apply {
+                        text = item.title
+                        visibility = if (item.isVisible) View.VISIBLE else View.GONE
+                    }
+                    // Hide the entire red legend row
+                    (rootView.findViewById<View>(R.id.legendRedCircle)?.parent as? LinearLayout)?.visibility =
+                        if (item.isVisible) View.VISIBLE else View.GONE
+                }
+            }
+        }
+    }
+
+    // Data class for legend items
+    data class LegendItem(
+        val color: Int,
+        val title: String,
+        val isVisible: Boolean = true
+    )
+
+
+    // Helper function to update fullscreen markers
+    private fun updateFullscreenMarkers(
+        mapView: MapView,
+        markerDataList: List<MarkerData>,
+        zoomLevel: Double
+    ) {
+        zoomUpdateJob?.cancel()
+        zoomUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            delay(300) // Debounce
+
+            try {
+                val showText = zoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+
+                val overlaysToRemove = mapView.overlays.filterIsInstance<Marker>()
+                overlaysToRemove.forEach { mapView.overlays.remove(it) }
+
+                markerDataList.forEach { data ->
+                    val colorInt = ContextCompat.getColor(
+                        this@FeaturePanenTBSActivity,
+                        R.color.bluedarklight
+                    )
+
+                    val marker = Marker(mapView).apply {
+                        position = GeoPoint(data.lat, data.lon)
+                        title = "TPH ${data.nomor}"
+
+                        icon = getCachedMarker(
+                            colorInt,
+                            if (showText) data.nomor else null,
+                            showText
+                        )
+
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    }
+                    mapView.overlays.add(marker)
+                }
+
+                mapView.invalidate()
+                AppLogger.d("Fullscreen markers updated - zoom: $zoomLevel, showText: $showText")
+            } catch (e: Exception) {
+                AppLogger.e("Error updating fullscreen marker visibility: ${e.message}")
+            }
+        }
+    }
+
+    private fun clearMapMarkers() {
+        tphMarkersList.forEach { marker ->
+            mapViewPanenBlok?.overlays?.remove(marker)
+        }
+        tphMarkersList.clear()
+
+        currentLocationMarker?.let { marker ->
+            mapViewPanenBlok?.overlays?.remove(marker)
+        }
+        currentLocationMarker = null
+
+        mapViewPanenBlok?.invalidate()
+    }
+
+    private fun createColoredMarkerWithNumber(color: Int, number: String): Drawable {
+        val size = 50
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val circlePaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color  // Use 'this.color'
+        }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, circlePaint)
+
+        // Draw white border
+        circlePaint.color = Color.WHITE
+        circlePaint.style = Paint.Style.STROKE
+        circlePaint.strokeWidth = 4f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, circlePaint)
+
+        // Draw TPH number text
+        val textPaint = Paint().apply {
+            isAntiAlias = true
+            this.color = Color.WHITE  // Use 'this.color'
+            textSize = 20f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+
+        val xPos = size / 2f
+        val yPos = (size / 2f) - ((textPaint.descent() + textPaint.ascent()) / 2)
+
+        canvas.drawText(number, xPos, yPos, textPaint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun createColoredMarkerWithoutNumber(color: Int): Drawable {
+        val size = 40
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val paint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            this.color = color  // Use 'this.color'
+        }
+
+        // Draw outer circle
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        // Draw white border
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, paint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun mapTPHInsideBlok() {
+        AppLogger.d("mapTPHInsideBlok started")
+
+        lifecycleScope.launch(Dispatchers.Main) {
+            try {
+                // Clear existing markers
+                clearMapMarkers()
+
+                if (latLonMap.isEmpty()) {
+                    AppLogger.w("latLonMap is empty, cannot populate map")
+                    Toast.makeText(
+                        this@FeaturePanenTBSActivity,
+                        "Tidak ada data TPH untuk ditampilkan",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@launch
+                }
+
+                AppLogger.d("Populating map with ${latLonMap.size} TPH locations")
+
+                // Prepare DATA in background thread
+                val markerDataList = withContext(Dispatchers.IO) {
+                    latLonMap.map { (tphId, location) ->
+
+                        MarkerData(
+                            tphId = tphId,
+                            lat = location.lat,
+                            lon = location.lon,
+                            nomor = location.nomor,
+                            hasTransaction = false,
+                            transactionCount = 0
+                        )
+                    }
+                }
+
+                AppLogger.d("Finished preparing ${markerDataList.size} marker data")
+
+                // Create markers on MAIN thread
+                val markers = mutableListOf<Marker>()
+
+                markerDataList.forEach { data ->
+                    try {
+                        val showText = currentZoomLevel >= ZOOM_THRESHOLD_SHOW_TEXT
+                        val colorInt = ContextCompat.getColor(
+                            this@FeaturePanenTBSActivity,
+                            R.color.bluedarklight
+                        )
+
+                        val marker = Marker(mapViewPanenBlok).apply {
+                            position = GeoPoint(data.lat, data.lon)
+                            title = "TPH ${data.nomor}"
+
+                            icon = getCachedMarker(
+                                colorInt,
+                                if (showText) data.nomor else null,
+                                showText
+                            )
+
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        }
+
+                        markers.add(marker)
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error creating marker for TPH ${data.tphId}: ${e.message}")
+                    }
+                }
+
+                AppLogger.d("Created ${markers.size} marker objects")
+
+                // Add markers to map
+                markers.forEach { marker ->
+                    mapViewPanenBlok?.overlays?.add(marker)
+                    tphMarkersList.add(marker)
+                }
+
+                mapViewPanenBlok?.invalidate()
+
+                AppLogger.d("Added markers to map")
+
+                mapViewPanenBlok?.post {
+                    try {
+                        val geoPoints = markers.map { it.position }
+                        val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
+                        mapViewPanenBlok?.controller?.setCenter(markers.first().position)
+                        mapViewPanenBlok?.controller?.setZoom(15.0)
+                        AppLogger.d("Zoom completed - centered on first marker")
+                    } catch (e: Exception) {
+                        AppLogger.e("Error setting map center: ${e.message}")
+                    }
+                }
+
+                AppLogger.d("Successfully added ${markers.size} markers")
+
+                // Start live location tracking
+                startLiveLocationTracking()
+
+            } catch (e: Exception) {
+                AppLogger.e("Error in mapTPHInsideBlok: ${e.message}\n${e.stackTraceToString()}")
+                Toast.makeText(
+                    this@FeaturePanenTBSActivity,
+                    "Error menampilkan peta: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun startLiveLocationTracking() {
+        locationUpdateJob?.cancel()
+
+        locationUpdateJob = lifecycleScope.launch(Dispatchers.Main) {
+            while (isActive) {
+                try {
+                    if (lat != null && lon != null) {
+                        val userLocation = GeoPoint(lat!!, lon!!)
+
+                        // Update main map
+                        pulsingUserOverlay?.setUserLocation(userLocation)
+                        pulsingUserOverlay?.setUserBearing(currentBearing)
+                        mapViewPanenBlok?.invalidate()
+
+                        // Update fullscreen map if it exists
+                        fullscreenUserOverlay?.setUserLocation(userLocation)
+                        fullscreenUserOverlay?.setUserBearing(currentBearing)
+
+//                        AppLogger.d("Location auto-updated: $lat, $lon, bearing: $currentBearing")
+                    }
+
+                    delay(AppUtils.LOCATION_USER_UPDATE_INTERVAL)
+                } catch (e: Exception) {
+                    AppLogger.e("Error updating live location: ${e.message}")
+                }
+            }
+        }
+    }
+
 
     @SuppressLint("SetTextI18n")
     private fun updateDependentCounters(
@@ -2056,11 +3000,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             CameraViewModel.Factory(cameraRepository)
         )[CameraViewModel::class.java]
 
-        val status_location = findViewById<ImageView>(R.id.statusLocation)
-        locationViewModel = ViewModelProvider(
-            this,
-            LocationViewModel.Factory(application, status_location, this, boundaryAccuracy)  // Pass boundaryAccuracy
-        )[LocationViewModel::class.java]
+        locationViewModel = LocationManager.sharedLocationViewModel!!
 
         val factory = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory)[DatasetViewModel::class.java]
@@ -2069,7 +3009,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         panenViewModel = ViewModelProvider(this, factoryPanenViewModel)[PanenViewModel::class.java]
 
         val factoryMutuBuahViewModel = MutuBuahViewModel.MutuBuahViewModelFactory(application)
-        mutuBuahViewModel = ViewModelProvider(this, factoryMutuBuahViewModel)[MutuBuahViewModel::class.java]
+        mutuBuahViewModel =
+            ViewModelProvider(this, factoryMutuBuahViewModel)[MutuBuahViewModel::class.java]
 
         val factoryAbsensiViewModel = AbsensiViewModel.AbsensiViewModelFactory(application)
         absensiViewModel =
@@ -2083,12 +3024,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     @SuppressLint("SetTextI18n", "CutPasteId")
     private fun setupLayout() {
         val featureName = intent.getStringExtra("FEATURE_NAME")
-        if (featureName == "Panen TBS") {
-            findViewById<LinearLayout>(R.id.layoutEstate).visibility = View.GONE
-        }
+        val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+        val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+
+        findViewById<LinearLayout>(R.id.layoutEstate).visibility =
+            if (isGM || isRH || featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
 
 
-        AppLogger.d("radiusMinimum $radiusMinimum")
         val radiusText = "${radiusMinimum.toInt()} m"
         val fullText =
             "Berikut adalah daftar lokasi TPH yang berada dalam radius $radiusText dari lokasi anda:"
@@ -2127,7 +3073,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }, 400)
             } else {
                 // GPS is outside boundary - show error toast
-                Toasty.error(this, "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!", Toast.LENGTH_LONG, true)
+                Toasty.error(
+                    this,
+                    "Akurasi GPS harus dalam radius ${boundaryAccuracy.toInt()} meter untuk melanjutkan!",
+                    Toast.LENGTH_LONG,
+                    true
+                )
                     .show()
             }
 
@@ -2226,11 +3177,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 AppLogger.d("estateIdUserLogin: ${prefManager!!.estateIdUserLogin}")
                                 AppLogger.d("estateUserLengkapLogin: ${prefManager!!.estateUserLengkapLogin}")
 
-                                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+                                val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                                val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
 
-                                if (isGM) {
+                                if (isGM || isRH) {
                                     // Split the estate names into a list for GM
-                                    val estateList = namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
+                                    val estateList =
+                                        namaEstate?.split(",")?.map { it.trim() } ?: emptyList()
                                     AppLogger.d("GM detected - Estate list: $estateList")
                                     setupSpinnerView(layoutView, estateList)
                                 } else {
@@ -2242,7 +3195,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     }
                                     AppLogger.d("Non-GM user - Single estate: $singleEstateList")
                                     setupSpinnerView(layoutView, singleEstateList)
-                                    findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(0)
+                                    findViewById<MaterialSpinner>(R.id.spPanenTBS).setSelectedIndex(
+                                        0
+                                    )
                                 }
                             }
                         }
@@ -2260,36 +3215,32 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
 
                         R.id.layoutPemanen -> {
-                            if (karyawanList.isNotEmpty()) {
-                                val karyawanNames = karyawanList
-                                    .sortedBy { it.nama }
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                setupSpinnerView(layoutView, karyawanNames)
-                                layoutView.visibility = View.GONE
-                            } else {
-                                setupSpinnerView(layoutView, emptyList())
-                                val pemanenSpinner =
-                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
-                            }
+                            setupSpinnerView(layoutView, emptyList())
+                            val pemanenSpinner =
+                                layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                         }
 
                         R.id.layoutPemanenLain -> {
-                            // Prepare the data but don't show the dropdown yet
-                            if (karyawanLainList.isNotEmpty()) {
-                                val karyawanNames = karyawanLainList
-                                    .sortedBy { it.nama }
-                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                setupSpinnerView(layoutView, karyawanNames)
-                                // Initially hidden - will be shown when needed
-                                layoutView.visibility = View.GONE
-                            } else {
-
-                                setupSpinnerView(layoutView, emptyList())
-                                val pemanenSpinner =
-                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
-                            }
+//                            // Prepare the data but don't show the dropdown yet
+//                            if (karyawanLainList.isNotEmpty()) {
+//                                val karyawanNames = karyawanLainList
+//                                    .sortedBy { it.nama }
+//                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+//                                setupSpinnerView(layoutView, karyawanNames)
+//                                // Initially hidden - will be shown when needed
+//                                layoutView.visibility = View.GONE
+//                            } else {
+//
+//                                setupSpinnerView(layoutView, emptyList())
+//                                val pemanenSpinner =
+//                                    layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+//                                pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
+//                            }
+                            setupSpinnerView(layoutView, emptyList())
+                            val pemanenSpinner =
+                                layoutView.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                         }
 
                         R.id.layoutTipePanen -> {
@@ -2481,7 +3432,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_download_progress, null)
         val titleTV = dialogView.findViewById<TextView>(R.id.tvTitleProgressBarLayout)
-        titleTV.text = "Download Dataset"
+
 
         val counterTV = dialogView.findViewById<TextView>(R.id.counter_dataset)
         val counterSizeFile = dialogView.findViewById<LinearLayout>(R.id.counterSizeFile)
@@ -2493,7 +3444,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val btnRetryDownload = dialogView.findViewById<MaterialButton>(R.id.btnRetryDownloadDataset)
 
         // Update button text to reflect download operation
-        btnDownloadDataset.text = "Download Dataset"
+
         btnDownloadDataset.setIconResource(R.drawable.baseline_download_24) // Assuming you have this icon
 
         val containerDownloadDataset =
@@ -2510,13 +3461,34 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         var itemId = 0
         datasetRequests.forEach { request ->
+            // Check if downloadIdMap exists and set button text accordingly
+            val itemTitle = if (request.downloadIdMap != null) {
+                titleTV.text = "Download Offline Map"
+                btnDownloadDataset.text = "Download Map"
+                request.dataset
+            } else {
+                btnDownloadDataset.text = "Download Dataset"
+                titleTV.text = "Download Dataset"
+                "Master TPH ${request.estateAbbr}"
+            }
+
+            // Create JSON string for data field
+            val dataJson = if (request.downloadIdMap != null && request.totalChunks != null) {
+                JSONObject().apply {
+                    put("downloadId", request.downloadIdMap)
+                    put("totalChunks", request.totalChunks)
+                }.toString()
+            } else {
+                ""
+            }
+
             downloadItems.add(
                 UploadCMPItem(
                     id = itemId++,
-                    title = "Master TPH ${request.estateAbbr}",
+                    title = itemTitle,
                     fullPath = "",
                     baseFilename = request.estateAbbr ?: "",
-                    data = "",
+                    data = dataJson,
                     type = "",
                     databaseTable = ""
                 )
@@ -2570,18 +3542,25 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             // Reset title color
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
-            titleTV.text = "Download Dataset"
 
             datasetViewModel.downloadDataset(requestsToDownload, itemsToShow)
         }
 
         btnDownloadDataset.setOnClickListener {
             if (AppUtils.isNetworkAvailable(this)) {
+                // Check if downloading offline map or dataset
+                val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                val confirmMessage = if (isDownloadingMap) {
+                    getString(R.string.al_confirm_download_offline_map)
+                } else {
+                    getString(R.string.al_confirm_upload)
+                }
+
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Download",
                     getString(R.string.confirmation_dialog_title),
-                    getString(R.string.al_confirm_upload),
+                    confirmMessage,
                     "warning.json",
                     ContextCompat.getColor(this, R.color.bluedarklight),
                     function = { startDownload() },
@@ -2611,13 +3590,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 AppLogger.d("failedRequests $failedRequests")
 
                 failedRequests.forEach { request ->
+                    // Check if downloadIdMap exists and set title accordingly
+                    val itemTitle = if (request.downloadIdMap != null) {
+                        request.dataset
+                    } else {
+                        "Master TPH ${request.estateAbbr}"
+                    }
+
                     retryDownloadItems.add(
                         UploadCMPItem(
                             id = itemId++,
-                            title = "${request.estateAbbr} - ${request.dataset}",
+                            title = itemTitle,
                             fullPath = "",
                             baseFilename = request.estateAbbr ?: "",
-                            data = "",
+                            data = request.downloadIdMap ?: "",
                             type = "",
                             databaseTable = ""
                         )
@@ -2635,7 +3621,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 // Update UI elements
                 counterTV.text = "0/${retryDownloadItems.size}"
-                titleTV.text = "Download Dataset"
+
+                // Check if retrying offline map or dataset
+                val isDownloadingMap = failedRequests.any { it.downloadIdMap != null }
+                titleTV.text = if (isDownloadingMap) "Download Offline Map" else "Download Dataset"
                 titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
 
                 // Hide retry button, show download button
@@ -2684,9 +3673,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             // Update title if any download is in progress
             if (progressMap.values.any { it in 1..99 }) {
-                titleTV.text = "Sedang Download Dataset..."
+                // Check if downloading offline map or dataset
+                val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                titleTV.text = if (isDownloadingMap) {
+                    "Sedang Download Peta Offline..."
+                } else {
+                    "Sedang Download Dataset..."
+                }
             }
-
         }
 
 
@@ -2740,6 +3734,68 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             closeDialogBtn.isEnabled = true
                             closeDialogBtn.alpha = 1f
                             closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
+
+                            // ✅ Process offline map if it's a map download
+                            val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
+                            if (isDownloadingMap) {
+                                AppLogger.d("Starting offline map processing...")
+
+                                // Show processing dialog
+                                loadingDialog.show()
+                                loadingDialog.setMessage("Memproses peta offline...")
+
+                                try {
+                                    // Get estate abbreviation
+                                    val estateAbbr = datasetRequests.first().estateAbbr
+                                    val userEstate = prefManager!!.estateUserLogin
+
+                                    val offlineMapDir = File(
+                                        getExternalFilesDir(null),
+                                        "map_offline/$userEstate"
+                                    )
+
+                                    loadingDialog.setMessage("Menggabungkan file peta...")
+                                    val mergedZipFile = MapUtils.mergeChunksToZip(offlineMapDir)
+
+                                    // Step 2: Extract tiles
+                                    loadingDialog.setMessage("Mengekstrak tiles peta...")
+                                    MapUtils.extractZipToTiles(mergedZipFile, offlineMapDir)
+
+                                    // Step 3: Cleanup
+                                    loadingDialog.setMessage("Membersihkan file temp...")
+                                    MapUtils.cleanupTempFiles(offlineMapDir, mergedZipFile)
+
+                                    // Step 4: Save preference
+                                    prefManager!!.isDownloadedMapOffline = true
+
+                                    // ✅ Step 5: UPDATE THE MAP TILES!
+                                    loadingDialog.setMessage("Memperbarui peta...")
+                                    updateMapTileSource()
+
+                                    loadingDialog.dismiss()
+
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Peta offline berhasil diproses!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    AppLogger.d("Offline map processing completed successfully")
+
+                                } catch (e: Exception) {
+                                    loadingDialog.dismiss()
+
+                                    AppLogger.e("Error processing offline map: ${e.message}")
+                                    e.printStackTrace()
+
+                                    Toast.makeText(
+                                        this@FeaturePanenTBSActivity,
+                                        "Error memproses peta: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
                         } else {
                             // Some or all failed
                             titleTV.text = "Terjadi Kesalahan Download"
@@ -2760,36 +3816,36 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             closeDialogBtn.iconTint = ColorStateList.valueOf(Color.WHITE)
                         }
 
-                        datasetViewModel.getDistinctMasterDeptInfoCopy()
-                        val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
+                        // Check if downloading offline map or regular dataset
+                        val isDownloadingMap = datasetRequests.any { it.downloadIdMap != null }
 
-                        delay(
-                            1000
-                        )
-                        datasetViewModel.distinctDeptInfoListCopy.observe(this@FeaturePanenTBSActivity) { list ->
-                            Log.d("DepartmentInfo", "Observed list size: ${list?.size}")
-                            val distinctDeptInfos = list ?: emptyList()
-                            val deptInfoMap =
-                                distinctDeptInfos.associate { it.dept to it.dept_abbr }
+                        if (!isDownloadingMap) {
+                            // Only run department info logic for regular dataset downloads
+                            datasetViewModel.getDistinctMasterDeptInfoCopy()
+                            val departmentInfoDeferred = CompletableDeferred<Map<String, String>>()
 
-                            Log.d("DepartmentInfo", "Department Map: $deptInfoMap")
+                            delay(1000)
 
-                            masterDeptInfoMap = deptInfoMap
-                            departmentInfoDeferred.complete(deptInfoMap)
+                            datasetViewModel.distinctDeptInfoListCopy.observe(this@FeaturePanenTBSActivity) { list ->
+                                val distinctDeptInfos = list ?: emptyList()
+                                val deptInfoMap =
+                                    distinctDeptInfos.associate { it.dept to it.dept_abbr }
+
+                                masterDeptInfoMap = deptInfoMap
+                                departmentInfoDeferred.complete(deptInfoMap)
+                            }
+
+                            // Wait for the deferred to complete
+                            val fullDeptInfoMap = departmentInfoDeferred.await()
+
+                            val masterDeptAbbrList = fullDeptInfoMap.values.toList()
+
+                            val layoutEstate = findViewById<LinearLayout>(R.id.layoutEstate)
+                            setupSpinnerView(layoutEstate, masterDeptAbbrList)
+                        } else {
+                            // For offline map downloads, don't need to update estate spinner
+                            AppLogger.d("Offline map download completed - skipping estate spinner update")
                         }
-
-
-                        // Wait for the deferred to complete
-                        val fullDeptInfoMap = departmentInfoDeferred.await()
-
-                        val masterDeptAbbrList = fullDeptInfoMap.values.toList()
-
-                        Log.d("DepartmentInfo", "Master Dept Abbr List: $masterDeptAbbrList")
-
-                        val layoutEstate = findViewById<LinearLayout>(R.id.layoutEstate)
-
-                        Log.d("DepartmentInfo", "Setting up spinner with list")
-                        setupSpinnerView(layoutEstate, masterDeptAbbrList)
                     }
                 }
             }
@@ -2871,7 +3927,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private fun checkScannedTPHInsideRadius() {
-        if (lat != null && lon != null) {
+//        if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
 
             AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
@@ -2923,11 +3979,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 emptyScannedTPHInsideRadius.visibility = View.VISIBLE
                 isEmptyScannedTPH = true
             }
-        } else {
-            Toasty.error(this, "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!", Toast.LENGTH_LONG, true)
-                .show()
-            isEmptyScannedTPH = true
-        }
+//        } else {
+//            Toasty.error(
+//                this,
+//                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
+//                Toast.LENGTH_LONG,
+//                true
+//            )
+//                .show()
+//            isEmptyScannedTPH = true
+//        }
 
         if (progressBarScanTPHManual.visibility == View.VISIBLE) {
             progressBarScanTPHManual.visibility = View.GONE
@@ -3089,8 +4150,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         val otherLayout = findViewById<View>(R.id.layoutTipePanen)
                         otherLayout?.visibility = View.VISIBLE
                     }
-                }
-                else if (layoutView.id == R.id.layoutNomorPemanen) {
+                } else if (layoutView.id == R.id.layoutNomorPemanen) {
                     val inputText = s?.toString()?.trim() ?: ""
                     nomorPemanenInput = inputText
 
@@ -3166,6 +4226,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     defaultLimit
                 }
 
+            AppLogger.d("locationnomor ${location.nomor}")
+            AppLogger.d("location.blokKode ${location.blokKode}")
+            AppLogger.d("limit ${limit}")
+            AppLogger.d("------")
+
             // Include if within radius OR is the currently selected TPH
             if (distance <= radiusMinimum || isCurrentlySelected) {
                 resultsList.add(
@@ -3207,7 +4272,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             layoutPemanen.visibility = View.GONE
             layoutSelAsistensi.visibility = View.GONE
             layoutTipePanen.visibility = View.GONE
+            layoutKemandoranLain.visibility = View.GONE
+            layoutPemanenLain.visibility = View.GONE
         }
+
+        selectedPemanenAdapter.clearAllWorkers()
+        selectedPemanenLainAdapter.clearAllWorkers()
 
         val baseLayouts = listOf(
             R.id.layoutTahunTanam,
@@ -3253,9 +4323,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
     }
 
-
-
-    // New function to reload only main pemanen
+    // Simple function to reload only main pemanen
     private suspend fun loadMainPemanenOnly(rootView: View) {
         if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
             try {
@@ -3268,40 +4336,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
                 val allKaryawan = karyawanDeferred.await()
-                val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
 
                 if (presentNikSet.isNotEmpty()) {
                     val presentKaryawan = allKaryawan.filter { karyawan ->
                         karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                     }
-
-                    // Apply the same filtering logic to determine karyawanList only
-                    val presentKemandoranDivisi = if (absensiList.isNotEmpty()) {
-                        val firstAbsensi = absensiList.firstOrNull()
-                        firstAbsensi?.kemandoran?.divisi
-                    } else {
-                        null
-                    }
-
-                    if (userAfdelingId != null && presentKemandoranDivisi != null) {
-                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
-                            divisiList.any { it.divisi == presentKemandoranDivisi }
-                        } else {
-                            false
-                        }
-
-                        karyawanList = if (isPresentDivisiInList) {
-                            if (presentKemandoranDivisi == userAfdelingId) {
-                                presentKaryawan // Same divisi -> karyawanList
-                            } else {
-                                emptyList() // Different divisi -> empty
-                            }
-                        } else {
-                            presentKaryawan // Not in divisiList -> karyawanList
-                        }
-                    } else {
-                        karyawanList = presentKaryawan
-                    }
+                    karyawanList = presentKaryawan
+                    karyawanLainList = presentKaryawan
 
                     val karyawanNames = karyawanList
                         .sortedBy { it.nama }
@@ -3315,7 +4356,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             setupSpinnerView(layoutPemanen, karyawanNames)
                         } else {
                             setupSpinnerView(layoutPemanen, emptyList())
-                            val pemanenSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                            val pemanenSpinner =
+                                layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                             pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                         }
                     }
@@ -3326,7 +4368,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
     }
 
-    // New function to reload only lain pemanen
+    // Simple function to reload only lain pemanen
     private suspend fun loadLainPemanenOnly(rootView: View) {
         if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
             try {
@@ -3339,53 +4381,30 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
 
                 val allKaryawan = karyawanDeferred.await()
-                val userAfdelingId = prefManager!!.afdelingIdUserLogin?.toInt()
 
                 if (presentNikSet.isNotEmpty()) {
                     val presentKaryawan = allKaryawan.filter { karyawan ->
                         karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                     }
 
-                    // Apply the same filtering logic to determine karyawanLainList only
-                    val presentKemandoranDivisi = if (absensiList.isNotEmpty()) {
-                        val firstAbsensi = absensiList.firstOrNull()
-                        firstAbsensi?.kemandoran?.divisi
-                    } else {
-                        null
-                    }
-
-                    if (userAfdelingId != null && presentKemandoranDivisi != null) {
-                        val isPresentDivisiInList = if (presentKemandoranDivisi != null) {
-                            divisiList.any { it.divisi == presentKemandoranDivisi }
-                        } else {
-                            false
-                        }
-
-                        karyawanLainList = if (isPresentDivisiInList) {
-                            if (presentKemandoranDivisi != userAfdelingId) {
-                                presentKaryawan // Different divisi -> karyawanLainList
-                            } else {
-                                emptyList() // Same divisi -> empty
-                            }
-                        } else {
-                            emptyList() // Not in divisiList -> empty (goes to main list)
-                        }
-                    } else {
-                        karyawanLainList = emptyList()
-                    }
+                    // Simple: Just assign all present karyawan to both lists
+                    karyawanList = presentKaryawan
+                    karyawanLainList = presentKaryawan
 
                     val karyawanLainNames = karyawanLainList
                         .sortedBy { it.nama }
                         .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                     withContext(Dispatchers.Main) {
-                        val layoutPemanenLain = rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                        val layoutPemanenLain =
+                            rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
                         if (layoutPemanenLain != null) {
                             if (karyawanLainNames.isNotEmpty()) {
                                 setupSpinnerView(layoutPemanenLain, karyawanLainNames)
                             } else {
                                 setupSpinnerView(layoutPemanenLain, emptyList())
-                                val pemanenLainSpinner = layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                val pemanenLainSpinner =
+                                    layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                 pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
                             }
                         }
@@ -3592,16 +4611,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
             if (linearLayout.id == R.id.layoutEstate) {
-                // Check if jabatan contains "GM" instead of exact match
-                val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
+                val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+                val isGMORRH = isGM || isRH
 
-                val shouldDisable = featureName != AppUtils.ListFeatureNames.AsistensiEstateLain && !isGM
+                val isAsistensiFeature = featureName == AppUtils.ListFeatureNames.AsistensiEstateLain
 
-                spinner.isEnabled = !shouldDisable
-
-                AppLogger.d("Estate spinner - Feature: $featureName, Jabatan: $jabatanUser, IsGM: $isGM, Enabled: ${spinner.isEnabled}")
-                AppLogger.d("Expected GM value: ${AppUtils.ListFeatureByRoleUser.GM}")
+                // Enable spinner only if GM/RH or Asistensi feature
+                spinner.isEnabled = isGMORRH || isAsistensiFeature
             }
+
 
             spinner.setOnItemSelectedListener { _, position, _, item ->
                 try {
@@ -3626,8 +4645,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val layoutBlokBanjir = findViewById<LinearLayout>(R.id.layoutBlokBanjir)
         val switchBlokBanjir = findViewById<SwitchMaterial>(R.id.selBlokBanjir)
 
-        val isGM = jabatanUser?.contains("GM", ignoreCase = true) == true
-        layoutBlokBanjir.visibility = View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM } ?: View.GONE
+        val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+        val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+
+        layoutBlokBanjir.visibility =
+            View.VISIBLE.takeIf { tph_otomatis_estate != 1 && !isGM && !isRH } ?: View.GONE
 
         val tipePanenOptions = resources.getStringArray(R.array.tipe_panen_options).toList()
         val etAncak = layoutAncak.findViewById<EditText>(R.id.etHomeMarkerTPH)
@@ -3640,6 +4662,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
             if (isChecked) {
                 // Stop auto scan if it's running
+
+                AppLogger.d("masuk sini gak sih")
                 autoScanEnabled = false
                 switchAutoScan.isChecked = false
                 autoScanHandler.removeCallbacks(autoScanRunnable)
@@ -3738,7 +4762,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 //reset all image
                 photoCount = 0
-                photoCountSelfie  = 0
+                photoCountSelfie = 0
                 photoFiles.clear()
                 photoFilesSelfie.clear()
                 komentarFoto.clear()
@@ -3788,7 +4812,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 //reset all image
                 photoCount = 0
-                photoCountSelfie  = 0
+                photoCountSelfie = 0
                 photoFiles.clear()
                 photoFilesSelfie.clear()
                 komentarFoto.clear()
@@ -3811,16 +4835,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 layoutKemandoranLain.visibility = View.VISIBLE
                 layoutPemanenLain.visibility = View.VISIBLE
 
-                asistensi = 1
+                asistensi = 2
+                AppLogger.d("di hidupkan asistensi $asistensi")
             } else {
                 // Hide layouts when switch is OFF
-                asistensi = 0
+                asistensi = 1
                 selectedPemanenLainAdapter.clearAllWorkers()
                 layoutKemandoranLain.visibility = View.GONE
                 layoutPemanenLain.visibility = View.GONE
-
+                AppLogger.d("di matikan asistensi $asistensi")
             }
         }
+
+        AppLogger.d("asistensi $asistensi")
     }
 
     private fun validateAndShowErrors(): Boolean {
@@ -3870,7 +4897,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 InputType.EDITTEXT -> {
                     when (key) {
                         getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
-                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim().isEmpty()
+                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim()
+                            .isEmpty()
+
                         else -> editText.text.toString().trim().isEmpty()
                     }
                 }
@@ -3947,7 +4976,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
                     }
 
-                    errorMessages.add("Anda harus mengisi salah satu pemanen maupun asistensi")
+                    // Only add this error message if feature is NOT MutuBuah
+                    if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
+                        errorMessages.add("Anda harus mengisi salah satu pemanen maupun asistensi")
+                    }
                 }
             } else {
                 isSecondaryGroupFilled = true
@@ -4138,32 +5170,50 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             R.id.layoutEstate -> {
                 resetDependentSpinners(linearLayout.rootView)
 
+                val selectedEstateId: Int
 
+                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                    // For AsistensiEstateLain - get estate key from masterDeptInfoMap
+                    selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key
+                        ?: run {
+                            AppLogger.e("Estate not found in masterDeptInfoMap for: $selectedItem")
+                            return
+                        }
 
-                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain){
-                    selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key!!
-                }else{
-                    selectedEstate = selectedItem
-                }
-
-                val selectedEstateId = try {
-                    // Assuming you have an estate list with IDs corresponding to positions
-                    // You might need to adjust this based on your estate data structure
-                    val estateIds = prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
-                    if (position < estateIds.size) {
-                        estateIds[position]
-                    } else {
-                        AppLogger.e("Invalid estate position: $position")
+                    // ✅ Use user's logged-in estate ID
+                    selectedEstateId = prefManager!!.estateIdUserLogin?.toIntOrNull() ?: run {
+                        AppLogger.e("Invalid user estate ID")
                         return
                     }
-                } catch (e: Exception) {
-                    AppLogger.e("Error getting estate ID: ${e.message}")
-                    return
+                } else {
+                    // For other features - use position to get ID from estateIdUserLogin
+                    selectedEstate = selectedItem
+
+                    val estateIds = try {
+                        prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
+                    } catch (e: Exception) {
+                        AppLogger.e("Error parsing estate IDs: ${e.message}")
+                        return
+                    }
+
+                    if (position >= estateIds.size) {
+                        AppLogger.e("Invalid estate position: $position, available: ${estateIds.size}")
+                        return
+                    }
+
+                    selectedEstateId = estateIds[position]
                 }
 
                 estateId = selectedEstateId.toString()
-
                 selectedEstateIdSpinner = position
+
+                val estateAbbrList = prefManager!!.estateUserLogin?.split(",")?.map { it.trim() } ?: emptyList()
+                estateAbbr = estateAbbrList.getOrNull(position) ?: run {
+                    AppLogger.e("Invalid estate position: $position")
+                    return
+                }
+
+                AppLogger.d("Selected Estate: $selectedEstate, ID: $selectedEstateId")
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
@@ -4171,10 +5221,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         delay(300)
                     }
 
-                    AppLogger.d("selectedEstate $selectedEstate")
-
                     if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                        // For AsistensiEstateLain - get afdeling list
+                        // For AsistensiEstateLain - get afdeling list using selectedEstate (string key)
                         val afdelingDeferred = async {
                             try {
                                 datasetViewModel.getListAfdeling(selectedEstate)
@@ -4187,9 +5235,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                         val layoutAfdeling = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutAfdeling)
                         setupSpinnerView(layoutAfdeling, afdelingList.mapNotNull { it.abbr })
-
                     } else {
-                        // For other features - get divisi list
+                        // For other features - get divisi list using selectedEstateId (integer)
                         val divisiDeferred = async {
                             try {
                                 datasetViewModel.getDivisiList(selectedEstateId)
@@ -4208,9 +5255,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         hideLoadingDots(linearLayout)
                     }
                 }
-
             }
-
 
             R.id.layoutAfdeling -> {
                 if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -4226,7 +5271,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 selectedAfdelingIdSpinner = position
 
-                val selectedDivisiId = try {
+                selectedDivisiId = try {
                     if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
                         afdelingList.find { it.abbr == selectedAfdeling }?.id
                     } else {
@@ -4246,6 +5291,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     descScannedTPHInsideRadius.visibility = View.GONE
                     emptyScannedTPHInsideRadius.visibility = View.GONE
                     tphScannedResultRecyclerView.visibility = View.GONE
+                    titleLiveMapPanen.visibility = View.GONE
+                    descTitleLiveMapPanen.visibility = View.GONE
+                    cardMapPanenBlok?.visibility = View.GONE
                 }
 
                 selectedDivisiValue = selectedDivisiId
@@ -4257,11 +5305,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             throw IllegalStateException("Estate ID or selectedDivisiId is null!")
                         }
 
-                        // Only get blok list and tahun tanam - kemandoran setup moved to initial load
+                        // ✅ Check if user is GM or RH
+                        val isGM = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.GM, ignoreCase = true) == true
+                        val isRH = jabatanUser?.contains(AppUtils.ListFeatureByRoleUser.RH, ignoreCase = true) == true
+                        val isGMorRH = isGM || isRH
+
+                        // Only get blok list and tahun tanam
                         var tahunTanamList: List<String> = emptyList()
 
                         AppLogger.d(estateId.toString())
                         AppLogger.d(selectedDivisiId.toString())
+
                         val blokDeferred = async {
                             try {
                                 val estateIdToUse =
@@ -4270,7 +5324,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     } else {
                                         estateId!!.toInt()
                                     }
-                                datasetViewModel.getBlokList(estateIdToUse, selectedDivisiId)
+                                datasetViewModel.getBlokList(estateIdToUse, selectedDivisiId!!)
                             } catch (e: Exception) {
                                 AppLogger.e("Error fetching blokList: ${e.message}")
                                 emptyList()
@@ -4278,6 +5332,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         }
                         blokList = blokDeferred.await()
                         AppLogger.d(blokList.toString())
+
                         tahunTanamList = try {
                             blokList.mapNotNull { it.tahun }.distinct()
                                 .sortedBy { it.toIntOrNull() }
@@ -4286,9 +5341,384 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             emptyList()
                         }
 
-                        if (blokBanjir == 0) {
-                            latLonMap = emptyMap()
-                            latLonMap = async {
+                        withContext(Dispatchers.Main) {
+                            try {
+                                val layoutTahunTanam =
+                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
+                                setupSpinnerView(
+                                    layoutTahunTanam,
+                                    tahunTanamList.ifEmpty { emptyList() })
+                            } catch (e: Exception) {
+                                AppLogger.e("Error updating UI: ${e.message}")
+                            }
+                        }
+
+                        // KEMANDORAN SETUP - Added proper error handling
+                        try {
+                            // ✅ Get the user's logged-in afdeling ID from prefManager
+                            val userAfdelingIdString = prefManager!!.afdelingIdUserLogin
+                            AppLogger.d("User's logged-in afdeling ID string: $userAfdelingIdString")
+
+                            // ✅ Skip afdeling comparison for GM/RH (they have "X")
+                            if (isGMorRH || userAfdelingIdString == "X") {
+                                AppLogger.d("User is GM/RH or has 'X' afdeling - showing all kemandoran")
+
+                                // Fetch all kemandoran for the estate
+                                val allKemandoranDeferred = async {
+                                    try {
+                                        datasetViewModel.getKemandoranEstate(estateId!!.toInt())
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error fetching kemandoran: ${e.message}")
+                                        throw Exception("Error fetching kemandoran data: ${e.message}")
+                                    }
+                                }
+
+                                val allKemandoran = allKemandoranDeferred.await()
+                                kemandoranList = allKemandoran
+
+                                withContext(Dispatchers.Main) {
+                                    val layoutKemandoran =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
+                                    val layoutKemandoranLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+
+                                    // Setup kemandoran
+                                    val kemandoranNames = kemandoranList.map { it.nama }
+                                    setupSpinnerView(
+                                        layoutKemandoran,
+                                        if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
+                                    )
+
+                                    // Setup PEMANEN with karyawanList
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    if (karyawanList.isNotEmpty()) {
+                                        val karyawanNames = karyawanList
+                                            .sortedBy { it.nama }
+                                            .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                        layoutPemanen.visibility = View.GONE
+                                    } else {
+                                        setupSpinnerView(layoutPemanen, emptyList())
+                                        val pemanenSpinner =
+                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        pemanenSpinner?.setHint("Tidak Ada Karyawan Hadir")
+                                    }
+
+                                    // Hide kemandoranLain and pemanenLain
+                                    setupSpinnerView(layoutKemandoranLain, emptyList())
+                                    val layoutPemanenLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                    setupSpinnerView(layoutPemanenLain, emptyList())
+                                }
+
+                            } else {
+                                // ✅ Regular user - parse afdeling ID and do comparison
+                                val userAfdelingId = userAfdelingIdString?.toIntOrNull()
+
+                                if (userAfdelingId != null) {
+                                    // Get all divisi IDs except the user's afdeling
+                                    val allIdAfdeling = try {
+                                        divisiList.map { it.divisi }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error mapping allIdAfdeling: ${e.message}")
+                                        throw Exception("Error mapping afdeling data: ${e.message}")
+                                    }
+
+                                    val otherDivisiIds = try {
+                                        allIdAfdeling.filter { divisiId ->
+                                            userAfdelingId != divisiId
+                                        }
+                                    } catch (e: Exception) {
+                                        AppLogger.e("Error filtering otherDivisiIds: ${e.message}")
+                                        throw Exception("Error filtering afdeling data: ${e.message}")
+                                    }
+
+                                    // Load kemandoran data based on user's afdeling
+                                    if (featureName != AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                        val kemandoranDeferred = async {
+                                            try {
+                                                datasetViewModel.getKemandoranEstateExcept(
+                                                    estateId!!.toInt(),
+                                                    otherDivisiIds as List<Int>
+                                                )
+                                            } catch (e: Exception) {
+                                                AppLogger.e("Error fetching kemandoranList: ${e.message}")
+                                                throw Exception("Error fetching kemandoran data: ${e.message}")
+                                            }
+                                        }
+                                        kemandoranList = kemandoranDeferred.await()
+                                    }
+
+                                    // Fetch all kemandoran for the estate
+                                    AppLogger.d("estateId $estateId")
+                                    val allKemandoranDeferred = async {
+                                        try {
+                                            datasetViewModel.getKemandoranEstate(estateId!!.toInt())
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error fetching kemandoran: ${e.message}")
+                                            throw Exception("Error fetching kemandoran data: ${e.message}")
+                                        }
+                                    }
+
+                                    val allKemandoran = allKemandoranDeferred.await()
+
+                                    AppLogger.d("all $allKemandoran")
+
+                                    withContext(Dispatchers.Main) {
+                                        try {
+                                            val layoutKemandoran =
+                                                linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoran)
+                                            val layoutKemandoranLain =
+                                                linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutKemandoranLain)
+
+                                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                                // ✅ AsistensiEstateLain - Only setup kemandoran and pemanen
+                                                AppLogger.d("AsistensiEstateLain feature - setting up kemandoran and pemanen only")
+
+                                                kemandoranList = allKemandoran
+
+                                                val kemandoranNames = kemandoranList.map { it.nama }
+                                                AppLogger.d("kemandoranNames: $kemandoranNames")
+                                                setupSpinnerView(
+                                                    layoutKemandoran,
+                                                    if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
+                                                )
+
+                                                // Setup PEMANEN with karyawanList
+                                                val layoutPemanen =
+                                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                                if (karyawanList.isNotEmpty()) {
+                                                    val karyawanNames = karyawanList
+                                                        .sortedBy { it.nama }
+                                                        .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                                    setupSpinnerView(layoutPemanen, karyawanNames)
+                                                    layoutPemanen.visibility = View.GONE
+                                                } else {
+                                                    setupSpinnerView(layoutPemanen, emptyList())
+                                                    val pemanenSpinner =
+                                                        layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                    pemanenSpinner?.setHint("Tidak Ada Karyawan Hadir")
+                                                }
+
+                                            } else {
+                                                // ✅ Other features - Full logic with same/different afdeling
+                                                val isSameAfdeling = selectedDivisiId == userAfdelingId
+                                                AppLogger.d("Is same afdeling: $isSameAfdeling (selectedDivisiId: $selectedDivisiId vs userAfdelingId: $userAfdelingId)")
+
+                                                if (isSameAfdeling) {
+                                                    kemandoranList = allKemandoran
+                                                    kemandoranLainList = emptyList()
+
+                                                    // SAME AFDELING - Setup kemandoran and pemanen, empty kemandoranLain and pemanenLain
+                                                    AppLogger.d("Setting up kemandoran and pemanen for SAME afdeling")
+
+                                                    val kemandoranNames = kemandoranList.map { it.nama }
+                                                    AppLogger.d("kemandoranNames: $kemandoranNames")
+                                                    setupSpinnerView(
+                                                        layoutKemandoran,
+                                                        if (kemandoranNames.isNotEmpty()) kemandoranNames as List<String> else emptyList()
+                                                    )
+
+                                                    // Setup PEMANEN with karyawanList
+                                                    val layoutPemanen =
+                                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                                    if (karyawanList.isNotEmpty()) {
+                                                        val karyawanNames = karyawanList
+                                                            .sortedBy { it.nama }
+                                                            .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                                        setupSpinnerView(layoutPemanen, karyawanNames)
+                                                        layoutPemanen.visibility = View.GONE
+                                                    } else {
+                                                        AppLogger.d("masuk sini dek")
+                                                        setupSpinnerView(layoutPemanen, emptyList())
+                                                        val pemanenSpinner =
+                                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                        pemanenSpinner?.setHint("Tidak Ada Karyawan Hadir")
+                                                    }
+
+                                                    // Setup kemandoranLain and pemanenLain with empty list
+                                                    setupSpinnerView(layoutKemandoranLain, emptyList())
+                                                    val kemandoranLainSpinner =
+                                                        layoutKemandoranLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                    kemandoranLainSpinner?.setHint("Tidak Ada Kemandoran Lain")
+
+                                                    // Setup PEMANEN LAIN with empty list
+                                                    val layoutPemanenLain =
+                                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                                    setupSpinnerView(layoutPemanenLain, emptyList())
+                                                    val pemanenLainSpinner =
+                                                        layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                    pemanenLainSpinner?.setHint("Tidak Ada Karyawan Hadir")
+
+                                                } else {
+                                                    kemandoranList = emptyList()
+                                                    kemandoranLainList = allKemandoran
+
+                                                    // DIFFERENT AFDELING - Setup kemandoranLain and pemanenLain, empty kemandoran and pemanen
+                                                    AppLogger.d("Setting up kemandoran and pemanen for DIFFERENT afdeling")
+
+                                                    // Setup kemandoran with empty list
+                                                    setupSpinnerView(layoutKemandoran, emptyList())
+                                                    val kemandoranSpinner =
+                                                        layoutKemandoran.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                    kemandoranSpinner?.setHint("Tidak Ada Kemandoran")
+
+                                                    // Setup PEMANEN with empty list
+                                                    val layoutPemanen =
+                                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                                    setupSpinnerView(layoutPemanen, emptyList())
+                                                    val pemanenSpinner =
+                                                        layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                    pemanenSpinner?.setHint("Tidak Ada Karyawan Hadir")
+
+                                                    // Setup kemandoranLain and pemanenLain with data
+                                                    val kemandoranLainNames = kemandoranLainList.map { it.nama }
+                                                    AppLogger.d("kemandoranLainNames: $kemandoranLainNames")
+                                                    setupSpinnerView(
+                                                        layoutKemandoranLain,
+                                                        if (kemandoranLainNames.isNotEmpty()) kemandoranLainNames as List<String> else emptyList()
+                                                    )
+
+                                                    // Setup PEMANEN LAIN with karyawanLainList
+                                                    val layoutPemanenLain =
+                                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                                    if (karyawanLainList.isNotEmpty()) {
+                                                        AppLogger.d("masuk terus bro")
+                                                        val karyawanLainNames = karyawanLainList
+                                                            .sortedBy { it.nama }
+                                                            .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                                        setupSpinnerView(layoutPemanenLain, karyawanLainNames)
+                                                        layoutPemanen.visibility = View.GONE
+                                                        layoutPemanenLain.visibility = View.GONE
+                                                    } else {
+                                                        setupSpinnerView(layoutPemanenLain, emptyList())
+                                                        val pemanenLainSpinner =
+                                                            layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                                        pemanenLainSpinner?.setHint("Tidak Ada Karyawan Hadir")
+                                                    }
+                                                }
+                                            }
+
+                                            AppLogger.d("Kemandoran spinners setup completed based on afdeling comparison")
+                                        } catch (e: Exception) {
+                                            AppLogger.e("Error setting up kemandoran spinners: ${e.message}")
+                                            throw Exception("Error setting up kemandoran spinners: ${e.message}")
+                                        }
+                                    }
+                                } else {
+                                    throw Exception("User afdeling ID is null - cannot load kemandoran data")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e("Error in kemandoran setup: ${e.message}")
+                            throw Exception("Kemandoran setup failed: ${e.message}")
+                        }
+
+                    } catch (e: Exception) {
+                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@FeaturePanenTBSActivity,
+                                "Error loading afdeling data: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        withContext(Dispatchers.Main) {
+                            hideLoadingDots(linearLayout)
+                        }
+                    }
+                }
+            }
+
+            R.id.layoutTahunTanam -> {
+                // NO CHANGES - keeping as is
+                val selectedTahunTanam = selectedItem.toString()
+                selectedTahunTanamValue = selectedTahunTanam
+                selectedTahunTanamValueBackup = selectedTahunTanam
+                selectedTahunTanamIdSpinner = position
+
+                val filteredBlokCodes = blokList.filter {
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toInt()
+                        } else {
+                            estateId!!.toInt()
+                        }
+
+                    it.dept == estateIdToUse &&
+                            it.divisi == selectedDivisiValue &&
+                            it.tahun == selectedTahunTanamValue
+                }
+
+                val layoutBlok = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
+                if (filteredBlokCodes.isNotEmpty()) {
+                    val blokNames = filteredBlokCodes.map { it.blok_kode }
+                    setupSpinnerView(layoutBlok, blokNames as List<String>)
+                    layoutBlok.visibility = View.VISIBLE
+                } else {
+                    setupSpinnerView(layoutBlok, emptyList())
+                }
+            }
+
+            R.id.layoutBlok -> {
+                selectedBlok = selectedItem.toString()
+                selectedBlokIdSpinner = position
+
+                val selectedFieldId = try {
+                    val estateIdToUse =
+                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                            selectedEstate.toIntOrNull()
+                        } else {
+                            estateId?.toIntOrNull()
+                        }
+
+                    blokList.find { blok ->
+                        blok.dept == estateIdToUse &&
+                                blok.divisi == selectedDivisiValue &&
+                                blok.tahun == selectedTahunTanamValue &&
+                                blok.blok_kode == selectedBlok
+                    }?.blok
+                } catch (e: Exception) {
+                    AppLogger.e("Error finding selected Blok ID: ${e.message}")
+                    null
+                }
+
+                if (selectedFieldId != null) {
+                    selectedBlokValue = selectedFieldId
+                    selectedBlokValueBackup = selectedFieldId
+                    AppLogger.d("Selected Blok ID: $selectedBlokValue")
+                } else {
+                    selectedBlokValue = null
+                    AppLogger.e("Selected Blok ID is null, skipping processing.")
+                    return
+                }
+
+                if (blokBanjir == 1) {
+                    setupSpinnerView(layoutNoTPH, emptyList())
+                    selectedTPH = ""
+                    selectedTPHIdSpinner = 0
+                    selectedTPHJenisId = null
+                    selectedTPHValue = null
+                }
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) {
+                        animateLoadingDots(linearLayout)
+                        delay(1000)
+                    }
+
+                    try {
+                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
+
+                        if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
+                            throw IllegalStateException("One or more required parameters are null!")
+                        }
+
+                        // Declare latLonResult outside the if block
+                        val latLonResult = if (blokBanjir == 0) {
+                            async {
                                 try {
                                     val estateIdToUse =
                                         if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
@@ -4296,9 +5726,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         } else {
                                             estateId!!.toInt()
                                         }
-                                    datasetViewModel.getLatLonDivisi(
+
+                                    datasetViewModel.getTPHList(
                                         estateIdToUse,
-                                        selectedDivisiId
+                                        selectedDivisiValue!!,
+                                        selectedTahunTanamValue!!,
+                                        selectedBlokValue!!
                                     )
                                         .mapNotNull {
                                             val id = it.id
@@ -4322,6 +5755,95 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         }
                                         .toMap()
                                 } catch (e: Exception) {
+                                    AppLogger.e("Error in latLonResult: ${e.message}", e.toString())
+                                    throw e
+                                }
+                            }
+                        } else {
+                            null
+                        }
+
+                        val tphDeferred = async {
+                            val estateIdToUse =
+                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                    selectedEstate.toInt()
+                                } else {
+                                    estateId!!.toInt()
+                                }
+
+                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
+                            datasetViewModel.getTPHList(
+                                estateIdToUse,
+                                selectedDivisiValue!!,
+                                selectedTahunTanamValue!!,
+                                selectedBlokValue!!
+                            )
+                        }
+
+                        tphList = tphDeferred.await() ?: emptyList()
+                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
+
+                        val normalTphList = tphList.filter { tph ->
+                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+                            jenisId == 1
+                        }
+
+                        panenStoredLocal.forEach { (tphId, data) ->
+                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
+                        }
+
+                        val noTPHList = normalTphList.map { tph ->
+                            val tphData = panenStoredLocal[tph.id]
+                            val selectionCount = tphData?.count ?: 0
+                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
+
+                            val defaultLimit =
+                                jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
+
+                            val limit = defaultLimit
+
+//                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
+
+                            when (selectionCount) {
+                                0 -> tph.nomor
+                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
+                            }
+                        }
+
+                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
+                        AppLogger.d(noTPHList.toString())
+
+                        withContext(Dispatchers.Main) {
+                            val layoutNoTPH =
+                                linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
+
+                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
+                            if (noTPHList.isNotEmpty()) {
+                                setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
+                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
+                            } else {
+                                setupSpinnerView(layoutNoTPH, emptyList())
+                                AppLogger.d("TPH spinner populated with empty list")
+                            }
+
+                            // Setup scan trigger
+                            if (blokBanjir == 0) {
+                                setupScanTPHTrigger()
+                            }
+
+                            // Load and display map AFTER setupScanTPHTrigger
+                            if (blokBanjir == 0 && latLonResult != null) {
+                                try {
+                                    latLonMap = latLonResult.await()
+                                    AppLogger.d("latLonMap loaded with ${latLonMap.size} locations")
+
+                                    mapTPHInsideBlok()
+
+                                } catch (e: Exception) {
+                                    AppLogger.e(
+                                        "Error awaiting latLonResult: ${e.message}",
+                                        e.toString()
+                                    )
                                     AlertDialogUtility.withSingleAction(
                                         this@FeaturePanenTBSActivity,
                                         stringXML(R.string.al_back),
@@ -4329,35 +5851,18 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         "Error fetching listLatLonAfd: ${e.message}",
                                         "warning.json",
                                         R.color.colorRedDark
-                                    ) {}
-                                    emptyMap()
+                                    ) { }
+                                    latLonMap = emptyMap()
                                 }
-                            }.await()
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            try {
-                                val layoutTahunTanam =
-                                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutTahunTanam)
-                                setupSpinnerView(
-                                    layoutTahunTanam,
-                                    tahunTanamList.ifEmpty { emptyList() })
-                                if (blokBanjir == 0) {
-                                    setupScanTPHTrigger()
-                                } else {
-
-                                }
-                                // Kemandoran spinner setup removed from here
-                            } catch (e: Exception) {
-                                AppLogger.e("Error updating UI: ${e.message}")
                             }
                         }
                     } catch (e: Exception) {
-                        AppLogger.e("Error fetching afdeling data: ${e.message}")
+                        AppLogger.e("Error fetching TPH data: ${e.message}")
+                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 this@FeaturePanenTBSActivity,
-                                "Error loading afdeling data: ${e.message}",
+                                "Error loading TPH data: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -4369,72 +5874,12 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 }
             }
 
-
-            R.id.layoutTahunTanam -> {
-//                resetTPHSpinner(linearLayout.rootView)
-                val selectedTahunTanam = selectedItem.toString()
-                selectedTahunTanamValue = selectedTahunTanam
-                selectedTahunTanamValueBackup = selectedTahunTanam
-                selectedTahunTanamIdSpinner = position
-
-//                setupSpinnerView(layoutBlok, emptyList())
-//                selectedBlok = ""
-//                selectedBlokIdSpinner = 0
-//                selectedBlokValue = null
-//                setupSpinnerView(layoutNoTPH, emptyList())
-//                selectedTPH = ""
-//                selectedTPHIdSpinner = 0
-//                selectedTPHJenisId = null
-//                selectedTPHValue = null
-
-                val filteredBlokCodes = blokList.filter {
-                    val estateIdToUse =
-                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                            selectedEstate.toInt()
-                        } else {
-                            estateId!!.toInt()
-                        }
-
-                    it.dept == estateIdToUse &&
-                            it.divisi == selectedDivisiValue &&
-                            it.tahun == selectedTahunTanamValue
-                }
-
-                val layoutBlok =
-                    linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutBlok)
-                if (filteredBlokCodes.isNotEmpty()) {
-                    val blokNames = filteredBlokCodes.map { it.blok_kode }
-                    setupSpinnerView(layoutBlok, blokNames as List<String>)
-                    layoutBlok.visibility = View.VISIBLE
-                } else {
-                    setupSpinnerView(layoutBlok, emptyList())
-                }
-            }
-
             R.id.layoutTipePanen -> {
                 selectedTipePanen = position.toString()
 
                 if (blokBanjir == 0) {
 
                     layoutKemandoran.visibility = View.VISIBLE
-                    layoutPemanen.visibility = View.VISIBLE
-
-                    if (blokBanjir == 1) {
-//                        setupSpinnerView(layoutBlok, emptyList())
-//                        selectedBlok = ""
-//                        selectedBlokIdSpinner = 0
-//                        selectedBlokValue = null
-//                        setupSpinnerView(layoutNoTPH, emptyList())
-//                        selectedTPH = ""
-//                        selectedTPHIdSpinner = 0
-//                        selectedTPHJenisId = null
-//                        selectedTPHValue = null
-
-                    }
-
-                    val switchAsistensi =
-                        findViewById<LinearLayout>(R.id.layoutSelAsistensi)
-                    switchAsistensi.visibility = View.VISIBLE
                     selectedTPHIdByScan?.let { tphId ->
 
                         val idList = listOf(tphId)
@@ -4469,151 +5914,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     } ?: run {
 
                         Log.w("TPH_WARNING", "No TPH selected")
-                    }
-                }
-            }
-
-            R.id.layoutBlok -> {
-//                resetTPHSpinner(linearLayout.rootView)
-                selectedBlok = selectedItem.toString()
-                selectedBlokIdSpinner = position
-
-                val selectedFieldId = try {
-                    // Determine which estate ID to use
-                    val estateIdToUse =
-                        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                            selectedEstate.toIntOrNull()
-                        } else {
-                            estateId?.toIntOrNull()
-                        }
-
-                    blokList.find { blok ->
-                        blok.dept == estateIdToUse &&
-                                blok.divisi == selectedDivisiValue &&
-                                blok.tahun == selectedTahunTanamValue &&
-                                blok.blok_kode == selectedBlok
-                    }?.blok
-                } catch (e: Exception) {
-                    AppLogger.e("Error finding selected Blok ID: ${e.message}")
-                    null
-                }
-
-                if (selectedFieldId != null) {
-                    selectedBlokValue = selectedFieldId
-                    selectedBlokValueBackup = selectedFieldId
-                    AppLogger.d("Selected Blok ID: $selectedBlokValue")
-                } else {
-                    selectedBlokValue = null
-                    AppLogger.e("Selected Blok ID is null, skipping processing.")
-                    return
-                }
-
-
-                if (blokBanjir == 1) {
-                    setupSpinnerView(layoutNoTPH, emptyList())
-                    selectedTPH = ""
-                    selectedTPHIdSpinner = 0
-                    selectedTPHJenisId = null
-                    selectedTPHValue = null
-                }
-
-
-                // In the handleItemSelection for R.id.layoutBlok
-                lifecycleScope.launch(Dispatchers.IO) {
-                    withContext(Dispatchers.Main) {
-                        animateLoadingDots(linearLayout)
-                        delay(1000)
-                    }
-
-                    try {
-                        // Log all parameters to ensure they're not null
-                        AppLogger.d("Loading TPHs with params: estateId=$estateId, selectedDivisiValue=$selectedDivisiValue, selectedTahunTanamValue=$selectedTahunTanamValue, selectedBlokValue=$selectedBlokValue")
-
-                        if (estateId == null || selectedDivisiValue == null || selectedTahunTanamValue == null || selectedBlokValue == null) {
-                            throw IllegalStateException("One or more required parameters are null!")
-                        }
-
-                        val tphDeferred = async {
-                            val estateIdToUse =
-                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                    selectedEstate.toInt()
-                                } else {
-                                    estateId!!.toInt()
-                                }
-
-                            AppLogger.d("Getting TPH list with: estateId=$estateIdToUse, divisi=$selectedDivisiValue, tahunTanam=$selectedTahunTanamValue, blok=$selectedBlokValue")
-                            datasetViewModel.getTPHList(
-                                estateIdToUse,
-                                selectedDivisiValue!!,
-                                selectedTahunTanamValue!!,
-                                selectedBlokValue!!
-                            )
-                        }
-
-                        tphList = tphDeferred.await() ?: emptyList() // Avoid null crash
-                        AppLogger.d("Retrieved tphList size: ${tphList.size}")
-
-                        val normalTphList = tphList.filter { tph ->
-                            // Convert jenis_tph_id to Int, defaulting to 0 if null or not a valid integer
-                            val jenisId = tph.jenis_tph_id?.toIntOrNull() ?: 0
-
-                            // Only include TPH with jenis_tph_id = 1 (normal)
-                            jenisId == 1
-                        }
-
-                        panenStoredLocal.forEach { (tphId, data) ->
-                            AppLogger.d("TPH ID: $tphId, Count: ${data.count}, JenisTPHId: ${data.jenisTPHId}")
-                        }
-                        val noTPHList = normalTphList.map { tph ->
-                            val tphData = panenStoredLocal[tph.id]
-                            val selectionCount = tphData?.count ?: 0
-                            val jenisTPHId = tph.jenis_tph_id?.toIntOrNull() ?: 0
-
-                            // Get the default limit from jenisTPHListGlobal
-                            val defaultLimit =
-                                jenisTPHListGlobal.find { it.id == jenisTPHId }?.limit ?: 1
-
-                            // Use the default limit directly
-                            val limit = defaultLimit
-
-                            AppLogger.d("TPH ${tph.id} (${tph.nomor}): selectionCount=$selectionCount, jenisTPHId=$jenisTPHId, limit=$limit")
-
-                            when (selectionCount) {
-                                0 -> tph.nomor
-                                else -> "${tph.nomor} (sudah terpilih ${selectionCount} dari ${limit} kali)"
-                            }
-                        }
-                        AppLogger.d("Created noTPHList size: ${noTPHList.size}")
-                        AppLogger.d(noTPHList.toString())
-                        withContext(Dispatchers.Main) {
-                            val layoutNoTPH =
-                                linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutNoTPH)
-
-                            AppLogger.d("Setting up TPH spinner with ${noTPHList.size} items")
-                            if (noTPHList.isNotEmpty()) {
-
-
-                                setupSpinnerView(layoutNoTPH, noTPHList as List<String>)
-                                AppLogger.d("TPH spinner populated with ${noTPHList.size} items")
-                            } else {
-                                setupSpinnerView(layoutNoTPH, emptyList())
-                                AppLogger.d("TPH spinner populated with empty list")
-                            }
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e("Error fetching TPH data: ${e.message}")
-                        AppLogger.e("Stack trace: ${e.stackTraceToString()}")
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                this@FeaturePanenTBSActivity,
-                                "Error loading TPH data: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } finally {
-                        withContext(Dispatchers.Main) {
-                            hideLoadingDots(linearLayout)
-                        }
                     }
                 }
             }
@@ -4739,8 +6039,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     AppLogger.d("Filtered Kemandoran ID: $filteredKemandoranId")
 
                     // Show filter container and setup remove button
-                    val filterContainer = linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                    val removeFilterButton = filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    val filterContainer =
+                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton =
+                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
                     removeFilterButton.setOnClickListener {
@@ -4754,7 +6056,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             try {
                                 loadMainPemanenOnly(linearLayout.rootView) // Use full logic to restore both spinners
                             } catch (e: Exception) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error load full pemanen estate: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error load full pemanen estate: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
@@ -4781,12 +6087,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 }
 
                                 // Get the divisi of this specific kemandoran
-                                val selectedKemandoranDivisi = kemandoranList.find { it.id == filteredKemandoranId }?.divisi
+                                val selectedKemandoranDivisi =
+                                    kemandoranList.find { it.id == filteredKemandoranId }?.divisi
                                 AppLogger.d("Selected kemandoran divisi: $selectedKemandoranDivisi")
 
                                 // Apply dynamic logic
                                 val (mainKaryawan, lainKaryawan) = if (userAfdelingId != null && selectedKemandoranDivisi != null) {
-                                    val isPresentDivisiInList = divisiList.any { it.divisi == selectedKemandoranDivisi }
+                                    val isPresentDivisiInList =
+                                        divisiList.any { it.divisi == selectedKemandoranDivisi }
                                     AppLogger.d("Is selected kemandoran divisi in divisi list: $isPresentDivisiInList")
 
                                     if (isPresentDivisiInList) {
@@ -4814,18 +6122,22 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 karyawanList = mainKaryawan
                                 karyawanLainList = lainKaryawan
 
-                                val mainNames = mainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                val lainNames = lainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val mainNames = mainKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val lainNames = lainKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                                 withContext(Dispatchers.Main) {
                                     // Update main spinner
-                                    val layoutPemanen = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
+                                    val layoutPemanen =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanen)
                                     layoutPemanen.visibility = View.VISIBLE
                                     if (mainNames.isNotEmpty()) {
                                         setupSpinnerView(layoutPemanen, mainNames)
                                     } else {
                                         setupSpinnerView(layoutPemanen, emptyList())
-                                        val pemanenSpinner = layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                        val pemanenSpinner =
+                                            layoutPemanen.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                         pemanenSpinner.setHint("Tidak Ada Karyawan Hadir")
                                     }
 
@@ -4834,7 +6146,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching karyawan data: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error loading worker data: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error loading worker data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
@@ -4965,8 +6281,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 if (selectedIdKemandoranLain != null) {
                     AppLogger.d("Selected ID Kemandoran Lain: $selectedIdKemandoranLain")
 
-                    val filterContainer = linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
-                    val removeFilterButton = filterContainer.findViewById<ImageView>(R.id.remove_filter)
+                    val filterContainer =
+                        linearLayout.findViewById<MaterialCardView>(R.id.filter_container_pertanyaan_layout)
+                    val removeFilterButton =
+                        filterContainer.findViewById<ImageView>(R.id.remove_filter)
                     filterContainer.visibility = View.VISIBLE
 
                     removeFilterButton.setOnClickListener {
@@ -4980,7 +6298,11 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                             try {
                                 loadLainPemanenOnly(linearLayout.rootView) // Use full logic to restore both spinners
                             } catch (e: Exception) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error load full pemanen estate: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error load full pemanen estate: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
@@ -5004,62 +6326,40 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     karyawan.nik != null && presentNikSet.contains(karyawan.nik)
                                 }
 
-                                // Get the divisi of this specific kemandoran lain
-                                val selectedKemandoranLainDivisi = kemandoranLainList.find { it.id == selectedIdKemandoranLain }?.divisi
-                                AppLogger.d("Selected kemandoran lain divisi: $selectedKemandoranLainDivisi")
+                                AppLogger.d("=== SIMPLE KEMANDORAN LAIN LOGIC ===")
+                                AppLogger.d("Present karyawan count: ${presentKaryawan.size}")
 
-                                // Apply the SAME dynamic logic
-                                val (mainKaryawan, lainKaryawan) = if (userAfdelingId != null && selectedKemandoranLainDivisi != null) {
-                                    val isPresentDivisiInList = divisiList.any { it.divisi == selectedKemandoranLainDivisi }
-                                    AppLogger.d("Is selected kemandoran lain divisi in divisi list: $isPresentDivisiInList")
+                                // ✅ Directly assign to karyawanLainList
+                                karyawanList = presentKaryawan
+                                karyawanLainList = presentKaryawan
 
-                                    if (isPresentDivisiInList) {
-                                        if (selectedKemandoranLainDivisi == userAfdelingId) {
-                                            // Same divisi -> main spinner
-                                            AppLogger.d("CASE 1: Selected kemandoran lain matches user afdeling -> Main spinner")
-                                            Pair(presentKaryawan, emptyList<KaryawanModel>())
-                                        } else {
-                                            // Different divisi -> lain spinner
-                                            AppLogger.d("CASE 2: Selected kemandoran lain differs from user afdeling -> Lain spinner")
-                                            Pair(emptyList<KaryawanModel>(), presentKaryawan)
-                                        }
-                                    } else {
-                                        // Not in divisiList -> main spinner
-                                        AppLogger.d("CASE 3: Selected kemandoran lain not in divisi list -> Main spinner")
-                                        Pair(presentKaryawan, emptyList<KaryawanModel>())
-                                    }
-                                } else {
-                                    // Fallback -> main spinner
-                                    AppLogger.d("FALLBACK: Cannot determine divisi -> Main spinner")
-                                    Pair(presentKaryawan, emptyList<KaryawanModel>())
-                                }
-
-                                // Update global variables
-                                karyawanList = mainKaryawan
-                                karyawanLainList = lainKaryawan
-
-                                val mainNames = mainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
-                                val lainNames = lainKaryawan.sortedBy { it.nama }.map { "${it.nama} - ${it.nik ?: "N/A"}" }
+                                val lainNames = presentKaryawan.sortedBy { it.nama }
+                                    .map { "${it.nama} - ${it.nik ?: "N/A"}" }
 
                                 withContext(Dispatchers.Main) {
-
-                                    // Update lain spinner
-                                    val layoutPemanenLain = linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
+                                    val layoutPemanenLain =
+                                        linearLayout.rootView.findViewById<LinearLayout>(R.id.layoutPemanenLain)
                                     if (layoutPemanenLain != null) {
                                         if (lainNames.isNotEmpty()) {
                                             setupSpinnerView(layoutPemanenLain, lainNames)
                                         } else {
                                             setupSpinnerView(layoutPemanenLain, emptyList())
-                                            val pemanenLainSpinner = layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+                                            val pemanenLainSpinner =
+                                                layoutPemanenLain.findViewById<MaterialSpinner>(R.id.spPanenTBS)
                                             pemanenLainSpinner.setHint("Tidak Ada Karyawan Hadir")
                                         }
                                     }
                                 }
                             }
+
                         } catch (e: Exception) {
                             AppLogger.e("Error fetching kemandoran lain data: ${e.message}")
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@FeaturePanenTBSActivity, "Error loading kemandoran lain data: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(
+                                    this@FeaturePanenTBSActivity,
+                                    "Error loading kemandoran lain data: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         } finally {
                             withContext(Dispatchers.Main) {
@@ -5183,9 +6483,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             setupSelfiePhotoLayout()
         }
 
-        val waterMark = if(featureName == AppUtils.ListFeatureNames.MutuBuah){
-            AppUtils.ListFeatureNames.MutuBuah.uppercase().replace(" ","_")
-        }else{
+        val waterMark = if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+            AppUtils.ListFeatureNames.MutuBuah.uppercase().replace(" ", "_")
+        } else {
             AppUtils.WaterMarkFotoDanFolder.WMPanenTPH
         }
 
@@ -5255,12 +6555,14 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             ) == PackageManager.PERMISSION_GRANTED -> {
                 takeSelfiePhoto()
             }
+
             ActivityCompat.shouldShowRequestPermissionRationale(
                 this,
                 android.Manifest.permission.CAMERA
             ) -> {
                 showSnackbarWithSettings("Camera permission required to take photos. Enable it in Settings.")
             }
+
             else -> {
                 ActivityCompat.requestPermissions(
                     this,
@@ -5288,11 +6590,20 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         // Check required fields for MutuBuah
         when {
             locationData.estate.isNullOrEmpty() -> {
-                Toast.makeText(this, "Pastikan sudah mengisi Estate terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Pastikan sudah mengisi Estate terlebih dahulu!",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return
             }
+
             locationData.afdeling.isNullOrEmpty() -> {
-                Toast.makeText(this, "Pastikan sudah mengisi Afdeling terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Pastikan sudah mengisi Afdeling terlebih dahulu!",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return
             }
         }
@@ -5342,6 +6653,17 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 sourceFoto,
                 CameraRepository.CameraType.FRONT
             )
+        }
+    }
+
+    private fun getCachedMarker(color: Int, number: String?, showText: Boolean): Drawable {
+        val key = "${color}_${number}_${showText}"
+        return markerCache.getOrPut(key) {
+            if (showText && number != null) {
+                createColoredMarkerWithNumber(color, number)
+            } else {
+                createColoredMarkerWithoutNumber(color)
+            }
         }
     }
 
@@ -5411,17 +6733,56 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         updateCounterTextViews()
     }
 
+    private fun createXMarker(color: Int): Drawable {
+        val size = 40
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val padding = 8f
+
+        // White outline paint
+        val outlinePaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = 7f  // Thicker for outline
+            this.color = Color.WHITE
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Main X paint
+        val mainPaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = 4f
+            this.color = color
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Draw white outline first
+        canvas.drawLine(padding, padding, size - padding, size - padding, outlinePaint)
+        canvas.drawLine(size - padding, padding, padding, size - padding, outlinePaint)
+
+        // Draw colored X on top
+        canvas.drawLine(padding, padding, size - padding, size - padding, mainPaint)
+        canvas.drawLine(size - padding, padding, padding, size - padding, mainPaint)
+
+        return BitmapDrawable(resources, bitmap)
+    }
+
+
     private fun setupScanTPHTrigger() {
-        val alertCardScanRadius =
-            findViewById<MaterialCardView>(R.id.alertCardScanRadius)
+        AppLogger.d("=== setupScanTPHTrigger called ===")
+        AppLogger.d("prefManager.isDownloadedMapOffline: ${prefManager!!.isDownloadedMapOffline}")
+        AppLogger.d("mapViewPanenBlok null? ${mapViewPanenBlok == null}")
+        AppLogger.d("overlays size: ${mapViewPanenBlok?.overlays?.size}")
+
+        val alertCardScanRadius = findViewById<MaterialCardView>(R.id.alertCardScanRadius)
         alertCardScanRadius.visibility = View.VISIBLE
 
-        val alertTvScannedRadius =
-            findViewById<TextView>(R.id.alertTvScannedRadius)
+        val alertTvScannedRadius = findViewById<TextView>(R.id.alertTvScannedRadius)
         alertTvScannedRadius.visibility = View.VISIBLE
 
-        val btnScanTPHRadius =
-            findViewById<MaterialButton>(R.id.btnScanTPHRadius)
+        val btnScanTPHRadius = findViewById<MaterialButton>(R.id.btnScanTPHRadius)
 
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
@@ -5431,42 +6792,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             btnScanTPHRadius.visibility = View.VISIBLE
         }
 
-        // Show auto scan switch when scanning is available
         layoutAutoScan.visibility = View.VISIBLE
+        titleLiveMapPanen.visibility = View.VISIBLE
+        descTitleLiveMapPanen.visibility = View.VISIBLE
+        cardMapPanenBlok?.visibility = View.VISIBLE
+
+        // Initialize or update map
+        if (mapViewPanenBlok?.overlays?.isEmpty() == true) {
+            AppLogger.d("First time - calling initializeMapView()")
+            initializeMapView()
+        } else {
+            AppLogger.d("Already initialized - calling updateMapTileSource()")
+            updateMapTileSource()
+        }
 
         val radiusText = "${radiusMinimum.toInt()} m"
-        val text =
-            "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
+        val text = "Lakukan Refresh saat $radiusText dalam radius terdekat TPH"
         val asterisk = "*"
 
-        val spannableScanTPHTitle =
-            SpannableString("$text $asterisk").apply {
-                val startIndex = text.indexOf(radiusText)
-                val endIndex = startIndex + radiusText.length
+        val spannableScanTPHTitle = SpannableString("$text $asterisk").apply {
+            val startIndex = text.indexOf(radiusText)
+            val endIndex = startIndex + radiusText.length
 
-                setSpan(
-                    StyleSpan(Typeface.BOLD), // Make text bold
-                    startIndex,
-                    endIndex,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-
-                setSpan(
-                    StyleSpan(Typeface.ITALIC), // Make text bold
-                    startIndex,
-                    endIndex,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-
-                setSpan(
-                    ForegroundColorSpan(Color.RED), // Make asterisk red
-                    text.length,
-                    length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
+            setSpan(StyleSpan(Typeface.BOLD), startIndex, endIndex, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(StyleSpan(Typeface.ITALIC), startIndex, endIndex, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(ForegroundColorSpan(Color.RED), text.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
 
         alertTvScannedRadius.text = spannableScanTPHTitle
+        AppLogger.d("=== setupScanTPHTrigger completed ===")
+
+        if (!estateAbbr.isNullOrEmpty()) {
+            AppLogger.d("Updating map tile source for estate: $estateAbbr")
+            updateMapTileSource()
+        } else {
+            AppLogger.w("estateAbbr is null/empty, cannot update tile source")
+        }
     }
 
     /**
@@ -5639,22 +7000,57 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         selectedBlok = selectedTPHInLIst.blockCode
         selectedTPHValue = selectedTPHIdByScan
         selectedTPH = selectedTPHInLIst.number
-        if (featureName != AppUtils.ListFeatureNames.MutuBuah){
+
+        if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
             layoutAncak.visibility = View.VISIBLE
             layoutNomorPemanen.visibility = View.VISIBLE
             layoutTipePanen.visibility = View.VISIBLE
             layoutKemandoran.visibility = View.VISIBLE
             layoutPemanen.visibility = View.VISIBLE
             layoutSelAsistensi.visibility = View.VISIBLE
-        }else{
+        } else {
             layoutNomorPemanen.visibility = View.VISIBLE
         }
 
+        // ✅ Handle AsistensiEstateLain - hide asistensi related layouts
+        if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+            layoutSelAsistensi.visibility = View.GONE
+            layoutKemandoranLain.visibility = View.GONE
+            layoutPemanenLain.visibility = View.GONE
+            return // Early return, no need to check divisi logic
+        }
+
         val switchAsistensi = findViewById<SwitchMaterial>(R.id.selAsistensi)
-        if (karyawanLainList.isNotEmpty()) {
-            switchAsistensi.isChecked = true
+
+        val userAfdelingId = prefManager?.afdelingIdUserLogin?.toIntOrNull()
+
+        if (userAfdelingId != null) {
+            if (selectedDivisiId == userAfdelingId) {
+                // Same divisi → no need for asistensi
+
+                if(featureName != AppUtils.ListFeatureNames.MutuBuah){
+                    layoutSelAsistensi.visibility = View.GONE
+                }
+                switchAsistensi.isChecked = false
+            } else {
+                // Different divisi → asistensi ON
+
+                switchAsistensi.isChecked = true
+                if(featureName == AppUtils.ListFeatureNames.MutuBuah){
+                    layoutPemanenLain.visibility = View.GONE
+                    layoutKemandoranLain.visibility = View.GONE
+                }else{
+                    layoutSelAsistensi.visibility = View.VISIBLE
+                    layoutPemanenLain.visibility = View.VISIBLE
+                    layoutKemandoranLain.visibility = View.VISIBLE
+                }
+            }
+        } else {
+            // Fallback (if pref not available)
+            switchAsistensi.isChecked = false
         }
     }
+
 
     private fun resetSelfiePhoto() {
         if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
@@ -6168,46 +7564,40 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     override fun onResume() {
         super.onResume()
 
-        // Manually check location permission
-        val isLocationGranted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (isLocationGranted) {
-            locationViewModel.startLocationUpdates()
-            isSnackbarShown = false // Reset snackbar flag
-        } else if (!isSnackbarShown) {
-            showSnackbarWithSettings("Location permission is required for this app. Enable it in Settings.")
-            isSnackbarShown = true // Prevent duplicate snackbars
-        }
-
-
-        locationViewModel.airplaneModeState.observe(this) { isAirplaneMode ->
-            if (isAirplaneMode) {
-                locationViewModel.stopLocationUpdates()
-            } else {
-                // Only restart if we have permission
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    locationViewModel.startLocationUpdates()
-                }
-            }
-        }
-
-        // Observe location updates
         locationViewModel.locationData.observe(this) { location ->
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
         }
 
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        sensorManager?.registerListener(
+            sensorEventListener,
+            rotationSensor,
+            SensorManager.SENSOR_DELAY_UI
+        )
+
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            findViewById<TextView>(R.id.accuracyLocation).text = String.format("%.1f m", accuracy)
+            findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
+
+            // Update status location icon based on accuracy
+            val statusLocation = findViewById<ImageView>(R.id.statusLocation)
+            val isLocationGood = accuracy <= boundaryAccuracy
+
+            statusLocation?.setImageResource(
+                if (isLocationGood) R.drawable.baseline_location_on_24
+                else R.drawable.baseline_wrong_location_24
+            )
+            statusLocation?.imageTintList = ColorStateList.valueOf(
+                resources.getColor(
+                    if (isLocationGood) R.color.greenbutton else R.color.colorRedDark
+                )
+            )
         }
+
+        mapViewPanenBlok?.onResume()
 
         checkDateTimeSettings()
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
@@ -6251,14 +7641,19 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
     override fun onPause() {
-        super.onPause()
-        // Stop auto scanning when activity is paused
         autoScanEnabled = false
         autoScanHandler.removeCallbacks(autoScanRunnable)
 
-        // Your existing onPause code...
-        locationViewModel.stopLocationUpdates()
+        // Stop sensor
+        sensorManager?.unregisterListener(sensorEventListener)
+
+        // Stop map tracking
+        stopLiveLocationTracking()
+        mapViewPanenBlok?.onPause()
+        pulsingUserOverlay?.stopAnimation()
+
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+        super.onPause()
     }
 
     // Add this to your setupUI or initializeActivity function
@@ -6266,12 +7661,41 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         setupAutoScanSwitch()
     }
 
+    private val sensorEventListener: SensorEventListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent?) {
+            if (event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
+                val rotationMatrix = FloatArray(9)
+                SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+
+                val orientation = FloatArray(3)
+                SensorManager.getOrientation(rotationMatrix, orientation)
+
+                currentBearing = Math.toDegrees(orientation[0].toDouble()).toFloat()
+
+                // Update both overlays
+                pulsingUserOverlay?.setUserBearing(currentBearing) // Main map
+                fullscreenUserOverlay?.setUserBearing(currentBearing) // Fullscreen map
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
+
+    private fun stopLiveLocationTracking() {
+        locationUpdateJob?.cancel()
+        locationUpdateJob = null
+        AppLogger.d("Live location tracking stopped")
+    }
+
     override fun onDestroy() {
-        super.onDestroy()
-        locationViewModel.stopLocationUpdates()
+        // Clean up map
+        stopLiveLocationTracking()
+        mapViewPanenBlok?.onDetach()
+        pulsingUserOverlay?.stopAnimation()
 
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         SoundPlayer.releaseMediaPlayer()
+        super.onDestroy()
     }
 
     // Update the onPhotoTaken method to handle selfie photos:
@@ -6348,7 +7772,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 photoCount++
             }
 
-            val viewHolder = recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
+            val viewHolder =
+                recyclerView.findViewHolderForAdapterPosition(position) as? TakeFotoPreviewAdapter.FotoViewHolder
             viewHolder?.let {
                 Glide.with(this)
                     .load(photoFile)

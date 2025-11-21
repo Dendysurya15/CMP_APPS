@@ -7,25 +7,31 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.cbi.mobile_plantation.data.model.MissingPhotosResponse
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
+import com.cbi.mobile_plantation.data.repository.CheckPhotoRepository
 import com.cbi.mobile_plantation.data.repository.UploadCMPRepository
 import com.cbi.mobile_plantation.ui.adapter.UploadCMPItem
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class UploadCMPViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: UploadCMPRepository = UploadCMPRepository(application)
-
+    private val checkPhotoRepository: CheckPhotoRepository = CheckPhotoRepository()
 
     data class FileZipAndStatus(
         val nama_file: String,
         val status: Int
     )
+
+    private val _missingPhotosList = MutableLiveData<Result<MissingPhotosResponse>>()
+    val missingPhotosList: LiveData<Result<MissingPhotosResponse>> = _missingPhotosList
 
 //    private val _updateStatus = MutableLiveData<Pair<Int, Boolean>>()
 //    val updateStatusUploadCMP: LiveData<Pair<Int, Boolean>> = _updateStatus
@@ -90,6 +96,20 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    suspend fun getMissingPhotos(tanggal: String, deptAbbr: String, createdBy: Int): Result<MissingPhotosResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val result = checkPhotoRepository.getMissingPhotos(tanggal, deptAbbr, createdBy)
+                _missingPhotosList.postValue(result)
+                result
+            } catch (e: Exception) {
+                AppLogger.e("Error in getMissingPhotos: ${e.message}")
+                val failureResult = Result.failure<MissingPhotosResponse>(e)
+                _missingPhotosList.postValue(failureResult)
+                failureResult
+            }
+        }
+    }
 
     fun UpdateOrInsertDataUpload(
         tracking_id: String,
@@ -210,7 +230,7 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun uploadMultipleJsonsV3(items: List<UploadCMPItem>) {
+    fun uploadMultipleJsonsV5(items: List<UploadCMPItem> ,idUserLogin:Int, estateAbbrUser :String,) {
         viewModelScope.launch {
             // Reset counters - these operations are safe as they're in the viewModelScope
             _completedCount.value = 0
@@ -254,7 +274,9 @@ class UploadCMPViewModel(application: Application) : AndroidViewModel(applicatio
                 val tableIds = item.tableIds
                 val databaseTable = item.databaseTable
 
-                val result = repository.uploadJsonToServerV3(
+                val result = repository.uploadJsonToServerV5(
+                    idUserLogin,
+                    estateAbbrUser,
                     jsonFilePath = jsonFilePath,
                     filename = filename,
                     data = data,

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.VibrationEffect
@@ -25,19 +26,25 @@ import androidx.core.content.ContextCompat
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
+import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
 import net.lingala.zip4j.model.enums.EncryptionMethod
-import okhttp3.MediaType
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody
-import okio.BufferedSink
-import org.json.JSONArray
+import android.Manifest
+
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+
+import android.content.pm.PackageManager
+import android.widget.ArrayAdapter
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -54,6 +61,8 @@ import java.util.zip.ZipInputStream
 
 object AppUtils {
 
+
+    private var currentSnackbar: Snackbar? = null
     const val TOTAL_MAX_TREES_INSPECTION: Int = 100
     const val MINIMAL_TAKE_SELFIE_INSPECTION: Int = 10
     const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
@@ -66,6 +75,9 @@ object AppUtils {
     const val MAX_ALERT_FOR_GENERATE_QR = 60
     const val max_data_in_zip = 12
     const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
+    const val CLOSEST_PEMANEN_RADIUS = 450.0
+
+    const val LOCATION_USER_UPDATE_INTERVAL = 1000L // 3 seconds
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"
@@ -77,7 +89,157 @@ object AppUtils {
         const val UPDATED = "Berhasil diperbarui"
         const val DONE_CHECK = "Sudah diperiksa"
         const val FAILED = "Gagal Upload!"
-        const val ERROR = "ERROR!"
+        const val ERROR = "Error %s!"
+        const val SAVED = "Data %s baru berhasil tersimpan!"
+        const val DUPLICATE_PARTIAL = "Sebagian data berhasil disimpan (%s duplikat))"
+        const val DUPLICATE = "Semua data duplikat, tidak ada hektaran baru tersimpan!"
+    }
+
+    @SuppressLint("MissingPermission", "ServiceCast")
+    fun getDeviceName(device: BluetoothDevice, context: Context): String {
+        return try {
+            // Try multiple methods to get device name
+            var name = device.name
+
+            if (name.isNullOrBlank()) {
+                // Try to get name from bonded devices
+                val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+                val bluetoothAdapter = bluetoothManager.adapter
+                val bondedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == device.address }
+                name = bondedDevice?.name
+            }
+
+            if (name.isNullOrBlank()) {
+                // Generate a more descriptive unknown name based on device type and full address
+                when (device.type) {
+                    BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic Device (${device.address})"
+                    BluetoothDevice.DEVICE_TYPE_LE -> "BLE Device (${device.address})"
+                    BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual Mode (${device.address})"
+                    else -> "Unknown Device (${device.address})"
+                }
+            } else {
+                name
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error getting device name: ${e.message}")
+            "Device (${device.address})"
+        }
+    }
+
+    fun getDeviceTypeInfo(device: BluetoothDevice, context: Context): String {
+        return if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+            == PackageManager.PERMISSION_GRANTED) {
+            when (device.type) {
+                BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic"
+                BluetoothDevice.DEVICE_TYPE_LE -> "BLE"
+                BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual"
+                else -> "Unknown Type"
+            }
+        } else {
+            "Permission Required"
+        }
+    }
+
+    fun formatDeviceInfo(name: String, address: String): String {
+        return "$name"
+    }
+
+    @SuppressLint("MissingPermission")
+    fun isPhoneDevice(device: BluetoothDevice): Boolean {
+        val deviceClass = device.bluetoothClass
+
+        if (deviceClass == null) {
+            AppLogger.d("Device '${device.name}': No BluetoothClass available, checking by type")
+            // If no bluetooth class, check if it's a dual mode device (likely phone)
+            return device.type == BluetoothDevice.DEVICE_TYPE_DUAL || device.type == BluetoothDevice.DEVICE_TYPE_LE
+        }
+
+        val majorDeviceClass = deviceClass.majorDeviceClass
+        val minorDeviceClass = deviceClass.deviceClass and 0xFF // Get minor class from device class
+
+        // Phone identification using Bluetooth Device Class
+        val isPhone = when {
+            // Major Device Class: Phone (0x200 = 512)
+            majorDeviceClass == BluetoothClass.Device.Major.PHONE -> true
+
+            // Has telephony service
+            deviceClass.hasService(BluetoothClass.Service.TELEPHONY) -> true
+
+            // Computer class with phone-like minor classes
+            majorDeviceClass == BluetoothClass.Device.Major.COMPUTER &&
+                    (minorDeviceClass == BluetoothClass.Device.Major.PHONE ||
+                            deviceClass.hasService(BluetoothClass.Service.TELEPHONY)) -> true
+
+            // Uncategorized but has telephony or networking services (modern smartphones)
+            majorDeviceClass == BluetoothClass.Device.Major.UNCATEGORIZED &&
+                    (deviceClass.hasService(BluetoothClass.Service.TELEPHONY) ||
+                            deviceClass.hasService(BluetoothClass.Service.NETWORKING)) -> true
+
+            else -> false
+        }
+
+        // Log detailed device class information
+        AppLogger.d("Device '${device.name}': " +
+                "MajorClass=$majorDeviceClass (${getDeviceClassString(majorDeviceClass)}), " +
+                "MinorClass=$minorDeviceClass, " +
+                "HasTelephony=${deviceClass.hasService(BluetoothClass.Service.TELEPHONY)}, " +
+                "HasNetworking=${deviceClass.hasService(BluetoothClass.Service.NETWORKING)}, " +
+                "IsPhone=$isPhone")
+
+        return isPhone
+    }
+
+    fun getDeviceClassString(majorDeviceClass: Int): String {
+        return when (majorDeviceClass) {
+            BluetoothClass.Device.Major.AUDIO_VIDEO -> "Audio/Video"
+            BluetoothClass.Device.Major.COMPUTER -> "Computer"
+            BluetoothClass.Device.Major.HEALTH -> "Health"
+            BluetoothClass.Device.Major.IMAGING -> "Imaging"
+            BluetoothClass.Device.Major.MISC -> "Miscellaneous"
+            BluetoothClass.Device.Major.NETWORKING -> "Networking"
+            BluetoothClass.Device.Major.PERIPHERAL -> "Peripheral"
+            BluetoothClass.Device.Major.PHONE -> "Phone"
+            BluetoothClass.Device.Major.TOY -> "Toy"
+            BluetoothClass.Device.Major.UNCATEGORIZED -> "Uncategorized"
+            BluetoothClass.Device.Major.WEARABLE -> "Wearable"
+            else -> "Unknown($majorDeviceClass)"
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun scanPairedPhoneDevices(
+        context: Context,
+        devices: MutableList<BluetoothDevice>,
+        deviceNames: MutableList<String>,
+        deviceTypes: MutableMap<String, String>,
+        adapter: ArrayAdapter<String>
+    ) {
+        try {
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val bluetoothAdapter = bluetoothManager.adapter
+            val pairedDevices = bluetoothAdapter?.bondedDevices
+
+            // Filter for phone devices only
+            pairedDevices?.forEach { device ->
+                if (isPhoneDevice(device)) {
+                    val deviceName = device.name ?: "Phone Device (${device.address.takeLast(8).replace(":", "")})"
+                    val deviceTypeInfo = "${getDeviceTypeInfo(device, context)} • Tersambung"
+                    val deviceInfo = formatDeviceInfo(deviceName, device.address)
+
+                    devices.add(device)
+                    deviceNames.add(deviceInfo)
+                    deviceTypes[device.address] = deviceTypeInfo
+
+                    AppLogger.d("Added paired PHONE: Name='$deviceName', Address='${device.address}', Type=${device.type}")
+                } else {
+                    AppLogger.d("Skipped non-phone device: Name='${device.name}', Address='${device.address}'")
+                }
+            }
+
+            adapter.notifyDataSetChanged()
+        } catch (e: Exception) {
+            AppLogger.e("Error scanning paired phone devices: ${e.message}")
+        }
     }
 
 
@@ -93,53 +255,48 @@ object AppUtils {
         return "${getMonthFormat(month)} $day $year"
     }
 
-    // Add this to AppUtils.kt
-    fun parseDateFromDisplay(displayDate: String): Triple<Int, Int, Int>? {
+    object FileConstants {
+        fun getRootJson(context: Context): String =
+            File(context.getExternalFilesDir(null), "JSON").toString()
+
+        fun getRootJsonInternal(context: Context): String =
+            File(context.filesDir, "JSON").toString()
+    }
+
+    suspend fun writeJsonToFile(
+        context: Context,
+        jsonObject: JSONObject,
+        fileName: String,
+        addTimestamp: Boolean = true,
+        useInternal: Boolean = false
+    ) = withContext(Dispatchers.IO) {
         try {
-            // Assuming format is "Month DD YYYY" (e.g., "April 08 2025")
-            val parts = displayDate.split(" ")
-            if (parts.size != 3) return null
-
-            val monthName = parts[0]
-            val day = parts[1].toInt()
-            val year = parts[2].toInt()
-
-            // Convert month name to month number (1-12)
-            val month = when (monthName.toLowerCase()) {
-                "january" -> 1
-                "february" -> 2
-                "march" -> 3
-                "april" -> 4
-                "may" -> 5
-                "june" -> 6
-                "july" -> 7
-                "august" -> 8
-                "september" -> 9
-                "october" -> 10
-                "november" -> 11
-                "december" -> 12
-                // Add Indonesian month names if needed
-                "januari" -> 1
-                "februari" -> 2
-                "maret" -> 3
-                "april" -> 4
-                "mei" -> 5
-                "juni" -> 6
-                "juli" -> 7
-                "agustus" -> 8
-                "september" -> 9
-                "oktober" -> 10
-                "november" -> 11
-                "desember" -> 12
-                else -> return null
+            val finalFileName = if (addTimestamp) {
+                val timestamp =
+                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                "${fileName.removeSuffix(".json")}_$timestamp.json"
+            } else {
+                if (!fileName.endsWith(".json")) "$fileName.json" else fileName
             }
 
-            return Triple(day, month, year)
+            val rootPath = if (useInternal) {
+                FileConstants.getRootJsonInternal(context)
+            } else {
+                FileConstants.getRootJson(context)
+            }
+
+            val file = File(rootPath, finalFileName)
+            file.parentFile?.mkdirs()
+
+            file.writeText(jsonObject.toString(4))
+            AppLogger.d("JSON written to: ${file.absolutePath}")
+            file.absolutePath
         } catch (e: Exception) {
-            Log.e("AppUtils", "Error parsing date: ${e.message}")
-            return null
+            AppLogger.e("Error writing JSON to file", e.toString())
+            null
         }
     }
+
 
     fun getMonthFormat(month: Int): String {
         return when (month) {
@@ -159,16 +316,95 @@ object AppUtils {
         }
     }
 
+    fun showSnackbarWithSettings(
+        activity: Activity,
+        message: String,
+        actionText: String = "Settings"
+    ) {
+        // Dismiss any existing snackbar first
+        currentSnackbar?.dismiss()
+
+        currentSnackbar = Snackbar.make(
+            activity.findViewById(android.R.id.content),
+            message,
+            Snackbar.LENGTH_INDEFINITE
+        )
+            .setAction(actionText) {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", activity.packageName, null)
+                )
+                activity.startActivity(intent)
+            }
+
+        currentSnackbar?.show()
+    }
+
+    fun dismissSnackbar() {
+        currentSnackbar?.dismiss()
+        currentSnackbar = null
+    }
+
     fun formatDateForBackend(day: Int, month: Int, year: Int): String {
         return String.format("%04d-%02d-%02d", year, month, day)
     }
+
+    fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
+//        return prefManager?.radiusMinimum ?:15F
+        return 5000F
+    }
+
+    val listRadioItems: Map<String, Map<String, String>> = mapOf(
+        "YesOrNoOrTitikKosong" to mapOf(
+            "1" to "Ya",
+            "2" to "Tidak",
+            "3" to "Titik Kosong"
+        ),
+        "YesOrNo" to mapOf(
+            "1" to "Ya",
+            "2" to "Tidak"
+        ),
+        "HighOrLow" to mapOf(
+            "1" to "Tinggi",
+            "2" to "Rendah"
+        ),
+        "ExistsOrNot" to mapOf(
+            "1" to "Ada",
+            "2" to "Tidak"
+        ),
+        "NeatOrNot" to mapOf(
+            "1" to "Standar",
+            "2" to "Tidak Standar"
+        ),
+        "PelepahType" to mapOf(
+            "1" to "Tidak ada",
+            "2" to "Ada"
+        ),
+        "PruningType" to mapOf(
+            "1" to "Normal",
+            "2" to "Over Pruning",
+            "3" to "Under Pruning"
+        )
+    )
+
+    // Helper function to get radio items by key
+    fun getRadioItems(key: String): Map<String, String> {
+        return listRadioItems[key] ?: emptyMap()
+    }
+
+    // Helper function to get label by key and value
+    fun getRadioLabel(key: String, value: String): String {
+        return listRadioItems[key]?.get(value) ?: ""
+    }
+
+    const val MAX_QR_SIZE_KB = 2.5
 
     object DatabaseTables {
         const val MUTU_BUAH = "mutu_buah"
         const val PANEN = "panen_table"
         const val JENIS_TPH = "jenis_tph"
         const val INSPEKSI = "inspeksi"
-        const val INSPEKSI_DETAIL= "inspeksi_detail"
+        const val INSPEKSI_DETAIL = "inspeksi_detail"
         const val ESPB = "espb_table"
         const val ABSENSI = "absensi"
         const val AFDELING = "afdeling"
@@ -186,13 +422,14 @@ object AppUtils {
         const val HEKTAR_PANEN = "hektar_panen"
 
         //for upload hektaran and hektaran_detail
-        const val HEKTARAN= "hektaran"
+        const val HEKTARAN = "hektaran"
         const val HEKTARAN_DETAIL = "hektaran_detail"
 
         const val ABSENSI_DETAIL = "absensi_detail"
     }
 
     object ListFeatureByRoleUser {
+        const val RH = "Regional Head"
         const val Manager = "Manager"
         const val GM = "GM"
         const val ASKEP = "ASKEP"
@@ -203,7 +440,6 @@ object AppUtils {
         const val KeraniPanen = "Kerani Panen"
         const val IT = "IT"
     }
-
 
 
     object ListFeatureNames {
@@ -237,6 +473,8 @@ object AppUtils {
         const val TransferInspeksiPanen = "Transfer Inspeksi Panen"
 
         const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
+
+        const val CheckMissingPhotos  = "Cek & Upload Ulang Foto"
     }
 
     object ExemptFeatures {
@@ -291,6 +529,8 @@ object AppUtils {
         const val blok = "blok"
         const val parameter = "parameter"
         const val estate = "estate"
+        const val hektaran = "hektaran"
+
         const val jenisTPH = "jenis_tph"
         const val pemanen = "pemanen"
         const val kemandoran = "kemandoran"
@@ -307,9 +547,11 @@ object AppUtils {
 
     object kodeInspeksi {
         const val brondolanDigawangan = "Brondolan dibuang ke gawangan"
-        const val brondolanTidakDikutip = "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok"
+        const val brondolanTidakDikutip =
+            "Brondolan tidak dikutip bersih di piringan, psr pikul dan ketiak pokok"
         const val buahMasakTidakDipotong = "Buah masak tidak dipotong"
-        const val buahTertinggalPiringan = "Buah tertinggal di piringan dan buah diperam digawangan mati"
+        const val buahTertinggalPiringan =
+            "Buah tertinggal di piringan dan buah diperam digawangan mati"
         const val buahTinggalTPH = "Buah tinggal di TPH"
         const val brondolanTinggalTPH = "Brondolan tinggal di TPH"
         const val susunanPelepahTidakSesuai = "Susunan pelepah tidak sesuai"
@@ -346,7 +588,6 @@ object AppUtils {
         // Remove dots
         return numericVersion.replace(".", "")
     }
-
 
 
     fun clearTempJsonFiles(context: Context) {
@@ -594,13 +835,22 @@ object AppUtils {
                     // Handle inspeksi photos with proper folder organization
                     processInspeksiPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
+
                 featureKey.lowercase().contains("mutu_buah") -> {
                     // Handle MutuBuah photos with both foto and foto_selfie
                     processMutuBuahPhotos(data, allCmpDirectories, zip, zipParams, context)
                 }
+
                 else -> {
                     // Handle other features normally (PANEN, ESPB, etc.)
-                    processRegularPhotos(data, featureKey, allCmpDirectories, zip, zipParams, context)
+                    processRegularPhotos(
+                        data,
+                        featureKey,
+                        allCmpDirectories,
+                        zip,
+                        zipParams,
+                        context
+                    )
                 }
             }
         }
@@ -1041,6 +1291,33 @@ object AppUtils {
         return true
     }
 
+    fun createCreatorInfo(context: Context): JSONObject {
+        val appVersion = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        val osVersion = try {
+            Build.VERSION.RELEASE
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        val phoneModel = try {
+            "${Build.MANUFACTURER} ${Build.MODEL}"
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        return JSONObject().apply {
+            put("app_version", appVersion)
+            put("os_version", osVersion)
+            put("phone_model", phoneModel)
+            put("created_at", System.currentTimeMillis())
+        }
+    }
+
     /**
      * Shows a warning dialog about date/time settings with network context
      */
@@ -1109,10 +1386,12 @@ object AppUtils {
                     AppLogger.w("App version is outdated. Current: $currentAppVersion, Required: $requiredVersion")
                     return true // Update required
                 }
+
                 comparison == 0 -> {
                     AppLogger.d("App version is up to date")
                     return false
                 }
+
                 comparison > 0 -> {
                     AppLogger.d("App version is newer than required")
                     return false
@@ -1221,7 +1500,8 @@ object AppUtils {
 
     fun formatToCamelCase(text: String?): String {
         return text?.split(" ")?.joinToString(" ") { word ->
-            if (word.length <= 3) word.uppercase() else word.lowercase().replaceFirstChar { it.uppercase() }
+            if (word.length <= 3) word.uppercase() else word.lowercase()
+                .replaceFirstChar { it.uppercase() }
         } ?: ""
     }
 
@@ -1283,7 +1563,7 @@ object AppUtils {
                 base64String
             }
 
-            val base64Decode = base64Data.replace("5nqHzPKdlILxS9ABpClq", "")
+            val base64Decode = base64Data.replace(AppUtils.half_json_encrypted, "")
 
             // Decode base64 to bytes
             val decodedBytes = Base64.decode(base64Decode, Base64.DEFAULT)
@@ -1309,6 +1589,8 @@ object AppUtils {
             null // Return null if file.json was not found
         } catch (e: Exception) {
             e.printStackTrace()
+
+            AppLogger.d("e $e")
             null
         }
     }
@@ -1454,7 +1736,8 @@ object AppUtils {
             featureName == ListFeatureNames.RekapPanenDanRestan ||
             featureName == ListFeatureNames.DetailESPB ||
             featureName == ListFeatureNames.TransferHektarPanen ||
-            featureName == ListFeatureNames.TransferInspeksiPanen) {
+            featureName == ListFeatureNames.TransferInspeksiPanen
+        ) {
 
             if (featureName == ListFeatureNames.TransferInspeksiPanen) {
                 // For TransferInspeksiPanen, just show blok names without sum/count
@@ -1466,7 +1749,8 @@ object AppUtils {
                     .joinToString(", ")
             } else {
                 // For other features, show with sum and count
-                val fieldToExtract = if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
+                val fieldToExtract =
+                    if (featureName == ListFeatureNames.TransferHektarPanen) "PA" else "KP"
 
                 mappedData
                     .filter { it["blok_name"].toString() != "-" }
@@ -1531,7 +1815,10 @@ object AppUtils {
     /**
      * Get a map of all calculated data for easy access
      */
-    fun getPanenProcessedData(mappedData: List<Map<String, Any?>>, featureName: String?): Map<String, Any> {
+    fun getPanenProcessedData(
+        mappedData: List<Map<String, Any?>>,
+        featureName: String?
+    ): Map<String, Any> {
         val totalJjgCount = if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah) {
             // For Mutu Buah, use jjg_panen instead of jjg_kirim
             mappedData.sumOf { data ->

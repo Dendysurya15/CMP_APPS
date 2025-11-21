@@ -27,7 +27,7 @@ class FormAncakViewModel : ViewModel() {
         val pokokNumber: Int = 0,
         val emptyTree: Int = 0,
         val harvestTree: Int = 0,
-        val harvestJjg: Int = 0,
+        val harvestJjg: Int = 1,
         val neatPelepah: Int = 0, // 7
         val pelepahSengkleh: Int = 0, // 8
         val kondisiPruning: Int = 0,
@@ -69,6 +69,9 @@ class FormAncakViewModel : ViewModel() {
     private val _afdName = MutableLiveData<String>("-")
     val afdName: LiveData<String> = _afdName
 
+    private val _isStartFromTPH = MutableLiveData<Boolean>(true)
+    val isStartFromTPH: LiveData<Boolean> = _isStartFromTPH
+
     private val _blokName = MutableLiveData<String>("-")
     val blokName: LiveData<String> = _blokName
 
@@ -87,6 +90,11 @@ class FormAncakViewModel : ViewModel() {
 
     fun previousPage() {
         _currentPage.value = (_currentPage.value ?: 1) - 1
+    }
+
+    fun setIsStartFromTPH(isStartFromTPH: Boolean) {
+        _isStartFromTPH.value = isStartFromTPH
+        AppLogger.d("isStartFromTPH set to: $isStartFromTPH")
     }
 
     fun updateTotalPages(totalPages: Int) {
@@ -136,38 +144,82 @@ class FormAncakViewModel : ViewModel() {
     private fun setDefaultPemanenForAllPages(workers: List<String>) {
         val currentData = _formData.value ?: mutableMapOf()
         val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+        val shouldSetDefault = _isStartFromTPH.value ?: true
 
-        AppLogger.d("workers $workers")
-        AppLogger.d("totalPages $totalPages")
 
-        // Convert worker names to Map<String, String> format
-        val defaultPemanenMap = workers.associate { workerName ->
-            val dashIndex = workerName.indexOf(" - ")
-            if (dashIndex != -1) {
-                val nik = workerName.substring(0, dashIndex).trim()
-                val name = workerName.substring(dashIndex + 3).trim() // +3 to skip " - "
-                AppLogger.d("Parsed worker - NIK: '$nik', Name: '$name'")
-                nik to name
-            } else {
-                AppLogger.w("Worker format unexpected, using as-is: '$workerName'")
-                workerName to workerName // fallback if format is different
+        AppLogger.d("shouldSetDefault $shouldSetDefault")
+        if (shouldSetDefault) {
+            // TPH mode: populate all workers
+            val defaultPemanenMap = workers.associate { workerName ->
+                val dashIndex = workerName.indexOf(" - ")
+                if (dashIndex != -1) {
+                    val nik = workerName.substring(0, dashIndex).trim()
+                    val name = workerName.substring(dashIndex + 3).trim()
+                    nik to name
+                } else {
+                    workerName to workerName
+                }
+            }
+
+            for (pageNumber in 1..totalPages) {
+                val existingPageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
+                val updatedPageData = existingPageData.copy(pemanen = defaultPemanenMap)
+                currentData[pageNumber] = updatedPageData
+            }
+        } else {
+            // Blok mode: leave pemanen EMPTY
+            for (pageNumber in 1..totalPages) {
+                if (!currentData.containsKey(pageNumber)) {
+                    currentData[pageNumber] = PageData(pokokNumber = pageNumber)
+                }
             }
         }
 
-        AppLogger.d("Created defaultPemanenMap with ${defaultPemanenMap.size} entries:")
-        defaultPemanenMap.forEach { (nik, name) ->
-            AppLogger.d("  $nik -> $name")
-        }
+        _formData.value = currentData
+    }
 
-        // Update pemanen for all pages (1 to totalPages)
+    // Add this function to FormAncakViewModel
+    fun removeWorkerFromAllPages(workerNik: String) {
+        val currentData = _formData.value ?: mutableMapOf()
+        val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+        var removedCount = 0
+
         for (pageNumber in 1..totalPages) {
-            val existingPageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
-            val updatedPageData = existingPageData.copy(pemanen = defaultPemanenMap)
-            currentData[pageNumber] = updatedPageData
-            AppLogger.d("Set default pemanen for page $pageNumber: ${defaultPemanenMap.size} workers")
+            val pageData = currentData[pageNumber]
+            if (pageData != null && pageData.pemanen.containsKey(workerNik)) {
+                val updatedPemanen = pageData.pemanen.toMutableMap()
+                updatedPemanen.remove(workerNik)
+                val updatedPageData = pageData.copy(pemanen = updatedPemanen)
+                currentData[pageNumber] = updatedPageData
+                removedCount++
+            }
         }
 
         _formData.value = currentData
+        AppLogger.d("Removed worker NIK $workerNik from $removedCount pages")
+    }
+
+    // Add worker to all pages
+    // Add multiple workers to all pages at once
+    fun addWorkersToAllPages(workersMap: Map<String, String>) {
+        val currentData = _formData.value ?: mutableMapOf()
+        val totalPages = _totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+
+        for (pageNumber in 1..totalPages) {
+            val pageData = currentData[pageNumber] ?: PageData(pokokNumber = pageNumber)
+
+            // Add all workers to pemanen map
+            val updatedPemanen = pageData.pemanen.toMutableMap()
+            updatedPemanen.putAll(workersMap) // Add all workers at once
+            val updatedPageData = pageData.copy(pemanen = updatedPemanen)
+            currentData[pageNumber] = updatedPageData
+
+            AppLogger.d("${currentData[pageNumber]}")
+        }
+
+        _formData.value = currentData
+        AppLogger.d("Added ${workersMap.size} workers to all $totalPages pages: ${workersMap.keys}")
     }
 
     // Update the existing updatePageData function
@@ -221,47 +273,28 @@ class FormAncakViewModel : ViewModel() {
         val currentData = getPageData(pokokNumber) ?: PageData()
         val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-
         AppLogger.d("lat $lat")
         AppLogger.d("lon $lon")
+
+        // 🟡 Check if photo already exists (photo field is not null or empty)
+        val hasPhoto = !currentData.photo.isNullOrEmpty()
+
+        // ✅ NEW: If this pokok already has a photo, skip updating lat/lon
+        if (hasPhoto) {
+            AppLogger.d("Pokok $pokokNumber already has a photo, skipping lat/lon update")
+
+            // Still update metadata (user info, time) without touching lat/lon
+            val updatedData = currentData.copy(
+                createdDate = currentDate,
+                createdBy = prefManager.idUserLogin,
+                createdName = prefManager.nameUserLogin
+            )
+            savePageData(pokokNumber, updatedData)
+            return true // Keep tracking as is
+        }
+
+        // 🧭 If no photo yet, update lat/lon like normal
         if (shouldSetLatLonIssue(currentData)) {
-            // ✅ NEW: Check if location already exists
-            if (currentData.latIssue != null && currentData.lonIssue != null) {
-                AppLogger.d("Location already exists for pokok $pokokNumber, keeping existing location")
-
-                // Just update metadata without changing location
-                val updatedData = currentData.copy(
-                    latIssue =  lat,
-                    lonIssue = lon,
-                    createdDate = currentDate,
-                    createdBy = prefManager.idUserLogin,
-                    createdName = prefManager.nameUserLogin
-                )
-                savePageData(pokokNumber, updatedData)
-
-                // Show toast with existing location
-//                Toasty.info(context, "Lokasi sudah tersimpan: Lat:${currentData.latIssue} Lon:${currentData.lonIssue}", Toast.LENGTH_SHORT, true).show()
-
-                return true // Still should track this location
-            } else {
-                // Set new location since none exists
-                val updatedData = currentData.copy(
-                    latIssue = lat,
-                    lonIssue = lon,
-                    createdDate = currentDate,
-                    createdBy = prefManager.idUserLogin,
-                    createdName = prefManager.nameUserLogin
-                )
-                savePageData(pokokNumber, updatedData)
-                AppLogger.d("Saved new location data for pokok $pokokNumber")
-
-                // Show success toast with new location
-//                Toasty.success(context, "Lat:$lat Lon:$lon sudah tersimpan", Toast.LENGTH_SHORT, true).show()
-
-                return true // Should track this location
-            }
-        } else {
-            // Conditions are NOT met: Save metadata but clear location
             val updatedData = currentData.copy(
                 latIssue = lat,
                 lonIssue = lon,
@@ -270,21 +303,29 @@ class FormAncakViewModel : ViewModel() {
                 createdName = prefManager.nameUserLogin
             )
             savePageData(pokokNumber, updatedData)
+            AppLogger.d("Saved new location data for pokok $pokokNumber")
+            return true
+        } else {
+            // If issue not set, clear lat/lon
+            val updatedData = currentData.copy(
+                latIssue = null,
+                lonIssue = null,
+                createdDate = currentDate,
+                createdBy = prefManager.idUserLogin,
+                createdName = prefManager.nameUserLogin
+            )
+            savePageData(pokokNumber, updatedData)
             AppLogger.d("Cleared location data for pokok $pokokNumber (no issues)")
-
-            return false // Should remove tracking for this location
+            return false
         }
     }
+
 
     fun validateCurrentPage(inspectionType: Int? = null): ValidationResult {
         val pageNumber = _currentPage.value ?: 1
         val data = getPageData(pageNumber)
         val errors = mutableMapOf<Int, String>()
 
-        AppLogger.d("inspectionType: $inspectionType")
-        AppLogger.d("pageNumber: $pageNumber")
-        AppLogger.d("data: $data")
-        AppLogger.d("emptyTree: ${data?.emptyTree}")
 
         // STEP 1: Check if emptyTree is selected
         if (data?.emptyTree == 0) {
@@ -296,38 +337,93 @@ class FormAncakViewModel : ViewModel() {
             return ValidationResult(false, R.id.lyExistsTreeInspect, "$nameMessage wajib diisi!")
         }
 
-        // STEP 2: Only validate other fields if emptyTree == 1 (Ya/Ada Pohon)
-        if (data?.emptyTree == 1) {
-            AppLogger.d("emptyTree == 1, validating other fields...")
+        // STEP 2: Validate based on emptyTree value
+        when (data?.emptyTree) {
+            1 -> { // Ya - Validate all fields including harvest tree
+                AppLogger.d("emptyTree == 1 (Ya), validating all fields...")
 
-            if (data?.harvestTree == 0) {
-                errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+                // Validate pemanen if isStartFromTPH is false
+                if (_isStartFromTPH.value == false) {
+                    AppLogger.d("--- Pemanen Validation Check (emptyTree == 1) ---")
+                    AppLogger.d("isStartFromTPH value: ${_isStartFromTPH.value}")
+                    AppLogger.d("pemanen value: ${data?.pemanen}")
+                    AppLogger.d("pemanen isEmpty: ${data?.pemanen?.isEmpty()}")
+                    AppLogger.d("pemanen isNullOrEmpty: ${data?.pemanen.isNullOrEmpty()}")
+
+                    if (data?.pemanen.isNullOrEmpty()) {
+                        errors[R.id.lyPemanenTemuan] = "Pemanen wajib diisi!"
+                        AppLogger.d("VALIDATION FAILED: pemanen is empty when isStartFromTPH is false")
+                        AppLogger.d("pemanen details - isNull: ${data?.pemanen == null}, isEmpty: ${data?.pemanen?.isEmpty()}")
+                    } else {
+                        AppLogger.d("Pemanen validation passed!")
+                        AppLogger.d("Pemanen data: ${data?.pemanen}")
+                        AppLogger.d("Pemanen size: ${data?.pemanen?.size}")
+                        AppLogger.d("Pemanen entries: ${data?.pemanen?.entries}")
+                    }
+                    AppLogger.d("--- End Pemanen Validation Check ---")
+                } else {
+                    AppLogger.d("Skipping pemanen validation - isStartFromTPH is true")
+                }
+
+                // Validate harvest tree
+                if (data?.harvestTree == 0) {
+                    errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+                }
+
+                // If harvest tree is Ya, validate harvest number
+                if (data?.harvestTree == 1) {
+                    if (data?.harvestJjg == null || data?.harvestJjg <= 0) {
+                        errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi dan tidak boleh 0!"
+                        AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg is invalid: ${data?.harvestJjg}")
+                    }
+                }
+
+                // Validate other detail fields
+                if (data?.neatPelepah == 0) {
+                    errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: neatPelepah == 0")
+                }
+
+                if (data?.pelepahSengkleh == 0) {
+                    errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
+                }
+
+                if (data?.kondisiPruning == 0) {
+                    errors[R.id.lyKondisiPruningInspect] = "Kondisi OverPruning wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: pruning == 0")
+                }
             }
 
-            // NEW VALIDATION: If harvestTree == 1, then harvestJjg must not be 0
-            if (data?.harvestTree == 1 && data?.harvestJjg == 0) {
-                errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg == 0")
+            2 -> { // Tidak - Only validate harvest tree fields
+                AppLogger.d("emptyTree == 2 (Tidak), validating only harvest tree fields...")
+
+                // Validate harvest tree question
+                if (data?.harvestTree == 0) {
+                    errors[R.id.lyHarvestTreeInspect] = "Pokok dipanen wajib diisi!"
+                    AppLogger.d("VALIDATION FAILED: harvestTree == 0")
+                }
+
+                // If harvest tree is Ya, validate harvest number
+                if (data?.harvestTree == 1) {
+                    if (data?.harvestJjg == null || data?.harvestJjg <= 0) {
+                        errors[R.id.lyHarvestTreeNumber] = "Jumlah Janjang wajib diisi dan tidak boleh 0!"
+                        AppLogger.d("VALIDATION FAILED: harvestTree == 1 but harvestJjg is invalid: ${data?.harvestJjg}")
+                    }
+                }
+
+                // Skip validation for other fields (neatPelepah, pelepahSengkleh, kondisiPruning)
+                AppLogger.d("Skipping other field validations for 'Tidak' case")
             }
 
-            if (data?.neatPelepah == 0) {
-                errors[R.id.lyNeatPelepahInspect] = "Susunan pelepah wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: neatPelepah == 0")
+            3 -> { // Titik Kosong - No additional validation needed
+                AppLogger.d("emptyTree == 3 (Titik Kosong), no additional validation needed")
             }
 
-            if (data?.pelepahSengkleh == 0) {
-                errors[R.id.lyPelepahSengklehInspect] = "Pelepah sengkleh wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: pelepahSengkleh == 0")
+            else -> {
+                AppLogger.d("emptyTree == ${data?.emptyTree} (Unknown value), skipping field validation")
             }
-
-            if (data?.kondisiPruning == 0) {
-                errors[R.id.lyKondisiPruningInspect] = "Kondisi OverPruning wajib diisi!"
-                AppLogger.d("VALIDATION FAILED: pruning == 0")
-            }
-
-        } else {
-            AppLogger.d("emptyTree == ${data?.emptyTree} (Tidak/Titik Kosong), skipping field validation")
         }
 
         AppLogger.d("Total errors found: ${errors.size}")

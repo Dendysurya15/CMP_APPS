@@ -1,6 +1,7 @@
 package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.TestingAPIClient
@@ -16,8 +17,8 @@ import java.util.Locale
 
 class RestanRepository(
     context: Context,
-    private val apiService: ApiService = CMPApiClient.instance,
-    private val TestingApiService: ApiService = TestingAPIClient.instance,
+    private val ApiService: ApiService = ApiProvider.currentApiService
+
 ){
 
     suspend fun getDataRestan(estate: Int, afdeling: String): Response<ResponseBody> {
@@ -46,8 +47,8 @@ class RestanRepository(
             put("table", "panen")
             put("select", JSONArray().apply {
                 put("tph")
-                put("created_date")
-                put("created_name")
+                put("created_date_kp")
+                put("created_name_kp")
                 put("jjg_kirim")
                 put("spb_kode")
                 put("nomor_pemanen")
@@ -65,7 +66,7 @@ class RestanRepository(
                 }
 
                 // Date range condition using BETWEEN with full datetime
-                put("created_date", JSONObject().apply {
+                put("created_date_kp", JSONObject().apply {
                     put("between", JSONArray().apply {
                         put(sevenDaysAgo)
                         put(today)
@@ -80,6 +81,6 @@ class RestanRepository(
         AppLogger.d("Restan API Request: ${jsonObject.toString()}")
 
         // Make the API call
-        return apiService.getDataRaw(requestBody)
+        return ApiService.getDataRaw(requestBody)
     }
 }
