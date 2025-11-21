@@ -609,7 +609,7 @@ class WeighBridgeRepository(context: Context) {
                                 try {
 
 //                                    StagingApiClient.updateBaseUrl("http://10.9.116.157:8000")
-                                    StagingApiClient.updateBaseUrl(" http://$ipMill:8000")
+                                    StagingApiClient.updateBaseUrl(" http://$ipMill:37891")
                                     // ✅ Use uploadHarvest which returns UploadHarvestResponse
                                     val response = StagingApiClient.instance.uploadHarvest(
                                         jsonData = jsonRequestBody

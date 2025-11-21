@@ -205,7 +205,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 data = Gson().toJson(
                     mapOf(
                         "id" to item["id"] as Int,
-                        "ip" to AppUtils.getDeviceIpAddress(),
+                        "ip" to item["ip"].toString(),
                         "num" to number++,
                         "dept_ppro" to (item["dept_ppro"] as Number).toInt(),
                         "divisi_ppro" to (item["divisi_ppro"] as Number).toInt(),
@@ -243,7 +243,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                 data = Gson().toJson(mapOf(
                     "espb_json" to jsonData.data,
                     "espb_ids" to globalESPBIds,
-                    "ip" to AppUtils.getDeviceIpAddress(),
+                    "ip" to ip,
                     "uploader_info" to infoApp,
                     "uploaded_at" to currentDate,
                     "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),

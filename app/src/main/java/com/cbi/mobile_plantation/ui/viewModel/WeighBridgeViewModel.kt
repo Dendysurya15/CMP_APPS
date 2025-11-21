@@ -150,7 +150,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
 //                AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: https://$millIP:3005")
 
                 // Update base URL with mill IP
-                StagingApiClient.updateBaseUrl("http://$millIP:8000")
+                StagingApiClient.updateBaseUrl("http://$millIP:37891")
 //                StagingApiClient.updateBaseUrl("http://10.9.116.157:8000")
 
                 // Create request body with raw JSON

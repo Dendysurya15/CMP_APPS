@@ -293,7 +293,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                             // Data for PPRO Staging
                             val itemToUpload = mapOf(
                                 "num" to number++,
-                                "ip" to AppUtils.getDeviceIpAddress(),
+                                "ip" to globalIpMill,
                                 "id" to savedItemId,
                                 "endpoint" to "PPRO",
                                 "uploader_info" to globalCreatorInfo,
@@ -327,7 +327,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                 val espbData = mapOf(
                                     "num" to number++,
-                                    "ip" to AppUtils.getDeviceIpAddress(),
+                                    "ip" to globalIpMill,
                                     "id" to savedItemId,
                                     "regional" to globalRegional,
                                     "wilayah" to globalWilayah,
@@ -392,7 +392,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 )
 
                                 val espbJsonCheckDuplicate = Gson().toJson(wrappedEspbDataCheck)
-                                weightBridgeViewModel.checkTPHDuplicates(AppUtils.getDeviceIpAddress(), espbJsonCheckDuplicate)
+                                weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJsonCheckDuplicate)
 
 
                                 val uploadDataList =
@@ -438,7 +438,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     )
                                     cmpItem = mapOf(
                                         "num" to number++,
-                                        "ip" to AppUtils.getDeviceIpAddress(),
+                                        "ip" to globalIpMill,
                                         "id" to savedItemId,
                                         "endpoint" to "STAGING_CMP",
                                         "uploader_info" to globalCreatorInfo,
@@ -450,7 +450,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 } else {
                                     cmpItem = mapOf(
                                         "num" to number++,
-                                        "ip" to AppUtils.getDeviceIpAddress(),
+                                        "ip" to globalIpMill,
                                         "id" to savedItemId,
                                         "endpoint" to "STAGING_CMP",
                                         "uploader_info" to globalCreatorInfo,
@@ -461,7 +461,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     )
                                 }
 
-                                val itemsToUpload = listOf( itemToUpload, cmpItem)
+                                val itemsToUpload = listOf( itemToUpload)
                                 val globalIdEspb = listOf(savedItemId)
 
                                 loadingDialog.setMessage(
@@ -895,7 +895,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 // Create TPH duplicate check data
                                         val espbData = mapOf(
                                             "num" to 1,
-                                            "ip" to AppUtils.getDeviceIpAddress(),
+                                            "ip" to globalIpMill,
                                             "id" to 0,
                                             "regional" to basicProcessingResult.regional,
                                             "wilayah" to basicProcessingResult.wilayah,
@@ -947,7 +947,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
                                         AppLogger.d("espbJson $espbJson")
-                                        weightBridgeViewModel.checkTPHDuplicates(AppUtils.getDeviceIpAddress(), espbJson)
+                                        weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJson)
                                         delay(100)
 
 // Observe TPH duplicate result
@@ -1577,7 +1577,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalCreatorInfo = modifiedParsedData?.espb?.creatorInfo?.toString() ?: "-"
                     globalNoESPB = modifiedParsedData?.espb?.noEspb ?: "-"
                     globalUpdateInfoSP = globalCreatorInfo
-                    globalIpMill = AppUtils.getDeviceIpAddress()
+                    globalIpMill = millIP
 
 
                     withContext(Dispatchers.Main) {
