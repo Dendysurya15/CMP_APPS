@@ -136,9 +136,9 @@ interface ApiService {
         @Body jsonData: RequestBody
     ): Response<UploadV3Response>
 
-    @POST("cmpmain/uploadv4")
+    @POST("cmpmain/uploadv5")
     @Headers("Content-Type: application/json")
-    suspend fun uploadJsonV4Raw(
+    suspend fun uploadJsonV5Raw(
         @Body jsonData: RequestBody
     ): Response<UploadV3Response>
 

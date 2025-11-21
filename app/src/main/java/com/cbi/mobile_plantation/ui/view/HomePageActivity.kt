@@ -2946,6 +2946,7 @@ class HomePageActivity : AppCompatActivity() {
                                 val idBlokList = blokJjgList.map { it.first }
                                 val totalJjg =
                                     blokJjgList.mapNotNull { it.second }.sum()
+                                val jjg_arr = blokJjgList.mapNotNull { it.second }.joinToString(",")
                                 val concatenatedIds =
                                     idBlokList.joinToString(",").trimEnd(',')
                                 val firstBlockId = idBlokList.firstOrNull()
@@ -2972,7 +2973,12 @@ class HomePageActivity : AppCompatActivity() {
 
                                 AppLogger.d("tphData $tphData")
 
-
+                                val gson = Gson()
+                                val creatorInfoObject = try {
+                                    gson.fromJson( data.creator_info, JsonObject::class.java)
+                                } catch (e: Exception) {
+                                    JsonObject()
+                                }
                                 mapOf(
                                     "id" to data.id,
                                     "regional" to (tphData?.regional ?: ""),
@@ -2987,25 +2993,29 @@ class HomePageActivity : AppCompatActivity() {
                                     "blok_id" to concatenatedIds,
                                     "blok_jjg" to data.blok_jjg,
                                     "jjg" to totalJjg,
-                                    "created_by_id" to data.created_by_id,
-                                    "created_at" to data.created_at,
-                                    "created_name" to data.created_name,
+                                    "jjg_arr" to jjg_arr,
+                                    "tonase" to 0,
                                     "pemuat_id" to data.pemuat_id,
                                     "kemandoran_id" to data.kemandoran_id,
                                     "pemuat_nik" to data.pemuat_nik,
                                     "pemuat_nama" to data.pemuat_nama,
                                     "nopol" to data.nopol,
                                     "driver" to data.driver,
-                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                     "transporter_id" to data.transporter_id,
-                                    "mill_id" to data.mill_id,
-                                    "creator_info" to data.creator_info,
-                                    "no_espb" to data.noESPB,
+                                    "mill_id" to 0,
+                                    "mill_abbr" to "",
+                                    "mill_nama" to "",
+                                    "noESPB" to data.noESPB,
                                     "tph0" to data.tph0,
                                     "tph1" to data.tph1,
-                                    "update_info_sp" to data.update_info_sp,
-                                    "app_version" to AppUtils.getDeviceInfo(this@HomePageActivity)
-                                        .toString(),
+                                    "uploader_info_sp" to creatorInfoObject,
+                                    "uploader_info_wb" to "",
+                                    "uploader_name_sp" to data.created_name,
+                                    "uploader_name_wb" to "",
+                                    "uploaded_at_sp" to "",
+                                    "uploaded_at_wb" to "",
+                                    "uploaded_by_id_sp" to data.created_by_id,
+                                    "uploaded_by_id_wb" to "",
                                     "jabatan" to prefManager!!.jabatanUserLogin.toString(),
                                 )
                             }
@@ -6965,7 +6975,7 @@ class HomePageActivity : AppCompatActivity() {
             val itemsToUpload = uploadItems.toList()
             processedTrackingIds.clear()
             // Start the upload process
-            uploadCMPViewModel.uploadMultipleJsonsV4(itemsToUpload, prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
+            uploadCMPViewModel.uploadMultipleJsonsV5(itemsToUpload, prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
         }
 
         btnUploadDataCMP.setOnClickListener {

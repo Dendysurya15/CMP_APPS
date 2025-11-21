@@ -335,7 +335,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             titleTV.setTextColor(ContextCompat.getColor(titleTV.context, R.color.black))
             titleTV.text = "Upload Data CMP"
 
-            uploadCMPViewModel.uploadMultipleJsonsV4(itemsToUpload,prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
+            uploadCMPViewModel.uploadMultipleJsonsV5(itemsToUpload,prefManager!!.idUserLogin!!, prefManager!!.estateUserLogin!!)
 
         }
 
