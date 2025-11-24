@@ -3058,6 +3058,7 @@ class HomePageActivity : AppCompatActivity() {
                                         "mill_abbr" to "",
                                         "mill_nama" to "",
                                         "noESPB" to data.noESPB,
+                                        "created_at" to data.created_at,
                                         "tph0" to data.tph0,
                                         "tph1" to data.tph1,
                                         "uploader_info_sp" to creatorInfoObject,
