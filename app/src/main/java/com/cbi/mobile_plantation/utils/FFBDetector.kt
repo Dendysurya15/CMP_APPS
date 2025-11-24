@@ -207,8 +207,8 @@ class FFBDetector(
         }
     }
 
-    private fun bestBox(array: FloatArray): List<BoundingBox>? {
-        val boundingBoxes = mutableListOf<BoundingBox>()
+    private fun bestBox(array: FloatArray): List<BoundingBoxFFB>? {
+        val boundingBoxes = mutableListOf<BoundingBoxFFB>()
 
         for (c in 0 until numElements) {
             var maxConf = settings.confidenceThreshold
@@ -240,7 +240,7 @@ class FFBDetector(
 
                 if (x1 in 0F..1F && y1 in 0F..1F && x2 in 0F..1F && y2 in 0F..1F) {
                     boundingBoxes.add(
-                        BoundingBox(
+                        BoundingBoxFFB(
                             x1 = x1, y1 = y1, x2 = x2, y2 = y2,
                             cx = cx, cy = cy, w = w, h = h,
                             cnf = maxConf, cls = classIndex, clsName = clsName
@@ -253,9 +253,9 @@ class FFBDetector(
         return if (boundingBoxes.isEmpty()) null else applyNMS(boundingBoxes)
     }
 
-    private fun applyNMS(boxes: List<BoundingBox>): MutableList<BoundingBox> {
+    private fun applyNMS(boxes: List<BoundingBoxFFB>): MutableList<BoundingBoxFFB> {
         val sortedBoxes = boxes.sortedByDescending { it.cnf }.toMutableList()
-        val selectedBoxes = mutableListOf<BoundingBox>()
+        val selectedBoxes = mutableListOf<BoundingBoxFFB>()
 
         while (sortedBoxes.isNotEmpty()) {
             val first = sortedBoxes.first()
@@ -275,7 +275,7 @@ class FFBDetector(
         return selectedBoxes
     }
 
-    private fun calculateIoU(box1: BoundingBox, box2: BoundingBox): Float {
+    private fun calculateIoU(box1: BoundingBoxFFB, box2: BoundingBoxFFB): Float {
         val x1 = maxOf(box1.x1, box2.x1)
         val y1 = maxOf(box1.y1, box2.y1)
         val x2 = minOf(box1.x2, box2.x2)
@@ -308,7 +308,7 @@ class FFBDetector(
 
     interface DetectorListener {
         fun onEmptyDetect(metrics: DetectionMetrics)
-        fun onDetect(boundingBoxes: List<BoundingBox>, metrics: DetectionMetrics)
+        fun onDetect(boundingBoxes: List<BoundingBoxFFB>, metrics: DetectionMetrics)
     }
 
     companion object {

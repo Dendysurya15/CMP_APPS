@@ -42,7 +42,8 @@ class TakeFotoPreviewAdapter(
     private val maxCount: Int,
     private val cameraViewModel: CameraViewModel,
     private val context: Context,
-    private val waterMarkFolder: String?
+    private val waterMarkFolder: String?,
+    private val detectWithAI: Boolean = false
 ) : RecyclerView.Adapter<TakeFotoPreviewAdapter.FotoViewHolder>(), CameraRepository.PhotoCallback {
 
     var onItemClick: ((Int) -> Unit)? = null
@@ -256,7 +257,8 @@ class TakeFotoPreviewAdapter(
                         waterMarkFolder,
                         currentLat,
                         currentLon,
-                        sourceFoto
+                        sourceFoto,
+                        detectWithAI = detectWithAI
                     )
                 },
                 onDeletePhoto = { pos ->
@@ -293,7 +295,8 @@ class TakeFotoPreviewAdapter(
                 waterMarkFolder,
                 currentLat,
                 currentLon,
-                sourceFoto
+                sourceFoto,
+                detectWithAI = detectWithAI
             )
         }
     }

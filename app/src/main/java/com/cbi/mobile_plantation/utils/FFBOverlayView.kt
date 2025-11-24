@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
 
 class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
 
-    private var results = listOf<BoundingBox>()
+    private var results = listOf<BoundingBoxFFB>()
     private var boxPaint = Paint()
     private var textBackgroundPaint = Paint()
     private var textPaint = Paint()
@@ -157,7 +157,7 @@ class FFBOverlayView(context: Context?, attrs: AttributeSet?) : View(context, at
         }
     }
 
-    fun setResults(boundingBoxes: List<BoundingBox>) {
+    fun setResults(boundingBoxes: List<BoundingBoxFFB>) {
         results = boundingBoxes
         invalidate()
     }

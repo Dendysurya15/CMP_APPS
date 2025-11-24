@@ -1,6 +1,6 @@
 package com.cbi.mobile_plantation.utils
 
-data class BoundingBox(
+data class BoundingBoxFFB(
     val x1: Float,
     val y1: Float,
     val x2: Float,

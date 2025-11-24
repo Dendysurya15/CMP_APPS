@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.cbi.mobile_plantation.data.repository.CameraRepository
 import com.cbi.mobile_plantation.data.repository.CameraRepository.CameraType
-import com.cbi.mobile_plantation.utils.BoundingBox
+import com.cbi.mobile_plantation.utils.BoundingBoxFFB
 import java.io.File
 
 class CameraViewModel(private val cameraRepository: CameraRepository) : ViewModel() {
@@ -26,7 +26,8 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
         latitude: Double? = null,
         longitude: Double? = null,
         sourceFoto: String,
-        cameraType: CameraType = CameraType.BACK // Default to back camera
+        cameraType: CameraType = CameraType.BACK,
+        detectWithAI: Boolean = false
     ) {
         cameraRepository.takeCameraPhotos(
             context,
@@ -40,7 +41,8 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
             latitude,
             longitude,
             sourceFoto,
-            cameraType
+            cameraType,
+            detectWithAI
         )
     }
 
@@ -49,15 +51,15 @@ class CameraViewModel(private val cameraRepository: CameraRepository) : ViewMode
         cameraRepository.enableFFBDetection(enable, useGPU)
     }
 
-    fun lockDetectionResults() {
-        cameraRepository.lockDetectionResults()
-    }
+//    fun lockDetectionResults() {
+//        cameraRepository.lockDetectionResults()
+//    }
 
     fun unlockDetectionResults() {
         cameraRepository.unlockDetectionResults()
     }
 
-    fun getLockedResults(): Pair<List<BoundingBox>?, Map<String, Int>?> {
+    fun getLockedResults(): Pair<List<BoundingBoxFFB>?, Map<String, Int>?> {
         return cameraRepository.getLockedResults()
     }
 

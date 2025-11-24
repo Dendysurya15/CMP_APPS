@@ -51,7 +51,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.mobile_plantation.utils.BoundingBox
+import com.cbi.mobile_plantation.utils.BoundingBoxFFB
 import com.cbi.mobile_plantation.utils.CameraOrientationHandler
 import com.cbi.mobile_plantation.utils.DetectionMetrics
 import com.cbi.mobile_plantation.utils.FFBClassCountsView
@@ -140,7 +140,9 @@ class CameraRepository(
     private var classCountsView: FFBClassCountsView? = null
     private var isFFBDetectionEnabled = false
     private var useGPUDetection = false
-    private var lockedDetectionResults: List<BoundingBox>? = null
+    private var pendingCaptureLock = false
+
+    private var lockedDetectionResults: List<BoundingBoxFFB>? = null
     private var lockedClassCounts: Map<String, Int>? = null
     private val detectionHandler = Handler(Looper.getMainLooper())
     private var detectionRunnable: Runnable? = null
@@ -175,50 +177,50 @@ class CameraRepository(
     }
 
     // FFB Detection methods
-    fun enableFFBDetection(enable: Boolean, useGPU: Boolean = false) {
-        isFFBDetectionEnabled = enable
-        useGPUDetection = useGPU
+        fun enableFFBDetection(enable: Boolean, useGPU: Boolean = false) {
+            isFFBDetectionEnabled = enable
+            useGPUDetection = useGPU
 
-        if (enable) {
-            initializeFFBDetection()
-        } else {
-            stopFFBDetection()
-        }
-    }
-
-    private fun initializeFFBDetection() {
-        if (ffbDetector == null) {
-            ffbDetector = FFBDetector(context, detectorListener = this)
-            if (!ffbDetector!!.initialize(useGPUDetection)) {
-                Log.e("CameraRepository", "Failed to initialize FFB detector")
-                ffbDetector = null
-                return
+            if (enable) {
+                initializeFFBDetection()
+            } else {
+                stopFFBDetection()
             }
         }
 
-        // Setup overlay if not exists
-        if (overlayView == null) {
-            overlayView = FFBOverlayView(context, null)
-            val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
-            rlCamera.addView(overlayView)
-        }
-
-        startContinuousDetection()
-    }
-
-    private fun startContinuousDetection() {
-        if (!isFFBDetectionEnabled || ffbDetector == null) return
-
-        detectionRunnable = object : Runnable {
-            override fun run() {
-                if (isFFBDetectionEnabled && isCameraOpen && lockedDetectionResults == null) {
-                    performDetection()
-                    detectionHandler.postDelayed(this, 100) // 10 FPS detection
+        private fun initializeFFBDetection() {
+            if (ffbDetector == null) {
+                ffbDetector = FFBDetector(context, detectorListener = this)
+                if (!ffbDetector!!.initialize(useGPUDetection)) {
+                    Log.e("CameraRepository", "Failed to initialize FFB detector")
+                    ffbDetector = null
+                    return
                 }
             }
+
+            // Setup overlay if not exists
+            if (overlayView == null) {
+                overlayView = FFBOverlayView(context, null)
+                val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+                rlCamera.addView(overlayView)
+            }
+
+            startContinuousDetection()
         }
-        detectionHandler.post(detectionRunnable!!)
-    }
+
+        private fun startContinuousDetection() {
+            if (!isFFBDetectionEnabled || ffbDetector == null) return
+
+            detectionRunnable = object : Runnable {
+                override fun run() {
+                    if (isFFBDetectionEnabled && isCameraOpen && lockedDetectionResults == null) {
+                        performDetection()
+                        detectionHandler.postDelayed(this, 100) // 10 FPS detection
+                    }
+                }
+            }
+            detectionHandler.post(detectionRunnable!!)
+        }
 
     private fun performDetection() {
         try {
@@ -278,17 +280,17 @@ class CameraRepository(
         overlayView?.clear()
     }
 
-    fun lockDetectionResults() {
-        // Store current detection results
-        lockedDetectionResults = overlayView?.let {
-            // Get current results from overlay - this would need implementation in OverlayView
-            emptyList<BoundingBox>() // Placeholder
-        }
-        lockedClassCounts = classCountsView?.let {
-            // Get current class counts - this would need implementation
-            mapOf<String, Int>()
-        }
-    }
+//    fun lockDetectionResults() {
+//        // Store current detection results
+//        lockedDetectionResults = overlayView?.let {
+//            // Get current results from overlay - this would need implementation in OverlayView
+//            emptyList<BoundingBoxFFB>() // Placeholder
+//        }
+//        lockedClassCounts = classCountsView?.let {
+//            // Get current class counts - this would need implementation
+//            mapOf<String, Int>()
+//        }
+//    }
 
     fun unlockDetectionResults() {
         lockedDetectionResults = null
@@ -298,7 +300,7 @@ class CameraRepository(
         }
     }
 
-    fun getLockedResults(): Pair<List<BoundingBox>?, Map<String, Int>?> {
+    fun getLockedResults(): Pair<List<BoundingBoxFFB>?, Map<String, Int>?> {
         return Pair(lockedDetectionResults, lockedClassCounts)
     }
 
@@ -313,18 +315,31 @@ class CameraRepository(
         }
     }
 
-    override fun onDetect(boundingBoxes: List<BoundingBox>, metrics: DetectionMetrics) {
+    override fun onDetect(boundingBoxes: List<BoundingBoxFFB>, metrics: DetectionMetrics) {
         totalDetectionCount += boundingBoxes.size
         lastInferenceTime = metrics.inferenceTime
 
         mainHandler.post {
             if (lockedDetectionResults == null) {
                 overlayView?.setResults(boundingBoxes)
-                // Update performance overlay with total count from metrics
                 performanceOverlay?.updateTotalDetections(metrics.classCounts.values.sum())
+            }
+
+            // 🔥 Lock detection *exactly* when a valid result arrives
+            if (pendingCaptureLock && boundingBoxes.isNotEmpty()) {
+                pendingCaptureLock = false // reset flag
+
+                lockedDetectionResults = boundingBoxes.toList()
+                lockedClassCounts = metrics.classCounts.toMap()
+
+                AppLogger.d("🎯 Detection locked from YOLO result! ${boundingBoxes.size} boxes")
+                metrics.classCounts.forEach { (cls, count) ->
+                    AppLogger.d("📌 $cls = $count")
+                }
             }
         }
     }
+
 
     private fun rotateBitmapWithOrientation(
         photoFilePath: String?,
@@ -505,7 +520,8 @@ class CameraRepository(
         latitude: Double? = null,
         longitude: Double? = null,
         sourceFoto: String,
-        cameraType: CameraType = CameraType.BACK
+        cameraType: CameraType = CameraType.BACK,
+        detectWithAI: Boolean = false
     ) {
         lastCameraId = when (cameraType) {
             CameraType.BACK -> 0
@@ -513,7 +529,7 @@ class CameraRepository(
         }
 
         val shouldEnableFFB = featureName != "Mutu Buah"
-        if (shouldEnableFFB) {
+        if (shouldEnableFFB && detectWithAI) {
             enableFFBDetection(true, useGPUDetection)
         }
 
@@ -541,7 +557,7 @@ class CameraRepository(
         val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
         rlCamera.addView(textureViewCam)
 
-        if (shouldEnableFFB) {
+        if (shouldEnableFFB && detectWithAI) {
             setupFFBDetectionUI(rlCamera)
         }
 
@@ -643,7 +659,8 @@ class CameraRepository(
                                         imageView = imageView,
                                         deletePhoto = deletePhoto,
                                         pageForm = pageForm,
-                                        resultCode = resultCode
+                                        resultCode = resultCode,
+                                        kodeFoto = kodeFoto
                                     )
 
                                     startCameraSession(surface)
@@ -754,7 +771,8 @@ class CameraRepository(
         featureName: String?, sourceFoto: String,
         komentar: String?, latitude: Double?, longitude: Double?,
         context: Context, imageView: ImageView, deletePhoto: View?,
-        pageForm: Int, resultCode: String
+        pageForm: Int, resultCode: String,
+        kodeFoto: String
     ) {
         imageReader = ImageReader.newInstance(size.width, size.height, ImageFormat.JPEG, 1)
         imageReader!!.setOnImageAvailableListener({ p0 ->
@@ -764,9 +782,9 @@ class CameraRepository(
             var actualFileName: String
 
             if (image != null) {
-                if (isFFBDetectionEnabled) {
-                    lockDetectionResults()
-                }
+//                if (isFFBDetectionEnabled) {
+//                    lockDetectionResults()
+//                }
 
                 val buffer = image.planes[0].buffer
                 val bytes = ByteArray(buffer.remaining())
@@ -783,8 +801,13 @@ class CameraRepository(
                 val cleanFeatureName = featureName!!.replace(" ", "_")
                 val noTPH = sourceFoto?.split(" ")?.lastOrNull() ?: ""
 
-                actualFileName =
+                actualFileName = if (kodeFoto.contains("selfie", ignoreCase = true)) {
+                    // For selfie photos: includes "selfie" in the filename
+                    "${cleanFeatureName}_${kodeFoto}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_${dateTimeFormat}.jpg"
+                } else {
+                    // For regular photos
                     "${cleanFeatureName}_${prefManager!!.idUserLogin}_${prefManager!!.estateUserLogin}_NOTPH_${noTPH}_${dateTimeFormat}.jpg"
+                }
                 actualFile = File(dirApp, actualFileName)
 
                 fileDCIM = File(dirDCIM, actualFileName)
@@ -958,6 +981,7 @@ class CameraRepository(
     private fun setupCaptureButton(view: View, context: Context) {
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.setOnClickListener {
+            pendingCaptureLock = true
             if (isInPortraitMode(orientationHandler)) {
                 vibrate(context)
                 Toast.makeText(context, "Mohon putar HP ke mode landscape", Toast.LENGTH_SHORT).show()
@@ -986,10 +1010,16 @@ class CameraRepository(
                             result: TotalCaptureResult
                         ) {
                             super.onCaptureCompleted(session, request, result)
+
+
+//                            lockDetectionResults()
+//                            AppLogger.d("🔒 Detection locked at capture moment")
+
                             Handler(Looper.getMainLooper()).postDelayed({
                                 captureCam.isEnabled = true
                             }, 800)
                         }
+
 
                         override fun onCaptureFailed(
                             session: CameraCaptureSession,

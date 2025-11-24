@@ -115,7 +115,7 @@ import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.stringXML
-import com.cbi.mobile_plantation.utils.BoundingBox
+import com.cbi.mobile_plantation.utils.BoundingBoxFFB
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.MapUtils
 import com.cbi.mobile_plantation.utils.MathFun
@@ -398,7 +398,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private var jenisTPHListGlobal: List<JenisTPHModel> = emptyList()
 
     // Add these properties to your FeaturePanenTBSActivity class:
-    private var ffbDetectionResults: List<BoundingBox>? = null
+    private var ffbDetectionResults: List<BoundingBoxFFB>? = null
     private var ffbClassCounts: Map<String, Int>? = null
 
     @SuppressLint("ClickableViewAccessibility")
@@ -598,6 +598,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         mbSaveDataPanenTBS.setOnClickListener {
             if (validateAndShowErrors()) {
+                mbSaveDataPanenTBS.isEnabled = false
                 AlertDialogUtility.withTwoActions(
                     this,
                     "Simpan Data",
@@ -1020,7 +1021,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
                                             "warning.json",
                                             R.color.colorRedDark
-                                        ) {}
+                                        ) {
+                                            mbSaveDataPanenTBS.isEnabled = true
+                                        }
                                     }
 
                                     is AppRepository.SaveResultMutuBuah.Error -> {
@@ -1031,7 +1034,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
                                             "warning.json",
                                             R.color.colorRedDark
-                                        ) {}
+                                        ) {
+                                            mbSaveDataPanenTBS.isEnabled = true
+                                        }
                                     }
 
 
@@ -1047,12 +1052,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                     "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
                                     "warning.json",
                                     R.color.colorRedDark
-                                ) {}
+                                ) {
+                                    mbSaveDataPanenTBS.isEnabled = true
+                                }
                             }
 
                         }
                     },
                     cancelFunction = {
+                        mbSaveDataPanenTBS.isEnabled = true
                     }
                 )
             }
@@ -3930,7 +3938,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private fun checkScannedTPHInsideRadius() {
-//        if (lat != null && lon != null) {
+        if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
 
             AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
@@ -3982,16 +3990,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 emptyScannedTPHInsideRadius.visibility = View.VISIBLE
                 isEmptyScannedTPH = true
             }
-//        } else {
-//            Toasty.error(
-//                this,
-//                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
-//                Toast.LENGTH_LONG,
-//                true
-//            )
-//                .show()
-//            isEmptyScannedTPH = true
-//        }
+        } else {
+            Toasty.error(
+                this,
+                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
+                Toast.LENGTH_LONG,
+                true
+            )
+                .show()
+            isEmptyScannedTPH = true
+        }
 
         if (progressBarScanTPHManual.visibility == View.VISIBLE) {
             progressBarScanTPHManual.visibility = View.GONE
@@ -6498,11 +6506,15 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
 
+        val enableAIDetection = featureName != AppUtils.ListFeatureNames.MutuBuah
+
+
         takeFotoPreviewAdapter = TakeFotoPreviewAdapter(
             5,
             cameraViewModel,
             this,
-            waterMark
+            waterMark,
+            enableAIDetection
         ).apply {
             onPhotoDeleted = { fileName, position ->
                 val index = photoFiles.indexOf(fileName)
@@ -6626,7 +6638,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         currentLat,
                         currentLon,
                         sourceFoto,
-                        CameraRepository.CameraType.FRONT
+                        CameraRepository.CameraType.FRONT,
+                        detectWithAI = false
                     )
                 },
                 onDeletePhoto = { _ ->
@@ -6646,7 +6659,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 currentLat,
                 currentLon,
                 sourceFoto,
-                CameraRepository.CameraType.FRONT
+                CameraRepository.CameraType.FRONT,
+                detectWithAI = false
             )
         }
     }
@@ -6970,6 +6984,46 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         findViewById<View>(R.id.layoutAbnormal)?.findViewById<TextView>(R.id.tvPercent)
             ?.setText("${persenAbnormal}%")
     }
+
+    private fun applyFFBDetectionToCounters() {
+        val tbsCount = ffbClassCounts?.get("tbs") ?: 0
+
+        // Reset ALL counters first
+        jumTBS = tbsCount
+        bMentah = 0
+        bLewatMasak = 0
+        jjgKosong = 0
+        abnormal = 0
+        seranganTikus = 0
+        tangkaiPanjang = 0
+        tidakVCut = 0
+
+        // Update UI elements: EditTexts + Percentages
+        updateCounterTextViews()
+        formulas()
+        updatePercentages()
+
+
+        val counterMappings = listOf(
+            Triple(R.id.layoutJumTBS, "Jumlah TBS", ::jumTBS),
+            Triple(R.id.layoutBMentah, "Buah Mentah", ::bMentah),
+            Triple(R.id.layoutBLewatMasak, "Buah Lewat Masak", ::bLewatMasak),
+            Triple(R.id.layoutJjgKosong, "Janjang Kosong", ::jjgKosong),
+            Triple(R.id.layoutAbnormal, "Abnormal", ::abnormal),
+            Triple(R.id.layoutSeranganTikus, "Serangan Tikus", ::seranganTikus),
+            Triple(R.id.layoutTangkaiPanjang, "Tangkai Panjang", ::tangkaiPanjang),
+            Triple(R.id.layoutVcut, "Tidak V-Cut", ::tidakVCut)
+        )
+        // Ensure UI refresh is executed
+        counterMappings.forEach { (layoutId, _, counterVar) ->
+            val view = findViewById<View>(layoutId)
+            val etNumber = view.findViewById<EditText>(R.id.etNumber)
+            etNumber.setText(counterVar.get().toString())
+        }
+
+        AppLogger.d("FFB counters updated with YOLO detection! TBS = $jumTBS")
+    }
+
 
     // Helper function for vibration
     private fun vibrate() {
@@ -7735,16 +7789,21 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             // Get locked FFB detection results if feature is not MutuBuah
             if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
                 val (lockedBoxes, lockedCounts) = cameraViewModel.getLockedResults()
+
+                AppLogger.d("lockedBoxes $lockedBoxes")
+                AppLogger.d("lockedCounts $lockedCounts")
                 ffbDetectionResults = lockedBoxes
                 ffbClassCounts = lockedCounts
 
-                // Log FFB detection results
                 if (ffbDetectionResults?.isNotEmpty() == true) {
                     AppLogger.d("FFB Detection locked for photo $fname:")
                     ffbClassCounts?.forEach { (className, count) ->
                         AppLogger.d("  $className: $count")
                     }
+
+                    applyFFBDetectionToCounters()
                 }
+
             }
 
             val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFotoPreview)
