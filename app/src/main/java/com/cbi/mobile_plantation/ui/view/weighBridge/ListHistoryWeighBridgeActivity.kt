@@ -1075,7 +1075,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                         "jjg_arr" to jjgArr,
                                                         "tonase" to 0,
 //                                                        "created_by_id" to data.created_by_id,
-//                                                        "created_at" to data.created_at,
+                                                        "created_at" to data.created_at,
 //                                                        "created_name" to data.created_name,
                                                         "updated_by_wb" to (data.created_by_wb?:0),
                                                         "updated_name_wb" to (data.created_name_wb ?:""),

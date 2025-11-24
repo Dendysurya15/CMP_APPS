@@ -415,7 +415,7 @@ class UploadCMPRepository(context: Context) {
 
                         // ✅ Update base URL
 //                        StagingApiClient.updateBaseUrl("http://10.9.116.157:8000")
-                        StagingApiClient.updateBaseUrl(" http://$ipFromData:37891")
+                        StagingApiClient.updateBaseUrl("http://$ipFromData:37891")
 
                         onProgressUpdate(40, false, null)
 

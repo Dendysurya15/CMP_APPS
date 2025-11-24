@@ -344,7 +344,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "jjg_arr" to globalJjgArr,
                                     "tonase" to 0,
 //                                    "created_by_id" to (globalCreatedById ?: 0),
-//                                    "created_at" to globalCreatedAt,
+                                    "created_at" to globalCreatedAtWB,
 //                                    "created_name" to globalCreatedName,
                                     "updated_by_wb" to globalCreatedByWB,
                                     "updated_name_wb" to globalCreatedNameWB,
@@ -461,7 +461,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     )
                                 }
 
-                                val itemsToUpload = listOf( itemToUpload)
+                                val itemsToUpload = listOf( itemToUpload, cmpItem)
                                 val globalIdEspb = listOf(savedItemId)
 
                                 loadingDialog.setMessage(
@@ -917,6 +917,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             "pemuat_nik" to basicProcessingResult.pemuatNik,
                                             "nopol" to basicProcessingResult.nopol,
                                             "driver" to basicProcessingResult.driver,
+                                            "created_at" to globalCreatedAtWB,
 //                                            "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                             "transporter_id" to basicProcessingResult.transporterId,
                                             "mill_id" to basicProcessingResult.millId,
