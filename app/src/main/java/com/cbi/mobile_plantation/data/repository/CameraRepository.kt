@@ -81,7 +81,7 @@ class CameraRepository(
         BACK,
         FRONT
     }
-
+    private var captureLockTimeout: Runnable? = null
     private var currentDisplayRotation = 0
     private val rotationListener = object : OrientationEventListener(context) {
         override fun onOrientationChanged(orientation: Int) {
@@ -295,6 +295,8 @@ class CameraRepository(
     fun unlockDetectionResults() {
         lockedDetectionResults = null
         lockedClassCounts = null
+        pendingCaptureLock = false  // ADD THIS LINE
+
         if (isFFBDetectionEnabled) {
             startContinuousDetection()
         }
@@ -311,6 +313,12 @@ class CameraRepository(
             if (lockedDetectionResults == null) {
                 overlayView?.clear()
                 performanceOverlay?.updateTotalDetections(0)
+            }
+
+            // Reset pendingCaptureLock if it was set but no detection found
+            if (pendingCaptureLock) {
+                pendingCaptureLock = false
+                AppLogger.d("⚠️ Reset pendingCaptureLock after empty detection")
             }
         }
     }
@@ -1058,7 +1066,8 @@ class CameraRepository(
     fun closeCamera() {
         if (isCameraOpen) {
             rotationListener.disable()
-
+            pendingCaptureLock = false
+            captureLockTimeout?.let { detectionHandler.removeCallbacks(it) }
             stopFFBDetection()
 
             val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
