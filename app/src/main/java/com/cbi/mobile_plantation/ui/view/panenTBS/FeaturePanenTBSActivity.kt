@@ -1010,6 +1010,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             }
 
                                             resetFormAfterSaveData()
+                                            mbSaveDataPanenTBS.isEnabled = true
                                         }
                                     }
 

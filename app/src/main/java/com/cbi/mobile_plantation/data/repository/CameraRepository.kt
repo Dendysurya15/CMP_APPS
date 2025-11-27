@@ -81,6 +81,9 @@ class CameraRepository(
         BACK,
         FRONT
     }
+
+    private var frozenFrameBitmap: Bitmap? = null
+    private var frozenImageView: ImageView? = null
     private var captureLockTimeout: Runnable? = null
     private var currentDisplayRotation = 0
     private val rotationListener = object : OrientationEventListener(context) {
@@ -177,50 +180,52 @@ class CameraRepository(
     }
 
     // FFB Detection methods
-        fun enableFFBDetection(enable: Boolean, useGPU: Boolean = false) {
-            isFFBDetectionEnabled = enable
-            useGPUDetection = useGPU
+    fun enableFFBDetection(enable: Boolean, useGPU: Boolean = false) {
+        isFFBDetectionEnabled = enable
+        useGPUDetection = useGPU
 
-            if (enable) {
-                initializeFFBDetection()
-            } else {
-                stopFFBDetection()
+        if (enable) {
+            initializeFFBDetection()
+        } else {
+            stopFFBDetection()
+        }
+    }
+
+    private fun initializeFFBDetection() {
+        if (ffbDetector == null) {
+            ffbDetector = FFBDetector(context, detectorListener = this)
+            if (!ffbDetector!!.initialize(useGPUDetection)) {
+                Log.e("CameraRepository", "Failed to initialize FFB detector")
+                ffbDetector = null
+                return
             }
         }
 
-        private fun initializeFFBDetection() {
-            if (ffbDetector == null) {
-                ffbDetector = FFBDetector(context, detectorListener = this)
-                if (!ffbDetector!!.initialize(useGPUDetection)) {
-                    Log.e("CameraRepository", "Failed to initialize FFB detector")
-                    ffbDetector = null
-                    return
+        // Setup overlay if not exists
+        if (overlayView == null) {
+            overlayView = FFBOverlayView(context, null)
+            val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+            rlCamera.addView(overlayView)
+        }
+
+        startContinuousDetection()
+    }
+
+
+    private fun startContinuousDetection() {
+        if (!isFFBDetectionEnabled || ffbDetector == null) return
+
+        detectionRunnable = object : Runnable {
+            override fun run() {
+                // ✅ Skip detection if processing capture
+                if (isFFBDetectionEnabled && isCameraOpen && lockedDetectionResults == null && !isProcessingCapture) {
+                    performDetection()
+                    detectionHandler.postDelayed(this, 100)
                 }
             }
-
-            // Setup overlay if not exists
-            if (overlayView == null) {
-                overlayView = FFBOverlayView(context, null)
-                val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
-                rlCamera.addView(overlayView)
-            }
-
-            startContinuousDetection()
         }
-
-        private fun startContinuousDetection() {
-            if (!isFFBDetectionEnabled || ffbDetector == null) return
-
-            detectionRunnable = object : Runnable {
-                override fun run() {
-                    if (isFFBDetectionEnabled && isCameraOpen && lockedDetectionResults == null) {
-                        performDetection()
-                        detectionHandler.postDelayed(this, 100) // 10 FPS detection
-                    }
-                }
-            }
-            detectionHandler.post(detectionRunnable!!)
-        }
+        detectionHandler.post(detectionRunnable!!)
+    }
 
     private fun performDetection() {
         try {
@@ -243,7 +248,8 @@ class CameraRepository(
     private fun monitorAndUpdatePerformance() {
         try {
             val memoryInfo = ActivityManager.MemoryInfo()
-            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val activityManager =
+                context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             activityManager.getMemoryInfo(memoryInfo)
 
             val availableMemoryMB = memoryInfo.availMem / (1024 * 1024)
@@ -268,7 +274,10 @@ class CameraRepository(
             }
 
             // Log for debugging
-            Log.d("Performance", "FPS: $currentFps, Memory: ${usedMemoryMB}MB (${memoryUsagePercent}%)")
+            Log.d(
+                "Performance",
+                "FPS: $currentFps, Memory: ${usedMemoryMB}MB (${memoryUsagePercent}%)"
+            )
 
         } catch (e: Exception) {
             Log.e("Performance", "Error monitoring performance", e)
@@ -585,6 +594,12 @@ class CameraRepository(
             setBackgroundColor(Color.TRANSPARENT)
 
             setOnTouchListener { _, event ->
+                // ✅ Block ALL touches when processing
+                if (isProcessingCapture) {
+                    return@setOnTouchListener true  // Block everything
+                }
+
+                // Normal behavior - allow button touches only
                 val x = event.rawX
                 val y = event.rawY
 
@@ -598,6 +613,7 @@ class CameraRepository(
 
         (view.parent as ViewGroup).addView(blockingView)
         this.blockingView = blockingView
+
 
         cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         handlerThread = HandlerThread("videoThread")
@@ -856,6 +872,10 @@ class CameraRepository(
         deletePhoto: View?, pageForm: Int,
         resultCode: String, fileName: String
     ) {
+        mainHandler.post {
+            loadingDialog.setMessage("Adding watermark", isAnimate = true)
+        }
+
         val takenImage = rotateBitmapWithOrientation(file.path, lastCameraId, orientationHandler)
         val dateWM = SimpleDateFormat(
             "dd MMMM yyyy HH:mm:ss",
@@ -888,6 +908,11 @@ class CameraRepository(
 
         val watermarkText = "CMP-$featureName\n$userInfo\n$line3$detectionInfo\n$dateWM"
         val watermarkedBitmap = addWatermark(takenImage, watermarkText)
+
+        // ✅ Update loading message for compression
+        mainHandler.post {
+            loadingDialog.setMessage("Compressing image", isAnimate = true)
+        }
 
         try {
             val targetSizeBytes = 100 * 1024
@@ -945,6 +970,12 @@ class CameraRepository(
         }
 
         mainHandler.post {
+            loadingDialog.dismiss()
+            isProcessingCapture = false
+
+            val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
+            captureCam?.isEnabled = true
+
             rotatedCam = false
             closeCamera()
 
@@ -986,16 +1017,99 @@ class CameraRepository(
         )
     }
 
+    private fun freezeCameraPreview() {
+        mainHandler.post {
+            try {
+                // Capture current frame
+                frozenFrameBitmap = textureViewCam.getBitmap()
+
+                if (frozenFrameBitmap != null) {
+                    // Create ImageView to show frozen frame
+                    val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+                    frozenImageView = ImageView(context).apply {
+                        layoutParams = RelativeLayout.LayoutParams(
+                            RelativeLayout.LayoutParams.MATCH_PARENT,
+                            RelativeLayout.LayoutParams.MATCH_PARENT
+                        )
+                        scaleType = ImageView.ScaleType.FIT_XY
+                        setImageBitmap(frozenFrameBitmap)
+                    }
+
+                    // Add frozen frame on top of TextureView
+                    rlCamera.addView(frozenImageView)
+
+                    // Stop camera preview updates
+                    cameraCaptureSession?.stopRepeating()
+                }
+            } catch (e: Exception) {
+                Log.e("CameraRepository", "Error freezing preview", e)
+            }
+        }
+    }
+
+    private fun unfreezeCameraPreview() {
+        mainHandler.post {
+            try {
+                // Remove frozen frame overlay
+                frozenImageView?.let {
+                    val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+                    rlCamera.removeView(it)
+                }
+                frozenImageView = null
+
+                // Clean up bitmap
+                frozenFrameBitmap?.recycle()
+                frozenFrameBitmap = null
+
+                // Restart camera preview if camera is still open
+                if (isCameraOpen && cameraDevice != null && cameraCaptureSession != null) {
+                    val surfaceTexture = textureViewCam.surfaceTexture
+                    if (surfaceTexture != null) {
+                        val surface = Surface(surfaceTexture)
+                        capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                        capReq.addTarget(surface)
+
+                        // Restore torch if it was on
+                        if (isFlashlightOn) {
+                            capReq.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                        }
+
+                        cameraCaptureSession?.setRepeatingRequest(capReq.build(), null, null)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CameraRepository", "Error unfreezing preview", e)
+            }
+        }
+    }
     private fun setupCaptureButton(view: View, context: Context) {
         val captureCam = view.findViewById<FloatingActionButton>(R.id.captureCam)
         captureCam.setOnClickListener {
+            if (isProcessingCapture) {
+                return@setOnClickListener
+            }
+
             pendingCaptureLock = true
+
             if (isInPortraitMode(orientationHandler)) {
                 vibrate(context)
                 Toast.makeText(context, "Mohon putar HP ke mode landscape", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
+            // ✅ Freeze the camera preview BEFORE starting processing
+            freezeCameraPreview()
+
+            // ✅ Start processing
+            isProcessingCapture = true
             captureCam.isEnabled = false
+
+            loadingDialog.show()
+            loadingDialog.setMessage("Capturing image", isAnimate = true)
+
+            if (isFFBDetectionEnabled) {
+                stopFFBDetection()
+            }
 
             if (cameraDevice != null && imageReader != null && cameraCaptureSession != null) {
                 capReq = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
@@ -1018,16 +1132,10 @@ class CameraRepository(
                             result: TotalCaptureResult
                         ) {
                             super.onCaptureCompleted(session, request, result)
-
-
-//                            lockDetectionResults()
-//                            AppLogger.d("🔒 Detection locked at capture moment")
-
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                captureCam.isEnabled = true
-                            }, 800)
+                            mainHandler.post {
+                                loadingDialog.setMessage("Processing image", isAnimate = true)
+                            }
                         }
-
 
                         override fun onCaptureFailed(
                             session: CameraCaptureSession,
@@ -1035,18 +1143,25 @@ class CameraRepository(
                             failure: CaptureFailure
                         ) {
                             super.onCaptureFailed(session, request, failure)
-                            Handler(Looper.getMainLooper()).postDelayed({
+                            mainHandler.post {
+                                loadingDialog.dismiss()
+                                unfreezeCameraPreview() // ✅ Unfreeze on failure
+                                isProcessingCapture = false
                                 captureCam.isEnabled = true
-                            }, 800)
+                            }
                         }
                     },
                     null
                 )
             } else {
+                loadingDialog.dismiss()
+                unfreezeCameraPreview() // ✅ Unfreeze on error
+                isProcessingCapture = false
                 captureCam.isEnabled = true
             }
         }
     }
+
 
     private fun vibrate(context: Context) {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
@@ -1069,6 +1184,8 @@ class CameraRepository(
             pendingCaptureLock = false
             captureLockTimeout?.let { detectionHandler.removeCallbacks(it) }
             stopFFBDetection()
+
+            unfreezeCameraPreview()
 
             val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
             rlCamera.removeView(textureViewCam)
@@ -1112,6 +1229,8 @@ class CameraRepository(
     }
 
     private lateinit var loadingDialog: LoadingDialog
+    private var isProcessingCapture = false
+
 
     fun openZoomPhotos(
         file: File,
