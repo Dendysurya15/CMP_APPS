@@ -6609,14 +6609,18 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                             val kpValue = parts[2].trim()
                                             val nomorPemanen = parts[4].trim()
 
-                                            val jsonKp = """{"KP": $kpValue}"""
+                                            val kpOnly = kpValue
 
+
+
+                                            AppLogger.d("kpOnly $kpOnly")
+                                            AppLogger.d("nomorPemanen $nomorPemanen")
                                             AppLogger.d("RESETTING REMOVED - TPH: $tphId, Date: $dateCreated")
 
                                             val resetResult = panenViewModel.resetEspbStatus(
                                                 tphId,
                                                 dateCreated,
-                                                jsonKp,
+                                                kpOnly,
                                                 nomorPemanen
                                             )
                                             AppLogger.d("Reset result: $resetResult rows affected")
@@ -6644,7 +6648,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         val kpValue = parts[2].trim()
                                         val nomorPemanen = parts[4].trim()
 
-                                        val jsonKp = """{"KP": $kpValue}"""
+                                        val kpOnly = kpValue
 
                                         if (originalRecords.contains(newRecord)) {
                                             AppLogger.d("SETTING EXISTING - TPH: $tphId, Date: $dateCreated, NoESPB: $no_espb")
@@ -6655,7 +6659,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                                         val setResult = panenViewModel.setEspbStatus(
                                             tphId,
                                             dateCreated,
-                                            jsonKp,
+                                            kpOnly,
                                             nomorPemanen,
                                             no_espb
                                         )

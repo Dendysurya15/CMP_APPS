@@ -123,44 +123,42 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     ): Int
 
 
-    @Query(
-        """
-    UPDATE panen_table 
+    @Query("""
+    UPDATE panen_table
     SET status_espb = 0,
         no_espb = '',
         status_pengangkutan = 0
-    WHERE tph_id = :tphId 
-      AND date_created = :dateCreated 
-      AND jjg_json = :kpJson 
+    WHERE tph_id = :tphId
+      AND date_created = :dateCreated
+      AND jjg_json LIKE '%' || '"KP":' || :kpValue || '%' 
       AND nomor_pemanen = :nomorPemanen
-"""
-    )
+""")
     abstract suspend fun resetEspbStatus(
         tphId: String,
         dateCreated: String,
-        kpJson: String,
+        kpValue: String,
         nomorPemanen: String
     ): Int
 
-    @Query(
-        """
+
+    @Query("""
     UPDATE panen_table 
     SET status_espb = 1,
         no_espb = :noEspb,
         status_pengangkutan = 2
     WHERE tph_id = :tphId 
       AND date_created = :dateCreated 
-      AND jjg_json = :kpJson 
+      AND jjg_json LIKE '%' || '"KP":' || :kpValue || '%' 
       AND nomor_pemanen = :nomorPemanen
-"""
-    )
+""")
     abstract suspend fun setEspbStatus(
         tphId: String,
         dateCreated: String,
-        kpJson: String,
+        kpValue: String,
         nomorPemanen: String,
         noEspb: String
     ): Int
+
 
 
     @Query(
