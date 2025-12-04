@@ -388,7 +388,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var allAvailableKaryawanList: List<KaryawanInfo> = emptyList()
     private var allManualKaryawanList: List<KaryawanInfo> = emptyList()
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter // For automatic
-//    private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
+    private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private var allPemuatEmployees: List<KaryawanModel> = emptyList()
 
@@ -1417,7 +1417,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         formAncakViewModel.setIsStartFromTPH(true)
         formAncakViewModel.updateTotalPages(calculatedPages)
         selectedPemanenAdapter.setDisplayOnly(true)
-//        selectedPemanenManualAdapter.setDisplayOnly(true)
+        selectedPemanenManualAdapter.setDisplayOnly(true)
         updateWorkerDataInViewModel()
 
         selectionScreen.visibility = View.GONE
@@ -6442,25 +6442,25 @@ open class FormInspectionActivity : AppCompatActivity(),
                 !skipAncakValidation) { // Only show dialog if not bypassing
 
                 AlertDialogUtility.withTwoActions(
-                        this@FormInspectionActivity,
-                "Konfirmasi",
-                "Konfirmasi Data",
-                "Apakah benar anda sudah menyelesaikan semua pemeriksaan tiap pokok?",
-                "warning.json",
-                ContextCompat.getColor(
                     this@FormInspectionActivity,
-                    R.color.bluedarklight
-                ),
-                function = {
-                    // User confirmed - proceed to menuBlok
+                    "Konfirmasi",
+                    "Konfirmasi Data",
+                    "Apakah benar anda sudah menyelesaikan semua pemeriksaan tiap pokok?",
+                    "warning.json",
+                    ContextCompat.getColor(
+                        this@FormInspectionActivity,
+                        R.color.bluedarklight
+                    ),
+                    function = {
+                        // User confirmed - proceed to menuBlok
 
-                    skipAncakValidation = true
-                    bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
-                },
-                cancelFunction = {
-                    // User cancelled - stay on current menu
-                    // Do nothing, stay on menuAncak
-                }
+                        skipAncakValidation = true
+                        bottomNavInspect.selectedItemId = R.id.navMenuBlokInspect
+                    },
+                    cancelFunction = {
+                        // User cancelled - stay on current menu
+                        // Do nothing, stay on menuAncak
+                    }
                 )
                 return@setOnItemSelectedListener false
             }
@@ -8810,10 +8810,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     }
 
                     // Add to MANUAL RecyclerView
-//                    val worker = Worker(selectedWorker.individualId, selectedItem)
-//                    selectedPemanenManualAdapter.addWorker(worker)
-//
-//                    AppLogger.d("selectedPemanenManualAdapter $selectedPemanenManualAdapter")
+                    val worker = Worker(selectedWorker.individualId, selectedItem)
+                    selectedPemanenManualAdapter.addWorker(worker)
+
+                    AppLogger.d("selectedPemanenManualAdapter $selectedPemanenManualAdapter")
 
                     // Add to selectedKaryawanList
                     val originalSize = selectedKaryawanList.size
@@ -8833,8 +8833,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                     rvSelectedPemanenManual.visibility = View.VISIBLE
 
                     // Update manual spinner to remove selected worker
-//                    AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval after selection...")
-//                    updateManualPemanenSpinnerAfterRemoval()
+                    AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval after selection...")
+                    updateManualPemanenSpinnerAfterRemoval()
 
                     AppLogger.d("Added manual worker to RecyclerView: ${selectedWorker.nama} (NIK: ${selectedWorker.nik})")
                     AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
@@ -9320,7 +9320,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Clear RecyclerView and maps FIRST
         selectedPemanenAdapter.clearAllWorkers()
-//        selectedPemanenManualAdapter.clearAllWorkers()
+        selectedPemanenManualAdapter.clearAllWorkers()
         selectedPemuatAdapter.clearAllWorkers()
         karyawanIdMap.clear()
         kemandoranIdMap.clear()
@@ -9573,36 +9573,35 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.w("No cached TPH data to restore")
     }
 
-    //    private fun populateManualPemanenSpinner(availableWorkers: List<Worker>) {
-    //        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
-    //
-    //        // Always show spinner if there are workers available
-    //        if (availableWorkers.isNotEmpty()) {
-    //            lyPemanenManual.visibility =
-    //                View.GONE.takeIf { shouldHidePemanenAutoManual } ?: View.VISIBLE
-    //
-    //            // Sort workers by name alphabetically (extract name part after first " - ")
-    //            val sortedWorkers = availableWorkers.sortedBy { worker ->
-    //                val dashIndex = worker.name.indexOf(" - ")
-    //                if (dashIndex != -1) {
-    //                    worker.name.substring(dashIndex + 3).trim() // Sort by name part
-    //                } else {
-    //                    worker.name // Fallback to full string
-    //                }
-    //            }
-    //
-    //            // Create list of worker names for spinner
-    //            val workerNames = sortedWorkers.map { it.name }
-    //
-    //            // Setup spinner with available workers
-    //            setupSpinnerView(lyPemanenManual, workerNames)
-    //
-    //            AppLogger.d("Manual spinner populated with ${workerNames.size} workers (sorted alphabetically)")
-    //        } else {
-    //            lyPemanenManual.visibility = View.GONE
-    //            AppLogger.d("No manual workers available for spinner")
-    //        }
-    //    }
+    private fun populateManualPemanenSpinner(availableWorkers: List<Worker>) {
+        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+
+        // Always show spinner if there are workers available
+        if (availableWorkers.isNotEmpty()) {
+            lyPemanenManual.visibility = View.GONE
+
+            // Sort workers by name alphabetically (extract name part after first " - ")
+            val sortedWorkers = availableWorkers.sortedBy { worker ->
+                val dashIndex = worker.name.indexOf(" - ")
+                if (dashIndex != -1) {
+                    worker.name.substring(dashIndex + 3).trim() // Sort by name part
+                } else {
+                    worker.name // Fallback to full string
+                }
+            }
+
+            // Create list of worker names for spinner
+            val workerNames = sortedWorkers.map { it.name }
+
+            // Setup spinner with available workers
+            setupSpinnerView(lyPemanenManual, workerNames)
+
+            AppLogger.d("Manual spinner populated with ${workerNames.size} workers (sorted alphabetically)")
+        } else {
+            lyPemanenManual.visibility = View.GONE
+            AppLogger.d("No manual workers available for spinner")
+        }
+    }
 
 
     private fun setupManualPemanenSpinner() {
@@ -9726,8 +9725,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                 if (workerInfo != null) {
                     // Worker exists in manual list - add to manual RecyclerView
-//                    val workerForAdapter = Worker(workerInfo.individualId, formattedWorker)
-//                    selectedPemanenManualAdapter.addWorker(workerForAdapter)
+                    val workerForAdapter = Worker(workerInfo.individualId, formattedWorker)
+                    selectedPemanenManualAdapter.addWorker(workerForAdapter)
 
                     // Add to selectedKaryawanList
                     selectedKaryawanList = selectedKaryawanList + workerInfo
@@ -9741,17 +9740,17 @@ open class FormInspectionActivity : AppCompatActivity(),
             // Show manual RecyclerView if workers were added
             val rvSelectedPemanenManual =
                 findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
-//            if (selectedPemanenManualAdapter.itemCount > 0) {
-//                rvSelectedPemanenManual.visibility = View.VISIBLE
-//                AppLogger.d("Manual RecyclerView now has ${selectedPemanenManualAdapter.itemCount} workers")
-//            }
+            if (selectedPemanenManualAdapter.itemCount > 0) {
+                rvSelectedPemanenManual.visibility = View.VISIBLE
+                AppLogger.d("Manual RecyclerView now has ${selectedPemanenManualAdapter.itemCount} workers")
+            }
 
             // Update manual spinner
-//            updateManualPemanenSpinnerAfterRemoval()
+            updateManualPemanenSpinnerAfterRemoval()
         }
 
         // Populate the manual spinner
-//        populateManualPemanenSpinner(allManualWorkers)
+        populateManualPemanenSpinner(allManualWorkers)
 
         AppLogger.d("Total unique manual workers found: ${allManualWorkers.size}")
     }
@@ -9898,51 +9897,51 @@ open class FormInspectionActivity : AppCompatActivity(),
         AppLogger.d("Automatic spinner updated with ${workerNames.size} available workers")
     }
 
-//    private fun updateManualPemanenSpinnerAfterRemoval() {
-//        AppLogger.d("updateManualPemanenSpinnerAfterRemoval called")
-//
-//        // Get currently selected workers from MANUAL RecyclerView
-//        val selectedWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
-//        val selectedWorkerIds = selectedWorkers.map { it.id }.toSet()
-//
-//        AppLogger.d("Currently selected manual worker IDs: $selectedWorkerIds")
-//        AppLogger.d("All available manual workers count: ${allManualKaryawanList.size}")
-//
-//        // Filter available workers to exclude already selected ones
-//        val availableWorkers = allManualKaryawanList
-//            .filter { karyawan ->
-//                val isSelected = selectedWorkerIds.contains(karyawan.individualId)
-//                AppLogger.d("Manual Worker ${karyawan.nama} (ID: ${karyawan.individualId}) - Selected: $isSelected")
-//                !isSelected
-//            }
-//            .map { karyawan ->
-//                val formattedName = "${karyawan.nik} - ${karyawan.nama}"
-//                Worker(karyawan.individualId, formattedName)
-//            }
-//
-//        AppLogger.d("Available manual workers for spinner: ${availableWorkers.size}")
-//
-//        // Always keep spinner visible and populate it (same as automatic spinner)
-//        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
-//        lyPemanenManual.visibility =
-//            View.GONE.takeIf { shouldHidePemanenAutoManual } ?: View.VISIBLE
-//
-//        // Create list of worker names for spinner
-//        val workerNames = availableWorkers.map { it.name }
-//
-//        // Setup spinner with available workers (could be empty list)
-//        setupSpinnerView(lyPemanenManual, workerNames)
-//
-//        val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
-//        spinner.setHint("Pilih Pemanen")
-//
-//        AppLogger.d("Manual spinner updated with ${workerNames.size} available workers")
-//    }
+    private fun updateManualPemanenSpinnerAfterRemoval() {
+        AppLogger.d("updateManualPemanenSpinnerAfterRemoval called")
+
+        // Get currently selected workers from MANUAL RecyclerView
+        val selectedWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+        val selectedWorkerIds = selectedWorkers.map { it.id }.toSet()
+
+        AppLogger.d("Currently selected manual worker IDs: $selectedWorkerIds")
+        AppLogger.d("All available manual workers count: ${allManualKaryawanList.size}")
+
+        // Filter available workers to exclude already selected ones
+        val availableWorkers = allManualKaryawanList
+            .filter { karyawan ->
+                val isSelected = selectedWorkerIds.contains(karyawan.individualId)
+                AppLogger.d("Manual Worker ${karyawan.nama} (ID: ${karyawan.individualId}) - Selected: $isSelected")
+                !isSelected
+            }
+            .map { karyawan ->
+                val formattedName = "${karyawan.nik} - ${karyawan.nama}"
+                Worker(karyawan.individualId, formattedName)
+            }
+
+        AppLogger.d("Available manual workers for spinner: ${availableWorkers.size}")
+
+        // Always keep spinner visible and populate it (same as automatic spinner)
+        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+        lyPemanenManual.visibility =
+            View.GONE.takeIf { shouldHidePemanenAutoManual } ?: View.VISIBLE
+
+        // Create list of worker names for spinner
+        val workerNames = availableWorkers.map { it.name }
+
+        // Setup spinner with available workers (could be empty list)
+        setupSpinnerView(lyPemanenManual, workerNames)
+
+        val spinner = lyPemanenManual.findViewById<MaterialSpinner>(R.id.spPanenTBS)
+        spinner.setHint("Pilih Pemanen")
+
+        AppLogger.d("Manual spinner updated with ${workerNames.size} available workers")
+    }
 
     private fun updateWorkerDataInViewModel() {
         // Get current selected workers
         val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
-//        val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+        val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
 
         // Combine both lists for pemanen selection
         val allWorkerNames = mutableListOf<String>()
@@ -9953,9 +9952,9 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
 
         // Add manual workers
-//        manualWorkers.forEach { worker ->
-//            allWorkerNames.add(worker.name)
-//        }
+        manualWorkers.forEach { worker ->
+            allWorkerNames.add(worker.name)
+        }
 
         AppLogger.d("Updating ViewModel with workers: Total=${allWorkerNames.size}")
         allWorkerNames.forEach { worker ->
@@ -10534,74 +10533,74 @@ open class FormInspectionActivity : AppCompatActivity(),
         rvSelectedPemanen.visibility = View.GONE
     }
 
-//    private fun setupSelectedPemanenManualRecyclerView() {
-//        val rvSelectedPemanenManual =
-//            findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
-//        selectedPemanenManualAdapter = SelectedWorkerAdapter()
-//        rvSelectedPemanenManual.adapter = selectedPemanenManualAdapter
-//        rvSelectedPemanenManual.layoutManager = FlexboxLayoutManager(this).apply {
-//            justifyContent = JustifyContent.FLEX_START
-//        }
-//
-//        // Setup callbacks for manual adapter
-//        setupManualAdapterCallbacks()
-//
-//        rvSelectedPemanenManual.visibility = View.GONE
-//    }
+    private fun setupSelectedPemanenManualRecyclerView() {
+        val rvSelectedPemanenManual =
+            findViewById<RecyclerView>(R.id.rvSelectedPemanenManualInspection)
+        selectedPemanenManualAdapter = SelectedWorkerAdapter()
+        rvSelectedPemanenManual.adapter = selectedPemanenManualAdapter
+        rvSelectedPemanenManual.layoutManager = FlexboxLayoutManager(this).apply {
+            justifyContent = JustifyContent.FLEX_START
+        }
+
+        // Setup callbacks for manual adapter
+        setupManualAdapterCallbacks()
+
+        rvSelectedPemanenManual.visibility = View.GONE
+    }
 
     private fun setupManualAdapterCallbacks() {
         AppLogger.d("Setting up manual adapter callbacks...")
 
-//        selectedPemanenManualAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
-//            AppLogger.d("Manual worker removal callback triggered for: ${removedWorker.name}")
-//
-//            // Remove from selectedKaryawanList
-//            val dashIndex = removedWorker.name.indexOf(" - ")
-//            val removedNik = if (dashIndex != -1) {
-//                removedWorker.name.substring(0, dashIndex).trim()
-//            } else {
-//                ""
-//            }
-//            val removedName = if (dashIndex != -1) {
-//                removedWorker.name.substring(dashIndex + 3).trim()
-//            } else {
-//                removedWorker.name.trim()
-//            }
-//
-//            // Update selectedKaryawanList by removing the worker
-//            val originalSize = selectedKaryawanList.size
-//            selectedKaryawanList = selectedKaryawanList.filter { karyawan ->
-//                !(karyawan.nik == removedNik && karyawan.nama == removedName)
-//            }
-//
-//            AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
-//
-//            // Remove from maps
-//            karyawanIdMap.remove(removedWorker.name)
-//            kemandoranIdMap.remove(removedWorker.name)
-//            karyawanIdMap.remove(removedNik)
-//            kemandoranIdMap.remove(removedNik)
-//            karyawanIdMap.remove(removedName)
-//            kemandoranIdMap.remove(removedName)
-//
-//            if (!isStartFromTPH) {
-//                AppLogger.d("Removing worker ${removedName} (NIK: ${removedNik}) from ALL pages in ViewModel")
-//                formAncakViewModel.removeWorkerFromAllPages(removedNik)
-//            }
-//
-//            // Update manual spinner to show the removed worker again
-//            AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval...")
-//            updateManualPemanenSpinnerAfterRemoval()
-//
-//            AppLogger.d("Removed manual worker from selectedKaryawanList: $removedName (NIK: $removedNik)")
-//            AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
-//        }
+        selectedPemanenManualAdapter.setOnWorkerActuallyRemovedListener { removedWorker ->
+            AppLogger.d("Manual worker removal callback triggered for: ${removedWorker.name}")
+
+            // Remove from selectedKaryawanList
+            val dashIndex = removedWorker.name.indexOf(" - ")
+            val removedNik = if (dashIndex != -1) {
+                removedWorker.name.substring(0, dashIndex).trim()
+            } else {
+                ""
+            }
+            val removedName = if (dashIndex != -1) {
+                removedWorker.name.substring(dashIndex + 3).trim()
+            } else {
+                removedWorker.name.trim()
+            }
+
+            // Update selectedKaryawanList by removing the worker
+            val originalSize = selectedKaryawanList.size
+            selectedKaryawanList = selectedKaryawanList.filter { karyawan ->
+                !(karyawan.nik == removedNik && karyawan.nama == removedName)
+            }
+
+            AppLogger.d("Manual selectedKaryawanList size changed from $originalSize to ${selectedKaryawanList.size}")
+
+            // Remove from maps
+            karyawanIdMap.remove(removedWorker.name)
+            kemandoranIdMap.remove(removedWorker.name)
+            karyawanIdMap.remove(removedNik)
+            kemandoranIdMap.remove(removedNik)
+            karyawanIdMap.remove(removedName)
+            kemandoranIdMap.remove(removedName)
+
+            if (!isStartFromTPH) {
+                AppLogger.d("Removing worker ${removedName} (NIK: ${removedNik}) from ALL pages in ViewModel")
+                formAncakViewModel.removeWorkerFromAllPages(removedNik)
+            }
+
+            // Update manual spinner to show the removed worker again
+            AppLogger.d("Calling updateManualPemanenSpinnerAfterRemoval...")
+            updateManualPemanenSpinnerAfterRemoval()
+
+            AppLogger.d("Removed manual worker from selectedKaryawanList: $removedName (NIK: $removedNik)")
+            AppLogger.d("Updated selectedKaryawanList size: ${selectedKaryawanList.size}")
+        }
     }
 
 
     private fun setupPemanenSpinner() {
         val lyPemanenOtomatis = findViewById<LinearLayout>(R.id.lyPemanenOtomatis)
-        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
+//        val lyPemanenManual = findViewById<LinearLayout>(R.id.lyPemanenManual)
 
         lyPemanenOtomatis.findViewById<TextView>(R.id.tvTitleFormPanenTBS).text =
             "Pilih Pemanen (Otomatis)"
@@ -10614,7 +10613,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         // Setup both RecyclerViews
         setupSelectedPemanenRecyclerView() // For automatic
-//        setupSelectedPemanenManualRecyclerView() // For manual
+        setupSelectedPemanenManualRecyclerView() // For manual
     }
 
     private fun setupPemuatSpinner() {
@@ -11347,10 +11346,10 @@ open class FormInspectionActivity : AppCompatActivity(),
 
             // PEMANEN VALIDATION
             val automaticWorkers = selectedPemanenAdapter.getSelectedWorkers()
-//            val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
-            val totalSelectedWorkers = automaticWorkers.size
+            val manualWorkers = selectedPemanenManualAdapter.getSelectedWorkers()
+            val totalSelectedWorkers = automaticWorkers.size + manualWorkers.size
 
-            AppLogger.d("Worker validation - Auto: ${automaticWorkers.size}, Total: $totalSelectedWorkers")
+            AppLogger.d("Worker validation - Auto: ${automaticWorkers.size}, Manual: ${manualWorkers.size}, Total: $totalSelectedWorkers")
             AppLogger.d("selectedKaryawanList size: ${selectedKaryawanList.size}")
 
             if (totalSelectedWorkers == 0 || selectedKaryawanList.isEmpty()) {
