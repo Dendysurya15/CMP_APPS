@@ -3927,7 +3927,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     }
 
     private fun checkScannedTPHInsideRadius() {
-//        if (lat != null && lon != null) {
+        if (lat != null && lon != null) {
             val tphList = getTPHsInsideRadius(lat!!, lon!!, latLonMap)
 
             AppLogger.d("jenisTPHListGlobal $jenisTPHListGlobal")
@@ -3979,16 +3979,16 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 emptyScannedTPHInsideRadius.visibility = View.VISIBLE
                 isEmptyScannedTPH = true
             }
-//        } else {
-//            Toasty.error(
-//                this,
-//                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
-//                Toast.LENGTH_LONG,
-//                true
-//            )
-//                .show()
-//            isEmptyScannedTPH = true
-//        }
+        } else {
+            Toasty.error(
+                this,
+                "Sinyal GPS belum ditemukan! Silakan pindah ke area terbuka!",
+                Toast.LENGTH_LONG,
+                true
+            )
+                .show()
+            isEmptyScannedTPH = true
+        }
 
         if (progressBarScanTPHManual.visibility == View.VISIBLE) {
             progressBarScanTPHManual.visibility = View.GONE

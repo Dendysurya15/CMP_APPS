@@ -7,8 +7,8 @@ import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
+import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.StagingApiClient
-import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.gson.Gson
@@ -345,7 +345,7 @@ class UploadCMPRepository(context: Context) {
                                 onProgressUpdate(50, false, "Sending ${photoParts.size} images to server...")
                             }
 
-                            val response = TestingAPIClient.instance.uploadPhotos(
+                            val response = CMPApiClient.instance.uploadPhotos(
                                 photos = photoParts,
                                 datasetType = datasetTypeRequestBody,
                                 path = basePathRequestBody
@@ -635,7 +635,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV5Raw(
+                        val response = CMPApiClient.instance.uploadJsonV5Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1217,7 +1217,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV5Raw(
+                        val response = CMPApiClient.instance.uploadJsonV5Raw(
                             jsonData = jsonRequestBody
                         )
 
