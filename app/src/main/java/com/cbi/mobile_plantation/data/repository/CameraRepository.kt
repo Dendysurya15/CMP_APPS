@@ -873,7 +873,7 @@ class CameraRepository(
         resultCode: String, fileName: String
     ) {
         mainHandler.post {
-            loadingDialog.setMessage("Adding watermark", isAnimate = true)
+            loadingDialog.setMessage("Tambah WaterMark", isAnimate = true)
         }
 
         val takenImage = rotateBitmapWithOrientation(file.path, lastCameraId, orientationHandler)
@@ -911,7 +911,7 @@ class CameraRepository(
 
         // ✅ Update loading message for compression
         mainHandler.post {
-            loadingDialog.setMessage("Compressing image", isAnimate = true)
+            loadingDialog.setMessage("Kompresi Gambar", isAnimate = true)
         }
 
         try {
@@ -1105,7 +1105,7 @@ class CameraRepository(
             captureCam.isEnabled = false
 
             loadingDialog.show()
-            loadingDialog.setMessage("Capturing image", isAnimate = true)
+            loadingDialog.setMessage("Sedang Ambil Gambar", isAnimate = true)
 
             if (isFFBDetectionEnabled) {
                 stopFFBDetection()
@@ -1133,7 +1133,7 @@ class CameraRepository(
                         ) {
                             super.onCaptureCompleted(session, request, result)
                             mainHandler.post {
-                                loadingDialog.setMessage("Processing image", isAnimate = true)
+                                loadingDialog.setMessage("Sedang Proses Gambar", isAnimate = true)
                             }
                         }
 
