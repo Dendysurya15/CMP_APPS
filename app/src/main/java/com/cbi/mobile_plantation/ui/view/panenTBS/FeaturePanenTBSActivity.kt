@@ -132,6 +132,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.gson.Gson
 import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.CompletableDeferred
@@ -592,467 +593,571 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             false
         }
 
-        mbSaveDataPanenTBS.setOnClickListener {
-            if (validateAndShowErrors()) {
-                AlertDialogUtility.withTwoActions(
-                    this,
-                    "Simpan Data",
-                    getString(R.string.confirmation_dialog_title),
-                    getString(R.string.confirmation_dialog_description),
-                    "warning.json",
-                    function = {
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            try {
-
-                                val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
-                                val selectedPemanenLain =
-                                    selectedPemanenLainAdapter.getSelectedWorkers()
-
-                                val allSelectedWorkers = (selectedPemanen + selectedPemanenLain)
-                                val uniqueWorkersByNik = mutableMapOf<String, Worker>()
-
-                                allSelectedWorkers.forEach { worker ->
-                                    val nik = if (worker.name.contains(" - ")) {
-                                        // Find the LAST occurrence of " - " to extract NIK
-                                        val lastDashIndex = worker.name.lastIndexOf(" - ")
-                                        if (lastDashIndex != -1) {
-                                            val potentialNik =
-                                                worker.name.substring(lastDashIndex + 3).trim()
-                                            // Accept any non-empty string as NIK (including mobile/string NIKs)
-                                            if (potentialNik.isNotEmpty()) {
-                                                potentialNik
+            mbSaveDataPanenTBS.setOnClickListener {
+                if (validateAndShowErrors()) {
+                    AlertDialogUtility.withTwoActions(
+                        this,
+                        "Simpan Data",
+                        getString(R.string.confirmation_dialog_title),
+                        getString(R.string.confirmation_dialog_description),
+                        "warning.json",
+                        function = {
+                            lifecycleScope.launch(Dispatchers.Main) {
+                                try {
+    
+                                    val selectedPemanen = selectedPemanenAdapter.getSelectedWorkers()
+                                    val selectedPemanenLain =
+                                        selectedPemanenLainAdapter.getSelectedWorkers()
+    
+                                    val allSelectedWorkers = (selectedPemanen + selectedPemanenLain)
+                                    val uniqueWorkersByNik = mutableMapOf<String, Worker>()
+    
+                                    allSelectedWorkers.forEach { worker ->
+                                        val nik = if (worker.name.contains(" - ")) {
+                                            // Find the LAST occurrence of " - " to extract NIK
+                                            val lastDashIndex = worker.name.lastIndexOf(" - ")
+                                            if (lastDashIndex != -1) {
+                                                val potentialNik =
+                                                    worker.name.substring(lastDashIndex + 3).trim()
+                                                // Accept any non-empty string as NIK (including mobile/string NIKs)
+                                                if (potentialNik.isNotEmpty()) {
+                                                    potentialNik
+                                                } else {
+                                                    worker.name // fallback if last segment is empty
+                                                }
                                             } else {
-                                                worker.name // fallback if last segment is empty
+                                                worker.name
                                             }
                                         } else {
                                             worker.name
                                         }
-                                    } else {
-                                        worker.name
+    
+                                        // Only keep the first occurrence of each NIK
+                                        if (!uniqueWorkersByNik.containsKey(nik)) {
+                                            uniqueWorkersByNik[nik] = worker
+                                        }
                                     }
-
-                                    // Only keep the first occurrence of each NIK
-                                    if (!uniqueWorkersByNik.containsKey(nik)) {
-                                        uniqueWorkersByNik[nik] = worker
-                                    }
-                                }
-
-                                val uniqueWorkers = uniqueWorkersByNik.values.toList()
-
-                                AppLogger.d("Unique workers after deduplication: ${uniqueWorkers.map { it.name }}")
-
-                                // Helper function to extract name without NIK
-                                fun getNameWithoutNik(fullName: String): String {
-                                    val lastDashIndex = fullName.lastIndexOf(" - ")
-                                    return if (lastDashIndex != -1) {
-                                        val potentialNik =
-                                            fullName.substring(lastDashIndex + 3).trim()
-                                        // Only remove if the last part is not empty (could be string/mobile NIK)
-                                        if (potentialNik.isNotEmpty()) {
-                                            fullName.substring(0, lastDashIndex).trim()
+    
+                                    val uniqueWorkers = uniqueWorkersByNik.values.toList()
+    
+                                    AppLogger.d("Unique workers after deduplication: ${uniqueWorkers.map { it.name }}")
+    
+                                    // Helper function to extract name without NIK
+                                    fun getNameWithoutNik(fullName: String): String {
+                                        val lastDashIndex = fullName.lastIndexOf(" - ")
+                                        return if (lastDashIndex != -1) {
+                                            val potentialNik =
+                                                fullName.substring(lastDashIndex + 3).trim()
+                                            // Only remove if the last part is not empty (could be string/mobile NIK)
+                                            if (potentialNik.isNotEmpty()) {
+                                                fullName.substring(0, lastDashIndex).trim()
+                                            } else {
+                                                fullName
+                                            }
                                         } else {
                                             fullName
                                         }
-                                    } else {
-                                        fullName
                                     }
-                                }
-
-// Now process the unique workers
-                                val idKaryawanList = uniqueWorkers.mapNotNull { worker ->
-                                    var id = karyawanIdMap[worker.name]
-
-                                    if (id == null && worker.name.contains(" - ")) {
-                                        val baseName = getNameWithoutNik(worker.name)
-                                        id = karyawanIdMap[baseName]
-                                    }
-
-                                    if (id == null && !worker.name.contains(" - ")) {
-                                        val possibleKey =
-                                            karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
-                                        if (possibleKey != null) {
-                                            id = karyawanIdMap[possibleKey]
-                                        }
-                                    }
-
-                                    // If still not found, try karyawanLainIdMap
-                                    if (id == null) {
-                                        id = karyawanLainIdMap[worker.name]
+    
+    // Now process the unique workers
+                                    val idKaryawanList = uniqueWorkers.mapNotNull { worker ->
+                                        var id = karyawanIdMap[worker.name]
+    
                                         if (id == null && worker.name.contains(" - ")) {
                                             val baseName = getNameWithoutNik(worker.name)
-                                            id = karyawanLainIdMap[baseName]
+                                            id = karyawanIdMap[baseName]
                                         }
+    
                                         if (id == null && !worker.name.contains(" - ")) {
                                             val possibleKey =
-                                                karyawanLainIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                                karyawanIdMap.keys.find { it.startsWith("${worker.name} - ") }
                                             if (possibleKey != null) {
-                                                id = karyawanLainIdMap[possibleKey]
+                                                id = karyawanIdMap[possibleKey]
                                             }
                                         }
-                                    }
-
-                                    id
-                                }
-
-                                val kemandoranIdList = uniqueWorkers.mapNotNull { worker ->
-                                    var id = kemandoranIdMap[worker.name]
-
-                                    if (id == null && worker.name.contains(" - ")) {
-                                        val baseName = getNameWithoutNik(worker.name)
-                                        id = kemandoranIdMap[baseName]
-                                    }
-
-                                    if (id == null && !worker.name.contains(" - ")) {
-                                        val possibleKey =
-                                            kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
-                                        if (possibleKey != null) {
-                                            id = kemandoranIdMap[possibleKey]
+    
+                                        // If still not found, try karyawanLainIdMap
+                                        if (id == null) {
+                                            id = karyawanLainIdMap[worker.name]
+                                            if (id == null && worker.name.contains(" - ")) {
+                                                val baseName = getNameWithoutNik(worker.name)
+                                                id = karyawanLainIdMap[baseName]
+                                            }
+                                            if (id == null && !worker.name.contains(" - ")) {
+                                                val possibleKey =
+                                                    karyawanLainIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                                if (possibleKey != null) {
+                                                    id = karyawanLainIdMap[possibleKey]
+                                                }
+                                            }
                                         }
+    
+                                        id
                                     }
-
-                                    // If still not found, try kemandoranLainIdMap
-                                    if (id == null) {
-                                        id = kemandoranLainIdMap[worker.name]
+    
+                                    val kemandoranIdList = uniqueWorkers.mapNotNull { worker ->
+                                        var id = kemandoranIdMap[worker.name]
+    
                                         if (id == null && worker.name.contains(" - ")) {
                                             val baseName = getNameWithoutNik(worker.name)
-                                            id = kemandoranLainIdMap[baseName]
+                                            id = kemandoranIdMap[baseName]
                                         }
+    
                                         if (id == null && !worker.name.contains(" - ")) {
                                             val possibleKey =
-                                                kemandoranLainIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                                kemandoranIdMap.keys.find { it.startsWith("${worker.name} - ") }
                                             if (possibleKey != null) {
-                                                id = kemandoranLainIdMap[possibleKey]
+                                                id = kemandoranIdMap[possibleKey]
                                             }
                                         }
-                                    }
-
-                                    id
-                                }
-
-                                val selectedNamaList = uniqueWorkers.mapNotNull { worker ->
-                                    var nama = karyawanNamaMap[worker.name]
-
-                                    if (nama == null && worker.name.contains(" - ")) {
-                                        val nameWithoutNik = getNameWithoutNik(worker.name)
-                                        nama = karyawanNamaMap[nameWithoutNik]
-                                    }
-
-                                    if (nama == null && !worker.name.contains(" - ")) {
-                                        val possibleKey =
-                                            karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
-                                        if (possibleKey != null) {
-                                            nama = karyawanNamaMap[possibleKey]
-                                        } else {
-                                            nama = worker.name
+    
+                                        // If still not found, try kemandoranLainIdMap
+                                        if (id == null) {
+                                            id = kemandoranLainIdMap[worker.name]
+                                            if (id == null && worker.name.contains(" - ")) {
+                                                val baseName = getNameWithoutNik(worker.name)
+                                                id = kemandoranLainIdMap[baseName]
+                                            }
+                                            if (id == null && !worker.name.contains(" - ")) {
+                                                val possibleKey =
+                                                    kemandoranLainIdMap.keys.find { it.startsWith("${worker.name} - ") }
+                                                if (possibleKey != null) {
+                                                    id = kemandoranLainIdMap[possibleKey]
+                                                }
+                                            }
                                         }
+    
+                                        id
                                     }
-
-                                    // If still not found, try karyawanNamaLainMap
-                                    if (nama == null) {
-                                        nama = karyawanNamaLainMap[worker.name]
+    
+                                    val selectedNamaList = uniqueWorkers.mapNotNull { worker ->
+                                        var nama = karyawanNamaMap[worker.name]
+    
                                         if (nama == null && worker.name.contains(" - ")) {
                                             val nameWithoutNik = getNameWithoutNik(worker.name)
-                                            nama = karyawanNamaLainMap[nameWithoutNik]
+                                            nama = karyawanNamaMap[nameWithoutNik]
                                         }
+    
                                         if (nama == null && !worker.name.contains(" - ")) {
                                             val possibleKey =
-                                                karyawanNamaLainMap.keys.find { it.startsWith("${worker.name} - ") }
+                                                karyawanNamaMap.keys.find { it.startsWith("${worker.name} - ") }
                                             if (possibleKey != null) {
-                                                nama = karyawanNamaLainMap[possibleKey]
+                                                nama = karyawanNamaMap[possibleKey]
                                             } else {
-                                                nama =
-                                                    getNameWithoutNik(worker.name) // Use the clean name without NIK
+                                                nama = worker.name
                                             }
                                         }
+    
+                                        // If still not found, try karyawanNamaLainMap
+                                        if (nama == null) {
+                                            nama = karyawanNamaLainMap[worker.name]
+                                            if (nama == null && worker.name.contains(" - ")) {
+                                                val nameWithoutNik = getNameWithoutNik(worker.name)
+                                                nama = karyawanNamaLainMap[nameWithoutNik]
+                                            }
+                                            if (nama == null && !worker.name.contains(" - ")) {
+                                                val possibleKey =
+                                                    karyawanNamaLainMap.keys.find { it.startsWith("${worker.name} - ") }
+                                                if (possibleKey != null) {
+                                                    nama = karyawanNamaLainMap[possibleKey]
+                                                } else {
+                                                    nama =
+                                                        getNameWithoutNik(worker.name) // Use the clean name without NIK
+                                                }
+                                            }
+                                        }
+    
+                                        nama
                                     }
-
-                                    nama
-                                }
-
-                                val selectedNikList = uniqueWorkers.mapNotNull { worker ->
-                                    if (worker.name.contains(" - ")) {
-                                        // Find the LAST occurrence of " - " to extract NIK
-                                        val lastDashIndex = worker.name.lastIndexOf(" - ")
-                                        if (lastDashIndex != -1) {
-                                            val potentialNik =
-                                                worker.name.substring(lastDashIndex + 3).trim()
-                                            // Return any non-empty string as NIK (supports mobile/string NIKs)
-                                            if (potentialNik.isNotEmpty()) {
-                                                potentialNik
+    
+                                    val selectedNikList = uniqueWorkers.mapNotNull { worker ->
+                                        if (worker.name.contains(" - ")) {
+                                            // Find the LAST occurrence of " - " to extract NIK
+                                            val lastDashIndex = worker.name.lastIndexOf(" - ")
+                                            if (lastDashIndex != -1) {
+                                                val potentialNik =
+                                                    worker.name.substring(lastDashIndex + 3).trim()
+                                                // Return any non-empty string as NIK (supports mobile/string NIKs)
+                                                if (potentialNik.isNotEmpty()) {
+                                                    potentialNik
+                                                } else {
+                                                    null
+                                                }
                                             } else {
                                                 null
                                             }
                                         } else {
                                             null
                                         }
-                                    } else {
-                                        null
                                     }
-                                }
-
-                                val uniqueNamaPemanen = selectedNamaList.joinToString(",")
-                                val uniqueNikPemanen = selectedNikList.joinToString(",")
-                                val uniqueIdKaryawan =
-                                    idKaryawanList.map { it.toString() }.joinToString(",")
-                                val uniqueKemandoranId =
-                                    kemandoranIdList.map { it.toString() }.joinToString(",")
-
-                                AppLogger.d("Final counts:")
-                                AppLogger.d("Names: ${selectedNamaList.size}")
-                                AppLogger.d("NIKs: ${selectedNikList.size}")
-                                AppLogger.d("IDs: ${idKaryawanList.size}")
-                                AppLogger.d("Kemandoran IDs: ${kemandoranIdList.size}")
-                                val photoFilesString = photoFiles.joinToString(";")
-                                val photoFilesSelfieString = photoFilesSelfie.joinToString(";")
-                                val komentarFotoString = komentarFoto.joinToString(";")
-                                    .takeIf { it.isNotBlank() && it != ";" && !it.matches(Regex("^;+$")) }
-
-
-                                AppLogger.d("tph id sebelum simpan $selectedTPHValue")
-//                                selectedTPHValue = null
-
-                                // Only check TPH validation if blokBanjir is 1
-                                if (blokBanjir == 1) {
-                                    if (selectedTPHValue == null ||
-                                        selectedTPHValue.toString().isEmpty() ||
-                                        selectedTPHValue.toString().isBlank() ||
-                                        selectedTPHValue.toString() == "null" ||
-                                        selectedTPHValue.toString() == "0"
-                                    ) {
-                                        // Use backup values if main values are null
-                                        val tphToFind = selectedTPH ?: selectedTPHBackup
-                                        val divisiToUse =
-                                            selectedDivisiValue ?: selectedDivisiValueBackup
-                                        val blokToUse = selectedBlokValue ?: selectedBlokValueBackup
-                                        val tahunTanamToUse =
-                                            selectedTahunTanamValue ?: selectedTahunTanamValueBackup
-
-                                        val estateIdToUse =
-                                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                                                selectedEstate.toIntOrNull()
-                                            } else {
-                                                estateId?.toIntOrNull()
+    
+                                    val uniqueNamaPemanen = selectedNamaList.joinToString(",")
+                                    val uniqueNikPemanen = selectedNikList.joinToString(",")
+                                    val uniqueIdKaryawan =
+                                        idKaryawanList.map { it.toString() }.joinToString(",")
+                                    val uniqueKemandoranId =
+                                        kemandoranIdList.map { it.toString() }.joinToString(",")
+    
+                                    AppLogger.d("Final counts:")
+                                    AppLogger.d("Names: ${selectedNamaList.size}")
+                                    AppLogger.d("NIKs: ${selectedNikList.size}")
+                                    AppLogger.d("IDs: ${idKaryawanList.size}")
+                                    AppLogger.d("Kemandoran IDs: ${kemandoranIdList.size}")
+                                    val photoFilesString = photoFiles.joinToString(";")
+                                    val photoFilesSelfieString = photoFilesSelfie.joinToString(";")
+                                    val komentarFotoString = komentarFoto.joinToString(";")
+                                        .takeIf { it.isNotBlank() && it != ";" && !it.matches(Regex("^;+$")) }
+    
+    
+                                    AppLogger.d("tph id sebelum simpan $selectedTPHValue")
+    //                                selectedTPHValue = null
+    
+                                    // Only check TPH validation if blokBanjir is 1
+                                    if (blokBanjir == 1) {
+                                        if (selectedTPHValue == null ||
+                                            selectedTPHValue.toString().isEmpty() ||
+                                            selectedTPHValue.toString().isBlank() ||
+                                            selectedTPHValue.toString() == "null" ||
+                                            selectedTPHValue.toString() == "0"
+                                        ) {
+                                            // Use backup values if main values are null
+                                            val tphToFind = selectedTPH ?: selectedTPHBackup
+                                            val divisiToUse =
+                                                selectedDivisiValue ?: selectedDivisiValueBackup
+                                            val blokToUse = selectedBlokValue ?: selectedBlokValueBackup
+                                            val tahunTanamToUse =
+                                                selectedTahunTanamValue ?: selectedTahunTanamValueBackup
+    
+                                            val estateIdToUse =
+                                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+                                                    selectedEstate.toIntOrNull()
+                                                } else {
+                                                    estateId?.toIntOrNull()
+                                                }
+    
+                                            // Find the TPH object from the list using backup values when needed
+                                            val foundTPH = tphList.find {
+                                                it.dept == estateIdToUse && // Using conditional estate ID
+                                                        it.divisi == divisiToUse &&
+                                                        it.blok == blokToUse &&
+                                                        it.tahun == tahunTanamToUse &&
+                                                        it.nomor == tphToFind
                                             }
+    
+                                            // Set selectedTPHValue to the found TPH's ID
+                                            selectedTPHValue = foundTPH?.id
+    
+                                            AppLogger.d("tph id ketika trouble setelah simpan $selectedTPHValue")
+    
+                                            if (selectedTPHValue == null) {
+                                                AlertDialogUtility.withSingleAction(
+                                                    this@FeaturePanenTBSActivity,
+                                                    "Kembali",
+                                                    "TPH Tidak Ditemukan",
+                                                    getString(R.string.al_no_tph_not_found_when_save),
+                                                    "warning.json",
+                                                    R.color.colorRedDark
+                                                ) {
+                                                    layoutTahunTanam.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                                                        View.VISIBLE
+                                                    layoutTahunTanam.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                                                        "Silakan melakukan pemilihan ulang!"
+                                                    layoutTahunTanam.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                                                        ContextCompat.getColor(
+                                                            this@FeaturePanenTBSActivity,
+                                                            R.color.colorRedDark
+                                                        )
+                                                    layoutBlok.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                                                        View.VISIBLE
+                                                    layoutBlok.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                                                        "Silakan melakukan pemilihan ulang!"
+                                                    layoutBlok.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                                                        ContextCompat.getColor(
+                                                            this@FeaturePanenTBSActivity,
+                                                            R.color.colorRedDark
+                                                        )
+                                                    layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
+                                                        View.VISIBLE
+                                                    layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
+                                                        "Silakan melakukan pemilihan ulang!"
+                                                    layoutNoTPH.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
+                                                        ContextCompat.getColor(
+                                                            this@FeaturePanenTBSActivity,
+                                                            R.color.colorRedDark
+                                                        )
+    
+                                                    val scPanen = findViewById<ScrollView>(R.id.scPanen)
+                                                    scPanen.fullScroll(ScrollView.FOCUS_UP)
+                                                }
+    
+                                                return@launch
+                                            }
+                                        }
+                                    }
+    
+                                    val tph_id = selectedTPHValue?.toString() ?: ""
+                                    val date_created = SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date())
+    
+                                    val result = withContext(Dispatchers.IO) {
+                                        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
+                                            mutuBuahViewModel.saveDataMutuBuah(
+                                                tph_id = tph_id,
+                                                date_created = date_created,
+                                                foto = photoFilesString,
+                                                komentar = komentarFotoString ?: "",
+                                                lat = finalLat ?: 0.0,
+                                                lon = finalLon ?: 0.0,
+                                                info = infoApp ?: "",
+                                                nomorPemanenInput = nomorPemanenInput.toInt(),
+                                                jjgPanen = jumTBS,
+                                                jjgMasak = buahMasak,
+                                                jjgMentah = bMentah,
+                                                jjgLewatMasak = bLewatMasak,
+                                                jjgKosong = jjgKosong,
+                                                jjgSeranganTikus = seranganTikus,
+                                                jjgPanjang = tangkaiPanjang,
+                                                jjgTidakVcut = tidakVCut,
+                                                jjgBayar = tbsDibayar,
+                                                jjgKirim = kirimPabrik,
+                                                created_by = userId!!,
+                                                jjgAbnormal = abnormal,
+                                                foto_selfie = photoFilesSelfieString,
+                                                createdName = userName!!
+                                            )
+                                        } else {
+    
+                                            val asistensiValue =
+                                                if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
+                                                    ?: 0)
+    
 
-                                        // Find the TPH object from the list using backup values when needed
-                                        val foundTPH = tphList.find {
-                                            it.dept == estateIdToUse && // Using conditional estate ID
-                                                    it.divisi == divisiToUse &&
-                                                    it.blok == blokToUse &&
-                                                    it.tahun == tahunTanamToUse &&
-                                                    it.nomor == tphToFind
+                                            panenViewModel.saveDataPanen(
+                                                tph_id = tph_id,
+                                                date_created = date_created,
+                                                created_by = userId!!,
+                                                karyawan_id = uniqueIdKaryawan,
+                                                kemandoran_id = uniqueKemandoranId,
+                                                karyawan_nik = uniqueNikPemanen,
+                                                karyawan_nama = uniqueNamaPemanen,
+                                                jjg_json = jjg_json,
+                                                foto = photoFilesString,
+                                                komentar = komentarFotoString ?: "",
+                                                asistensi = asistensiValue,
+                                                lat = finalLat ?: 0.0,
+                                                lon = finalLon ?: 0.0,
+                                                jenis_panen = selectedTipePanen.toIntOrNull() ?: 0,
+                                                ancakInput = ancakInput.toInt(),
+                                                nomorPemanenInput = nomorPemanenInput.toInt(),
+                                                info = infoApp ?: "",
+                                                archive = 0,
+                                                blokBanjir = blokBanjir,
+                                                asistensiDept = if (asistensiValue == 2) prefManager?.estateIdUserLogin?.toInt() else null,
+                                                asistensiDeptNama = if (asistensiValue == 2) prefManager?.estateUserLengkapLogin else null,
+                                                asistensiDivisi = if (asistensiValue == 2) prefManager?.afdelingIdUserLogin?.toIntOrNull() else null
+                                            )
+                                        }
+                                    }
+    
+                                    when (result) {
+                                        is AppRepository.SaveResultPanen.Success -> {
+                                            val insertedId = result.id
+                                            val json = saveJsonPanen(insertedId, date_created)
+                                            if (json != null) {
+
+                                                // Resolve photos only after saving
+                                                val resolvedPhotos = AppUtils.findAllPhotos(
+                                                    context = this@FeaturePanenTBSActivity,
+                                                    photoNames = photoFiles // only normal photos
+                                                )
+
+                                                handleAfterSave(
+                                                    jsonString = json,
+                                                    photosList = resolvedPhotos,
+                                                    dateCreated = date_created
+                                                )
+                                            }
                                         }
 
-                                        // Set selectedTPHValue to the found TPH's ID
-                                        selectedTPHValue = foundTPH?.id
+                                        is AppRepository.SaveResultMutuBuah.Success -> {
+                                            val insertedId = result.id
+                                            val json = saveJsonMutuBuah(insertedId, date_created)
+                                            if (json != null) {
 
-                                        AppLogger.d("tph id ketika trouble setelah simpan $selectedTPHValue")
+                                                // Resolve both normal photos + selfies
+                                                val resolvedNormal = AppUtils.findAllPhotos(
+                                                    context = this@FeaturePanenTBSActivity,
+                                                    photoNames = photoFiles
+                                                )
+                                                val resolvedSelfie = AppUtils.findAllPhotos(
+                                                    context = this@FeaturePanenTBSActivity,
+                                                    photoNames = photoFilesSelfie
+                                                )
 
-                                        if (selectedTPHValue == null) {
+                                                // Merge both into a single list
+                                                val mergedPhotos = resolvedNormal + resolvedSelfie
+
+                                                handleAfterSave(
+                                                    jsonString = json,
+                                                    photosList = mergedPhotos,
+                                                    dateCreated = date_created
+                                                )
+                                            }
+                                        }
+
+//                                        is AppRepository.SaveResultPanen.Success,
+//                                        is AppRepository.SaveResultMutuBuah.Success -> {
+//                                            val insertedId = result.id
+//                                            playSound(R.raw.berhasil_simpan)
+//                                            AlertDialogUtility.withSingleAction(
+//                                                this@FeaturePanenTBSActivity,
+//                                                stringXML(R.string.al_back),
+//                                                stringXML(R.string.al_success_save_local),
+//                                                stringXML(R.string.al_description_success_save_local),
+//                                                "success.json",
+//                                                R.color.greenDefault
+//                                            ) {
+//                                                val tphId = selectedTPHValue!!.toInt()
+//                                                val tphData = panenStoredLocal[tphId]
+//
+//                                                val currentWorkerNiks =
+//                                                    uniqueNikPemanen.split(",").map { it.trim() }
+//                                                        .filter { it.isNotEmpty() }
+//
+//                                                if (tphData != null) {
+//                                                    val mergedNiks =
+//                                                        (tphData.workerNiks + currentWorkerNiks).distinct()
+//                                                    panenStoredLocal[tphId] = tphData.copy(
+//                                                        count = tphData.count + 1,
+//                                                        workerNiks = mergedNiks,
+//                                                        blokKode = selectedBlok,
+//                                                        nomor = selectedTPH
+//                                                    )
+//                                                } else {
+//                                                    // Create new entry
+//                                                    val jenisTPHId = selectedTPHJenisId ?: 0
+//                                                    val limitTPH =
+//                                                        tphList.find { it.id == tphId }?.limit_tph
+//
+//                                                    panenStoredLocal[tphId] = TPHData(
+//                                                        count = 1,
+//                                                        jenisTPHId = jenisTPHId,
+//                                                        limitTPH = limitTPH,
+//                                                        workerNiks = currentWorkerNiks,
+//                                                        blokKode = selectedBlok,
+//                                                        nomor = selectedTPH
+//                                                    )
+//                                                }
+//
+//
+//                                                lifecycleScope.launch {
+//
+//
+//                                                    val savedPanen = panenViewModel.getPanenById(insertedId)
+//
+//                                                    if (savedPanen == null) {
+//                                                        AlertDialogUtility.withSingleAction(
+//                                                            this@FeaturePanenTBSActivity,
+//                                                            "Error",
+//                                                            "Failed loading saved data",
+//                                                            "Stored data cannot be loaded.",
+//                                                            "warning.json",
+//                                                            R.color.colorRedDark
+//                                                        ) {}
+//
+//                                                        return@launch
+//                                                    }
+//
+//                                                    // 2️⃣ Build JSON using savedPanen
+//                                                    val jsonMap = mapOf(
+//                                                        "id" to savedPanen.id,
+//                                                        "tanggal" to savedPanen.date_created,
+//                                                        "jjg_json" to savedPanen.jjg_json,
+//                                                        "tipe" to savedPanen.jenis_panen,
+//                                                        "created_by_kp" to prefManager!!.idUserLogin.toString(),
+//                                                        "created_name_kp" to prefManager!!.nameUserLogin.toString(),
+//                                                        "created_date_kp" to savedPanen.date_created,
+//                                                        "nomor_pemanen" to (savedPanen.nomor_pemanen ?: 0),
+//                                                        "ancak" to (savedPanen.ancak ?: 0),
+//                                                        "asistensi" to savedPanen.asistensi,
+//                                                        "asistensi_dept" to (savedPanen.asistensi_dept ?: 0),
+//                                                        "asistensi_dept_nama" to (savedPanen.asistensi_dept_nama ?: ""),
+//                                                        "asistensi_divisi" to (savedPanen.asistensi_divisi ?: 0),
+//                                                        "kemandoran_id" to savedPanen.kemandoran_id,
+//                                                        "karyawan_id" to savedPanen.karyawan_id,
+//                                                        "karyawan_nik" to savedPanen.karyawan_nik,
+//                                                        "foto" to savedPanen.foto,
+//                                                        "komentar" to savedPanen.komentar,
+//                                                        "lat" to savedPanen.lat,
+//                                                        "lon" to savedPanen.lon,
+//                                                        "status_banjir" to savedPanen.status_banjir
+//                                                    )
+//
+//                                                    val jsonString = Gson().toJson(jsonMap)
+//
+//                                                    // 3️⃣ Save JSON → Create ZIP → Clear temp
+//                                                    AppUtils.savePanenJson(
+//                                                        this@FeaturePanenTBSActivity,
+//                                                        "panen_$insertedId",
+//                                                        jsonString
+//                                                    )
+//
+//                                                    AppUtils.createPanenZip(this@FeaturePanenTBSActivity)
+//                                                    AppUtils.clearTempPanen(this@FeaturePanenTBSActivity)
+//
+//                                                    resetFormAfterSaveData()
+//                                                }
+//
+//                                            }
+//                                        }
+//
+                                        is AppRepository.SaveResultPanen.Error -> {
                                             AlertDialogUtility.withSingleAction(
                                                 this@FeaturePanenTBSActivity,
-                                                "Kembali",
-                                                "TPH Tidak Ditemukan",
-                                                getString(R.string.al_no_tph_not_found_when_save),
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_failed_save_local),
+                                                "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
                                                 "warning.json",
                                                 R.color.colorRedDark
-                                            ) {
-                                                layoutTahunTanam.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                                                    View.VISIBLE
-                                                layoutTahunTanam.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
-                                                    "Silakan melakukan pemilihan ulang!"
-                                                layoutTahunTanam.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                                                    ContextCompat.getColor(
-                                                        this@FeaturePanenTBSActivity,
-                                                        R.color.colorRedDark
-                                                    )
-                                                layoutBlok.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                                                    View.VISIBLE
-                                                layoutBlok.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
-                                                    "Silakan melakukan pemilihan ulang!"
-                                                layoutBlok.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                                                    ContextCompat.getColor(
-                                                        this@FeaturePanenTBSActivity,
-                                                        R.color.colorRedDark
-                                                    )
-                                                layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
-                                                    View.VISIBLE
-                                                layoutNoTPH.findViewById<TextView>(R.id.tvErrorFormPanenTBS).text =
-                                                    "Silakan melakukan pemilihan ulang!"
-                                                layoutNoTPH.findViewById<MaterialCardView>(R.id.MCVSpinner).strokeColor =
-                                                    ContextCompat.getColor(
-                                                        this@FeaturePanenTBSActivity,
-                                                        R.color.colorRedDark
-                                                    )
-
-                                                val scPanen = findViewById<ScrollView>(R.id.scPanen)
-                                                scPanen.fullScroll(ScrollView.FOCUS_UP)
-                                            }
-
-                                            return@launch
+                                            ) {}
                                         }
-                                    }
-                                }
-
-                                val tph_id = selectedTPHValue?.toString() ?: ""
-                                val date_created = SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                ).format(Date())
-
-                                val result = withContext(Dispatchers.IO) {
-                                    if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
-                                        mutuBuahViewModel.saveDataMutuBuah(
-                                            tph_id = tph_id,
-                                            date_created = date_created,
-                                            foto = photoFilesString,
-                                            komentar = komentarFotoString ?: "",
-                                            lat = finalLat ?: 0.0,
-                                            lon = finalLon ?: 0.0,
-                                            info = infoApp ?: "",
-                                            nomorPemanenInput = nomorPemanenInput.toInt(),
-                                            jjgPanen = jumTBS,
-                                            jjgMasak = buahMasak,
-                                            jjgMentah = bMentah,
-                                            jjgLewatMasak = bLewatMasak,
-                                            jjgKosong = jjgKosong,
-                                            jjgSeranganTikus = seranganTikus,
-                                            jjgPanjang = tangkaiPanjang,
-                                            jjgTidakVcut = tidakVCut,
-                                            jjgBayar = tbsDibayar,
-                                            jjgKirim = kirimPabrik,
-                                            created_by = userId!!,
-                                            jjgAbnormal = abnormal,
-                                            foto_selfie = photoFilesSelfieString,
-                                            createdName = userName!!
-                                        )
-                                    } else {
-
-                                        val asistensiValue =
-                                            if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) 2 else (asistensi
-                                                ?: 0)
-
-                                        AppLogger.d("prefManager?.estateUserLogin ${prefManager?.estateUserLogin}")
-                                        panenViewModel.saveDataPanen(
-                                            tph_id = tph_id,
-                                            date_created = date_created,
-                                            created_by = userId!!,
-                                            karyawan_id = uniqueIdKaryawan,
-                                            kemandoran_id = uniqueKemandoranId,
-                                            karyawan_nik = uniqueNikPemanen,
-                                            karyawan_nama = uniqueNamaPemanen,
-                                            jjg_json = jjg_json,
-                                            foto = photoFilesString,
-                                            komentar = komentarFotoString ?: "",
-                                            asistensi = asistensiValue,
-                                            lat = finalLat ?: 0.0,
-                                            lon = finalLon ?: 0.0,
-                                            jenis_panen = selectedTipePanen.toIntOrNull() ?: 0,
-                                            ancakInput = ancakInput.toInt(),
-                                            nomorPemanenInput = nomorPemanenInput.toInt(),
-                                            info = infoApp ?: "",
-                                            archive = 0,
-                                            blokBanjir = blokBanjir,
-                                            asistensiDept = if (asistensiValue == 2) prefManager?.estateIdUserLogin?.toInt() else null,
-                                            asistensiDeptNama = if (asistensiValue == 2) prefManager?.estateUserLengkapLogin else null,
-                                            asistensiDivisi = if (asistensiValue == 2) prefManager?.afdelingIdUserLogin?.toIntOrNull() else null
-                                        )
-                                    }
-                                }
-
-                                when (result) {
-                                    is AppRepository.SaveResultPanen.Success,
-                                    is AppRepository.SaveResultMutuBuah.Success -> {
-                                        playSound(R.raw.berhasil_simpan)
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_success_save_local),
-                                            stringXML(R.string.al_description_success_save_local),
-                                            "success.json",
-                                            R.color.greenDefault
-                                        ) {
-                                            val tphId = selectedTPHValue!!.toInt()
-                                            val tphData = panenStoredLocal[tphId]
-
-                                            val currentWorkerNiks =
-                                                uniqueNikPemanen.split(",").map { it.trim() }
-                                                    .filter { it.isNotEmpty() }
-
-                                            if (tphData != null) {
-                                                val mergedNiks =
-                                                    (tphData.workerNiks + currentWorkerNiks).distinct()
-                                                panenStoredLocal[tphId] = tphData.copy(
-                                                    count = tphData.count + 1,
-                                                    workerNiks = mergedNiks,
-                                                    blokKode = selectedBlok,
-                                                    nomor = selectedTPH
-                                                )
-                                            } else {
-                                                // Create new entry
-                                                val jenisTPHId = selectedTPHJenisId ?: 0
-                                                val limitTPH =
-                                                    tphList.find { it.id == tphId }?.limit_tph
-
-                                                panenStoredLocal[tphId] = TPHData(
-                                                    count = 1,
-                                                    jenisTPHId = jenisTPHId,
-                                                    limitTPH = limitTPH,
-                                                    workerNiks = currentWorkerNiks,
-                                                    blokKode = selectedBlok,
-                                                    nomor = selectedTPH
-                                                )
-                                            }
-
-                                            resetFormAfterSaveData()
+    
+                                        is AppRepository.SaveResultMutuBuah.Error -> {
+                                            AlertDialogUtility.withSingleAction(
+                                                this@FeaturePanenTBSActivity,
+                                                stringXML(R.string.al_back),
+                                                stringXML(R.string.al_failed_save_local),
+                                                "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
+                                                "warning.json",
+                                                R.color.colorRedDark
+                                            ) {}
                                         }
+    
+    
                                     }
-
-                                    is AppRepository.SaveResultPanen.Error -> {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_failed_save_local),
-                                            "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {}
-                                    }
-
-                                    is AppRepository.SaveResultMutuBuah.Error -> {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@FeaturePanenTBSActivity,
-                                            stringXML(R.string.al_back),
-                                            stringXML(R.string.al_failed_save_local),
-                                            "${stringXML(R.string.al_description_failed_save_local)} : ${result.exception.message}",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {}
-                                    }
-
-
+    
+                                } catch (e: Exception) {
+                                    AppLogger.d("Unexpected error: ${e.message}")
+    
+                                    AlertDialogUtility.withSingleAction(
+                                        this@FeaturePanenTBSActivity,
+                                        stringXML(R.string.al_back),
+                                        stringXML(R.string.al_failed_save_local),
+                                        "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {}
                                 }
-
-                            } catch (e: Exception) {
-                                AppLogger.d("Unexpected error: ${e.message}")
-
-                                AlertDialogUtility.withSingleAction(
-                                    this@FeaturePanenTBSActivity,
-                                    stringXML(R.string.al_back),
-                                    stringXML(R.string.al_failed_save_local),
-                                    "${stringXML(R.string.al_description_failed_save_local)} : ${e.message}",
-                                    "warning.json",
-                                    R.color.colorRedDark
-                                ) {}
+    
                             }
-
+                        },
+                        cancelFunction = {
                         }
-                    },
-                    cancelFunction = {
-                    }
-                )
+                    )
+                }
             }
-        }
 
         initializeMapView()
         setupDownloadOfflineMap()
@@ -7487,19 +7592,283 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         return selectedTPHIdByScan
     }
 
-    private fun showErrorDialog(errorMessage: String) {
-        AppLogger.d("Showing error dialog with message: $errorMessage")
-        AlertDialogUtility.withSingleAction(
-            this@FeaturePanenTBSActivity,
-            stringXML(R.string.al_back),
-            stringXML(R.string.al_failed_fetch_data),
-            "${stringXML(R.string.al_failed_fetch_data_desc)}, $errorMessage",
-            "warning.json",
-            R.color.colorRedDark
-        ) {
-//            dialog.dismiss()  // Dismiss the download progress dialog
+    private fun handleAfterSave(
+        jsonString: String,
+        photosList: List<Map<String, String>>,
+        dateCreated: String
+    ) {
+        AppUtils.createAndSaveZipUpload(
+            context = this,
+            jsonData = jsonString,
+            userId = prefManager!!.idUserLogin.toString(),
+            featureType = featureName ?: "",
+            photosList = photosList,
+            usePublicCMPStorage = true,
+            estateName = prefManager!!.estateUserLogin
+        ) { success, fileName, path, fileObj ->
+
+            if (success) {
+                playSound(R.raw.berhasil_simpan)
+
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    stringXML(R.string.al_success_save_local),
+                    stringXML(R.string.al_description_success_save_local),
+                    "success.json",
+                    R.color.greenDefault
+                ) {
+                    resetFormAfterSaveData()
+                }
+            }
         }
     }
+
+    private suspend fun saveJsonPanen(id: Long, date_created:String): String? {
+        val saved = panenViewModel.getPanenById(id)
+
+        val panen = saved!!.panen
+        val tph = saved!!.tph
+
+        if (panen == null) {
+            AlertDialogUtility.withSingleAction(
+                this,
+                "Error",
+                "Failed loading saved data",
+                "Stored data cannot be loaded.",
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+            return null
+        }
+
+        val basePath = try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+            val date = inputFormat.parse(date_created)
+            val formattedDate = outputFormat.format(date ?: Date())
+            "$formattedDate${prefManager!!.estateUserLogin}/"
+        } catch (e: Exception) {
+            AppLogger.e("Failed to parse date_created: ${e.message}")
+            "${prefManager!!.estateUserLogin}/"
+        }
+
+        val kemandoranId = prefManager!!.kemandoranUserLogin.toString()
+        val kemandoranPPRO =
+            prefManager!!.kemandoranPPROUserLogin.toString()
+        val kemandoranKode =
+            prefManager!!.kemandoranKodeUserLogin.toString()
+        val kemandoranNama =
+            prefManager!!.kemandoranNamaUserLogin.toString()
+
+        val pemanen = mutableListOf<Map<String, String>>()
+        val nikList =
+            panen.karyawan_nik?.split(",")
+                ?: listOf()
+        val namaList =
+            panen.karyawan_nama?.split(",")
+                ?: listOf()
+
+        for (i in nikList.indices) {
+            if (i < namaList.size) {
+                pemanen.add(
+                    mapOf(
+                        "nik" to nikList[i].trim(),
+                        "nama" to namaList[i].trim()
+                    )
+                )
+            } else {
+                pemanen.add(
+                    mapOf(
+                        "nik" to nikList[i].trim(),
+                        "nama" to ""
+                    )
+                )
+            }
+        }
+        val kemandoranJsonMap = mutableMapOf<String, Any>()
+        kemandoranJsonMap["id"] = kemandoranPPRO.toIntOrNull() ?: 0
+        kemandoranJsonMap["kode"] = kemandoranKode
+        kemandoranJsonMap["nama"] = kemandoranNama
+        kemandoranJsonMap["pemanen"] = pemanen
+
+        val kemandoranJson = listOf(kemandoranJsonMap)
+        val kemandoranJsonString = Gson().toJson(kemandoranJson)
+        val jumlahPemanen = pemanen.size
+        val originalFotoString = panen.foto ?: ""
+        val modifiedFotoString =
+            if (originalFotoString.contains(";")) {
+                originalFotoString.split(";")
+                    .map { photoName -> "$basePath${photoName.trim()}" }
+                    .joinToString(";")
+            } else if (originalFotoString.isNotEmpty()) {
+                "$basePath$originalFotoString"
+            } else {
+                ""
+            }
+
+        val jsonMap = mapOf(
+            "id" to panen.id,
+            "tanggal" to panen.date_created,
+            "jjg_json" to panen.jjg_json,
+            "tipe" to panen.jenis_panen,
+            "created_by_kp" to prefManager!!.idUserLogin.toString(),
+            "created_name_kp" to prefManager!!.nameUserLogin.toString(),
+            "created_date_kp" to panen.date_created,
+            "jabatan" to prefManager!!.jabatanUserLogin.toString(),
+            "regional" to tph?.regional.toString(),
+            "wilayah" to tph?.wilayah.toString(),
+            "company" to tph?.company.toString(),
+            "company_abbr" to tph?.company_abbr.toString(),
+            "company_nama" to tph?.company_nama.toString(),
+            "dept" to tph?.dept.toString(),
+            "dept_ppro" to tph?.dept_ppro.toString(),
+            "dept_abbr" to tph?.dept_abbr.toString(),
+            "dept_nama" to tph?.dept_nama.toString(),
+            "divisi" to tph?.divisi.toString(),
+            "divisi_abbr" to tph?.divisi_abbr.toString(),
+            "divisi_ppro" to tph?.divisi_ppro.toString(),
+            "divisi_nama" to tph?.divisi_nama.toString(),
+            "blok" to tph?.blok.toString(),
+            "blok_ppro" to tph?.blok_ppro.toString(),
+            "blok_kode" to tph?.blok_kode.toString(),
+            "blok_nama" to tph?.blok_nama.toString(),
+            "tph" to (tph?.id ?: 0),
+            "tph_nomor" to (tph?.nomor ?: ""),
+            "nomor_pemanen" to (panen.nomor_pemanen ?: ""),
+            "ancak" to panen.ancak,
+            "asistensi" to panen.asistensi,
+            "asistensi_dept" to (panen.asistensi_dept ?: 0),
+            "asistensi_dept_nama" to (panen.asistensi_dept_nama ?: ""),
+            "asistensi_divisi" to (panen.asistensi_divisi ?: 0),
+            "kemandoran_id" to panen.kemandoran_id,
+            "karyawan_id" to panen.karyawan_id,
+            "karyawan_nik" to panen.karyawan_nik,
+            "foto" to modifiedFotoString,
+            "komentar" to panen.komentar,
+            "lat" to panen.lat,
+            "lon" to panen.lon,
+            "status_banjir" to panen.status_banjir,
+            "app_version" to AppUtils.getDeviceInfo(this@FeaturePanenTBSActivity).toString(),
+            "kemandoran_user" to kemandoranNama,
+            "kemandoran_user_kode" to kemandoranKode,
+            "kemandoran_user_id" to kemandoranId,
+            "kemandoran_ppro" to kemandoranPPRO,
+            "kemandoran" to kemandoranJsonString,
+            "jumlah_pemanen" to jumlahPemanen,
+            "restan" to 0,
+            "status_espb" to 0
+        )
+
+        return Gson().toJson(jsonMap)
+    }
+
+    private suspend fun saveJsonMutuBuah(id: Long, date_created: String): String? {
+        val saved = mutuBuahViewModel.getMutuBuahById(id)
+
+        if (saved == null) {
+            AlertDialogUtility.withSingleAction(
+                this,
+                "Error",
+                "Failed loading saved data",
+                "Stored data cannot be loaded.",
+                "warning.json",
+                R.color.colorRedDark
+            ) {}
+            return null
+        }
+
+        // -----------------------------
+        // Convert datetime → yyyy/MM/dd/
+        // -----------------------------
+        val basePath = try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy/MM/dd/", Locale.getDefault())
+            val date = inputFormat.parse(date_created)
+            val formattedDate = outputFormat.format(date ?: Date())
+            "$formattedDate${prefManager!!.estateUserLogin}/"
+        } catch (e: Exception) {
+            AppLogger.e("Failed to parse date_created: ${e.message}")
+            "${prefManager!!.estateUserLogin}/"
+        }
+
+        val originalFotoString = saved.foto
+        val modifiedFotoString = if (originalFotoString.contains(";")) {
+            originalFotoString.split(";")
+                .map { photoName -> "$basePath${photoName.trim()}" }
+                .joinToString(";")
+        } else if (originalFotoString.isNotEmpty()) {
+            "$basePath$originalFotoString"
+        } else {
+            ""
+        }
+
+        // Process foto_selfie with path
+        val originalSelfieString = saved.foto_selfie
+        val modifiedSelfieString = if (originalSelfieString.contains(";")) {
+            originalSelfieString.split(";")
+                .map { photoName -> "$basePath${photoName.trim()}" }
+                .joinToString(";")
+        } else if (originalSelfieString.isNotEmpty()) {
+            "$basePath$originalSelfieString"
+        } else {
+            ""
+        }
+        val jsonMap = mapOf(
+            "id" to saved.id,
+            "tanggal" to saved.tanggal,
+            "regional" to saved.regional,
+            "wilayah" to saved.wilayah,
+            "company" to saved.company,
+            "company_abbr" to saved.companyAbbr,
+            "company_nama" to saved.companyNama,
+            "dept" to saved.dept,
+            "dept_ppro" to saved.deptPpro,
+            "dept_abbr" to saved.deptAbbr,
+            "dept_nama" to saved.deptNama,
+            "divisi" to saved.divisi,
+            "divisi_ppro" to saved.divisiPpro,
+            "divisi_abbr" to saved.divisiAbbr,
+            "divisi_nama" to saved.divisiNama,
+            "blok" to saved.blok,
+            "blok_ppro" to saved.blokPpro,
+            "blok_kode" to saved.blokKode,
+            "blok_nama" to saved.blokNama,
+            "tph" to saved.tph,
+            "tph_nomor" to saved.tphNomor,
+            "kemandoran" to saved.kemandoran,
+            "jumlah_pemanen" to saved.jumlahPemanen,
+            "nomor_pemanen" to saved.nomorPemanen,
+            "jjg_panen" to saved.jjgPanen,
+            "jjg_masak" to saved.jjgMasak,
+            "jjg_mentah" to saved.jjgMentah,
+            "jjg_lewat_masak" to saved.jjgLewatMasak,
+            "jjg_kosong" to saved.jjgKosong,
+            "jjg_abnormal" to saved.jjgAbnormal,
+            "jjg_serangan_tikus" to saved.jjgSeranganTikus,
+            "jjg_panjang" to saved.jjgPanjang,
+            "jjg_tidak_vcut" to saved.jjgTidakVcut,
+            "jjg_bayar" to saved.jjgBayar,
+            "jjg_kirim" to saved.jjgKirim,
+            "created_by" to saved.createdBy,
+            "created_name" to saved.createdName,
+            "created_date" to saved.createdDate,
+            "updated_by" to saved.updatedBy,
+            "updated_name" to saved.updatedName,
+            "updated_date" to saved.updatedDate,
+            "history" to saved.history,
+            "foto" to modifiedFotoString,
+            "foto_selfie" to modifiedSelfieString,
+            "komentar" to saved.komentar,
+            "app_version" to saved.appVersion,
+            "status_data_panen" to saved.statusDataPanen,
+            "lat" to saved.lat,
+            "lon" to saved.lon
+        )
+
+        return Gson().toJson(jsonMap)
+    }
+
 
 
     @SuppressLint("MissingSuperCall")

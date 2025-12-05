@@ -64,4 +64,7 @@ interface MutuBuahDao {
     ): Int
 
 
+    @Query("SELECT * FROM mutu_buah WHERE id = :id LIMIT 1")
+     suspend fun getMutuBuahById(id: Long): MutuBuahEntity?
+
 }

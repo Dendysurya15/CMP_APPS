@@ -63,6 +63,11 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
         return count
     }
 
+    suspend fun getMutuBuahById(id: Long): MutuBuahEntity? {
+        return repository.getMutuBuahById(id)
+    }
+
+
     suspend fun saveDataMutuBuah(
         tph_id: String,
         date_created: String,
@@ -224,10 +229,9 @@ class MutuBuahViewModel(application: Application) : AndroidViewModel(application
             )
 
             AppLogger.d("Saving MutuBuah entity to database...")
-            repository.saveMutuBuah(mutuBuahEntity)
-            AppLogger.d("MutuBuah saved successfully")
+            val insertedId = repository.saveMutuBuah(mutuBuahEntity)
+            return AppRepository.SaveResultMutuBuah.Success(insertedId)
 
-            AppRepository.SaveResultMutuBuah.Success
         } catch (e: Exception) {
             AppLogger.e("Error saving MutuBuah: ${e.message}", e.toString())
             AppRepository.SaveResultMutuBuah.Error(e)

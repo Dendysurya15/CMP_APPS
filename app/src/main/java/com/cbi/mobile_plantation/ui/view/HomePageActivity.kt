@@ -3436,10 +3436,8 @@ class HomePageActivity : AppCompatActivity() {
                                     )
                                 }
 
-                                AppLogger.d("masuk siini co")
                             } else if (panenESPBMandor1Asisten.isNotEmpty()) {
 
-                                AppLogger.d("masuk gak sih co")
                                 val espbMap = parseEspbEntries(espbList)
 
                                 mappedPanenData =
@@ -5879,7 +5877,6 @@ class HomePageActivity : AppCompatActivity() {
                             uploadDataList.add(AppUtils.DatabaseTables.MUTU_BUAH to unzippedMutuBuah)
                         }
 
-                        AppLogger.d("uploadDataList $uploadDataList")
                         if (uploadDataList.isNotEmpty()) {
 
                             lifecycleScope.launch(Dispatchers.IO) {

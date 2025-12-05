@@ -538,6 +538,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun getPanenById(id: Long): PanenEntityWithRelations? {
+        return repository.getPanenById(id)
+    }
+
     fun archivePanenById(id: Int) {
         viewModelScope.launch {
             repository.archivePanenById(id)
@@ -625,8 +629,10 @@ class PanenViewModel(application: Application) : AndroidViewModel(application) {
                 asistensi_dept_nama = asistensiDeptNama,
                 asistensi_divisi = asistensiDivisi
             )
-            repository.saveDataPanen(panenData)
-            AppRepository.SaveResultPanen.Success
+            val insertedId = repository.saveDataPanen(panenData)
+
+            // Return success + inserted ID
+            return AppRepository.SaveResultPanen.Success(insertedId)
         } catch (e: Exception) {
             AppRepository.SaveResultPanen.Error(e)
         }

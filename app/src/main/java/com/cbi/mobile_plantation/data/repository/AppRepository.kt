@@ -85,17 +85,21 @@ class AppRepository(context: Context) {
 
 
     sealed class SaveResultPanen {
-        object Success : SaveResultPanen()
+        data class Success(val id: Long) : SaveResultPanen()
         data class Error(val exception: Exception) : SaveResultPanen()
     }
 
     sealed class SaveResultMutuBuah {
-        object Success : SaveResultMutuBuah()
+        data class Success(val id: Long) : SaveResultMutuBuah()
         data class Error(val exception: Exception) : SaveResultMutuBuah()
     }
 
-    suspend fun saveDataPanen(data: PanenEntity) {
-        panenDao.insert(data)
+    suspend fun saveDataPanen(data: PanenEntity): Long {
+        return panenDao.insert(data)
+    }
+
+    suspend fun getPanenById(id: Long): PanenEntityWithRelations? {
+        return panenDao.getPanenById(id)
     }
 
     suspend fun insertInspectionData(inspectionData: InspectionModel): Long {
@@ -275,8 +279,8 @@ class AppRepository(context: Context) {
     }
 
 
-    suspend fun saveMutuBuah(data: MutuBuahEntity) {
-        mutuBuahDao.insert(data)
+    suspend fun saveMutuBuah(data: MutuBuahEntity):Long {
+        return mutuBuahDao.insert(data)
     }
 
     suspend fun saveScanMPanen(
@@ -1603,6 +1607,10 @@ class AppRepository(context: Context) {
             AppLogger.e("Error loading MutuBuah: ${e.message}")
             0
         }
+    }
+
+    suspend fun getMutuBuahById(id: Long): MutuBuahEntity? {
+        return mutuBuahDao.getMutuBuahById(id)
     }
 
     suspend fun getESPBList(

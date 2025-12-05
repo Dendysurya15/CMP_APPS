@@ -46,6 +46,7 @@ import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.widget.ArrayAdapter
 import org.json.JSONObject
+import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -58,6 +59,7 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 object AppUtils {
 
@@ -350,8 +352,8 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//  return 50000F
+//        return prefManager?.radiusMinimum ?:15F
+        return 50000F
     }
 
     val listRadioItems: Map<String, Map<String, String>> = mapOf(
@@ -743,28 +745,110 @@ object AppUtils {
             onResult(false, errorMessage, "", File(""))
         }
     }
+    fun findAllPhotos(context: Context, photoNames: List<String>): List<Map<String, String>> {
+        val result = mutableListOf<Map<String, String>>()
+
+        val picturesDirs = listOfNotNull(
+            context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            File(context.getExternalFilesDir(null)?.parent ?: "", "Pictures")
+        )
+
+        // Collect all CMP directories
+        val cmpDirectories = mutableListOf<File>()
+
+        for (picDir in picturesDirs) {
+            if (!picDir.exists() || !picDir.isDirectory) continue
+
+            // CMP-PANEN TPH
+            val cmpPanenDir = File(picDir, "CMP-PANEN TPH")
+            if (cmpPanenDir.exists() && cmpPanenDir.isDirectory)
+                cmpDirectories.add(cmpPanenDir)
+
+            // Other CMP folders
+            val others = picDir.listFiles { f ->
+                f.isDirectory && f.name.startsWith("CMP") && f.name != "CMP-PANEN TPH"
+            } ?: emptyArray()
+
+            cmpDirectories.addAll(others)
+        }
+
+        // Search photos
+        for (photoName in photoNames) {
+            val trimmed = photoName.trim()
+            if (trimmed.isEmpty()) continue
+
+            var found = false
+
+            for (cmpDir in cmpDirectories) {
+                val file = File(cmpDir, trimmed)
+                if (file.exists() && file.isFile) {
+                    result.add(
+                        mapOf(
+                            "path" to file.absolutePath,
+                            "name" to trimmed
+                        )
+                    )
+                    found = true
+                    break
+                }
+            }
+
+            // If not found, skip silently
+        }
+
+        return result
+    }
+
 
     fun createAndSaveZipUpload(
         context: Context,
         jsonData: String,
         userId: String,
-        featureType: String, // e.g., "hektaran", "absensi"
-        photosList: List<Map<String, String>> = emptyList(), // Optional parameter for photos, default is empty
+        featureType: String,
+        photosList: List<Map<String, String>> = emptyList(),
+        customOutputDir: File? = null,
+        usePublicCMPStorage: Boolean = false,
+        estateName: String? = null,   // << NEW PARAMETER
         onResult: (Boolean, String, String, File) -> Unit
     ) {
         try {
+
+            val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
 
-            val appFilesDir = File(context.getExternalFilesDir(null), "Upload").apply {
-                if (!exists()) mkdirs()
+            // ---------------------------
+            // 1. DETERMINE FINAL OUTPUT DIR
+            // ---------------------------
+
+            val outputDir: File = when {
+                customOutputDir != null -> {
+
+                    customOutputDir
+                }
+
+                usePublicCMPStorage -> {
+                    val publicDir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                        "CMP/${featureType}/${dateStr}"
+                    )
+                    publicDir.apply { if (!exists()) mkdirs() }
+                }
+
+                else -> {
+                    val defaultDir = File(context.getExternalFilesDir(null), "Upload")
+
+                    defaultDir.apply { if (!exists()) mkdirs() }
+                }
             }
 
-            // Dynamic filename based on feature type
-            val zipFileName = "${userId}_${featureType}_${dateTime}.zip"
-            val zipFile = File(appFilesDir, zipFileName)
-
+            val zipFileName = if (!estateName.isNullOrBlank()) {
+                "${userId}_${estateName}_${featureType}_${dateTime}.zip"
+            } else {
+                "${userId}_${featureType}_${dateTime}.zip"
+            }
+            val zipFile = File(outputDir, zipFileName)
             val zip = ZipFile(zipFile)
-            zip.setPassword(ZIP_PASSWORD.toCharArray())
+            zip.setPassword("CBI@2025".toCharArray())
 
             val zipParams = ZipParameters().apply {
                 compressionMethod = CompressionMethod.DEFLATE
@@ -772,47 +856,47 @@ object AppUtils {
                 encryptionMethod = EncryptionMethod.ZIP_STANDARD
             }
 
-            // Add json data with the complete nested structure
-            // The featureType determines the folder name in the ZIP
-            val dataInputStream = ByteArrayInputStream(jsonData.toByteArray())
             zip.addStream(
-                dataInputStream,
+                ByteArrayInputStream(jsonData.toByteArray()),
                 zipParams.apply { fileNameInZip = "${featureType}/data.json" }
             )
 
-            // If photo list is provided, add all photos to the zip
+            // ---------------------------
+            // 4. ADD PHOTOS
+            // ---------------------------
             if (photosList.isNotEmpty()) {
-                AppLogger.d("Adding ${photosList.size} photos to ${featureType} zip")
+                AppLogger.d("ZIP → Adding ${photosList.size} photos")
 
-                for (photoData in photosList) {
-                    val photoPath = photoData["path"] ?: continue
-                    val photoName = photoData["name"] ?: continue
+                for (photo in photosList) {
+                    val path = photo["path"] ?: continue
+                    val name = photo["name"] ?: continue
 
-                    val photoFile = File(photoPath)
-                    if (photoFile.exists() && photoFile.isFile) {
-                        try {
-                            zipParams.fileNameInZip = "${featureType}/photos/$photoName"
-                            zip.addFile(photoFile, zipParams)
-                            AppLogger.d("Added photo to ${featureType} zip: $photoName")
-                        } catch (e: Exception) {
-                            AppLogger.e("Failed to add photo to ${featureType} zip: $photoName - ${e.message}")
-                        }
-                    } else {
-                        AppLogger.w("Photo file not found: $photoPath")
+                    AppLogger.d("ZIP → Adding photo: $name (path: $path)")
+
+                    val fileObj = File(path)
+                    if (!fileObj.exists()) {
+                        AppLogger.e("ZIP → PHOTO NOT FOUND: $path")
+                        continue
                     }
-                }
-            }
 
-            // Return the result using the callback
+                    zipParams.fileNameInZip = "$featureType/photos/$name"
+                    zip.addFile(fileObj, zipParams)
+                }
+            } else {
+                AppLogger.d("ZIP → No photos added")
+            }
+            // ---------------------------
+            // 5. CALLBACK RESULT
+            // ---------------------------
             onResult(true, zipFile.name, zipFile.absolutePath, zipFile)
 
         } catch (e: Exception) {
-            val errorMessage = "❌ Error creating encrypted ZIP file: ${e.message}"
-            AppLogger.e(errorMessage)
-            e.printStackTrace()
-            onResult(false, errorMessage, "", File(""))
+
+            onResult(false, "ZIP ERROR: ${e.message}", "", File(""))
         }
     }
+
+
 
     private fun addFeaturePhotosToZip(
         context: Context,

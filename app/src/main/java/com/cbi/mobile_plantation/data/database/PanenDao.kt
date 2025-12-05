@@ -31,6 +31,10 @@ abstract class PanenDao {
         }
     }
 
+    @Query("SELECT * FROM panen_table WHERE id = :id LIMIT 1")
+    abstract suspend fun getPanenById(id: Long): PanenEntityWithRelations?
+
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertBatch(entities: List<PanenEntity>): List<Long>
 
