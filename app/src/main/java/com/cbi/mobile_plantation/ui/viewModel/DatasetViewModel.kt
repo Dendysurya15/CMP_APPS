@@ -4342,7 +4342,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.add(Calendar.DAY_OF_YEAR, -3)
                 val sevenDaysAgoDate = calendar.time
                 val sevenDaysAgo = inputFormatter.format(sevenDaysAgoDate)
 
@@ -4522,7 +4522,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val todayDate = calendar.time
                 val today = inputFormatter.format(todayDate)
 
-                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.add(Calendar.DAY_OF_YEAR, -3)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 
@@ -4713,7 +4713,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                 val today = inputFormatter.format(calendar.time)
                 val todayDate = calendar.time
 
-                calendar.add(Calendar.DAY_OF_YEAR, -7)
+                calendar.add(Calendar.DAY_OF_YEAR, -3)
                 val sevenDaysAgo = inputFormatter.format(calendar.time)
                 val sevenDaysAgoDate = calendar.time
 

@@ -9058,6 +9058,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                     val tphId = tph.id ?: return@forEach
                                     val lat = tph.lat?.toDoubleOrNull()
                                     val lon = tph.lon?.toDoubleOrNull()
+
                                     if (lat != null && lon != null) {
                                         resultMap[tphId] = ScannedTPHLocation(
                                             lat,

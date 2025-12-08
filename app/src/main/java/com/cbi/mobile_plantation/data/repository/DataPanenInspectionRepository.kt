@@ -26,7 +26,7 @@ class DataPanenInspectionRepository(
 ){
 
     suspend fun getDataPanen(estate: Any): Response<ResponseBody> {
-        // Calculate date range - from yesterday to 7 days ago (excluding today)
+        // Calculate date range - from yesterday to 3 days ago (excluding today)
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val calendar = Calendar.getInstance()
 
@@ -37,14 +37,14 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.MILLISECOND, 999)
         val endDate = formatter.format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, -7)
+        calendar.add(Calendar.DAY_OF_YEAR, -3)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
         val startDate = formatter.format(calendar.time)
 
-        AppLogger.d("Date range: $startDate to $endDate (7 days, excluding today)")
+        AppLogger.d("Date range: $startDate to $endDate (3 days, excluding today)")
         AppLogger.d("estate $estate")
 
         // Helper function to build estate condition
@@ -282,7 +282,7 @@ class DataPanenInspectionRepository(
         calendar.set(Calendar.SECOND, 59)
         val today = formatter.format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, -7)
+        calendar.add(Calendar.DAY_OF_YEAR, -3)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
