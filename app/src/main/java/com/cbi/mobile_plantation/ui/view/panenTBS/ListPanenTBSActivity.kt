@@ -26,6 +26,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -123,6 +124,7 @@ import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -225,6 +227,13 @@ class ListPanenTBSActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_ENABLE_BT = 1
     }
+
+    data class DeleteInfo(
+        val createdId: String,
+        val tphId: String,
+        val dateStr: String
+    )
+
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var shouldRestoreCheckboxState = false
@@ -5889,32 +5898,45 @@ class ListPanenTBSActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleDelete(selectedItems: List<Map<String, Any>>) {
+    private fun handleDelete(deleteList: List<DeleteInfo>) {
         this.vibrate()
+
         AlertDialogUtility.withTwoActions(
             this,
             getString(R.string.al_delete),
             getString(R.string.confirmation_dialog_title),
-            "${getString(R.string.al_make_sure_delete)} ${selectedItems.size} data?",
+            "${getString(R.string.al_make_sure_delete)} ${deleteList.size} data?",
             "warning.json",
             ContextCompat.getColor(this, R.color.colorRedDark),
             function = {
+
                 loadingDialog.show()
                 loadingDialog.setMessage("Deleting items...")
 
-                panenViewModel.deleteMultipleItems(selectedItems)
+                // Convert DeleteInfo to the format ViewModel expects
+                val itemsForDelete: List<Map<String, Any>> = deleteList.map {
+                    mapOf("id" to it.createdId.toInt())
+                }
 
-                // Observe delete result
+                // DELETE from database
+                panenViewModel.deleteMultipleItems(itemsForDelete)
+
+                // DELETE related ZIPs (silent, no popup)
+                deleteZipsFromStorage(deleteList)
+
+                // Observe delete success
                 panenViewModel.deleteItemsResult.observe(this) { isSuccess ->
                     loadingDialog.dismiss()
+
                     if (isSuccess) {
                         playSound(R.raw.data_terhapus)
                         Toast.makeText(
                             this,
-                            "${getString(R.string.al_success_delete)} ${selectedItems.size} data",
+                            "${getString(R.string.al_success_delete)} ${deleteList.size} data",
                             Toast.LENGTH_SHORT
                         ).show()
-                        // Reload data based on current state
+
+                        // 🔥 OLD BEHAVIOR RESTORED: reload lists
                         if (currentState == 0) {
                             panenViewModel.loadTPHNonESPB(0, 0, true, 0, globalFormattedDate)
                             panenViewModel.countTPHNonESPB(0, 0, true, 0, globalFormattedDate)
@@ -5922,6 +5944,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         } else {
                             panenViewModel.loadArchivedPanen()
                         }
+
                     } else {
                         Toast.makeText(
                             this,
@@ -5930,24 +5953,78 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         ).show()
                     }
 
-                    // Reset UI state
+                    // 🔥 Reset UI state (OLD FLOW)
                     val headerCheckBox = findViewById<ConstraintLayout>(R.id.tableHeader)
                         .findViewById<CheckBox>(R.id.headerCheckBoxPanen)
                     headerCheckBox.isChecked = false
+
                     listAdapter.clearSelections()
                     speedDial.visibility = View.GONE
                 }
 
                 // Observe errors
-                panenViewModel.error.observe(this) { errorMessage ->
+                panenViewModel.error.observe(this) { message ->
                     loadingDialog.dismiss()
-                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                 }
             }
-        ) {
+        ) {}
+    }
 
+
+
+    private fun deleteZipsFromStorage(deleteList: List<DeleteInfo>) {
+
+        val userId = prefManager!!.idUserLogin
+        val estateName = prefManager!!.estateUserLogin
+
+        val cmpRoot = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+            "CMP"
+        )
+
+        if (!cmpRoot.exists()) {
+            AppLogger.e("CMP root folder does NOT exist!")
+            return
+        }
+
+        // List all top-level feature folders inside CMP
+        val featureFolders = cmpRoot.listFiles { file -> file.isDirectory } ?: emptyArray()
+        AppLogger.d("CMP folders = ${featureFolders.joinToString { it.name }}")
+
+        for (info in deleteList) {
+
+            featureFolders.forEach { featureFolder ->
+
+                val dateFolder = File(featureFolder, info.dateStr)
+
+                // 🔥 FIX: silently SKIP if date folder doesn't exist
+                if (!dateFolder.exists()) {
+                    return@forEach
+                }
+
+                // Now only folders with the correct date are processed
+                val prefix = "${userId}_${estateName}_${featureFolder.name}_${info.createdId}_${info.tphId}_"
+
+                val zipFiles = dateFolder.listFiles { file ->
+                    file.name.startsWith(prefix) && file.name.endsWith(".zip")
+                } ?: emptyArray()
+
+                if (zipFiles.isEmpty()) {
+                    AppLogger.d("No ZIP found matching prefix: $prefix in ${dateFolder.path}")
+                    return@forEach
+                }
+
+                zipFiles.forEach { zip ->
+                    val deleted = zip.delete()
+                    AppLogger.d("✔ Deleted ZIP: ${zip.name} | success=$deleted")
+                }
+            }
         }
     }
+
+
+
 
 
     private fun setupSpeedDial() {
@@ -5998,9 +6075,21 @@ class ListPanenTBSActivity : AppCompatActivity() {
 //
                     R.id.deleteSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()
-                        handleDelete(selectedItems)
+
+                        val deleteList = selectedItems.map { item ->
+                            val createdId = item["id"].toString()
+                            val tphId = item["tph_id"].toString()
+
+                            val dateCreated = item["date_created"].toString()
+                            val dateStr = dateCreated.substring(0, 10).replace("-", "")
+
+                            DeleteInfo(createdId, tphId, dateStr)
+                        }
+
+                        handleDelete(deleteList)
                         true
                     }
+
 
                     R.id.uploadSelected -> {
                         val selectedItems = listAdapter.getSelectedItems()

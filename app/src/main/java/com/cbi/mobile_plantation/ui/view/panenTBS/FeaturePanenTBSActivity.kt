@@ -976,7 +976,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             handleAfterSave(
                                                 jsonString = json,
                                                 photosList = resolvedPhotos,
-                                                dateCreated = date_created
+                                                dateCreated = date_created,
+                                                createdId = insertedId,
+                                                tphId = tph_id
                                             )
                                         }
                                     }
@@ -1002,7 +1004,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                             handleAfterSave(
                                                 jsonString = json,
                                                 photosList = mergedPhotos,
-                                                dateCreated = date_created
+                                                dateCreated = date_created,
+                                                createdId = insertedId,
+                                                tphId = tph_id
                                             )
                                         }
                                     }
@@ -7612,7 +7616,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun handleAfterSave(
         jsonString: String,
         photosList: List<Map<String, String>>,
-        dateCreated: String
+        dateCreated: String,
+        createdId :Long,
+        tphId :String,
     ) {
         AppUtils.createAndSaveZipUpload(
             context = this,
@@ -7621,7 +7627,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             featureType = featureName ?: "",
             photosList = photosList,
             usePublicCMPStorage = true,
-            estateName = prefManager!!.estateUserLogin
+            estateName = prefManager!!.estateUserLogin,
+            createdId = createdId,
+            tphId =tphId
         ) { success, fileName, path, fileObj ->
 
             if (success) {

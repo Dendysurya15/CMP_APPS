@@ -1551,21 +1551,28 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
     fun getSelectedItems(): List<Map<String, Any>> {
         AppLogger.d("=== getSelectedItems START ===")
+
         val result = mutableListOf<Map<String, Any>>()
 
-        // Get manually selected items
+        AppLogger.d("SelectedItems (manual positions): $selectedItems")
+        AppLogger.d("ManuallyDeselectedItems (positions): $manuallyDeselectedItems")
+        AppLogger.d("isRestoringFromPrevious: $isRestoringFromPrevious")
+        AppLogger.d("tphListScan: $tphListScan")
+
+        // --- MANUAL SELECTIONS ---
         for (position in selectedItems) {
-            tphList.getOrNull(position)?.let {
-                AppLogger.d("Adding manually selected item at position $position")
-                result.add(it)
+            tphList.getOrNull(position)?.let { item ->
+                AppLogger.d("✔ MANUAL selected at pos=$position → id=${item["id"]}")
+                result.add(item)
             }
         }
 
-        // Add scanned items if they haven't been manually deselected
+        // --- SCANNED SELECTIONS ---
         for (i in tphList.indices) {
             if (!manuallyDeselectedItems.contains(i) && !selectedItems.contains(i)) {
+
                 val item = tphList[i]
-                val isScannedMatch = if (isRestoringFromPrevious) {
+                val scannedMatch = if (isRestoringFromPrevious) {
                     val panenId = item["id"]?.toString() ?: ""
                     tphListScan.contains(panenId)
                 } else {
@@ -1573,16 +1580,25 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     tphListScan.contains(tphId)
                 }
 
-                if (isScannedMatch) {
-                    AppLogger.d("Adding scanned item at index $i")
+                if (scannedMatch) {
+                    AppLogger.d("✔ SCANNED selected at pos=$i → id=${item["id"]}")
                     result.add(item)
                 }
             }
         }
 
-        AppLogger.d("getSelectedItems final result.size: ${result.size}")
-        return result.distinct()
+        val finalList = result.distinct()
+
+        AppLogger.d("=== FINAL SELECTED ITEMS (${finalList.size}) ===")
+        finalList.forEachIndexed { index, item ->
+            AppLogger.d("[$index] id=${item["id"]}, data=$item")
+        }
+
+        AppLogger.d("=== getSelectedItems END ===")
+
+        return finalList
     }
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListPanenTPHViewHolder {
         val binding = TableItemRowBinding.inflate(

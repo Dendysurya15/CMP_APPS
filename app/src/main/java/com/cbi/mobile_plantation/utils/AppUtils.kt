@@ -808,10 +808,12 @@ object AppUtils {
         photosList: List<Map<String, String>> = emptyList(),
         customOutputDir: File? = null,
         usePublicCMPStorage: Boolean = false,
-        estateName: String? = null,   // << NEW PARAMETER
+        estateName: String? = null,
+        createdId: Long?=null,     // NEW
+        tphId: String?=null,         // NEW
         onResult: (Boolean, String, String, File) -> Unit
-    ) {
-        try {
+    ){
+    try {
 
             val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
             val dateTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
@@ -842,10 +844,11 @@ object AppUtils {
             }
 
             val zipFileName = if (!estateName.isNullOrBlank()) {
-                "${userId}_${estateName}_${featureType}_${dateTime}.zip"
+                "${userId}_${estateName}_${featureType}_${createdId}_${tphId}_${dateTime}.zip"
             } else {
-                "${userId}_${featureType}_${dateTime}.zip"
+                "${userId}_${featureType}_${createdId}_${tphId}_${dateTime}.zip"
             }
+
             val zipFile = File(outputDir, zipFileName)
             val zip = ZipFile(zipFile)
             zip.setPassword("CBI@2025".toCharArray())

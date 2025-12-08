@@ -3217,21 +3217,21 @@ class HomePageActivity : AppCompatActivity() {
                                         )
                                         val date = dateFormat.parse(createdDate)
                                         val outputFormat = SimpleDateFormat(
-                                            "yyyy/MM/dd/",
+                                            "yyyy/MM/dd",
                                             Locale.getDefault()
                                         )
                                         outputFormat.format(date ?: Date())
                                     } catch (e: Exception) {
                                         AppLogger.e("Error formatting date: ${e.message}")
                                         val outputFormat = SimpleDateFormat(
-                                            "yyyy/MM/dd/",
+                                            "yyyy/MM/dd",
                                             Locale.getDefault()
                                         )
                                         outputFormat.format(Date())
                                     }
 
                                     val basePathImage =
-                                        formattedDate + prefManager!!.estateUserLogin
+                                        "$formattedDate/" + prefManager!!.estateUserLogin
 
                                     for (photoName in photoNames) {
                                         val trimmedName = photoName.trim()
@@ -4742,14 +4742,14 @@ class HomePageActivity : AppCompatActivity() {
                                     )
                                     val date = dateFormat.parse(createdDate)
                                     val outputFormat = SimpleDateFormat(
-                                        "yyyy/MM/dd/",
+                                        "yyyy/MM/dd",
                                         Locale.getDefault()
                                     )
                                     outputFormat.format(date ?: Date())
                                 } catch (e: Exception) {
                                     AppLogger.e("Error formatting date: ${e.message}")
                                     val outputFormat = SimpleDateFormat(
-                                        "yyyy/MM/dd/",
+                                        "yyyy/MM/dd",
                                         Locale.getDefault()
                                     )
                                     outputFormat.format(Date())
