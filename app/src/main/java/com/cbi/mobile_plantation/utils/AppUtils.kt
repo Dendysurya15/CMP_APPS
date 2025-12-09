@@ -79,7 +79,7 @@ object AppUtils {
     const val half_json_encrypted = "5nqHzPKdlILxS9ABpClq"
     const val CLOSEST_PEMANEN_RADIUS = 450.0
 
-    const val LOCATION_USER_UPDATE_INTERVAL = 1000L // 3 seconds
+    const val LOCATION_USER_UPDATE_INTERVAL = 100L
 
     object UploadStatusUtils {
         const val WAITING = "Menunggu"

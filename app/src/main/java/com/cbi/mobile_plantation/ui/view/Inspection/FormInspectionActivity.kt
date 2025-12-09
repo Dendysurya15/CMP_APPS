@@ -1,6 +1,6 @@
 package com.cbi.mobile_plantation.ui.view.Inspection
 
-import PulsingUserLocationOverlay
+import com.cbi.mobile_plantation.utils.PulsingUserLocationOverlay
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -230,6 +230,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var btnDownloadMapPanenOffline: MaterialButton
     private var prefManager: PrefManager? = null
     var selectedKemandoranId = 0
+//    private var radiusMinimum = 5000F
+//    private var boundaryAccuracy = 5000F
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
     private var featureName: String? = null
@@ -388,6 +390,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var allAvailableKaryawanList: List<KaryawanInfo> = emptyList()
     private var allManualKaryawanList: List<KaryawanInfo> = emptyList()
     private lateinit var selectedPemanenAdapter: SelectedWorkerAdapter // For automatic
+    //    private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
     private lateinit var selectedPemanenManualAdapter: SelectedWorkerAdapter // For manual
     private lateinit var selectedPemuatAdapter: SelectedWorkerAdapter
     private var allPemuatEmployees: List<KaryawanModel> = emptyList()
@@ -457,7 +460,17 @@ open class FormInspectionActivity : AppCompatActivity(),
     private val LOCATION_SETTINGS_REQUEST_CODE = 1001
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationRequest: com.google.android.gms.location.LocationRequest
-    private var locationCallback: LocationCallback? = null
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            locationResult.lastLocation?.let { location ->
+                val newGeoPoint = GeoPoint(location.latitude, location.longitude)
+                currentBearing = location.bearing
+
+//                // Immediately animate to new location
+//                updateUserLocationSmooth(newGeoPoint)
+            }
+        }
+    }
 
     // Add these new variables:
     private val locationCheckHandler = Handler(Looper.getMainLooper())
@@ -604,8 +617,8 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun createLocationRequest() {
         locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
-            interval = 5000 // Update every 5 seconds
-            fastestInterval = 2000 // Fastest update every 2 seconds
+            interval = 500 // Update every 5 seconds
+            fastestInterval = 1000 // Fastest update every 2 seconds
             priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
         }
     }
@@ -684,23 +697,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         ) {
             AppLogger.e("Location permission not granted")
             return
-        }
-
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                locationResult.lastLocation?.let { location ->
-                    lat = location.latitude
-                    lon = location.longitude
-                    currentAccuracy = location.accuracy
-
-//                    AppLogger.d("Location updated - Lat: $lat, Lon: $lon, Accuracy: $currentAccuracy m")
-
-                    // Update UI if needed
-                    runOnUiThread {
-                        locationEnable = true
-                    }
-                }
-            }
         }
 
         fusedLocationClient.requestLocationUpdates(
@@ -1288,17 +1284,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                         val userLocation = GeoPoint(lat!!, lon!!)
 
                         // Update main map
-                        pulsingUserOverlay?.setUserLocation(userLocation)
-                        pulsingUserOverlay?.setUserBearing(currentBearing)
+                        pulsingUserOverlay?.setUserLocation(userLocation, animate = true)
+                        pulsingUserOverlay?.setUserBearing(currentBearing, animate = true)
                         mapViewPanenBlok?.invalidate()
 
                         // Update fullscreen map if it exists
-                        fullscreenUserOverlay?.setUserLocation(userLocation)
-                        fullscreenUserOverlay?.setUserBearing(currentBearing)
-
+                        fullscreenUserOverlay?.setUserLocation(userLocation, animate = true)
+                        fullscreenUserOverlay?.setUserBearing(currentBearing, animate = true)
                     }
 
-                    delay(AppUtils.LOCATION_USER_UPDATE_INTERVAL)
+                    delay(500L) // Reduced frequency to 500ms for smoother animation performance
                 } catch (e: Exception) {
                     AppLogger.e("Error updating live location: ${e.message}")
                 }
@@ -2650,7 +2645,6 @@ open class FormInspectionActivity : AppCompatActivity(),
             val pulsingOverlay = PulsingUserLocationOverlay(this, mapView).apply {
                 setUserLocation(GeoPoint(userLat, userLon))
                 setBoundaryMeters(450f)
-                setColor(R.color.bluedarklight)
             }
             mapView.overlays.add(0, pulsingOverlay)
 
@@ -4145,8 +4139,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                 currentBearing = Math.toDegrees(orientation[0].toDouble()).toFloat()
 
                 // Update both overlays
-                pulsingUserOverlay?.setUserBearing(currentBearing) // Main map
-                fullscreenUserOverlay?.setUserBearing(currentBearing) // Fullscreen map
+                pulsingUserOverlay?.setUserBearing(currentBearing, animate = true) // Main map with smooth animation
+                fullscreenUserOverlay?.setUserBearing(currentBearing, animate = true) // Fullscreen map with smooth animation
             }
         }
 

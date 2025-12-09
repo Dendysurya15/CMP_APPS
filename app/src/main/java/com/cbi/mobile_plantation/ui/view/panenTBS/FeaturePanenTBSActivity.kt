@@ -1,6 +1,5 @@
 package com.cbi.mobile_plantation.ui.view.panenTBS
 
-import PulsingUserLocationOverlay
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -119,6 +118,7 @@ import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.MapUtils
 import com.cbi.mobile_plantation.utils.MathFun
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.PulsingUserLocationOverlay
 import com.cbi.mobile_plantation.utils.ScannedTPHLocation
 import com.cbi.mobile_plantation.utils.ScannedTPHSelectionItem
 import com.cbi.mobile_plantation.utils.SoundPlayer

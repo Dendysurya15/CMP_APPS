@@ -1239,8 +1239,8 @@ class HomePageActivity : AppCompatActivity() {
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = 5000F
-        boundaryAccuracy = 5000F
+        radiusMinimum = 10F
+        boundaryAccuracy = 15F
 
         initViewModel()
         downloadDatasetUtility = DownloadDatasetUtility(prefManager!!, datasetViewModel)
@@ -2470,7 +2470,6 @@ class HomePageActivity : AppCompatActivity() {
                                                     restanObserver
                                                 )
                                             }
-
                                         }
                                     } else {
                                         AppLogger.d("Skipping restan data fetch - GM or Mandor Panen role doesn't have afdeling")
