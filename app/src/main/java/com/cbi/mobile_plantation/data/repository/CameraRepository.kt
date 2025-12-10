@@ -111,6 +111,8 @@ class CameraRepository(
     private var isCameraOpen = false
     private var isFlashlightOn = false
 
+    private var isCapturing = false
+
 
     fun setPhotoCallback(callback: PhotoCallback) {
         this.photoCallback = callback
@@ -681,6 +683,11 @@ class CameraRepository(
                                             rotatedCam = false
                                             closeCamera()
 
+
+                                            loadingDialog.dismiss()
+                                            isCapturing = false
+
+
                                             Glide.with(context).load(Uri.fromFile(file))
                                                 .diskCacheStrategy(
                                                     DiskCacheStrategy.NONE
@@ -775,19 +782,41 @@ class CameraRepository(
         captureCam.apply {
             setOnClickListener {
 
+                if (isCapturing) {
+//                    Toast.makeText(context, "Sedang memproses foto...", Toast.LENGTH_SHORT).show()
+                    AppLogger.d("Sedang Memproses foto" )
+                    return@setOnClickListener
+                }
+                isCapturing = true
+                loadingDialog.show()
+                loadingDialog.setMessage("Sedang memproses foto...")
+
+
                 AppLogger.d("=== CAMERA CAPTURE CLICKED ===")
 
                 // Check if in portrait mode before capturing
                 if (isInPortraitMode(orientationHandler)) {
-                    AppLogger.d("❌ CAPTURE FAILED: Portrait mode")
-                    vibrate(context)
-                    Toast.makeText(
-                        context,
-                        "Mohon putar HP ke mode landscape",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    Toast.makeText(context, "Mohon putar HP ke mode landscape...", Toast.LENGTH_SHORT).show()
+
+                    // Wait until rotated correctly
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (isInPortraitMode(orientationHandler)) {
+                            // Still portrait → keep waiting
+                            isCapturing = false
+                            loadingDialog.dismiss()
+                            return@postDelayed
+                        } else {
+                            // Correct orientation now → continue capturing photo
+                            loadingDialog.dismiss()
+                            isCapturing = false   // allow user to press again
+                        }
+                    }, 500)
+
                     return@setOnClickListener
                 }
+
+
 
                 // Check if button is already disabled (processing)
                 if (!isEnabled) {
@@ -915,6 +944,8 @@ class CameraRepository(
                 } catch (e: Exception) {
                     AppLogger.e("❌ Exception during capture: ${e.message}")
                     isEnabled = true
+                    loadingDialog.dismiss()
+                    isCapturing = false
                     showCameraError(context, "Error saat mengambil foto: ${e.message}")
                 }
             }
