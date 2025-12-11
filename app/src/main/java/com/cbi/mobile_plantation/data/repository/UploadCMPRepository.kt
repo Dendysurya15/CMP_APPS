@@ -346,7 +346,7 @@ class UploadCMPRepository(context: Context) {
                                 onProgressUpdate(50, false, "Sending ${photoParts.size} images to server...")
                             }
 
-                            val response = TestingAPIClient.instance.uploadPhotos(
+                            val response = CMPApiClient.instance.uploadPhotos(
                                 photos = photoParts,
                                 datasetType = datasetTypeRequestBody,
                                 path = basePathRequestBody
@@ -636,7 +636,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         AppLogger.d("CMP: Making API call to upload JSON file")
-                        val response = TestingAPIClient.instance.uploadJsonV5Raw(
+                        val response = CMPApiClient.instance.uploadJsonV5Raw(
                             jsonData = jsonRequestBody
                         )
 
@@ -1218,7 +1218,7 @@ class UploadCMPRepository(context: Context) {
                         AppLogger.d("====== MAKING API CALL ======")
                         AppLogger.d("Using raw JSON body")
 
-                        val response = TestingAPIClient.instance.uploadJsonV5Raw(
+                        val response = CMPApiClient.instance.uploadJsonV5Raw(
                             jsonData = jsonRequestBody
                         )
 
