@@ -389,6 +389,8 @@ object AppUtils {
         )
     )
 
+    val workLocations = listOf("Panen", "Potong Buah", "Gardan", "Supir", "Rawat Jalan", "Pruning", "Perbaikan Unit", "Jangkos", "Perawatan")
+
     // Helper function to get radio items by key
     fun getRadioItems(key: String): Map<String, String> {
         return listRadioItems[key] ?: emptyMap()

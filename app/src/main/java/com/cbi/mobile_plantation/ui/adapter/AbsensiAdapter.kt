@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.utils.AppLogger
+import com.cbi.mobile_plantation.utils.AppUtils
 
 data class AbsensiDataList(
     val id: Int,
@@ -34,7 +35,7 @@ class AbsensiAdapter(
     private val VIEW_TYPE_HEADER = 0
     private val VIEW_TYPE_ITEM = 1
 
-    private val workLocations = listOf("Panen", "Potong Buah", "Gardan", "Supir", "Rawat Jalan", "Pruning", "Perbaikan Unit", "Jangkos", "Perawatan")
+//    private val workLocations = listOf("Panen", "Potong Buah", "Gardan", "Supir", "Rawat Jalan", "Pruning", "Perbaikan Unit", "Jangkos", "Perawatan")
 
     // Mapping radio button ID to attendance status
     private val radioButtonMap = mapOf(
@@ -200,7 +201,7 @@ class AbsensiAdapter(
                     val spinnerAdapter = object : ArrayAdapter<String>(
                         holder.itemView.context,
                         android.R.layout.simple_spinner_item,
-                        workLocations
+                        AppUtils.workLocations
                     ) {
                         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                             val view = super.getView(position, convertView, parent)
@@ -228,16 +229,16 @@ class AbsensiAdapter(
 
                     // Set selected item - default "Panen" jika belum ada pilihan
                     if (absensiData.alokasiKerja != null) {
-                        val index = workLocations.indexOf(absensiData.alokasiKerja)
+                        val index = AppUtils.workLocations.indexOf(absensiData.alokasiKerja)
                         if (index >= 0) {
                             holder.spinnerAlokasiKerja.setSelection(index)
                         }
                     } else {
                         // Default ke "Panen" (index 0)
                         holder.spinnerAlokasiKerja.setSelection(0)
-                        absensiData.alokasiKerja = workLocations[0]
+                        absensiData.alokasiKerja = AppUtils.workLocations[0]
                         val originalItem = originalItems.find { it.id == absensiData.id }
-                        originalItem?.alokasiKerja = workLocations[0]
+                        originalItem?.alokasiKerja = AppUtils.workLocations[0]
                     }
 
                     // Update radio button visibility based on kemandoran type
@@ -249,7 +250,7 @@ class AbsensiAdapter(
                     // Set listener untuk spinner
                     holder.spinnerAlokasiKerja.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                         override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
-                            val selectedItem = workLocations[pos]
+                            val selectedItem = AppUtils.workLocations[pos]
                             val originalItem = originalItems.find { it.id == absensiData.id }
                             originalItem?.alokasiKerja = selectedItem
                             absensiData.alokasiKerja = selectedItem
