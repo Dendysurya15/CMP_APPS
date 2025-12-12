@@ -4754,7 +4754,7 @@ class HomePageActivity : AppCompatActivity() {
                                     outputFormat.format(Date())
                                 }
 
-                                val basePathImage = formattedDate + prefManager!!.estateUserLogin
+                                val basePathImage = "$formattedDate/" + prefManager!!.estateUserLogin
 
                                 // Process selfie photos from the main inspection
                                 val inspeksiSelfiePhotoNames =

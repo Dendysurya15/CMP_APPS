@@ -5126,6 +5126,8 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             if (totalPokokInspection <= 0) {
+
+                AppLogger.d("totalPokokInspection $totalPokokInspection")
                 vibrate(500)
                 AlertDialogUtility.withSingleAction(
                     this,
@@ -5396,19 +5398,28 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                             } catch (e: Exception) {
                                 loadingDialog.dismiss()
-                                val errorMsg = e.message ?: "Unknown error"
+
+                                val errorMsg = if (!e.message.isNullOrBlank()) {
+                                    e.message!!
+                                } else {
+                                    e.stackTraceToString()
+                                }
+
                                 AppLogger.e("❌ Error during save: $errorMsg")
                                 AppLogger.e("Stack trace: ${e.stackTraceToString()}")
 
-                                // Provide more specific error message
                                 val userMessage = when {
-                                    errorMsg.contains("TPH") -> "Error: $errorMsg\n\nSilakan coba scan ulang TPH atau restart aplikasi."
-                                    errorMsg.contains("GPS") || errorMsg.contains("lokasi") -> "Error: $errorMsg\n\nPastikan GPS aktif dan coba lagi."
+                                    errorMsg.contains("TPH", ignoreCase = true) ->
+                                        "Error: $errorMsg\n\nSilakan coba scan ulang TPH atau restart aplikasi."
+                                    errorMsg.contains("GPS", ignoreCase = true) ||
+                                            errorMsg.contains("lokasi", ignoreCase = true) ->
+                                        "Error: $errorMsg\n\nPastikan GPS aktif dan coba lagi."
                                     else -> "Error: $errorMsg"
                                 }
 
                                 showErrorDialog(userMessage)
                             }
+
                         }
                     }
                 }
