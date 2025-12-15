@@ -4137,6 +4137,7 @@ class HomePageActivity : AppCompatActivity() {
                             if (absensiToUpload.isNotEmpty()) {
                                 // Create a mutable list to hold our restructured data
                                 val restructuredData = mutableListOf<Map<String, Any>>()
+                                val absensiIdsForUpload = mutableSetOf<Int>()
 
                                 // Process each absensi record
                                 for (absensiRelation in absensiToUpload) {
@@ -4515,6 +4516,7 @@ class HomePageActivity : AppCompatActivity() {
 
                                         // Add this complete record to our restructured data
                                         restructuredData.add(absensiData)
+                                        absensiIdsForUpload.add(absensi.id)
                                     }
                                 }
 
@@ -4564,11 +4566,7 @@ class HomePageActivity : AppCompatActivity() {
                                     notYetZipped
                                 }
 
-                                // Extract IDs from items that match the unzippedAbsensiData criteria
-                                globalAbsensiIds = absensiList.filter { absensiRelation ->
-                                    absensiRelation.absensi.status_upload == 0 &&
-                                            absensiRelation.absensi.dataIsZipped == 0
-                                }.map { it.absensi.id }
+                                globalAbsensiIds = absensiIdsForUpload.toList()
 
                                 combinedUploadData[AppUtils.DatabaseTables.ABSENSI] = mapOf(
                                     "data" to absensiJson,
