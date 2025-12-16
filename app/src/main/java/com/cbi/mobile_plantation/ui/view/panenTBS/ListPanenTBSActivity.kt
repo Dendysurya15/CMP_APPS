@@ -5079,7 +5079,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
                         val flCheckBoxTableHeaderLayout =
                             findViewById<ConstraintLayout>(R.id.tableHeader)
                                 .findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
-                        flCheckBoxTableHeaderLayout.visibility = View.VISIBLE
+                        flCheckBoxTableHeaderLayout.visibility = View.INVISIBLE
 
                         if (shouldReopenLastPosition) {
                             Handler(Looper.getMainLooper()).postDelayed({
