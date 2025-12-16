@@ -2579,7 +2579,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // ADD ALL RECORDS TO PANEN LIST - regardless of status or spb_kode
 //                            AppLogger.d("Creating entity for insert/update: tphId=$tphId, date=$createdDate, statusEspb=$statusEspb, spbKode=$spbKode")
-                            val jjgJson = "{\"KP\": $jjgKirim}"
+//                            val jjgJson = "{\"KP\": $jjgKirim}"
 
                             // Create a PanenEntity with the required fields
                             val panenEntity = PanenEntity(
@@ -2591,7 +2591,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 kemandoran_id = "",
                                 karyawan_nik = "",
                                 karyawan_nama = "",
-                                jjg_json = jjgJson,
+                                jjg_json =  JSONObject().put("KP", jjgKirim).toString(),
                                 foto = "",
                                 komentar = "",
                                 asistensi = 0,
@@ -2656,15 +2656,32 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                             } else {
                                                 AppLogger.d("Updating record: ${panen.tph_id}, ${panen.date_created}")
 
+                                                val incomingKp = extractKp(panen.jjg_json)
+
                                                 val updatedRecord = existingRecord.copy(
-                                                    // Only update if existing field is null/empty
-                                                    jjg_json = if (existingRecord.jjg_json.isNullOrEmpty() || existingRecord.jjg_json == "NULL") {
-                                                        panen.jjg_json
-                                                    } else {
-                                                        existingRecord.jjg_json
+                                                    jjg_json = run {
+                                                        val existingJson = existingRecord.jjg_json
+                                                        val existingKp = extractKp(existingJson)
+
+                                                        when {
+                                                            existingJson.isNullOrEmpty() || existingJson == "NULL" -> {
+                                                                panen.jjg_json
+                                                            }
+
+                                                            existingKp == incomingKp -> {
+                                                                existingJson
+                                                            }
+
+                                                            else -> {
+                                                                JSONObject(existingJson)
+                                                                    .put("KP", incomingKp)
+                                                                    .toString()
+                                                            }
+                                                        }
                                                     },
 
-                                                    no_espb = if (existingRecord.no_espb.isNullOrEmpty() || existingRecord.no_espb == "NULL") {
+
+                                                            no_espb = if (existingRecord.no_espb.isNullOrEmpty() || existingRecord.no_espb == "NULL") {
                                                         panen.no_espb
                                                     } else {
                                                         existingRecord.no_espb
@@ -7138,6 +7155,16 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         AppLogger.d("<<< Finished insertAllDetailRecordsFollowUp for inspection ID=$localInspectionId")
         AppLogger.d("Detail results: Success=$detailSuccessCount, Failed=$detailFailCount")
     }
+
+    fun extractKp(jjgJson: String?): Int? {
+        if (jjgJson.isNullOrEmpty() || jjgJson == "NULL") return null
+        return try {
+            JSONObject(jjgJson).optInt("KP", -1).takeIf { it >= 0 }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
 
     private fun parseParameter(jsonContent: String): List<ParameterModel> {
         val gson = Gson()
