@@ -1011,111 +1011,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                         }
                                     }
 
-//                                        is AppRepository.SaveResultPanen.Success,
-//                                        is AppRepository.SaveResultMutuBuah.Success -> {
-//                                            val insertedId = result.id
-//                                            playSound(R.raw.berhasil_simpan)
-//                                            AlertDialogUtility.withSingleAction(
-//                                                this@FeaturePanenTBSActivity,
-//                                                stringXML(R.string.al_back),
-//                                                stringXML(R.string.al_success_save_local),
-//                                                stringXML(R.string.al_description_success_save_local),
-//                                                "success.json",
-//                                                R.color.greenDefault
-//                                            ) {
-//                                                val tphId = selectedTPHValue!!.toInt()
-//                                                val tphData = panenStoredLocal[tphId]
 //
-//                                                val currentWorkerNiks =
-//                                                    uniqueNikPemanen.split(",").map { it.trim() }
-//                                                        .filter { it.isNotEmpty() }
-//
-//                                                if (tphData != null) {
-//                                                    val mergedNiks =
-//                                                        (tphData.workerNiks + currentWorkerNiks).distinct()
-//                                                    panenStoredLocal[tphId] = tphData.copy(
-//                                                        count = tphData.count + 1,
-//                                                        workerNiks = mergedNiks,
-//                                                        blokKode = selectedBlok,
-//                                                        nomor = selectedTPH
-//                                                    )
-//                                                } else {
-//                                                    // Create new entry
-//                                                    val jenisTPHId = selectedTPHJenisId ?: 0
-//                                                    val limitTPH =
-//                                                        tphList.find { it.id == tphId }?.limit_tph
-//
-//                                                    panenStoredLocal[tphId] = TPHData(
-//                                                        count = 1,
-//                                                        jenisTPHId = jenisTPHId,
-//                                                        limitTPH = limitTPH,
-//                                                        workerNiks = currentWorkerNiks,
-//                                                        blokKode = selectedBlok,
-//                                                        nomor = selectedTPH
-//                                                    )
-//                                                }
-//
-//
-//                                                lifecycleScope.launch {
-//
-//
-//                                                    val savedPanen = panenViewModel.getPanenById(insertedId)
-//
-//                                                    if (savedPanen == null) {
-//                                                        AlertDialogUtility.withSingleAction(
-//                                                            this@FeaturePanenTBSActivity,
-//                                                            "Error",
-//                                                            "Failed loading saved data",
-//                                                            "Stored data cannot be loaded.",
-//                                                            "warning.json",
-//                                                            R.color.colorRedDark
-//                                                        ) {}
-//
-//                                                        return@launch
-//                                                    }
-//
-//                                                    // 2️⃣ Build JSON using savedPanen
-//                                                    val jsonMap = mapOf(
-//                                                        "id" to savedPanen.id,
-//                                                        "tanggal" to savedPanen.date_created,
-//                                                        "jjg_json" to savedPanen.jjg_json,
-//                                                        "tipe" to savedPanen.jenis_panen,
-//                                                        "created_by_kp" to prefManager!!.idUserLogin.toString(),
-//                                                        "created_name_kp" to prefManager!!.nameUserLogin.toString(),
-//                                                        "created_date_kp" to savedPanen.date_created,
-//                                                        "nomor_pemanen" to (savedPanen.nomor_pemanen ?: 0),
-//                                                        "ancak" to (savedPanen.ancak ?: 0),
-//                                                        "asistensi" to savedPanen.asistensi,
-//                                                        "asistensi_dept" to (savedPanen.asistensi_dept ?: 0),
-//                                                        "asistensi_dept_nama" to (savedPanen.asistensi_dept_nama ?: ""),
-//                                                        "asistensi_divisi" to (savedPanen.asistensi_divisi ?: 0),
-//                                                        "kemandoran_id" to savedPanen.kemandoran_id,
-//                                                        "karyawan_id" to savedPanen.karyawan_id,
-//                                                        "karyawan_nik" to savedPanen.karyawan_nik,
-//                                                        "foto" to savedPanen.foto,
-//                                                        "komentar" to savedPanen.komentar,
-//                                                        "lat" to savedPanen.lat,
-//                                                        "lon" to savedPanen.lon,
-//                                                        "status_banjir" to savedPanen.status_banjir
-//                                                    )
-//
-//                                                    val jsonString = Gson().toJson(jsonMap)
-//
-//                                                    // 3️⃣ Save JSON → Create ZIP → Clear temp
-//                                                    AppUtils.savePanenJson(
-//                                                        this@FeaturePanenTBSActivity,
-//                                                        "panen_$insertedId",
-//                                                        jsonString
-//                                                    )
-//
-//                                                    AppUtils.createPanenZip(this@FeaturePanenTBSActivity)
-//                                                    AppUtils.clearTempPanen(this@FeaturePanenTBSActivity)
-//
-//                                                    resetFormAfterSaveData()
-//                                                }
-//
-//                                            }
-//                                        }
 //
                                     is AppRepository.SaveResultPanen.Error -> {
                                         AlertDialogUtility.withSingleAction(
@@ -1619,6 +1515,27 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
 
     private fun resetFormAfterSaveData() {
+
+        val tphId = selectedTPHValue
+        if (tphId != null) {
+            val existing = panenStoredLocal[tphId]
+
+            if (existing != null) {
+                panenStoredLocal[tphId] = existing.copy(
+                    count = existing.count + 1
+                )
+            } else {
+
+                panenStoredLocal[tphId] = TPHData(
+                    count = 1,
+                    jenisTPHId = selectedTPHJenisId ?: 1,
+                    limitTPH = null,
+                    workerNiks = emptyList(),
+                    blokKode = selectedBlok,
+                    nomor = selectedTPH
+                )
+            }
+        }
 
         selectedPemanenAdapter.clearAllWorkers()
         selectedPemanenLainAdapter.clearAllWorkers()
@@ -3294,6 +3211,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                         R.id.layoutEstate -> {
                             if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
+
+                                AppLogger.d("masuk siini ges")
                                 val masterDeptAbbrList = masterDeptInfoMap.values.toList()
                                 setupSpinnerView(layoutView, masterDeptAbbrList)
                             } else {
@@ -5292,48 +5211,51 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
                 val selectedEstateId: Int
 
+                AppLogger.d("FeatureName current = [$featureName]")
+                AppLogger.d("Compare to = [${AppUtils.ListFeatureNames.AsistensiEstateLain}]")
+
                 if (featureName == AppUtils.ListFeatureNames.AsistensiEstateLain) {
-                    // For AsistensiEstateLain - get estate key from masterDeptInfoMap
-                    selectedEstate = masterDeptInfoMap.entries.find { it.value == selectedItem }?.key
-                        ?: run {
-                            AppLogger.e("Estate not found in masterDeptInfoMap for: $selectedItem")
-                            return
-                        }
 
-                    // ✅ Use user's logged-in estate ID
-                    selectedEstateId = prefManager!!.estateIdUserLogin?.toIntOrNull() ?: run {
-                        AppLogger.e("Invalid user estate ID")
+                    // Spinner source = masterDeptInfoMap
+                    val estateKeys = masterDeptInfoMap.keys.toList()
+                    val estateValues = masterDeptInfoMap.values.toList()
+
+                    if (position !in estateValues.indices) {
+                        AppLogger.e("Invalid estate position (masterDept): $position")
                         return
                     }
+
+                    selectedEstate = estateKeys[position]
+                    estateAbbr = estateValues[position]
+                    selectedEstateId = selectedEstate.toInt()
+
                 } else {
-                    // For other features - use position to get ID from estateIdUserLogin
-                    selectedEstate = selectedItem
 
-                    val estateIds = try {
-                        prefManager!!.estateIdUserLogin?.split(",")?.map { it.trim().toInt() } ?: emptyList()
-                    } catch (e: Exception) {
-                        AppLogger.e("Error parsing estate IDs: ${e.message}")
+                    // Spinner source = prefManager estates
+                    val estateIds = prefManager!!.estateIdUserLogin
+                        ?.split(",")
+                        ?.map { it.trim().toInt() }
+                        ?: emptyList()
+
+                    val estateAbbrList = prefManager!!.estateUserLogin
+                        ?.split(",")
+                        ?.map { it.trim() }
+                        ?: emptyList()
+
+                    if (position !in estateIds.indices || position !in estateAbbrList.indices) {
+                        AppLogger.e("Invalid estate position (user estate): $position")
                         return
                     }
 
-                    if (position >= estateIds.size) {
-                        AppLogger.e("Invalid estate position: $position, available: ${estateIds.size}")
-                        return
-                    }
-
+                    selectedEstate = estateAbbrList[position]
+                    estateAbbr = estateAbbrList[position]
                     selectedEstateId = estateIds[position]
                 }
 
                 estateId = selectedEstateId.toString()
                 selectedEstateIdSpinner = position
 
-                val estateAbbrList = prefManager!!.estateUserLogin?.split(",")?.map { it.trim() } ?: emptyList()
-                estateAbbr = estateAbbrList.getOrNull(position) ?: run {
-                    AppLogger.e("Invalid estate position: $position")
-                    return
-                }
-
-                AppLogger.d("Selected Estate: $selectedEstate, ID: $selectedEstateId")
+                AppLogger.d("Selected Estate: $estateAbbr, ID: $selectedEstateId")
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     withContext(Dispatchers.Main) {
