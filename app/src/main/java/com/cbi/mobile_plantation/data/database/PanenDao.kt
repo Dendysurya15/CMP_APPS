@@ -134,7 +134,12 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
         status_pengangkutan = 0
     WHERE tph_id = :tphId
       AND date_created = :dateCreated
-      AND jjg_json LIKE '%' || '"KP":' || :kpValue || '%' 
+       AND (
+    jjg_json LIKE '%"KP":' || :kpValue || ',%'
+    OR jjg_json LIKE '%"KP": ' || :kpValue || ',%'
+    OR jjg_json LIKE '%"KP":' || :kpValue || '}%'
+    OR jjg_json LIKE '%"KP": ' || :kpValue || '}%'
+)
       AND nomor_pemanen = :nomorPemanen
 """)
     abstract suspend fun resetEspbStatus(
@@ -146,14 +151,19 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
 
 
     @Query("""
-    UPDATE panen_table 
-    SET status_espb = 1,
-        no_espb = :noEspb,
-        status_pengangkutan = 2
-    WHERE tph_id = :tphId 
-      AND date_created = :dateCreated 
-      AND jjg_json LIKE '%' || '"KP":' || :kpValue || '%' 
-      AND nomor_pemanen = :nomorPemanen
+UPDATE panen_table
+SET status_espb = 1,
+    no_espb = :noEspb,
+    status_pengangkutan = 2
+WHERE tph_id = :tphId
+  AND date_created = :dateCreated
+  AND (
+    jjg_json LIKE '%"KP":' || :kpValue || ',%'
+    OR jjg_json LIKE '%"KP": ' || :kpValue || ',%'
+    OR jjg_json LIKE '%"KP":' || :kpValue || '}%'
+    OR jjg_json LIKE '%"KP": ' || :kpValue || '}%'
+)
+  AND nomor_pemanen = :nomorPemanen
 """)
     abstract suspend fun setEspbStatus(
         tphId: String,

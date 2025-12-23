@@ -6693,19 +6693,26 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                         val parts = originalRecord.split(",")
                                         if (parts.size >= 5) {
-                                            val tphId = parts[0].trim()
-                                            val dateCreated = parts[1].trim()
-                                            val kpValue = parts[2].trim()
-                                            val nomorPemanen = parts[4].trim()
+                                            val tphIdRaw = parts[0]
+                                            val dateCreatedRaw = parts[1]
+                                            val kpValueRaw = parts[2]
+                                            val nomorPemanenRaw = parts[4]
 
-                                            val kpOnly = kpValue
+                                            val tphId = tphIdRaw.trim()
+                                            val dateCreated = dateCreatedRaw.trim()
+                                            val kpValue = kpValueRaw.trim()
+                                            val nomorPemanen = nomorPemanenRaw.trim()
 
-                                            AppLogger.d("RESETTING REMOVED - TPH: $tphId, Date: $dateCreated")
+                                            AppLogger.d("🔴 RESET REMOVED RECORD DETAIL")
+                                            AppLogger.d("  tphId          : raw='$tphIdRaw' | trimmed='$tphId'")
+                                            AppLogger.d("  dateCreated    : raw='$dateCreatedRaw' | trimmed='$dateCreated'")
+                                            AppLogger.d("  kpValue        : raw='$kpValueRaw' | trimmed='$kpValue'")
+                                            AppLogger.d("  nomorPemanen   : raw='$nomorPemanenRaw' | trimmed='$nomorPemanen'")
 
                                             val resetResult = panenViewModel.resetEspbStatus(
                                                 tphId,
                                                 dateCreated,
-                                                kpOnly,
+                                                kpValue,
                                                 nomorPemanen
                                             )
                                             AppLogger.d("Reset result: $resetResult rows affected")
@@ -6728,23 +6735,28 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
                                     val parts = newRecord.split(",")
                                     if (parts.size >= 5) {
-                                        val tphId = parts[0].trim()
-                                        val dateCreated = parts[1].trim()
-                                        val kpValue = parts[2].trim()
-                                        val nomorPemanen = parts[4].trim()
+                                        val tphIdRaw = parts[0]
+                                        val dateCreatedRaw = parts[1]
+                                        val kpValueRaw = parts[2]
+                                        val nomorPemanenRaw = parts[4]
 
-                                        val kpOnly = kpValue
+                                        val tphId = tphIdRaw.trim()
+                                        val dateCreated = dateCreatedRaw.trim()
+                                        val kpValue = kpValueRaw.trim()
+                                        val nomorPemanen = nomorPemanenRaw.trim()
 
-                                        if (originalRecords.contains(newRecord)) {
-                                            AppLogger.d("SETTING EXISTING - TPH: $tphId, Date: $dateCreated, NoESPB: $no_espb")
-                                        } else {
-                                            AppLogger.d("SETTING NEW - TPH: $tphId, Date: $dateCreated, NoESPB: $no_espb")
-                                        }
+                                        AppLogger.d("🟢 SET RECORD DETAIL")
+                                        AppLogger.d("  tphId          : raw='$tphIdRaw' | trimmed='$tphId'")
+                                        AppLogger.d("  dateCreated    : raw='$dateCreatedRaw' | trimmed='$dateCreated'")
+                                        AppLogger.d("  kpValue        : raw='$kpValueRaw' | trimmed='$kpValue'")
+                                        AppLogger.d("  nomorPemanen   : raw='$nomorPemanenRaw' | trimmed='$nomorPemanen'")
+                                        AppLogger.d("  noESPB         : '$no_espb'")
+
 
                                         val setResult = panenViewModel.setEspbStatus(
                                             tphId,
                                             dateCreated,
-                                            kpOnly,
+                                            kpValue,
                                             nomorPemanen,
                                             no_espb
                                         )
