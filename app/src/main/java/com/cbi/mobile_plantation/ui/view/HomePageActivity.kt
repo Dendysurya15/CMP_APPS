@@ -265,6 +265,8 @@ class HomePageActivity : AppCompatActivity() {
         }
     }
 
+    private var isYearCheckFailed = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -1149,6 +1151,26 @@ class HomePageActivity : AppCompatActivity() {
     }
 
     private fun checkDateTimeSettings() {
+        // Check year requirement first
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val yearMin = 2026
+        if (currentYear < yearMin) {
+            isYearCheckFailed = true
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AlertDialogUtility.withSingleAction(
+                this@HomePageActivity,
+                "Tutup Aplikasi",
+                "Aplikasi Tidak Dapat Digunakan",
+                "Tanggal sistem perangkat Anda tidak valid. Pastikan tanggal dan waktu perangkat sudah diatur dengan benar (minimal tahun $yearMin).",
+                "warning.json",
+                R.color.colorRedDark
+            ) {
+                finishAffinity()
+            }
+            return
+        }
+
+        // Existing date/time validity check
         if (!AppUtils.isDateTimeValid(this)) {
             dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
             AppUtils.showDateTimeNetworkWarning(this)
@@ -1164,6 +1186,17 @@ class HomePageActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Skip everything if year check failed (activity not fully initialized)
+        if (isYearCheckFailed) {
+            return
+        }
+
+        // Also check if prefManager is initialized (safety check)
+        if (prefManager == null) {
+            return
+        }
+
         checkDateTimeSettings()
         FeatureStateManager.checkAndUpdateAppVersion(this, prefManager!!)
         if (activityInitialized && AppUtils.isDateTimeValid(this)) {
@@ -1190,7 +1223,6 @@ class HomePageActivity : AppCompatActivity() {
             if (isAirplaneMode) {
                 locationViewModel.stopLocationUpdates()
             } else {
-                // Only restart if we have permission
                 if (ContextCompat.checkSelfPermission(
                         this,
                         Manifest.permission.ACCESS_FINE_LOCATION
@@ -1205,27 +1237,29 @@ class HomePageActivity : AppCompatActivity() {
             locationEnable = true
             lat = location.latitude
             lon = location.longitude
-
         }
 
         locationViewModel.locationAccuracy.observe(this) { accuracy ->
-            // Safe call - works whether the view exists or not
             findViewById<TextView>(R.id.accuracyLocation)?.text = String.format("%.1f m", accuracy)
             currentAccuracy = accuracy
         }
-
     }
 
     override fun onPause() {
         super.onPause()
+        if (isYearCheckFailed || !::locationViewModel.isInitialized) {
+            return
+        }
         locationViewModel.stopLocationUpdates()
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        if (isYearCheckFailed || !::locationViewModel.isInitialized) {
+            return
+        }
         locationViewModel.stopLocationUpdates()
-        // Ensure handler callbacks are removed
         dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 

@@ -2705,7 +2705,6 @@ open class FormInspectionActivity : AppCompatActivity(),
         }
     }
 
-
     // 🆕 Data class for TPH location
     data class TPHLocationData(
         val id: Int,
