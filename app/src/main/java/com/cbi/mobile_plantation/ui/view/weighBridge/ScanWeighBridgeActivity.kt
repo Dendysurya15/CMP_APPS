@@ -344,7 +344,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "jjg_arr" to globalJjgArr,
                                     "tonase" to 0,
 //                                    "created_by_id" to (globalCreatedById ?: 0),
-                                    "created_at" to globalCreatedAtWB,
+                                    "created_at" to globalCreatedAt,
 //                                    "created_name" to globalCreatedName,
                                     "updated_by_wb" to globalCreatedByWB,
                                     "updated_name_wb" to globalCreatedNameWB,
