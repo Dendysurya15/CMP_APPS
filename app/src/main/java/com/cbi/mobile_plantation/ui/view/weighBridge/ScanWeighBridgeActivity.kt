@@ -947,6 +947,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         )
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
+
+                                        AppLogger.d("globalIpMill $globalIpMill")
                                         AppLogger.d("espbJson $espbJson")
                                         weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJson)
                                         delay(100)
@@ -1785,6 +1787,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
         val millData = weightBridgeViewModel.getMillName(millId) ?: emptyList()
         val millIP = millData.firstOrNull()?.ip_address ?: "-"
+        globalIpMill = millIP
 
         val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
             nikString.split(",")
