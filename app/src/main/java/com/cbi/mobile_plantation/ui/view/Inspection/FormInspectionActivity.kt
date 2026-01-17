@@ -5132,7 +5132,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                     this,
                     stringXML(R.string.al_back),
                     stringXML(R.string.al_data_not_completed),
-                    "Mohon dapat melakukan pemeriksaan terlebih dahulu!",
+                    "Total Pokok Inspeksi 0, Apakah data sudah benar ? Jika tidak, Mohon dapat melakukan pemeriksaan terlebih dahulu!",
                     "warning.json",
                     R.color.colorRedDark
                 ) {}
@@ -5334,6 +5334,27 @@ open class FormInspectionActivity : AppCompatActivity(),
 
                                         if (!isFollowUp) {
                                             val selectedPemuatWorkers = selectedPemuatAdapter.getSelectedWorkers()
+//
+                                            if (photoInTPH == null) {
+                                                throw Exception("Foto TPH belum diambil")
+                                            }
+
+                                            if (jumBrdTglPath == null || jumBuahTglPath == null) {
+                                                throw Exception("Data jumlah buah/brondolan belum lengkap")
+                                            }
+
+                                            if (parameterInspeksi == null) {
+                                                throw Exception("Parameter inspeksi belum tersedia")
+                                            }
+
+                                            if (latTPH == 0.0 || lonTPH == 0.0) {
+                                                throw Exception("Koordinat GPS TPH belum tersedia")
+                                            }
+
+
+//                                            if (selectedPemuatWorkers.isEmpty()) {
+//                                                throw Exception("Pemuat belum dipilih")
+//                                            }
 
                                             val detailResult = inspectionViewModel.saveDataInspectionDetails(
                                                 inspectionId = result.inspectionId.toString(),
