@@ -147,13 +147,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     fun checkTPHDuplicates(millIP: String, espbJson: String) {
         viewModelScope.launch {
             try {
-//                AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: https://$millIP:3005")
 
-                // Update base URL with mill IP
                 StagingApiClient.updateBaseUrl("http://$millIP:37891")
 //                StagingApiClient.updateBaseUrl("http://10.9.116.125:37891")
 
-                // Create request body with raw JSON
                 val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())
                 val response = StagingApiClient.instance.checkTPHDuplicates(requestBody)
 
@@ -165,16 +162,22 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     AppLogger.e("ViewModel: API error: ${response.code()} - ${response.message()}")
                     _tphDuplicateResult.postValue(CheckDuplicateResponse(
                         status = "error",
-                        processed = 0,
-                        duplicates = emptyList()
+                        mode = null,
+                        espbDuplicates = emptyList(),
+                        tphDuplicates = emptyList(),
+                        tphNewRecords = emptyList(),
+                        message = "API Error: ${response.message()}"
                     ))
                 }
             } catch (e: Exception) {
                 AppLogger.e("ViewModel: Exception checking duplicates: ${e.message}")
                 _tphDuplicateResult.postValue(CheckDuplicateResponse(
                     status = "error",
-                    processed = 0,
-                    duplicates = emptyList()
+                    mode = null,
+                    espbDuplicates = emptyList(),
+                    tphDuplicates = emptyList(),
+                    tphNewRecords = emptyList(),
+                    message = "Exception: ${e.message}"
                 ))
             }
         }

@@ -26,6 +26,8 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.BlokModel
+import com.cbi.mobile_plantation.data.model.uploadCMP.DuplicateData
+import com.cbi.mobile_plantation.data.model.uploadCMP.DuplicateInfo
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
 import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
@@ -461,7 +463,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     )
                                 }
 
-                                val itemsToUpload = listOf( itemToUpload, cmpItem)
+                                val itemsToUpload = listOf( itemToUpload,  cmpItem)
                                 val globalIdEspb = listOf(savedItemId)
 
                                 loadingDialog.setMessage(
@@ -955,245 +957,100 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
 // Observe TPH duplicate result
                                         weightBridgeViewModel.tphDuplicateResult.observeOnce(this@ScanWeighBridgeActivity) { duplicateResponse ->
-                                            if (duplicateResponse?.status == "success" && !duplicateResponse.duplicates.isNullOrEmpty()) {
-                                                // TPH duplicates found - show detailed error
-                                                lifecycleScope.launch {
-                                                    try {
-                                                        loadingDialog.setMessage("Mengambil detail data duplikat...", true)
+                                            if (duplicateResponse?.status == "success") {
+                                                val hasEspbDuplicates = !duplicateResponse.espbDuplicates.isNullOrEmpty()
+                                                val hasTphDuplicates = !duplicateResponse.tphDuplicates.isNullOrEmpty()
 
-                                                        // Data class to hold duplicate info for grouping
-                                                        data class DuplicateInfo(
-                                                            val blokKode: String,
-                                                            val tphNomor: String,
-                                                            val formattedDate: String,
-                                                            val rawDate: String,
-                                                            val idTph: Int,
-                                                            val jjgCount: String
-                                                        )
+                                                if (hasEspbDuplicates || hasTphDuplicates) {
+                                                    // Found duplicates - show detailed error
+                                                    lifecycleScope.launch {
+                                                        try {
+                                                            loadingDialog.setMessage("Mengambil detail data duplikat...", true)
 
-                                                        val duplicateInfoList = mutableListOf<DuplicateInfo>()
 
-                                                        // Process each duplicate and collect info
-                                                        for (duplicate in duplicateResponse.duplicates) {
-                                                            try {
-                                                                val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+                                                            val duplicateDetails = mutableListOf<String>()
 
-                                                                // Format the datetime to Indonesian format with custom short months
-                                                                val formattedDate = try {
-                                                                    val originalDate = SimpleDateFormat(
-                                                                        "yyyy-MM-dd HH:mm:ss",
-                                                                        Locale.getDefault()
-                                                                    ).parse(duplicate.datetime)
-
-                                                                    val calendar = Calendar.getInstance()
-                                                                    calendar.time = originalDate!!
-
-                                                                    val shortMonths = arrayOf(
-                                                                        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-                                                                        "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
-                                                                    )
-
-                                                                    val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
-                                                                    val month = shortMonths[calendar.get(Calendar.MONTH)]
-                                                                    val year = calendar.get(Calendar.YEAR)
-                                                                    val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
-                                                                    val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
-                                                                    val second = String.format("%02d", calendar.get(Calendar.SECOND))
-
-                                                                    "$day $month $year $hour:$minute:$second"
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Date parsing error: ${e.message}")
-                                                                    duplicate.datetime
-                                                                }
-
-                                                                // Extract JJG count from reconstructed tph1 data
-                                                                var jjgCount = ""
-                                                                try {
-                                                                    val tph1Data = basicProcessingResult.tph1
-                                                                    if (!tph1Data.isNullOrEmpty()) {
-                                                                        val tph1Entries = tph1Data.split(";")
-                                                                        for (entry in tph1Entries) {
-                                                                            val parts = entry.split(",")
-                                                                            if (parts.size >= 4) {
-                                                                                val tphId = parts[0].trim()
-                                                                                val datetime = parts[1].trim()
-                                                                                val jjg = parts[2].trim()
-
-                                                                                // Match by TPH ID and datetime
-                                                                                if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
-                                                                                    jjgCount = jjg
-                                                                                    break
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Error extracting JJG count: ${e.message}")
-                                                                }
-
-                                                                if (tphBlokInfo != null) {
-                                                                    duplicateInfoList.add(
-                                                                        DuplicateInfo(
-                                                                            blokKode = tphBlokInfo.blokKode,
-                                                                            tphNomor = tphBlokInfo.tphNomor,
-                                                                            formattedDate = formattedDate,
-                                                                            rawDate = duplicate.datetime,
-                                                                            idTph = duplicate.idTph,
-                                                                            jjgCount = jjgCount
-                                                                        )
-                                                                    )
-                                                                } else {
-                                                                    // For unknown TPH, use a fallback group
-                                                                    duplicateInfoList.add(
-                                                                        DuplicateInfo(
-                                                                            blokKode = "Unknown",
-                                                                            tphNomor = "ID ${duplicate.idTph}",
-                                                                            formattedDate = formattedDate,
-                                                                            rawDate = duplicate.datetime,
-                                                                            idTph = duplicate.idTph,
-                                                                            jjgCount = jjgCount
-                                                                        )
-                                                                    )
-                                                                }
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
-
-                                                                val formattedDate = try {
-                                                                    val originalDate = SimpleDateFormat(
-                                                                        "yyyy-MM-dd HH:mm:ss",
-                                                                        Locale.getDefault()
-                                                                    ).parse(duplicate.datetime)
-
-                                                                    val calendar = Calendar.getInstance()
-                                                                    calendar.time = originalDate!!
-
-                                                                    val shortMonths = arrayOf(
-                                                                        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-                                                                        "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
-                                                                    )
-
-                                                                    val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
-                                                                    val month = shortMonths[calendar.get(Calendar.MONTH)]
-                                                                    val year = calendar.get(Calendar.YEAR)
-                                                                    val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
-                                                                    val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
-                                                                    val second = String.format("%02d", calendar.get(Calendar.SECOND))
-
-                                                                    "$day $month $year $hour:$minute:$second"
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Date parsing error in fallback: ${e.message}")
-                                                                    duplicate.datetime
-                                                                }
-
-                                                                // Extract JJG count for fallback case too
-                                                                var jjgCount = ""
-                                                                try {
-                                                                    val tph1Data = basicProcessingResult.tph1
-                                                                    if (!tph1Data.isNullOrEmpty()) {
-                                                                        val tph1Entries = tph1Data.split(";")
-                                                                        for (entry in tph1Entries) {
-                                                                            val parts = entry.split(",")
-                                                                            if (parts.size >= 4) {
-                                                                                val tphId = parts[0].trim()
-                                                                                val datetime = parts[1].trim()
-                                                                                val jjg = parts[2].trim()
-
-                                                                                if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
-                                                                                    jjgCount = jjg
-                                                                                    break
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Error extracting JJG count in fallback: ${e.message}")
-                                                                }
-
-                                                                duplicateInfoList.add(
-                                                                    DuplicateInfo(
-                                                                        blokKode = "Unknown",
-                                                                        tphNomor = "ID ${duplicate.idTph}",
-                                                                        formattedDate = formattedDate,
-                                                                        rawDate = duplicate.datetime,
-                                                                        idTph = duplicate.idTph,
-                                                                        jjgCount = jjgCount
-                                                                    )
-                                                                )
-                                                            }
-                                                        }
-
-                                                        // Group by blok code and sort
-                                                        val groupedDuplicates = duplicateInfoList
-                                                            .groupBy { it.blokKode }
-                                                            .toSortedMap() // Sort blok codes alphabetically
-
-                                                        // Format the grouped duplicates
-                                                        val duplicateDetails = mutableListOf<String>()
-                                                        var groupNumber = 1
-
-                                                        for ((blokKode, duplicatesInBlok) in groupedDuplicates) {
-                                                            // Add group header
-                                                            duplicateDetails.add("${groupNumber}. $blokKode")
-
-                                                            // Sort TPH within each group by TPH number
-                                                            val sortedTPH = duplicatesInBlok.sortedBy { duplicate ->
-                                                                // Extract numeric part of TPH for proper sorting
-                                                                try {
-                                                                    if (duplicate.tphNomor.startsWith("ID ")) {
-                                                                        // For unknown TPH (ID format), sort by ID number
-                                                                        duplicate.tphNomor.substring(3).toIntOrNull() ?: Int.MAX_VALUE
-                                                                    } else {
-                                                                        // For normal TPH, extract number from tphNomor
-                                                                        duplicate.tphNomor.toIntOrNull() ?: Int.MAX_VALUE
-                                                                    }
-                                                                } catch (e: Exception) {
-                                                                    Int.MAX_VALUE
-                                                                }
-                                                            }
-
-                                                            // Add TPH details for this group
-                                                            for (duplicate in sortedTPH) {
-                                                                val jjgText = if (duplicate.jjgCount.isNotEmpty()) " - ${duplicate.jjgCount} Jjg" else ""
-                                                                val tphDetail = if (duplicate.tphNomor.startsWith("ID ")) {
-                                                                    "  • ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
-                                                                } else {
-                                                                    "  • ${duplicate.blokKode} TPH ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
-                                                                }
-                                                                duplicateDetails.add(tphDetail)
-                                                            }
-
-                                                            // Add empty line after each group (except the last one)
-                                                            if (groupNumber < groupedDuplicates.size) {
+                                                            // ✅ Process ESPB duplicates (they are just strings - ESPB numbers)
+                                                            if (hasEspbDuplicates) {
+                                                                duplicateDetails.add("━━━ DUPLIKAT ESPB ━━━")
                                                                 duplicateDetails.add("")
+
+                                                                var espbNumber = 1
+                                                                for (espbNo in duplicateResponse.espbDuplicates!!) {
+                                                                    duplicateDetails.add("${espbNumber}. $espbNo")
+                                                                    espbNumber++
+                                                                }
                                                             }
 
-                                                            groupNumber++
+                                                            // ✅ Process TPH duplicates (they are objects with id_tph and datetime)
+                                                            if (hasTphDuplicates) {
+                                                                if (duplicateDetails.isNotEmpty()) {
+                                                                    duplicateDetails.add("")
+                                                                    duplicateDetails.add("━━━ DUPLIKAT TPH ━━━")
+                                                                    duplicateDetails.add("")
+                                                                }
+
+                                                                val tphDuplicateInfoList = mutableListOf<DuplicateInfo>()
+
+                                                                for (duplicate in duplicateResponse.tphDuplicates!!) {
+                                                                    tphDuplicateInfoList.add(
+                                                                        processDuplicate(duplicate, "TPH", basicProcessingResult)
+                                                                    )
+                                                                }
+
+                                                                // Add grouped TPH duplicates
+                                                                addGroupedDuplicates(duplicateDetails, tphDuplicateInfoList)
+                                                            }
+
+                                                            val duplicateListText = duplicateDetails.joinToString("\n")
+
+                                                            val espbCount = duplicateResponse.espbDuplicates?.size ?: 0
+                                                            val tphCount = duplicateResponse.tphDuplicates?.size ?: 0
+
+                                                            val countText = buildString {
+                                                                if (espbCount > 0) append("$espbCount ESPB")
+                                                                if (espbCount > 0 && tphCount > 0) append(" dan ")
+                                                                if (tphCount > 0) append("$tphCount TPH")
+                                                            }
+
+                                                            val errorMessage = "Ditemukan $countText data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
+
+                                                            loadingDialog.dismiss()
+                                                            showCombinedDuplicateError(errorMessage)
+
+                                                        } catch (e: Exception) {
+                                                            loadingDialog.dismiss()
+                                                            AppLogger.e("Error processing duplicate details: ${e.message}")
+
+                                                            // Fallback to simple duplicate message
+                                                            val espbCount = duplicateResponse.espbDuplicates?.size ?: 0
+                                                            val tphCount = duplicateResponse.tphDuplicates?.size ?: 0
+                                                            val totalCount = espbCount + tphCount
+
+                                                            val errorMessage = "Ditemukan $totalCount data duplikat ($espbCount ESPB, $tphCount TPH).\n\nData tidak dapat disimpan karena sudah ada di sistem."
+                                                            showDuplicateError(errorMessage)
                                                         }
-
-                                                        val duplicateListText = duplicateDetails.joinToString("\n")
-                                                        val duplicateCount = duplicateResponse.duplicates.size
-                                                        val errorMessage = "Ditemukan $duplicateCount data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
-
-                                                        loadingDialog.dismiss()
-                                                        showTPHDuplicateError(errorMessage)
-
-                                                    } catch (e: Exception) {
-                                                        loadingDialog.dismiss()
-                                                        AppLogger.e("Error processing duplicate details: ${e.message}")
-
-                                                        // Fallback to simple duplicate message
-                                                        val duplicateCount = duplicateResponse.duplicates.size
-                                                        val firstDuplicate = duplicateResponse.duplicates.first()
-                                                        val errorMessage = "Ditemukan $duplicateCount data duplikat.\n\nDuplikat terakhir: ${firstDuplicate.datetime}\n\nData tidak dapat disimpan karena sudah ada di sistem."
-                                                        showTPHDuplicateError(errorMessage)
                                                     }
+                                                } else {
+                                                    // No duplicates - continue with full processing
+                                                    continueQRProcessing(reconstructedJsonStr)
                                                 }
                                             } else {
-                                                // No TPH duplicates - continue with full processing using reconstructed data
-                                                continueQRProcessing(reconstructedJsonStr) // Pass reconstructed JSON
+                                                // Handle error or no_data status
+                                                if (duplicateResponse?.status == "no_data") {
+                                                    showError("Tidak ada data valid untuk diproses")
+                                                } else {
+                                                    continueQRProcessing(reconstructedJsonStr)
+                                                }
                                             }
                                         }
+
+                                        // ========== HELPER FUNCTIONS (ADD THESE IN ScanWeighBridgeActivity.kt) ==========
+
+
+
+                                        // Define DuplicateInfo data class at the class level (outside functions)
+
 
                                     } catch (e: Exception) {
                                         loadingDialog.dismiss()
@@ -1270,6 +1127,183 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 observer.onChanged(value)
             }
         })
+    }
+
+    private fun showCombinedDuplicateError(errorMessage: String) {
+        showBottomSheetWithData(
+            parsedData = null,
+            distinctDeptAbbr = "-",
+            distinctDivisiAbbr = "-",
+            formattedBlokList = "-",
+            pemuat = "-",
+            totalJjgSum = 0,
+            millAbbr = "-",
+            transporterName = "-",
+            createAtFormatted = "-",
+            hasError = true,
+            errorMessage = errorMessage
+        )
+    }
+
+
+    data class DuplicateInfo(
+        val blokKode: String,
+        val tphNomor: String,
+        val formattedDate: String,
+        val rawDate: String,
+        val idTph: Int,
+        val jjgCount: String,
+        val type: String // "ESPB" or "TPH"
+    )
+
+    suspend fun processDuplicate(
+        duplicate: DuplicateData,
+        type: String,
+        basicProcessingResult: BasicProcessingResult // Replace with your actual type
+    ): DuplicateInfo {
+        return try {
+            val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+
+            val formattedDate = formatDateTime(duplicate.datetime)
+            val jjgCount = extractJjgCount(duplicate, basicProcessingResult)
+
+            if (tphBlokInfo != null) {
+                DuplicateInfo(
+                    blokKode = tphBlokInfo.blokKode,
+                    tphNomor = tphBlokInfo.tphNomor,
+                    formattedDate = formattedDate,
+                    rawDate = duplicate.datetime,
+                    idTph = duplicate.idTph,
+                    jjgCount = jjgCount,
+                    type = type
+                )
+            } else {
+                DuplicateInfo(
+                    blokKode = "Unknown",
+                    tphNomor = "ID ${duplicate.idTph}",
+                    formattedDate = formattedDate,
+                    rawDate = duplicate.datetime,
+                    idTph = duplicate.idTph,
+                    jjgCount = jjgCount,
+                    type = type
+                )
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
+
+            DuplicateInfo(
+                blokKode = "Unknown",
+                tphNomor = "ID ${duplicate.idTph}",
+                formattedDate = formatDateTime(duplicate.datetime),
+                rawDate = duplicate.datetime,
+                idTph = duplicate.idTph,
+                jjgCount = extractJjgCount(duplicate, basicProcessingResult),
+                type = type
+            )
+        }
+    }
+
+    fun formatDateTime(datetime: String): String {
+        return try {
+            val originalDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(datetime)
+            val calendar = Calendar.getInstance()
+            calendar.time = originalDate!!
+
+            val shortMonths = arrayOf(
+                "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+                "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
+            )
+
+            val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
+            val month = shortMonths[calendar.get(Calendar.MONTH)]
+            val year = calendar.get(Calendar.YEAR)
+            val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
+            val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
+            val second = String.format("%02d", calendar.get(Calendar.SECOND))
+
+            "$day $month $year $hour:$minute:$second"
+        } catch (e: Exception) {
+            AppLogger.e("Date parsing error: ${e.message}")
+            datetime
+        }
+    }
+
+
+
+    fun extractJjgCount(
+        duplicate: DuplicateData,
+        basicProcessingResult: BasicProcessingResult // Replace with your actual type
+    ): String {
+        return try {
+            val tph1Data = basicProcessingResult.tph1
+            if (!tph1Data.isNullOrEmpty()) {
+                val tph1Entries = tph1Data.split(";")
+                for (entry in tph1Entries) {
+                    val parts = entry.split(",")
+                    if (parts.size >= 4) {
+                        val tphId = parts[0].trim()
+                        val datetime = parts[1].trim()
+                        val jjg = parts[2].trim()
+
+                        if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
+                            return jjg
+                        }
+                    }
+                }
+            }
+            ""
+        } catch (e: Exception) {
+            AppLogger.e("Error extracting JJG count: ${e.message}")
+            ""
+        }
+    }
+
+    fun addGroupedDuplicates(
+        duplicateDetails: MutableList<String>,
+        duplicates: List<DuplicateInfo>
+    ) {
+        val groupedDuplicates = duplicates
+            .groupBy { it.blokKode }
+            .toSortedMap()
+
+        var groupNumber = 1
+
+        for ((blokKode, duplicatesInBlok) in groupedDuplicates) {
+            duplicateDetails.add("${groupNumber}. $blokKode")
+
+            val sortedTPH = duplicatesInBlok.sortedBy { duplicate ->
+                try {
+                    if (duplicate.tphNomor.startsWith("ID ")) {
+                        duplicate.tphNomor.substring(3).toIntOrNull() ?: Int.MAX_VALUE
+                    } else {
+                        duplicate.tphNomor.toIntOrNull() ?: Int.MAX_VALUE
+                    }
+                } catch (e: Exception) {
+                    Int.MAX_VALUE
+                }
+            }
+
+            for (duplicate in sortedTPH) {
+                val jjgText = if (duplicate.jjgCount.isNotEmpty()) " - ${duplicate.jjgCount} Jjg" else ""
+                val tphDetail = if (duplicate.tphNomor.startsWith("ID ")) {
+                    "  • ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
+                } else {
+                    "  • ${duplicate.blokKode} TPH ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
+                }
+                duplicateDetails.add(tphDetail)
+            }
+
+            if (groupNumber < groupedDuplicates.size) {
+                duplicateDetails.add("")
+            }
+
+            groupNumber++
+        }
+    }
+
+    fun showDuplicateError(message: String) {
+        // Use your existing error dialog
+        showTPHDuplicateError(message)
     }
 
     private fun continueQRProcessing(jsonStr: String) {
@@ -1861,6 +1895,21 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             createAtFormatted = "-",
             hasError = true,
             errorMessage = "ESPB dengan nomor $noEspb sudah pernah dipindai sebelumnya ($formattedDate)"
+        )
+    }
+    private fun showError(errorMessage: String) {
+        showBottomSheetWithData(
+            parsedData = null,
+            distinctDeptAbbr = "-",
+            distinctDivisiAbbr = "-",
+            formattedBlokList = "-",
+            pemuat = "-",
+            totalJjgSum = 0,
+            millAbbr = "-",
+            transporterName = "-",
+            createAtFormatted = "-",
+            hasError = true,
+            errorMessage = errorMessage
         )
     }
 
