@@ -1994,22 +1994,14 @@ class HomePageActivity : AppCompatActivity() {
                                 shouldSkipAfdelingCheck
                             ) ?: return@launch
 
-                            // Validate sync date
-                            val lastSyncDateTime = prefManager?.lastSyncDate
-                            val isSyncValid = ValidationSyncHelper.validateSyncDate(
-                                this@HomePageActivity,
-                                lastSyncDateTime,
-                                checkCurrentDate = true
-                            )
 
-                            if (isSyncValid) {
                                 val intent = Intent(
                                     this@HomePageActivity,
                                     ListHistoryESPBActivity::class.java
                                 )
                                 intent.putExtra("FEATURE_NAME", feature.featureName)
                                 startActivity(intent)
-                            }
+
 
                         } catch (e: Exception) {
                             AppLogger.e("Error in validation checks: ${e.message}")

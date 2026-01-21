@@ -5347,7 +5347,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                                 throw Exception("Parameter inspeksi belum tersedia")
                                             }
 
-                                            if (latTPH == 0.0 || lonTPH == 0.0) {
+                                            if (lat == 0.0 || lon == 0.0) {
                                                 throw Exception("Koordinat GPS TPH belum tersedia")
                                             }
 
