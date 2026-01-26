@@ -230,7 +230,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     private lateinit var btnDownloadMapPanenOffline: MaterialButton
     private var prefManager: PrefManager? = null
     var selectedKemandoranId = 0
-//    private var radiusMinimum = 5000F
+    //    private var radiusMinimum = 5000F
 //    private var boundaryAccuracy = 5000F
     private var radiusMinimum = 0F
     private var boundaryAccuracy = 0F
@@ -481,6 +481,46 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     // Add this as a class property
     private var selectedKaryawanList: List<KaryawanInfo> = emptyList()
+
+    // Add these variables at the top of the class with other properties
+    private var locationWatchdogJob: Job? = null
+    private var isWatchdogStarted = false
+    private val WATCHDOG_INTERVAL = 10_000L // 10 seconds
+
+    private fun startLocationWatchdog() {
+        if (isWatchdogStarted) return // Already running
+
+        isWatchdogStarted = true
+        locationWatchdogJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(WATCHDOG_INTERVAL)
+
+                // Check if location is null or 0.0
+                if (lat == null || lon == null || lat == 0.0 || lon == 0.0) {
+                    AppLogger.d("Watchdog: Invalid location detected - stopping location service")
+                    locationViewModel.stopLocationUpdates()
+
+                    // Optionally show a warning to user
+                    runOnUiThread {
+                        Toasty.warning(
+                            this@FormInspectionActivity,
+                            "GPS signal lost - location service stopped",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    AppLogger.d("Watchdog: Location valid - lat: $lat, lon: $lon")
+                }
+            }
+        }
+    }
+
+    private fun stopLocationWatchdog() {
+        locationWatchdogJob?.cancel()
+        locationWatchdogJob = null
+        isWatchdogStarted = false
+        AppLogger.d("Location watchdog stopped")
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -4147,6 +4187,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     override fun onDestroy() {
+        stopLocationWatchdog()
         keyboardWatcher.unregister()
 
         // Clean up location monitoring
@@ -4642,162 +4683,182 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupPressedFAB() {
         fabNextFormAncak.setOnClickListener {
-            val currentPokok = formAncakViewModel.currentPage.value ?: 1
-            val nextPokok = currentPokok + 1
-            val totalPokok =
-                formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
-            val formData = formAncakViewModel.formData.value ?: mutableMapOf()
-            val pokokData = formData[currentPokok]
-            val photoValue = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                pokokData?.foto_pemulihan ?: ""
-            } else {
-                pokokData?.photo ?: ""
+            if (!isWatchdogStarted) {
+                startLocationWatchdog()
             }
-
-            // NEW: Selfie validation - check if current page >= minimal and selfie is missing
-            val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
-
-            AppLogger.d("Next button - currentPokok: $currentPokok, hasSelfiePhoto: $hasSelfiePhoto")
-
-            if (currentPokok >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
-                vibrate(500)
-                isForSelfie = true
-                showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+            if (lat == null || lon == null || lat == 0.0 || lon == 0.0) {
                 AlertDialogUtility.withSingleAction(
                     this,
                     stringXML(R.string.al_back),
-                    stringXML(R.string.al_data_not_completed),
-                    "Mohon dapat mengambil foto user/selfie terlebih dahulu!",
+                    stringXML(R.string.al_gps_is_not_accurate),
+                    "Cek akurasi GPS anda, restart lokasi!",
                     "warning.json",
                     R.color.colorRedDark
-                ) {}
-                return@setOnClickListener
-            }
+                ) {
+                    // Stop location updates
+                    locationViewModel.stopLocationUpdates()
 
-            val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
-            val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
-            val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
-            val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
-
-            // Check if photo is required based on findings
-            val hasFindings = (buahMasakTdkDipotong > 0) ||
-                    (btPiringanGawangan > 0) ||
-                    (btPiringanGawangan > 0) ||
-                    ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
-
-            val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
-            val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
-            if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
-                vibrate(500)
-                if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
-                    showViewPhotoBottomSheet(null, isInTPH, false, false)
-                } else {
-                    isForFollowUp = true
-                    showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+                    // Open location settings for user to restart GPS
+                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    startActivity(intent)
                 }
-                AlertDialogUtility.withSingleAction(
-                    this,
-                    stringXML(R.string.al_back),
-                    stringXML(R.string.al_data_not_completed),
-                    if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
-                        "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
-                    else
-                        "Mohon dapat mengambil foto temuan terlebih dahulu!",
-                    "warning.json",
-                    R.color.colorRedDark
-                ) {}
-                return@setOnClickListener
-            }
-
-            val validationResult = formAncakViewModel.validateCurrentPage(1)
-
-            if (!validationResult.isValid) {
-                vibrate(500)
-                AlertDialogUtility.withSingleAction(
-                    this,
-                    stringXML(R.string.al_back),
-                    stringXML(R.string.al_data_not_completed),
-                    "Mohon diisi data yang diperlukan!",
-                    "warning.json",
-                    R.color.colorRedDark
-                ) {}
-                return@setOnClickListener
-            }
-
-            pokokData?.let { data ->
-                // Check if location update is actually needed
-                if (formAncakViewModel.shouldSetLatLonIssue(data)) {
-                    // Only call if there are issues that need tracking
-                    formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
-                        currentPokok,
-                        lat,
-                        lon,
-                        prefManager!!,
-                        this@FormInspectionActivity
-                    )
+            }else{
+                val currentPokok = formAncakViewModel.currentPage.value ?: 1
+                val nextPokok = currentPokok + 1
+                val totalPokok =
+                    formAncakViewModel.totalPages.value ?: AppUtils.TOTAL_MAX_TREES_INSPECTION
+                val formData = formAncakViewModel.formData.value ?: mutableMapOf()
+                val pokokData = formData[currentPokok]
+                val photoValue = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                    pokokData?.foto_pemulihan ?: ""
                 } else {
-                    val currentDate =
-                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    pokokData?.photo ?: ""
+                }
 
-                    val hasPhoto = !data.photo.isNullOrEmpty() // ✅ check if pokok already has photo
+                // NEW: Selfie validation - check if current page >= minimal and selfie is missing
+                val hasSelfiePhoto = !photoSelfie.isNullOrEmpty()
 
-                    val updatedData = if (hasPhoto) {
-                        AppLogger.d("Pokok $currentPokok already has photo, keeping existing lat/lon")
+                AppLogger.d("Next button - currentPokok: $currentPokok, hasSelfiePhoto: $hasSelfiePhoto")
 
-                        // Don’t update lat/lon, only update metadata
-                        data.copy(
-                            createdDate = currentDate,
-                            createdBy = prefManager!!.idUserLogin,
-                            createdName = prefManager!!.nameUserLogin
+                if (currentPokok >= AppUtils.MINIMAL_TAKE_SELFIE_INSPECTION && !hasSelfiePhoto) {
+                    vibrate(500)
+                    isForSelfie = true
+                    showViewPhotoBottomSheet(null, false, true, false) // Selfie photo
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        "Mohon dapat mengambil foto user/selfie terlebih dahulu!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnClickListener
+                }
+
+                val buahMasakTdkDipotong = pokokData?.buahMasakTdkDipotong ?: 0
+                val btPiringanGawangan = pokokData?.btPiringanGawangan ?: 0
+                val brdKtpGawangan = pokokData?.brdKtpGawangan ?: 0
+                val brdKtpPiringanPikulKetiak = pokokData?.brdKtpPiringanPikulKetiak ?: 0
+
+                // Check if photo is required based on findings
+                val hasFindings = (buahMasakTdkDipotong > 0) ||
+                        (btPiringanGawangan > 0) ||
+                        (btPiringanGawangan > 0) ||
+                        ((brdKtpGawangan + brdKtpPiringanPikulKetiak) > 50)
+
+                val hasValidPhoto = !photoValue.isNullOrEmpty() && photoValue.trim().isNotEmpty()
+                val emptyTreeValue = pokokData?.emptyTree ?: 1 // Replace with actual field name
+                if (emptyTreeValue == 1 && hasFindings && !hasValidPhoto) {
+                    vibrate(500)
+                    if (featureName != AppUtils.ListFeatureNames.FollowUpInspeksi) {
+                        showViewPhotoBottomSheet(null, isInTPH, false, false)
+                    } else {
+                        isForFollowUp = true
+                        showViewPhotoBottomSheet(null, false, false, true) // Follow-up photo
+                    }
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi)
+                            "Mohon dapat mengambil foto pemulihan terlebih dahulu!"
+                        else
+                            "Mohon dapat mengambil foto temuan terlebih dahulu!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnClickListener
+                }
+
+                val validationResult = formAncakViewModel.validateCurrentPage(1)
+
+                if (!validationResult.isValid) {
+                    vibrate(500)
+                    AlertDialogUtility.withSingleAction(
+                        this,
+                        stringXML(R.string.al_back),
+                        stringXML(R.string.al_data_not_completed),
+                        "Mohon diisi data yang diperlukan!",
+                        "warning.json",
+                        R.color.colorRedDark
+                    ) {}
+                    return@setOnClickListener
+                }
+
+                pokokData?.let { data ->
+                    // Check if location update is actually needed
+                    if (formAncakViewModel.shouldSetLatLonIssue(data)) {
+                        // Only call if there are issues that need tracking
+                        formAncakViewModel.updatePokokDataWithLocationAndGetTrackingStatus(
+                            currentPokok,
+                            lat,
+                            lon,
+                            prefManager!!,
+                            this@FormInspectionActivity
                         )
                     } else {
-                        // Update metadata + new lat/lon
-                        data.copy(
-                            createdDate = currentDate,
-                            createdBy = prefManager!!.idUserLogin,
-                            createdName = prefManager!!.nameUserLogin,
-                            latIssue = lat,
-                            lonIssue = lon
-                        )
-                    }
+                        val currentDate =
+                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                    formAncakViewModel.savePageData(currentPokok, updatedData)
-                    AppLogger.d("Updated pokok $currentPokok (hasPhoto=$hasPhoto)")
-                }
+                        val hasPhoto = !data.photo.isNullOrEmpty() // ✅ check if pokok already has photo
 
-            }
+                        val updatedData = if (hasPhoto) {
+                            AppLogger.d("Pokok $currentPokok already has photo, keeping existing lat/lon")
 
-            if (nextPokok <= totalPokok) {
-                lifecycleScope.launch {
-                    withContext(Dispatchers.Main) {
-                        loadingDialog.show()
-                        loadingDialog.setMessage("Loading data...")
-
-                        // Handle 10th pokok tracking
-                        if (currentPokok % 10 == 0 && !trackingLocation.containsKey(currentPokok.toString())) {
-                            isTenthTrees = true
-                            trackingLocation[currentPokok.toString()] =
-                                Location(lat ?: 0.0, lon ?: 0.0)
-                            AppLogger.d("Adding 10th pokok location for pokok $currentPokok: lat=$lat, lon=$lon")
-                        } else if (isTenthTrees) {
-                            isTenthTrees = false
+                            // Don’t update lat/lon, only update metadata
+                            data.copy(
+                                createdDate = currentDate,
+                                createdBy = prefManager!!.idUserLogin,
+                                createdName = prefManager!!.nameUserLogin
+                            )
+                        } else {
+                            // Update metadata + new lat/lon
+                            data.copy(
+                                createdDate = currentDate,
+                                createdBy = prefManager!!.idUserLogin,
+                                createdName = prefManager!!.nameUserLogin,
+                                latIssue = lat,
+                                lonIssue = lon
+                            )
                         }
 
-                        // Navigate to next page
-                        AppLogger.d(" askdjflkasjd flk safldkj sldkj")
-                        formAncakViewModel.nextPage()
+                        formAncakViewModel.savePageData(currentPokok, updatedData)
+                        AppLogger.d("Updated pokok $currentPokok (hasPhoto=$hasPhoto)")
+                    }
 
-                        // Small delay for smooth transition
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            if (loadingDialog.isShowing) {
-                                scrollToTopOfFormAncak()
-                                loadingDialog.dismiss()
+                }
+
+                if (nextPokok <= totalPokok) {
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.Main) {
+                            loadingDialog.show()
+                            loadingDialog.setMessage("Loading data...")
+
+                            // Handle 10th pokok tracking
+                            if (currentPokok % 10 == 0 && !trackingLocation.containsKey(currentPokok.toString())) {
+                                isTenthTrees = true
+                                trackingLocation[currentPokok.toString()] =
+                                    Location(lat ?: 0.0, lon ?: 0.0)
+                                AppLogger.d("Adding 10th pokok location for pokok $currentPokok: lat=$lat, lon=$lon")
+                            } else if (isTenthTrees) {
+                                isTenthTrees = false
                             }
-                        }, 300)
+
+                            // Navigate to next page
+                            AppLogger.d(" askdjflkasjd flk safldkj sldkj")
+                            formAncakViewModel.nextPage()
+
+                            // Small delay for smooth transition
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                if (loadingDialog.isShowing) {
+                                    scrollToTopOfFormAncak()
+                                    loadingDialog.dismiss()
+                                }
+                            }, 300)
+                        }
                     }
                 }
             }
-
             AppLogger.d(trackingLocation.toString())
         }
 
