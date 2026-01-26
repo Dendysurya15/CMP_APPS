@@ -2526,11 +2526,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
 
                             // Extract required fields
                             val tphId = item.optString("tph", "")
-                            val createdDate = item.optString("created_date", "")
+                            val createdDate = item.optString("created_date_kp", "")
                             val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val nomorPemanen = item.optInt("nomor_pemanen", 0)
-                            val createdName = item.optString("created_name", "")
+                            val createdName = item.optString("created_name_kp", "")
                             val spbKode: String? =
                                 if (item.has("spb_kode") && !item.isNull("spb_kode")) {
                                     item.optString("spb_kode")
