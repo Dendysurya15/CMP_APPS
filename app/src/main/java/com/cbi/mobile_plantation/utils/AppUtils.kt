@@ -352,8 +352,8 @@ object AppUtils {
     }
 
     fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//        return 5000000F
+//        return prefManager?.radiusMinimum ?:15F
+        return 5000000F
     }
 
     val listRadioItems: Map<String, Map<String, String>> = mapOf(
@@ -1434,22 +1434,22 @@ object AppUtils {
     }
 
     fun compareVersions(currentVersion: String, requiredVersion: String): Int {
-        // Remove .debug suffix and split by dots
-        val current = currentVersion.replace(".debug", "").split(".").map { it.toIntOrNull() ?: 0 }
-        val required = requiredVersion.split(".").map { it.toIntOrNull() ?: 0 }
 
-        // Pad shorter version with zeros
-        val maxLength = maxOf(current.size, required.size)
-        val currentPadded = current + List(maxLength - current.size) { 0 }
-        val requiredPadded = required + List(maxLength - required.size) { 0 }
+        val currentVersionMajor = currentVersion.replace(".debug", "").split("-")[0].split(".")[0]
+        val currentVersionMinor = currentVersion.replace(".debug", "").split("-")[0].split(".")[1]
+        val currentVersionPatch = currentVersion.replace(".debug", "").split("-")[0].split(".")[2]
 
-        // Compare each part
-        for (i in 0 until maxLength) {
-            when {
-                currentPadded[i] < requiredPadded[i] -> return -1 // Current is older
-                currentPadded[i] > requiredPadded[i] -> return 1  // Current is newer
-            }
-        }
+        val requiredVersionMajor = requiredVersion.replace(".debug", "").split("-")[0].split(".")[0]
+        val requiredVersionMinor = requiredVersion.replace(".debug", "").split("-")[0].split(".")[1]
+        val requiredVersionPatch = requiredVersion.replace(".debug", "").split("-")[0].split(".")[2]
+
+        if (currentVersionMajor > requiredVersionMajor) return 1
+        else if (currentVersionMajor < requiredVersionMajor) return -1
+        if (currentVersionMinor > requiredVersionMinor) return 1
+        else if (currentVersionMinor < requiredVersionMinor) return -1
+        if (currentVersionPatch > requiredVersionPatch) return 1
+        else if (currentVersionPatch < requiredVersionPatch) return -1
+
         return 0 // Versions are equal
     }
 

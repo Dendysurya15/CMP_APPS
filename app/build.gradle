@@ -9,7 +9,8 @@ android {
 
     def versionMajor = 1
     def versionMinor = 4
-    def versionPatch = 29
+    def versionPatch = 31
+    def versionSuffix = "testing"
 
     namespace 'com.cbi.mobile_plantation'
     compileSdk 34
@@ -19,7 +20,7 @@ android {
         minSdk 27
         targetSdk 34
         versionCode((versionMajor * 10000) + (versionMinor * 100) + versionPatch)
-        versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+        versionName "${versionMajor}.${versionMinor}.${versionPatch}-${versionSuffix}"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
