@@ -194,8 +194,8 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
     private fun setupUI(){
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
-        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager, this)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager, this)
         initViewModel()
         initUI()
         regionalId = prefManager!!.regionalIdUserLogin

@@ -351,9 +351,12 @@ object AppUtils {
         return String.format("%04d-%02d-%02d", year, month, day)
     }
 
-    fun getBoundaryAccuracy(prefManager: PrefManager?): Float {
-        return prefManager?.radiusMinimum ?:15F
-//        return 5000000F
+    fun getBoundaryAccuracy(prefManager: PrefManager?, context: Context): Float {
+        return if (getAppVersion(context).contains("debug")) {
+            5000000F
+        } else {
+            prefManager?.radiusMinimum ?: 15F
+        }
     }
 
     val listRadioItems: Map<String, Map<String, String>> = mapOf(

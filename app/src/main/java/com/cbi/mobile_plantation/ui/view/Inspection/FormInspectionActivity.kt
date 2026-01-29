@@ -809,8 +809,8 @@ open class FormInspectionActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
-        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager, this)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager, this)
 
         initializeLocationServices()
         initViewModel()
@@ -2822,7 +2822,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             }
 
             pulsingUserOverlay = PulsingUserLocationOverlay(this@FormInspectionActivity, this)
-            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
+            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager, this@FormInspectionActivity))
             overlays.add(0, pulsingUserOverlay)
         }
 
@@ -3760,7 +3760,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                                 )
                                 userOverlay.setUserLocation(GeoPoint(lat!!, lon!!))
                                 userOverlay.setUserBearing(currentBearing) // Set initial bearing
-                                userOverlay.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
+                                userOverlay.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager, this@FormInspectionActivity))
                                 mapView.overlays.add(0, userOverlay)
 
                                 fullscreenUserOverlay = userOverlay // Store reference

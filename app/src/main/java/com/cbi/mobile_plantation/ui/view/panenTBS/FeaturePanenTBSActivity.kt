@@ -433,8 +433,8 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
         prefManager = PrefManager(this)
-        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager)
-        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager)
+        radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager, this)
+        boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager, this)
 
         initViewModel()
         initUI()
@@ -2059,7 +2059,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
 
             pulsingUserOverlay = PulsingUserLocationOverlay(this@FeaturePanenTBSActivity, this)
-            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager))
+            pulsingUserOverlay?.setBoundaryMeters(AppUtils.getBoundaryAccuracy(prefManager, this@FeaturePanenTBSActivity))
             overlays.add(0, pulsingUserOverlay)
         }
 
@@ -2363,7 +2363,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                                 userOverlay.setUserBearing(currentBearing)
                                 userOverlay.setBoundaryMeters(
                                     AppUtils.getBoundaryAccuracy(
-                                        prefManager
+                                        prefManager, this@FeaturePanenTBSActivity
                                     )
                                 )
                                 mapView.overlays.add(0, userOverlay)
