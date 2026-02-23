@@ -194,6 +194,9 @@ object AppUtils {
         const val Mandor1 = "Mandor 1"
         const val KeraniPanen = "Kerani Panen"
         const val IT = "IT"
+        const val GM = "GM"
+        const val Manager = "Manager"
+        const val RH = "RH"
     }
 
 

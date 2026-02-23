@@ -106,6 +106,7 @@ import com.cbi.mobile_plantation.utils.AppUtils.stringXML
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.LoadingDialog
 import com.cbi.mobile_plantation.utils.PrefManager
+import com.cbi.mobile_plantation.utils.ValidationSyncHelper
 import com.cbi.mobile_plantation.worker.DataCleanupWorker
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -1440,36 +1441,15 @@ class HomePageActivity : AppCompatActivity() {
                                 return@launch
                             }
 
-                            if (mill.sinkronisasi_pks == "1") {
-                                try {
-                                    val lastSyncDateTime = prefManager!!.lastSyncDate
-                                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                    val currentDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-                                    val lastSyncDate = currentDateFormat.format(dateFormat.parse(lastSyncDateTime)!!)
-                                    val currentDate = currentDateFormat.format(Date())
+                                val isSyncValid = ValidationSyncHelper.validateSyncDate(
+                                    context = this@HomePageActivity,
+                                    lastSyncDateTime = prefManager!!.lastSyncDate,
+                                    checkCurrentDate = true
+                                )
+                                if (!isSyncValid) return@launch
 
-                                    if (lastSyncDate != currentDate) {
-                                        AlertDialogUtility.withSingleAction(
-                                            this@HomePageActivity,
-                                            "Kembali",
-                                            "Sinkronisasi Database Diperlukan",
-                                            "Database perlu disinkronisasi untuk hari ini. Silakan lakukan sinkronisasi terlebih dahulu sebelum menggunakan fitur ini.",
-                                            "warning.json",
-                                            R.color.colorRedDark
-                                        ) {
-                                            // Do nothing on click
-                                        }
-                                        return@launch
-                                    }
-                                } catch (dateException: Exception) {
-                                    AppLogger.e("Error parsing sync date: ${dateException.message}")
-                                    showErrorDialog("Error dalam validasi tanggal sinkronisasi.")
-                                    return@launch
-                                }
-                            }
 
-                            // Launch the activity (this was missing in your else block)
                             val intent = Intent(this@HomePageActivity, ScanWeighBridgeActivity::class.java)
                             intent.putExtra("FEATURE_NAME", feature.featureName)
                             startActivity(intent)
