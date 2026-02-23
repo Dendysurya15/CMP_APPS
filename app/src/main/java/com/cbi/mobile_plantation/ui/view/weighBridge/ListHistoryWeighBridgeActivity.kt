@@ -999,8 +999,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                     // Create a CompletableDeferred to handle the async operation
 
                                                     var tphDetails: TPHDao.TPHDetails? = null
-                                                    var est: String? = null
-                                                    var afd: String? = null
+                                                    var est: Int? = null
+                                                    var afd: Int? = null
                                                     var estNama: String? = null
                                                     var afdNama: String? = null
 
@@ -1022,8 +1022,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                                     }
                                                                 }
 
-                                                                est = tphDetails?.dept_abbr
-                                                                afd = tphDetails?.divisi_abbr
+                                                                est = tphDetails?.dept_ppro
+                                                                afd = tphDetails?.divisi_ppro
                                                                 estNama = tphDetails?.dept_nama
                                                                 afdNama = tphDetails?.divisi_nama
 
@@ -1301,8 +1301,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
                                                     }
                                                 }
 
-                                                val est = tphDetails?.dept_abbr
-                                                val afd = tphDetails?.divisi_abbr
+                                                val est = tphDetails!!.dept_ppro
+                                                val afd = tphDetails.divisi_ppro
 
                                                 AppLogger.d("est $est")
                                                 AppLogger.d("afd $afd")

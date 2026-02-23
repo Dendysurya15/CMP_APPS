@@ -225,7 +225,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun fetchBlokByEstAfdBlokId(est: String, afd: String, blokId: String) {
+    fun fetchBlokByEstAfdBlokId(est: Int, afd: Int, blokId: String) {
         viewModelScope.launch {
             repository.getBlokByEstAfdBlokId(est, afd, blokId)
                 .onSuccess { blok ->
@@ -237,7 +237,7 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?) {
+    fun fetchBlokbyParams(blockId: Int, est: Int, afd: Int) {
         viewModelScope.launch {
             repository.fetchBlokbyParams(blockId, est, afd)
                 .onSuccess { blokModel  ->

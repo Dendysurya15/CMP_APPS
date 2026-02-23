@@ -149,7 +149,7 @@ abstract class TPHDao {
         idEstate: Int, idDivisi: Int, tahunTanam: String, idBlok: Int
     ): List<TPHNewModel>
 
-    @Query("SELECT dept_abbr, dept_nama, divisi_abbr, divisi_nama, blok, blok_ppro FROM tph WHERE id = :id")
+    @Query("SELECT dept_abbr, dept_nama, divisi_abbr, divisi_nama, blok, blok_ppro, dept_ppro, divisi_ppro FROM tph WHERE id = :id")
     abstract suspend fun getTPHDetailsByID(id: Int): TPHDetails?
 
     data class TPHDetails(
@@ -157,6 +157,8 @@ abstract class TPHDao {
         val divisi_abbr: String?,
         val dept_nama: String = "",
         val divisi_nama: String = "",
+        val dept_ppro: Int = 0,
+        val divisi_ppro: Int = 0
     )
 
     @Query(

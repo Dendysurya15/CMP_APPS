@@ -105,38 +105,38 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-    suspend fun getBlokByEstAfdBlokId(est: String, afd: String, blokId: String): Result<BlokModel?> = withContext(Dispatchers.IO) {
+    suspend fun getBlokByEstAfdBlokId(estID: Int, afdID: Int, blokId: String): Result<BlokModel?> = withContext(Dispatchers.IO) {
         try {
-            val blokData = blokDao.getBlokByEstAfdKode(est, afd, blokId)
+            val blokData = blokDao.getBlokByEstAfdKode(estID, afdID, blokId)
             Result.success(blokData)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?): Result<BlokModel?> = withContext(Dispatchers.IO) {
+    suspend fun fetchBlokbyParams(blockId: Int, estID: Int = 0, afdID: Int = 0): Result<BlokModel?> = withContext(Dispatchers.IO) {
         try {
             // First try to match with kode if available
             var blokData: BlokModel? = null
 
-            if (!est.isNullOrEmpty() && !afd.isNullOrEmpty()) {
+            if (estID != 0 && afdID != 0) {
                 // Convert blockId to String for the kode parameter
-                blokData = blokDao.getBlokByEstAfdKode(est, afd, blockId.toString())
+                blokData = blokDao.getBlokByEstAfdKode(estID, afdID, blockId.toString())
                 if (blokData != null) {
-                    AppLogger.d("Blok found using id_ppro search - est: $est, afd: $afd, kode: $blockId")
+                    AppLogger.d("Blok found using id_ppro search - est: $estID, afd: $afdID, kode: $blockId")
                     AppLogger.d("Found BlokModel: ${blokData.nama} (id_ppro: ${blokData.id_ppro})")
                 } else {
-                    AppLogger.d("No blok found using id_ppro search - est: $est, afd: $afd, kode: $blockId")
+                    AppLogger.d("No blok found using id_ppro search - est: $estID, afd: $afdID, kode: $blockId")
                 }
             }
 
-            if (blokData == null && !est.isNullOrEmpty() && !afd.isNullOrEmpty()) {
-                blokData = blokDao.getBlokByIdEstAfd(blockId, est, afd)
+            if (blokData == null && estID != 0 && afdID != 0) {
+                blokData = blokDao.getBlokByIdEstAfd(blockId, estID, afdID)
                 if (blokData != null) {
-                    AppLogger.d("Blok found using ID search - blockId: $blockId, est: $est, afd: $afd")
+                    AppLogger.d("Blok found using ID search - blockId: $blockId, est: $estID, afd: $afdID")
                     AppLogger.d("Found BlokModel: ${blokData.nama} (id: ${blokData.id})")
                 } else {
-                    AppLogger.d("No blok found using ID search - blockId: $blockId, est: $est, afd: $afd")
+                    AppLogger.d("No blok found using ID search - blockId: $blockId, est: $estID, afd: $afdID")
                 }
             }
 

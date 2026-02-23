@@ -1373,8 +1373,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             tphDetails = datasetViewModel.getTPHDetailsByID(tphId)
                                             AppLogger.d("tphDetail $tphDetails")
 
-                                            val est = tphDetails?.dept_abbr
-                                            val afd = tphDetails?.divisi_abbr
+                                            val est = tphDetails!!.dept_ppro
+                                            val afd = tphDetails!!.divisi_ppro
 
                                             AppLogger.d("est $est")
                                             AppLogger.d("afd $afd")
