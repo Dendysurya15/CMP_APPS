@@ -7,6 +7,7 @@ import com.cbi.mobile_plantation.data.model.MissingPhotosResponse
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoUploadResponse
+import com.cbi.mobile_plantation.data.model.uploadCMP.UploadHarvestResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
@@ -199,5 +200,11 @@ interface ApiService {
         @Query("dept_abbr") deptAbbr: String,
         @Query("created_by") createdBy: Int
     ): Response<MissingPhotosResponse>
+
+    @POST("api/harvest")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadHarvest(
+        @Body jsonData: RequestBody
+    ): Response<UploadHarvestResponse>
 
 }
