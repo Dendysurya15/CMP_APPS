@@ -2130,5 +2130,29 @@ class UploadCMPRepository(context: Context) {
         )
     }
 
+    private fun cleanDoubleEscapedJson(jsonString: String): String {
+        var cleaned = jsonString
+        if (cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
+            cleaned = cleaned.substring(1, cleaned.length - 1)
+        }
+        cleaned = cleaned.replace("\\\"", "\"")
+        cleaned = cleaned.replace("\\\\", "\\")
+        return cleaned
+    }
+
+    fun getIntString(jsonData: Map<String, Any?>, key: String, default: Int = 0): String {
+        return when (val value = jsonData[key]) {
+            is Double -> value.toInt().toString()
+            is Float -> value.toInt().toString()
+            is Int -> value.toString()
+            is Long -> value.toString()
+            is String -> value
+            else -> default.toString()
+        }
+    }
+
+
+
+
 
 }
