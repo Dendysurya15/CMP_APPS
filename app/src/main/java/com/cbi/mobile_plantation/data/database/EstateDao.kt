@@ -34,4 +34,7 @@ abstract class EstateDao {
     // In EstateDao.kt
     @Query("SELECT * FROM estate")
     abstract suspend fun getAllEstates(): List<EstateModel>
+
+    @Query("SELECT * FROM estate WHERE id = :estateId LIMIT 1")
+    abstract suspend fun getEstateById(estateId: Int): EstateModel?
 }

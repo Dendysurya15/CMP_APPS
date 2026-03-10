@@ -524,6 +524,7 @@ object AppUtils {
 
     object DatabaseServer {
         const val CMP = "CMP"
+        const val STAGING_CMP = "STAGING_CMP"
         const val PPRO = "PPRO"
     }
 

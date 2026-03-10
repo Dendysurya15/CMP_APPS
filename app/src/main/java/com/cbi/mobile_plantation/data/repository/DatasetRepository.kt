@@ -171,6 +171,10 @@ class DatasetRepository(
         }
     }
 
+    suspend fun getEstateById(estateId: Int): EstateModel? {
+        return estateDao.getEstateById(estateId)
+    }
+
     suspend fun getKemandoranList(idEstate: Int, idDivisiArray: List<Int>): List<KemandoranModel> {
         return kemandoranDao.getKemandoranByCriteria(idEstate, idDivisiArray)
     }

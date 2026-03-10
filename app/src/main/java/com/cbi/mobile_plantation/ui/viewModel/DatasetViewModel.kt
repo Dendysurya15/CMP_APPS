@@ -205,6 +205,10 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
             Resource<T>(message = "Dataset $dataset is up to date", isUpToDate = true)  // Add this
     }
 
+    suspend fun getEstateById(estateId: Int): EstateModel? {
+        return repository.getEstateById(estateId)
+    }
+
     fun updateOrInsertKemandoran(kemandoran: List<KemandoranModel>) =
         viewModelScope.launch(Dispatchers.IO) {
             try {

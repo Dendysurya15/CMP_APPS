@@ -86,13 +86,55 @@ data class SkipErrorDetail(
     val data: JsonObject? = null  // or create another data class if you need specific fields
 )
 
-data class CheckDuplicateResponse(
-    @SerializedName("status") val status: String,
-    @SerializedName("processed") val processed: Int,
-    @SerializedName("duplicates") val duplicates: List<DuplicateData>?
-)
-
 data class DuplicateData(
     @SerializedName("id_tph") val idTph: Int,
     @SerializedName("datetime") val datetime: String
+)
+
+data class UploadCMPResponse(
+    @SerializedName("trackingId") val trackingId: Int,
+    val success: Boolean,
+    val message: String,
+    @SerializedName("uploadedParts") val uploadedParts: Int,
+    @SerializedName("totalParts") val totalParts: Int,
+    val uuid: String,
+    val status: String,
+    val statusCode: Int,
+    @SerializedName("processingTriggered") val processingTriggered: Boolean,
+    @SerializedName("fileName") val fileName: String,
+    @SerializedName("fileSize") val fileSize: Int,
+    @SerializedName("tanggal_upload") val tanggal_upload: String
+)
+
+data class UploadHarvestResponse(
+    @SerializedName("status")
+    val status: String,  // ← "success" bukan Int!
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("id")
+    val id: Int,
+
+    @SerializedName("noESPB")
+    val noESPB: String
+)
+
+data class CheckDuplicateResponse(
+    @SerializedName("status") val status: String,
+    @SerializedName("mode") val mode: String? = null,
+    @SerializedName("espb_duplicates") val espbDuplicates: List<String>? = null,
+    @SerializedName("tph_duplicates") val tphDuplicates: List<DuplicateData>? = null,
+    @SerializedName("tph_new_records") val tphNewRecords: List<DuplicateData>? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+data class DuplicateInfo(
+    val blokKode: String,        // Block code (e.g., "A01", "B05")
+    val tphNomor: String,        // TPH number (e.g., "123" or "ID 135709")
+    val formattedDate: String,   // Formatted date (e.g., "15 Jan 2026 10:19:47")
+    val rawDate: String,         // Original date from API (e.g., "2026-01-15 10:19:47")
+    val idTph: Int,              // TPH ID number (e.g., 135709)
+    val jjgCount: String,        // JJG count (e.g., "25")
+    val type: String             // Type: "ESPB" or "TPH"
 )
