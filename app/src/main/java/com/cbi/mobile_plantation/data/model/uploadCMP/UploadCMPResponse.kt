@@ -122,11 +122,8 @@ data class UploadHarvestResponse(
 
 data class CheckDuplicateResponse(
     @SerializedName("status") val status: String,
-    @SerializedName("mode") val mode: String? = null,
-    @SerializedName("espb_duplicates") val espbDuplicates: List<String>? = null,
-    @SerializedName("tph_duplicates") val tphDuplicates: List<DuplicateData>? = null,
-    @SerializedName("tph_new_records") val tphNewRecords: List<DuplicateData>? = null,
-    @SerializedName("message") val message: String? = null
+    @SerializedName("processed") val processed: Int,
+    @SerializedName("duplicates") val duplicates: List<DuplicateData>?
 )
 
 data class DuplicateInfo(

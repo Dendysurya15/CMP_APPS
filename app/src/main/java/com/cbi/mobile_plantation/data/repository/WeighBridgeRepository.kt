@@ -2,32 +2,25 @@ package com.cbi.mobile_plantation.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.cbi.mobile_plantation.data.api.ApiProvider
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
+import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.MillModel
+import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
-import com.cbi.mobile_plantation.data.network.CMPApiClient
-import com.cbi.mobile_plantation.data.network.Constants
 import com.cbi.mobile_plantation.data.network.StagingApiClient
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.mobile_plantation.data.model.BlokModel
-import com.cbi.mobile_plantation.data.model.TPHNewModel
-import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import org.json.JSONObject
-import java.io.File
 import java.io.IOException
 import java.net.SocketTimeoutException
 
@@ -105,38 +98,38 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-    suspend fun getBlokByEstAfdBlokId(estID: Int, afdID: Int, blokId: String): Result<BlokModel?> = withContext(Dispatchers.IO) {
+    suspend fun getTPHByBlockPPRO(blockId: Int): Result<TPHNewModel?> = withContext(Dispatchers.IO) {
         try {
-            val blokData = blokDao.getBlokByEstAfdKodePPro(estID, afdID, blokId)
-            Result.success(blokData)
+            val tphData = tphDao.getTPHByBlockPPRO(blockId)
+            Result.success(tphData)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun fetchBlokbyParams(blockId: Int, estID: Int = 0, afdID: Int = 0): Result<BlokModel?> = withContext(Dispatchers.IO) {
+    suspend fun fetchBlokbyParams(blockId: Int, est: String?, afd: String?): Result<BlokModel?> = withContext(Dispatchers.IO) {
         try {
-            // First try to match with kode if available
+            // First try to match with blok_ppro if available
             var blokData: BlokModel? = null
 
-            if (estID != 0 && afdID != 0) {
-                // Convert blockId to String for the kode parameter
-                blokData = blokDao.getBlokByEstAfdKodePPro(estID, afdID, blockId.toString())
+            if (!est.isNullOrEmpty() && !afd.isNullOrEmpty()) {
+                // Convert blockId to String for the blok_ppro parameter
+                blokData = blokDao.getBlokByPpro(blockId)
                 if (blokData != null) {
-                    AppLogger.d("Blok found using id_ppro search - est: $estID, afd: $afdID, kode: $blockId")
+                    AppLogger.d("Blok found using id_ppro search - est: $est, afd: $afd, blok_ppro: $blockId")
                     AppLogger.d("Found BlokModel: ${blokData.nama} (id_ppro: ${blokData.id_ppro})")
                 } else {
-                    AppLogger.d("No blok found using id_ppro search - est: $estID, afd: $afdID, kode: $blockId")
+                    AppLogger.d("No blok found using id_ppro search - est: $est, afd: $afd, blok_ppro: $blockId")
                 }
             }
 
-            if (blokData == null && estID != 0 && afdID != 0) {
-                blokData = blokDao.getBlokByIdEstAfdPPro(blockId, estID, afdID)
+            if (blokData == null && !est.isNullOrEmpty() && !afd.isNullOrEmpty()) {
+                blokData = blokDao.getBlokByIdEstAfd(blockId, est, afd)
                 if (blokData != null) {
-                    AppLogger.d("Blok found using ID search - blockId: $blockId, est: $estID, afd: $afdID")
+                    AppLogger.d("Blok found using ID search - blockId: $blockId, est: $est, afd: $afd")
                     AppLogger.d("Found BlokModel: ${blokData.nama} (id: ${blokData.id})")
                 } else {
-                    AppLogger.d("No blok found using ID search - blockId: $blockId, est: $estID, afd: $afdID")
+                    AppLogger.d("No blok found using ID search - blockId: $blockId, est: $est, afd: $afd")
                 }
             }
 
@@ -150,7 +143,6 @@ class WeighBridgeRepository(context: Context) {
             Result.failure(e)
         }
     }
-
 
 
     suspend fun loadHistoryESPB(date: String? = null): List<ESPBEntity> {
@@ -401,7 +393,7 @@ class WeighBridgeRepository(context: Context) {
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
-                                                    "${extractedMessage.take(1500)}..."
+                                                    "${extractedMessage.take(1000)}..."
                                                 )
                                                 AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                                             } catch (e: Exception) {
@@ -431,7 +423,7 @@ class WeighBridgeRepository(context: Context) {
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "${errorMessage.take(1500)}..."
+                                                "${errorMessage.take(1000)}..."
                                             )
                                             AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                                         } catch (e: Exception) {
@@ -455,7 +447,7 @@ class WeighBridgeRepository(context: Context) {
                                             uploaderInfo,
                                             uploadedAt,
                                             uploadedById,
-                                            "${errorMessage.take(1500)}..."
+                                            "${errorMessage.take(1000)}..."
                                         )
                                         AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                                     } catch (e: Exception) {
@@ -477,7 +469,7 @@ class WeighBridgeRepository(context: Context) {
                                             uploaderInfo,
                                             uploadedAt,
                                             uploadedById,
-                                            "${errorMessage.take(1500)}..."
+                                            "${errorMessage.take(1000)}..."
                                         )
                                         AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                                     } catch (e: Exception) {
@@ -500,7 +492,7 @@ class WeighBridgeRepository(context: Context) {
                                         uploaderInfo,
                                         uploadedAt,
                                         uploadedById,
-                                        "${errorMessage.take(1500)}..."
+                                        "${errorMessage.take(1000)}..."
                                     )
                                     AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                                 } catch (e: Exception) {
@@ -511,16 +503,11 @@ class WeighBridgeRepository(context: Context) {
                                 onProgressUpdate(num, 100, false, errorMessage)
                             }
                         }
-                        // ✅ UPDATED STAGING_CMP SECTION
-// Replace your existing STAGING_CMP section with this code
-
-                        else if (endpoint == "STAGING_CMP") {
+                        else if (endpoint == "CMP") {
                             idsESPB.add(itemId)
                             onProgressUpdate(num, 10, false, null)
                             val data = item["data"] as? String
-                            val ipMill = item["ip"] as? String
                             val fileName = item["no_espb"] as? String
-                            val updatedDateWb = item["updated_date_wb"] as? String ?: "" // ✅ Get updated_date_wb from item
 
                             if (data.isNullOrEmpty()) {
                                 errorMessage = "JSON data is empty or missing"
@@ -534,7 +521,7 @@ class WeighBridgeRepository(context: Context) {
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "${errorMessage!!.take(1500)}..."
+                                                "${errorMessage!!.take(1000)}..."
                                             )
                                         }
                                         AppLogger.d("ESPB table dengan id $id has been updated")
@@ -562,7 +549,7 @@ class WeighBridgeRepository(context: Context) {
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
-                                                    "${errorMsg.take(1500)}..."
+                                                    "${errorMsg.take(1000)}..."
                                                 )
                                             }
                                             AppLogger.d("ESPB table dengan id $id has been updated")
@@ -575,66 +562,30 @@ class WeighBridgeRepository(context: Context) {
                                     onProgressUpdate(num, 100, false, errorMsg)
                                     continue
                                 }
-                                AppLogger.d("data bro $data")
-                                val originalJson = JSONObject(data)
-                                val espbTableArray = originalJson.optJSONArray("espb_table")
 
-                                if (espbTableArray == null || espbTableArray.length() == 0) {
-                                    val errorMsg = "espb_table array is missing or empty"
-                                    AppLogger.e(errorMsg)
-                                    errors.add(UploadError(num, errorMsg, "INVALID_JSON_STRUCTURE"))
-                                    results[num] = false
-                                    onProgressUpdate(num, 100, false, errorMsg)
-                                    continue
-                                }
-
-// Get the first (and only) object from the array
-                                val unwrappedJson = espbTableArray.getJSONObject(0)
-
-// ✅ CLEAN THE JSON FIELDS
-                                val cleanedJson = cleanJsonFields(unwrappedJson)
-
-// Convert to string for RequestBody
-                                val finalJsonString = cleanedJson.toString()
-
-                                AppLogger.d("✅ JSON cleaned and unwrapped successfully")
-//                                AppLogger.d("📋 Final JSON (first 500 chars):")
-//                                AppLogger.d(finalJsonString.take(1000))
-
-// Create the JSON request body with cleaned data
+                                // Create the JSON request body
                                 val jsonRequestBody = RequestBody.create(
                                     "application/json".toMediaTypeOrNull(),
-                                    finalJsonString
+                                    data
                                 )
-                                try {
 
-//                                    StagingApiClient.updateBaseUrl("http://10.9.116.125:37891")
-                                    StagingApiClient.updateBaseUrl("http://$ipMill:37891")
-                                    // ✅ Use uploadHarvest which returns UploadHarvestResponse
-                                    val response = StagingApiClient.instance.uploadHarvest(
+                                // Log before API call
+                                AppLogger.d("CMP Upload - Starting upload for data with size: ${data.length} characters")
+
+                                try {
+                                    val response = ApiProvider.currentApiService.uploadJsonV5Raw(
                                         jsonData = jsonRequestBody
                                     )
 
                                     val responseBody = response.body()
                                     val httpStatusCode = response.code()
 
-                                    // ✅ ALWAYS LOG THE RESPONSE
-                                    AppLogger.d("🌐 Response URL: ${response.raw().request.url}")
                                     AppLogger.d("CMP Upload - Response received: HTTP $httpStatusCode")
-                                    AppLogger.d("CMP Upload - Response isSuccessful: ${response.isSuccessful}")
                                     AppLogger.d("CMP Upload - Response body: $responseBody")
 
-//                                    if (responseBody != null) {
-//                                        AppLogger.d("CMP Upload - Response Details:")
-//                                        AppLogger.d("  ├─ status: ${responseBody.status}")
-//                                        AppLogger.d("  ├─ message: ${responseBody.message}")
-//                                        AppLogger.d("  ├─ id: ${responseBody.id}")
-//                                        AppLogger.d("  └─ noESPB: ${responseBody.noESPB}")
-//                                    } else {
-//                                        AppLogger.d("CMP Upload - Response body is NULL")
-//                                    }
-
                                     if (response.isSuccessful) {
+                                        AppLogger.d(responseBody.toString())
+
                                         // Check if response body exists
                                         if (responseBody == null) {
                                             errorMessage = "Response body is null despite successful response"
@@ -645,11 +596,11 @@ class WeighBridgeRepository(context: Context) {
                                                     withContext(Dispatchers.IO) {
                                                         updateUploadStatusCMP(
                                                             id,
-                                                            0,
+                                                            httpStatusCode,
                                                             uploaderInfo,
                                                             uploadedAt,
                                                             uploadedById,
-                                                            "${errorMessage!!.take(1500)}..."
+                                                            "${errorMessage!!.take(1000)}..."
                                                         )
                                                     }
                                                     AppLogger.d("ESPB table dengan id $id has been updated")
@@ -664,27 +615,18 @@ class WeighBridgeRepository(context: Context) {
                                             continue
                                         }
 
-                                        // ✅ Process the NEW UploadHarvestResponse
+                                        // Process the response body
                                         responseBody.let {
-                                            // ✅ Generate random 9-digit tracking ID
-                                            val randomTrackingId = (100000000..999999999).random().toString()
-
-                                            val jsonResultTableIds = createJsonTableNameMapping(globalIdESPB)
+                                            val jsonResultTableIds =
+                                                createJsonTableNameMapping(globalIdESPB) // Pass globalIdESPB
 
                                             val uploadData = UploadCMPModel(
-                                                tracking_id = randomTrackingId, // ✅ Random 9-digit ID
-                                                nama_file = "", // ✅ Empty as requested
-                                                status = 3, // ✅ Status = 3
-                                                tanggal_upload = updatedDateWb, // ✅ Use updated_date_wb from item
+                                                tracking_id = it.trackingId.toString(), // Convert Int to String if needed
+                                                nama_file = it.nama_file,
+                                                status = it.status,
+                                                tanggal_upload = it.tanggal_upload,
                                                 table_ids = jsonResultTableIds
                                             )
-
-                                            AppLogger.d("📦 UploadCMPModel created:")
-                                            AppLogger.d("  ├─ tracking_id: ${uploadData.tracking_id}")
-                                            AppLogger.d("  ├─ nama_file: '${uploadData.nama_file}'")
-                                            AppLogger.d("  ├─ status: ${uploadData.status}")
-                                            AppLogger.d("  ├─ tanggal_upload: ${uploadData.tanggal_upload}")
-                                            AppLogger.d("  └─ table_ids: ${uploadData.table_ids}")
 
                                             withContext(Dispatchers.IO) {
                                                 val existingCount = uploadCMPDao.getTrackingIdCount(
@@ -697,39 +639,35 @@ class WeighBridgeRepository(context: Context) {
                                                         uploadData.tracking_id,
                                                         uploadData.status!!
                                                     )
-                                                    AppLogger.d("Updated existing upload record")
                                                 } else {
                                                     uploadCMPDao.insertNewData(uploadData)
-                                                    AppLogger.d("Inserted new upload record")
                                                 }
                                             }
 
-                                            delay(100)
+                                            delay(100) // Small delay before the next operation
 
-                                            // ✅ Check if response status is "success" (case-insensitive)
-                                            val isStatusValid = it.status.equals("success", ignoreCase = true)
+                                            // Check if status is between 1 and 3 (inclusive)
+                                            val isStatusValid = it.status in 1..3
                                             val resultMessage = if (isStatusValid) {
-                                                "Success Uploading to CMP - ID: ${it.id}, No ESPB: ${it.noESPB}"
+                                                "Success Uploading to CMP"
                                             } else {
-                                                "Upload status: ${it.status}. Message: ${it.message}"
+                                                "Uploaded with status: ${it.status}. Message: ${it.message ?: "No message"}"
                                             }
 
-                                            AppLogger.d("✅ Upload result: isValid=$isStatusValid, message='$resultMessage'")
-
-                                            // Update espb table for all IDs
+                                            // update espb id untuk status_cmp_upload
                                             for (id in idsESPB) {
                                                 try {
                                                     withContext(Dispatchers.IO) {
                                                         updateUploadStatusCMP(
                                                             id,
-                                                            if (isStatusValid) 3 else 0, // ✅ Use 3 for success, 0 for failure
+                                                            it.status ?: 0,  // Use response status instead of HTTP status code
                                                             uploaderInfo,
                                                             uploadedAt,
                                                             uploadedById,
                                                             resultMessage
                                                         )
                                                     }
-                                                    AppLogger.d("ESPB table dengan id $id has been updated with status ${if (isStatusValid) 3 else 0}")
+                                                    AppLogger.d("ESPB table dengan id $id has been updated")
                                                 } catch (e: Exception) {
                                                     AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
                                                 }
@@ -742,18 +680,7 @@ class WeighBridgeRepository(context: Context) {
                                     } else {
                                         // Get more detailed error information
                                         val errorBodyString = response.errorBody()?.string() ?: "No error body"
-                                        errorMessage = try {
-                                            val errorJson = JSONObject(errorBodyString)
-                                            errorJson.optString("message", null)?.takeIf { it.isNotEmpty() }
-                                                ?: errorJson.optString("error", null)?.takeIf { it.isNotEmpty() }
-                                                ?: "Upload failed: HTTP $httpStatusCode - ${response.message()}"
-                                        } catch (e: Exception) {
-                                            if (errorBodyString != "No error body" && errorBodyString.length < 200) {
-                                                errorBodyString
-                                            } else {
-                                                "Upload failed: HTTP $httpStatusCode - ${response.message()}"
-                                            }
-                                        }
+                                        errorMessage = "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
                                         AppLogger.e("JSON UploadError Item ID: $num - $errorMessage")
                                         AppLogger.e("JSON Error Response Body: $errorBodyString")
 
@@ -767,14 +694,14 @@ class WeighBridgeRepository(context: Context) {
 
                                         for (id in idsESPB) {
                                             try {
-                                                withContext(Dispatchers.IO) {
+                                                withContext(Dispatchers.IO) { // Ensures it runs in background & waits
                                                     updateUploadStatusCMP(
-                                                        id,
-                                                        0,
+                                                        id, // ✅ Replace itemId with id from idsESPB
+                                                        responseBody!!.status,
                                                         uploaderInfo,
                                                         uploadedAt,
                                                         uploadedById,
-                                                        "${errorMessage!!.take(1500)}..."
+                                                        "${errorMessage!!.take(1000)}..."
                                                     )
                                                 }
                                                 AppLogger.d("ESPB table dengan id $id has been updated")
@@ -811,7 +738,7 @@ class WeighBridgeRepository(context: Context) {
                                                     uploaderInfo,
                                                     uploadedAt,
                                                     uploadedById,
-                                                    "${errorMessage!!.take(1500)}..."
+                                                    "${errorMessage!!.take(1000)}..."
                                                 )
                                             }
                                             AppLogger.d("ESPB table dengan id $id has been updated")
@@ -842,7 +769,7 @@ class WeighBridgeRepository(context: Context) {
                                                 uploaderInfo,
                                                 uploadedAt,
                                                 uploadedById,
-                                                "${errorMessage!!.take(1500)}..."
+                                                "${errorMessage!!.take(1000)}..."
                                             )
                                         }
                                         AppLogger.d("ESPB table dengan id $id has been updated")
@@ -869,7 +796,7 @@ class WeighBridgeRepository(context: Context) {
                                             uploaderInfo,
                                             uploadedAt,
                                             uploadedById,
-                                            "${errorMessage!!.take(1500)}..."
+                                            "${errorMessage!!.take(1000)}..."
                                         )
                                     }
                                     AppLogger.d("ESPB table dengan id $id has been updated")
@@ -886,7 +813,7 @@ class WeighBridgeRepository(context: Context) {
                                     uploaderInfo,
                                     uploadedAt,
                                     uploadedById,
-                                    "${errorMessage.take(1500)}..."
+                                    "${errorMessage.take(1000)}..."
                                 )
                                 AppLogger.d("PPRO: espb table dengan id $itemId has been updated")
                             } catch (e: Exception) {
@@ -909,7 +836,7 @@ class WeighBridgeRepository(context: Context) {
                                         uploaderInfo,
                                         uploadedAt,
                                         uploadedById,
-                                        "${errorMessage!!.take(1500)}..."
+                                        "${errorMessage!!.take(1000)}..."
                                     )
                                 }
                                 AppLogger.d("ESPB table dengan id $id has been updated")
@@ -943,59 +870,6 @@ class WeighBridgeRepository(context: Context) {
         }
     }
 
-    fun cleanJsonFields(jsonObject: JSONObject): JSONObject {
-        val cleanedJson = JSONObject()
-
-        // Fields that might be double-escaped JSON strings
-        val jsonStringFields = listOf("uploader_info_sp","uploader_info_wb")
-
-        val keys = jsonObject.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val value = jsonObject.get(key)
-
-            if (key in jsonStringFields && value is String) {
-                // Try to parse and re-stringify to clean up escaping
-                try {
-                    // Remove extra quotes at start and end if present
-                    var cleanedValue = value.trim()
-
-                    // If it starts and ends with quotes, remove them
-                    if (cleanedValue.startsWith("\"") && cleanedValue.endsWith("\"")) {
-                        cleanedValue = cleanedValue.substring(1, cleanedValue.length - 1)
-                    }
-
-                    // Replace escaped quotes
-                    cleanedValue = cleanedValue.replace("\\\"", "\"")
-
-                    // Try to parse as JSON to validate
-                    val parsedJson = try {
-                        JSONObject(cleanedValue)
-                    } catch (e: Exception) {
-                        // If it's not valid JSON, just use the cleaned string
-                        null
-                    }
-
-                    if (parsedJson != null) {
-                        // If it's valid JSON, use the compact string representation
-                        cleanedJson.put(key, parsedJson.toString())
-                        AppLogger.d("✅ Cleaned field '$key': $cleanedValue")
-                    } else {
-                        // Not JSON, use as-is
-                        cleanedJson.put(key, cleanedValue)
-                    }
-                } catch (e: Exception) {
-                    AppLogger.e("❌ Error cleaning field '$key': ${e.message}")
-                    cleanedJson.put(key, value)
-                }
-            } else {
-                // Not a JSON string field, copy as-is
-                cleanedJson.put(key, value)
-            }
-        }
-
-        return cleanedJson
-    }
 
     fun createJsonTableNameMapping(globalIdESPB: List<Int>): String {
         val tableMap = mapOf(

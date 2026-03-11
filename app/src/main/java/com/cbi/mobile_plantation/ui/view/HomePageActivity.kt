@@ -37,7 +37,6 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupWindow
@@ -58,10 +57,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
-import com.cbi.mobile_plantation.data.database.KaryawanDao
-import com.cbi.mobile_plantation.data.database.PanenDao
 import com.cbi.mobile_plantation.data.model.AbsensiKemandoranRelations
-import com.cbi.mobile_plantation.data.model.AfdelingModel
 import com.cbi.mobile_plantation.data.model.ESPBEntity
 import com.cbi.mobile_plantation.data.model.EstateModel
 import com.cbi.mobile_plantation.data.model.HektarPanenEntity
@@ -69,7 +65,6 @@ import com.cbi.mobile_plantation.data.model.InspectionWithDetailRelations
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.KemandoranModel
 import com.cbi.mobile_plantation.data.model.LocationManager
-import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
@@ -142,11 +137,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
-import java.text.ParseException
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -485,6 +476,8 @@ class HomePageActivity : AppCompatActivity() {
                     ?.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase()) == true
                 val isRH = jabatanUser?.lowercase()
                     ?.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) == true
+                val isAdmTimbang = jabatanUser?.lowercase()
+                    ?.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang.lowercase()) == true
 
                 if (!isAskepUser && !isManagerUser && !isGM && !isRH) {
                     try {
@@ -546,7 +539,7 @@ class HomePageActivity : AppCompatActivity() {
                     }
                 }
 
-                if (!isAskepUser && !isManagerUser && !isGM && !isRH) {
+                if (!isAskepUser && !isManagerUser && !isGM && !isRH && !isAdmTimbang) {
                     try {
                         val afdelingId = prefManager!!.afdelingIdUserLogin
                         val countDeferred =
@@ -8523,17 +8516,19 @@ class HomePageActivity : AppCompatActivity() {
         val isGMUser = jabatanUser?.lowercase()?.contains("gm") == true
         val isRHUser = jabatanUser?.lowercase()
             ?.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) == true
+        val isAdmTimbang = jabatanUser?.lowercase()
+            ?.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang.lowercase()) == true
         val isAskepUser = jabatanUser?.lowercase()?.contains("askep") == true
         val isManagerUser = jabatanUser?.lowercase()?.contains("manager") == true
         val canHaveMultipleAfdelings = isAskepUser || isManagerUser
-        val isGMorRH = isGMUser || isRHUser
+        val isGlobalUser = isGMUser || isRHUser
 
         AppLogger.d("isGMUser: $isGMUser")
         AppLogger.d("isRHUser: $isRHUser")
-        AppLogger.d("isGMorRH: $isGMorRH")
+        AppLogger.d("isGMorRH: $isGlobalUser")
 
         // Estate validation - ✅ SKIP for GM/RH users
-        if (!isGMorRH) {
+        if (!isGlobalUser) {
             if (estateIdString.isNullOrEmpty() || estateIdString.isBlank()) {
                 showErrorDialog("Estate ID is not valid. Current value: '$estateIdString'")
                 loadingDialog.dismiss()
@@ -8561,7 +8556,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Afdeling validation - ✅ SKIP for GM/RH users
-        if (!isGMorRH && !canHaveMultipleAfdelings) {
+        if (!isGlobalUser && !canHaveMultipleAfdelings && !isAdmTimbang) {
             if (afdelingIdString.isNullOrEmpty() || afdelingIdString.isBlank()) {
                 showErrorDialog("Afdeling ID is not valid. Current value: '$afdelingIdString'")
                 loadingDialog.dismiss()
@@ -8601,7 +8596,7 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("isRHUser $isRHUser")
 
             // ✅ Handle multiple estates for GM/RH
-            val estateIds = if (isGMorRH && estateIdString!!.contains(",")) {
+            val estateIds = if (isGlobalUser && estateIdString!!.contains(",")) {
                 estateIdString.split(",")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
@@ -8612,7 +8607,7 @@ class HomePageActivity : AppCompatActivity() {
 
             // ✅ Handle afdelings based on role
             val afdelingIds = when {
-                isGMorRH -> null
+                isGlobalUser -> null
                 canHaveMultipleAfdelings && afdelingIdString!!.contains(",") -> {
                     afdelingIdString.split(",")
                         .map { it.trim() }
@@ -9383,53 +9378,62 @@ class HomePageActivity : AppCompatActivity() {
             ?.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase()) == true
         val isRHUser = jabatanUser?.lowercase()
             ?.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) == true
+        val isAdmTimbang = jabatanUser?.lowercase()
+            ?.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang.lowercase()) == true
 
         AppLogger.d("isRHUser $isRHUser")
         AppLogger.d("jabatan $jabatanUser")
         // Skip for askep and manager users since they can have multiple afdelings
-        if (isAskepUser || isManagerUser || isGMUser || isRHUser) {
+        if (isAskepUser || isManagerUser || isGMUser || isRHUser || isAdmTimbang) {
             AppLogger.d("Skipping panen count refresh for askep/manager user")
             return
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val afdelingId = prefManager!!.afdelingIdUserLogin
+            if (!isAdmTimbang){
+                try {
+                    val afdelingId = prefManager!!.afdelingIdUserLogin
 
-                // Run both database operations in parallel on IO thread
-                val newCount = async {
-                    panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt())
-                }
+                    // Run both database operations in parallel on IO thread
+                    val newCount = async {
+                        panenViewModel.loadPanenCountApprovalByAfdeling(afdelingId!!.toInt())
+                    }
 
-                val countHektarZero = async {
-                    hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateToday()
-                }
+                    val countHektarZero = async {
+                        hektarPanenViewModel.countWhereLuasPanenIsZeroAndDateToday()
+                    }
 
-                val panenCount = newCount.await()
-                val hektarCount = countHektarZero.await()
+                    val panenCount = try {
+                        newCount.await()
+                    }catch (e: Exception){
+                        0
+                    }
+                    val hektarCount = countHektarZero.await()
 
-                withContext(Dispatchers.Main) {
-                    featureAdapter.updateCount(
-                        AppUtils.ListFeatureNames.RekapPanenDanRestan,
-                        panenCount.toString()
-                    )
-                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapPanenDanRestan)
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.RekapPanenDanRestan,
+                            panenCount.toString()
+                        )
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapPanenDanRestan)
 
-                    featureAdapter.updateCount(
-                        AppUtils.ListFeatureNames.DaftarHektarPanen,
-                        hektarCount.toString()
-                    )
-                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
-                }
-            } catch (e: Exception) {
-                AppLogger.e("Error refreshing panen count: ${e.message}")
+                        featureAdapter.updateCount(
+                            AppUtils.ListFeatureNames.DaftarHektarPanen,
+                            hektarCount.toString()
+                        )
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e("Error refreshing panen count: ${e.message}")
 
-                // Update UI on error
-                withContext(Dispatchers.Main) {
-                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapPanenDanRestan)
-                    featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
+                    // Update UI on error
+                    withContext(Dispatchers.Main) {
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.RekapPanenDanRestan)
+                        featureAdapter.hideLoadingForFeature(AppUtils.ListFeatureNames.DaftarHektarPanen)
+                    }
                 }
             }
+
         }
     }
 
