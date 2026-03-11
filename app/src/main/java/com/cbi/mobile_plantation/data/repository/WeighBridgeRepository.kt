@@ -325,7 +325,7 @@ class WeighBridgeRepository(context: Context) {
                                 onProgressUpdate(num, 50, false, null)
 
                                 try {
-                                    AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
+                                    AppLogger.d("PPRO3: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
                                     StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
                                     val response =

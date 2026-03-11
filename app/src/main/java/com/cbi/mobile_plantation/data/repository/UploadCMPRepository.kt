@@ -457,7 +457,7 @@ class UploadCMPRepository(context: Context) {
                         onProgressUpdate(50, false, null)
 
                         try {
-                            AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
+                            AppLogger.d("PPRO1: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
                             StagingApiClient.updateBaseUrl("http://$ipMillFromData:3000")
 
                             val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
@@ -1594,7 +1594,7 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         try {
-                            AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
+                            AppLogger.d("PPRO2: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
                             StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
                             val response =
