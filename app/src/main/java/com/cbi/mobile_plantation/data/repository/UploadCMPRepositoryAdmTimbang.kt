@@ -5,22 +5,14 @@ import android.util.Log
 import com.cbi.mobile_plantation.data.api.ApiService
 import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.UploadCMPModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.PhotoResult
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadHarvestResponse
-import com.cbi.mobile_plantation.data.model.uploadCMP.UploadResults
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.network.CMPApiClient
 import com.cbi.mobile_plantation.data.network.StagingApiClient
-import com.cbi.mobile_plantation.data.network.TestingAPIClient
-import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository.UploadError
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.google.gson.Gson
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -30,19 +22,17 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okio.BufferedSink
 import org.json.JSONObject
-import retrofit2.Response
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
-import kotlin.collections.set
 
 
-sealed class SaveResultNewUploadDataCMP {
-    object Success : SaveResultNewUploadDataCMP()
-    data class Error(val exception: Exception) : SaveResultNewUploadDataCMP()
+sealed class SaveResultNewUploadDataCMPAdmTimbang {
+    object Success : SaveResultNewUploadDataCMPAdmTimbang()
+    data class Error(val exception: Exception) : SaveResultNewUploadDataCMPAdmTimbang()
 }
 
-class UploadCMPRepository(context: Context) {
+class UploadCMPRepositoryAdmTimbang(context: Context) {
 
     private val database = AppDatabase.getDatabase(context)
     private val uploadCMPDao = database.uploadCMPDao()
@@ -144,15 +134,15 @@ class UploadCMPRepository(context: Context) {
                 val file = File(fileZipPath)
 
                 onProgressUpdate(0, false, null)
-//
-//test failure sengaja
-//                AppLogger.d("askljdlfkjasdf")
-//                if (partNumber == 2 || partNumber == 4) {
-//                    val errorMsg = "Simulated failure for part $partNumber"
-//                    AppLogger.d(errorMsg)
-//                    onProgressUpdate(100, false, errorMsg)
-//                    return@withContext Result.failure(Exception(errorMsg))
-//                }
+    //
+    //test failure sengaja
+    //                AppLogger.d("askljdlfkjasdf")
+    //                if (partNumber == 2 || partNumber == 4) {
+    //                    val errorMsg = "Simulated failure for part $partNumber"
+    //                    AppLogger.d(errorMsg)
+    //                    onProgressUpdate(100, false, errorMsg)
+    //                    return@withContext Result.failure(Exception(errorMsg))
+    //                }
 
                 // Check if file exists
                 if (!file.exists()) {
@@ -245,7 +235,7 @@ class UploadCMPRepository(context: Context) {
                 AppLogger.d("Sending upload request with UUID: $batchUuid, Part: $partNumber, Total: $totalParts")
 
                 try {
-//                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
+    //                    val response = CMPApiClient.instance.uploadZipV2(filePart, uuidPart, partPart, totalPart)
                     val response = CMPApiClient.instance.uploadZip(filePart)
 
                     AppLogger.d("response $response")
@@ -294,7 +284,7 @@ class UploadCMPRepository(context: Context) {
             AppLogger.d(errorMsg)
             onProgressUpdate(100, false, errorMsg)
             Result.failure(Exception(errorMsg))
-        }
+        } as Result<UploadWBCMPResponse>
     }
 
     data class ImageFileInfo(
@@ -1099,7 +1089,7 @@ class UploadCMPRepository(context: Context) {
             val errorMsg = "Error uploading file: ${e.message}"
             onProgressUpdate(100, false, errorMsg)
             Result.failure(Exception(errorMsg))
-        }
+        } as Result<UploadWBCMPResponse>
     }
 
     private fun cleanDoubleEscapedJson(jsonString: String): String {

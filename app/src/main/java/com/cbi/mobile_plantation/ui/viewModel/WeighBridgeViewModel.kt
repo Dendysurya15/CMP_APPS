@@ -12,7 +12,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.MillModel
 import com.cbi.mobile_plantation.data.model.TransporterModel
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
-import com.cbi.mobile_plantation.data.model.TPHNewModel
+import com.cbi.markertph.data.model.TPHNewModel
 import com.cbi.mobile_plantation.data.model.BlokModel
 import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
 import com.cbi.mobile_plantation.data.network.StagingApiClient
@@ -147,13 +147,10 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
     fun checkTPHDuplicates(millIP: String, espbJson: String) {
         viewModelScope.launch {
             try {
-                AppLogger.d("ViewModel: Checking ESPB duplicates via API with mill IP: $millIP")
 
-                // Update base URL with mill IP
-                StagingApiClient.updateBaseUrl("http://$millIP:3005")
-//                StagingApiClient.updateBaseUrl("http://10.9.116.125:3005")
+                StagingApiClient.updateBaseUrl("http://$millIP:37891")
+//                StagingApiClient.updateBaseUrl("http://10.9.116.125:37891")
 
-                // Create request body with raw JSON
                 val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())
                 val response = StagingApiClient.instance.checkTPHDuplicates(requestBody)
 
@@ -165,16 +162,22 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     AppLogger.e("ViewModel: API error: ${response.code()} - ${response.message()}")
                     _tphDuplicateResult.postValue(CheckDuplicateResponse(
                         status = "error",
-                        processed = 0,
-                        duplicates = emptyList()
+                        mode = null,
+                        espbDuplicates = emptyList(),
+                        tphDuplicates = emptyList(),
+                        tphNewRecords = emptyList(),
+                        message = "API Error: ${response.message()}"
                     ))
                 }
             } catch (e: Exception) {
                 AppLogger.e("ViewModel: Exception checking duplicates: ${e.message}")
                 _tphDuplicateResult.postValue(CheckDuplicateResponse(
                     status = "error",
-                    processed = 0,
-                    duplicates = emptyList()
+                    mode = null,
+                    espbDuplicates = emptyList(),
+                    tphDuplicates = emptyList(),
+                    tphNewRecords = emptyList(),
+                    message = "Exception: ${e.message}"
                 ))
             }
         }
@@ -222,18 +225,29 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun fetchTPHByBlockPPRO(blockId: Int) {
+    fun fetchBlokByEstAfdBlokId(est: Int, afd: Int, blokId: String) {
         viewModelScope.launch {
-            repository.getTPHByBlockPPRO(blockId)
-                .onSuccess { tph ->
-                    _tphData.postValue(tph)
+            repository.getBlokByEstAfdBlokId(est, afd, blokId)
+                .onSuccess { blok ->
+                    _blokData.postValue(blok) // atau _blokData jika berbeda
+                }
+                .onFailure { exception ->
+                    _error.postValue(exception.message ?: "Failed to load Blok data")
+                }
+        }
+    }
+
+    fun fetchBlokbyParams(blockId: Int, est: Int, afd: Int) {
+        viewModelScope.launch {
+            repository.fetchBlokbyParams(blockId, est, afd)
+                .onSuccess { blokModel  ->
+                    _blokData.postValue(blokModel )
                 }
                 .onFailure { exception ->
                     _error.postValue(exception.message ?: "Failed to load TPH data")
                 }
         }
     }
-
 
 
 
@@ -361,6 +375,9 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         created_by_id: Int,
         created_name : String,
         created_at: String,
+        created_by_wb: Int? = 0,
+        created_name_wb:String? = "",
+        created_at_wb: String?="",
         nopol: String,
         driver: String,
         transporter_id: Int,
@@ -369,16 +386,20 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         pemuat_nama: String,
         pemuat_nik: String,
         mill_id: Int,
+        mill_abbr: String,
+        mill_name: String,
         archive: Int,
         tph0: String,
         tph1: String,
-        update_info_sp: String? = null,
         uploaded_by_id_wb: Int,
-        uploaded_at_wb: String,
+        uploaded_by_id_sp: Int,
+        uploader_name_wb:String,
+        uploader_name_sp:String,
         status_upload_cmp_wb: Int,
         status_upload_ppro_wb: Int,
         creator_info: String,
         uploader_info_wb: String,
+        uploader_info_sp: String,
         noESPB: String,
         scan_status: Int = 1,
         date_scan: String? = null, // New parameter with default null
@@ -389,8 +410,11 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                 val espbData = ESPBEntity(
                     blok_jjg = blok_jjg,
                     created_by_id = created_by_id,
-                    created_name = created_name,
                     created_at = created_at,
+                    created_name = created_name,
+                    created_by_wb = created_by_wb,
+                    created_name_wb = created_name_wb,
+                    created_at_wb = created_at_wb,
                     nopol = nopol,
                     driver = driver,
                     transporter_id = transporter_id,
@@ -399,21 +423,24 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
                     kemandoran_id = kemandoran_id,
                     pemuat_nik = pemuat_nik,
                     mill_id = mill_id,
+                    mill_abbr = mill_abbr,
+                    mill_name = mill_name,
                     archive = archive,
                     tph0 = tph0,
                     tph1 = tph1,
-                    update_info_sp = update_info_sp ?: "NULL",
                     uploaded_by_id_wb = uploaded_by_id_wb,
-                    uploaded_at_wb = uploaded_at_wb,
-                    uploaded_by_id_sp = 0,
-                    uploaded_at_sp = "NULL",
+                    uploaded_by_id_sp = uploaded_by_id_sp,
+                    uploader_name_sp = uploader_name_sp,
+                    uploader_name_wb = uploader_name_wb,
+                    uploaded_at_wb = "",
+                    uploaded_at_sp = "",
                     status_upload_cmp_sp = 0,
                     status_upload_cmp_wb = status_upload_cmp_wb,
                     status_upload_ppro_wb = status_upload_ppro_wb,
                     status_draft = 0,
                     status_mekanisasi = 0,
                     creator_info = creator_info,
-                    uploader_info_sp = "NULL",
+                    uploader_info_sp = uploader_info_sp,
                     uploader_info_wb = uploader_info_wb,
                     noESPB = noESPB,
                     scan_status = scan_status,

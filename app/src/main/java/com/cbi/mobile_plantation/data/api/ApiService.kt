@@ -143,6 +143,12 @@ interface ApiService {
         @Body jsonData: RequestBody
     ): Response<UploadV3Response>
 
+    @Multipart
+    @POST("cmpmain/upload")
+    suspend fun uploadZip(
+        @Part zipFile: MultipartBody.Part
+    ): Response<UploadWBCMPResponse>
+
     @POST("org/fetch-estate")
     @Headers(
         "Accept: application/json",
