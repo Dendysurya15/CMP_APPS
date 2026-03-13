@@ -34,6 +34,9 @@ abstract class MillDao {
     @Query("SELECT * FROM mill WHERE UPPER(:username) LIKE '%' || UPPER(abbr)")
     abstract suspend fun getMillByAbbr(username: String): MillModel?
 
+    @Query("SELECT ip_address FROM mill WHERE abbr = :mill LIMIT 1")
+    abstract suspend fun getIpMillByMillAbbr(mill: String): String?
+
     @Query(
         """
     SELECT * FROM mill 

@@ -17,6 +17,7 @@ import com.cbi.mobile_plantation.data.network.TestingAPIClient
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository.UploadError
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -52,6 +53,7 @@ class UploadCMPRepository(context: Context) {
     private val espbDao = database.espbDao()
     private val inspeksiDao = database.inspectionDao()
     private val mutuBuahDao = database.mutuBuahDao()
+    private val mill = PrefManager(context).username!!.replace("admtimbang@","")
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
@@ -401,15 +403,15 @@ class UploadCMPRepository(context: Context) {
                                 dept_ppro = getIntString(jsonMap, "dept_ppro"),
                                 divisi_ppro = getIntString(jsonMap, "divisi_ppro"),
                                 commodity = getIntString(jsonMap, "commodity", 2),
-                                blok_jjg = (jsonMap["blok_jjg"] ?: "").toString(),
-                                nopol = (jsonMap["nopol"] ?: "").toString(),
-                                driver = (jsonMap["driver"] ?: "").toString(),
-                                pemuat_id = (jsonMap["pemuat_id"] ?: "").toString(),
+                                blok_jjg = jsonMap["blok_jjg"]?.toString() ?: "",
+                                nopol = jsonMap["nopol"]?.toString() ?: "",
+                                driver = jsonMap["driver"]?.toString() ?: "",
+                                pemuat_id = jsonMap["pemuat_id"]?.toString() ?: "",
                                 transporter_id = getIntString(jsonMap, "transporter_id"),
                                 mill_id = getIntString(jsonMap, "mill_id"),
                                 created_by_id = getIntString(jsonMap, "created_by_id"),
-                                created_at = (jsonMap["created_at"] ?: "").toString(),
-                                no_espb = (jsonMap["no_espb"] ?: "").toString()
+                                created_at = jsonMap["created_at"]?.toString() ?: "",
+                                no_espb = jsonMap["no_espb"]?.toString() ?: ""
                             )
                             AppLogger.d("PPRO: Data prepared successfully")
                             result
@@ -1261,26 +1263,38 @@ class UploadCMPRepository(context: Context) {
                 }
                 else if (type == AppUtils.DatabaseServer.CMP) {
 
-                    val dataMap = if (data.isNotEmpty()) {
-                        try {
-                            Gson().fromJson(data, Map::class.java)
-                        } catch (e: Exception) {
-                            AppLogger.e("Error parsing data JSON: ${e.message}")
+                    val dataMap: Map<String, Any?>? = try {
+                        if (data.isNotBlank()) {
+                            Gson().fromJson(data, Map::class.java) as Map<String, Any?>
+                        } else {
                             null
                         }
-                    } else {
+                    } catch (e: Exception) {
+                        AppLogger.e("CMP: Failed parsing JSON wrapper: ${e.message}")
                         null
                     }
 
-                    // Extract the espb_json field which contains the actual data to upload
-                    val espbJson = dataMap?.get("espb_json")?.toString() ?: ""
+                    // Extract espb_json
+                    val espbJson: String = when {
+                        dataMap?.containsKey("espb_json") == true -> {
+                            val raw = dataMap["espb_json"]?.toString() ?: ""
+                            cleanDoubleEscapedJson(raw)
+                        }
 
+                        // Sometimes retry sends inner JSON directly
+                        data.contains("\"espb_table\"") -> {
+                            data
+                        }
 
+                        else -> ""
+                    }
+
+                    // Extract ESPB IDs
                     val espbIds = (dataMap?.get("espb_ids") as? List<*>)?.mapNotNull {
                         (it as? Double)?.toInt() ?: (it as? Int)
                     } ?: emptyList()
 
-                    // Extract the additional parameters
+                    // Additional metadata
                     val uploaderInfo = dataMap?.get("uploader_info")?.toString() ?: ""
                     val uploadedAt = dataMap?.get("uploaded_at")?.toString() ?: ""
                     val uploadedById = when (val id = dataMap?.get("uploaded_by_id")) {
@@ -1289,29 +1303,38 @@ class UploadCMPRepository(context: Context) {
                         else -> 0
                     }
 
-
                     try {
-                        // Check if JSON data is empty
+
                         if (espbJson.isBlank()) {
-                            val errorMsg = "JSON data is empty for $filename"
+                            val errorMsg = "CMP: espb_json is empty for $filename"
                             AppLogger.e(errorMsg)
+
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(100, false, errorMsg)
                             }
+
                             return@withContext Result.failure(Exception(errorMsg))
                         }
 
-// Create the request body from the JSON string
+                        // Step 1: make the string valid JSON (escape the broken inner braces)
+                        val sanitizedJson = sanitizeEspbJsonBeforeParsing(espbJson)
+
+                        // Step 2: now it's parseable — promote string fields to real JSON objects
+                        val normalizedJson = normalizeEspbJson(sanitizedJson)
+
+                        AppLogger.d("CMP: Uploading JSON (length=${normalizedJson.length})")
+
                         val jsonRequestBody = RequestBody.create(
                             "application/json".toMediaTypeOrNull(),
-                            espbJson
+                            normalizedJson
                         )
 
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(50, false, null)
                         }
 
-                        AppLogger.d("CMP: Making API call to upload JSON file")
+                        AppLogger.d("CMP: Uploading JSON (length=${espbJson.length})")
+
                         val response = CMPApiClient.instance.uploadJsonV5Raw(
                             jsonData = jsonRequestBody
                         )
@@ -1319,75 +1342,66 @@ class UploadCMPRepository(context: Context) {
                         val responseBody = response.body()
                         val httpStatusCode = response.code()
 
-                        AppLogger.d("CMP: Response received, HTTP code: $httpStatusCode")
+                        AppLogger.d("CMP: Response HTTP $httpStatusCode")
 
                         if (response.isSuccessful && responseBody != null) {
-                            AppLogger.d("CMP: Upload successful, response: $responseBody")
 
-                            // Check if the status is between 1 and 3 (inclusive)
                             val isStatusValid = responseBody.status in 1..3
+
                             val resultMessage = if (isStatusValid) {
                                 "Success Uploading to CMP"
                             } else {
-                                "Upload completed but with invalid status: ${responseBody.status}. Message: ${responseBody.message ?: "No message"}"
+                                "Upload completed but invalid status ${responseBody.status}"
                             }
 
-                            AppLogger.d("CMP: Status check - isStatusValid: $isStatusValid, status: ${responseBody.status}, message: $resultMessage")
+                            val jsonResultTableIds = createJsonTableNameMapping(espbIds)
 
-                            // Update local database with response data
-                            responseBody.let {
-                                // Create table name mapping for database update
-                                val jsonResultTableIds = createJsonTableNameMapping(espbIds)
+                            val uploadData = UploadCMPModel(
+                                tracking_id = responseBody.trackingId.toString(),
+                                nama_file = responseBody.nama_file,
+                                status = responseBody.status,
+                                tanggal_upload = responseBody.tanggal_upload,
+                                table_ids = jsonResultTableIds
+                            )
 
-                                // Create upload model for database
-                                val uploadData = UploadCMPModel(
-                                    tracking_id = it.trackingId.toString(),
-                                    nama_file = it.nama_file,
-                                    status = it.status,
-                                    tanggal_upload = it.tanggal_upload,
-                                    table_ids = jsonResultTableIds
+                            withContext(Dispatchers.IO) {
+                                val existingCount = uploadCMPDao.getTrackingIdCount(
+                                    uploadData.tracking_id!!,
+                                    uploadData.nama_file!!
                                 )
 
-                                // Update or insert into database
-                                withContext(Dispatchers.IO) {
-                                    val existingCount = uploadCMPDao.getTrackingIdCount(
-                                        uploadData.tracking_id!!,
-                                        uploadData.nama_file!!
+                                if (existingCount > 0) {
+                                    uploadCMPDao.updateStatus(
+                                        uploadData.tracking_id,
+                                        uploadData.status!!
                                     )
-
-                                    if (existingCount > 0) {
-                                        uploadCMPDao.updateStatus(
-                                            uploadData.tracking_id,
-                                            uploadData.status!!
-                                        )
-                                    } else {
-                                        uploadCMPDao.insertNewData(uploadData)
-                                    }
-                                }
-
-                                delay(100) // Small delay before next operation
-
-                                // Update status for all related ESPB IDs
-                                for (id in espbIds) {
-                                    try {
-                                        withContext(Dispatchers.IO) {
-                                            updateUploadStatusCMP(
-                                                id,
-                                                responseBody.status,
-                                                uploaderInfo,
-                                                uploadedAt,
-                                                uploadedById,
-                                                resultMessage
-                                            )
-                                        }
-                                        AppLogger.d("ESPB table dengan id $id has been updated with status message: $resultMessage")
-                                    } catch (e: Exception) {
-                                        AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
-                                    }
+                                } else {
+                                    uploadCMPDao.insertNewData(uploadData)
                                 }
                             }
 
-                            // Report progress based on the status check
+                            delay(100)
+
+                            for (id in espbIds) {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        updateUploadStatusCMP(
+                                            id,
+                                            responseBody.status,
+                                            uploaderInfo,
+                                            uploadedAt,
+                                            uploadedById,
+                                            resultMessage
+                                        )
+                                    }
+
+                                    AppLogger.d("ESPB id $id updated with message: $resultMessage")
+
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed updating ESPB $id : ${e.message}")
+                                }
+                            }
+
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(
                                     100,
@@ -1397,62 +1411,46 @@ class UploadCMPRepository(context: Context) {
                             }
 
                             return@withContext Result.success(responseBody)
-                        } else {
-                            // Get error details
-                            val errorBodyString = response.errorBody()?.string() ?: "No error body"
-                            val errorMsg =
-                                "JSON upload failed: HTTP $httpStatusCode - ${response.message()}"
-                            AppLogger.e("CMP: Error: $errorMsg")
-                            AppLogger.e("CMP: Error response body: $errorBodyString")
 
-                            // Update status for all related ESPB IDs with error
+                        } else {
+
+                            val errorBodyString = response.errorBody()?.string() ?: "No error body"
+                            val errorMsg = "JSON upload failed: HTTP $httpStatusCode"
+
+                            AppLogger.e("CMP Error: $errorMsg")
+                            AppLogger.e("CMP Error body: $errorBodyString")
+
                             for (id in espbIds) {
                                 try {
                                     withContext(Dispatchers.IO) {
                                         updateUploadStatusCMP(
                                             id,
-                                            responseBody?.status ?: 0,
+                                            0,
                                             uploaderInfo,
                                             uploadedAt,
                                             uploadedById,
                                             "${errorMsg.take(1000)}..."
                                         )
                                     }
-                                    AppLogger.d("ESPB table dengan id $id has been updated with error status")
                                 } catch (e: Exception) {
-                                    AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                                    AppLogger.e("Failed updating ESPB $id : ${e.message}")
                                 }
                             }
 
-                            // Report 100% progress with error
                             withContext(Dispatchers.Main) {
                                 onProgressUpdate(100, false, errorMsg)
                             }
 
-                            // Create error response
-                            val errorResponse = UploadV3Response(
-                                success = false,
-                                trackingId = 0,
-                                message = errorMsg,
-                                status = responseBody?.status ?: 0,
-                                tanggal_upload = "",
-                                nama_file = filename,
-                                results = null,
-                                type = AppUtils.DatabaseServer.CMP,
-                                imageFullPath = emptyList(),
-                                imageName = emptyList()
-                            )
-
-                            return@withContext Result.success(errorResponse)
+                            return@withContext Result.failure(Exception(errorMsg))
                         }
-                    } catch (e: Exception) {
-                        val exceptionType = e.javaClass.simpleName
-                        val errorMsg =
-                            "CMP upload error: [$exceptionType] ${e.message ?: "Unknown error"}"
-                        AppLogger.e(errorMsg)
-                        AppLogger.e("Stack trace: ${Log.getStackTraceString(e)}")
 
-                        // Update status for all related ESPB IDs with exception error
+                    } catch (e: Exception) {
+
+                        val errorMsg = "CMP upload exception: ${e.message}"
+
+                        AppLogger.e(errorMsg)
+                        AppLogger.e(Log.getStackTraceString(e))
+
                         for (id in espbIds) {
                             try {
                                 withContext(Dispatchers.IO) {
@@ -1465,31 +1463,16 @@ class UploadCMPRepository(context: Context) {
                                         "${errorMsg.take(1000)}..."
                                     )
                                 }
-                                AppLogger.d("ESPB table dengan id $id has been updated with exception error")
-                            } catch (e: Exception) {
-                                AppLogger.e("Failed to update ESPB table for Item ID: $id - ${e.message}")
+                            } catch (ex: Exception) {
+                                AppLogger.e("Failed updating ESPB $id : ${ex.message}")
                             }
                         }
 
-                        // Report 100% progress with error
                         withContext(Dispatchers.Main) {
                             onProgressUpdate(100, false, errorMsg)
                         }
 
-                        val errorResponse = UploadV3Response(
-                            success = false,
-                            trackingId = 0,
-                            message = errorMsg,
-                            status = 0,
-                            tanggal_upload = "",
-                            nama_file = filename,
-                            results = null,
-                            type = AppUtils.DatabaseServer.CMP,
-                            imageFullPath = emptyList(),
-                            imageName = emptyList()
-                        )
-
-                        return@withContext Result.success(errorResponse)
+                        return@withContext Result.failure(e)
                     }
                 }
                 else if (type == AppUtils.DatabaseServer.PPRO) {
@@ -1504,8 +1487,6 @@ class UploadCMPRepository(context: Context) {
                         // Extract the item ID for database update
                         val itemId =
                             (jsonData["id"] as? Double)?.toInt() ?: (jsonData["id"] as? Int) ?: 0
-                        val ipMill =
-                            (jsonData["ip"] as? Double)?.toInt() ?: (jsonData["ip"] as? Int) ?: 0
 
                         // Extract the uploader info for database update
                         val uploaderInfo = jsonData["uploader_info"]?.toString() ?: ""
@@ -1526,21 +1507,21 @@ class UploadCMPRepository(context: Context) {
                             onProgressUpdate(10, false, null)
                         }
 
-                        // Extract data for API call
+                        val jsonMap = jsonData as Map<String, Any?>
                         val apiData = try {
                             val result = ApiService.dataUploadEspbKraniTimbangPPRO(
-                                dept_ppro = (jsonData["dept_ppro"] ?: "0").toString(),
-                                divisi_ppro = (jsonData["divisi_ppro"] ?: "0").toString(),
-                                commodity = (jsonData["commodity"] ?: "2").toString(),
-                                blok_jjg = (jsonData["blok_jjg"] ?: "").toString(),
-                                nopol = (jsonData["nopol"] ?: "").toString(),
-                                driver = (jsonData["driver"] ?: "").toString(),
-                                pemuat_id = (jsonData["pemuat_id"] ?: "").toString(),
-                                transporter_id = (jsonData["transporter_id"] ?: "0").toString(),
-                                mill_id = (jsonData["mill_id"] ?: "0").toString(),
-                                created_by_id = (jsonData["created_by_id"] ?: "0").toString(),
-                                created_at = (jsonData["created_at"] ?: "").toString(),
-                                no_espb = (jsonData["no_espb"] ?: "").toString()
+                                dept_ppro = getIntString(jsonMap, "dept_ppro"),
+                                divisi_ppro = getIntString(jsonMap, "divisi_ppro"),
+                                commodity = getIntString(jsonMap, "commodity", 2),
+                                blok_jjg = jsonMap["blok_jjg"]?.toString() ?: "",
+                                nopol = jsonMap["nopol"]?.toString() ?: "",
+                                driver = jsonMap["driver"]?.toString() ?: "",
+                                pemuat_id = jsonMap["pemuat_id"]?.toString() ?: "",
+                                transporter_id = getIntString(jsonMap, "transporter_id"),
+                                mill_id = getIntString(jsonMap, "mill_id"),
+                                created_by_id = getIntString(jsonMap, "created_by_id"),
+                                created_at = jsonMap["created_at"]?.toString() ?: "",
+                                no_espb = jsonMap["no_espb"]?.toString() ?: ""
                             )
                             AppLogger.d("PPRO: Data prepared successfully")
                             result
@@ -1594,12 +1575,16 @@ class UploadCMPRepository(context: Context) {
                         }
 
                         try {
-                            AppLogger.d("PPRO2: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
+                            AppLogger.d("CMP2: $mill")
+                            val ipMill = database.millDao().getIpMillByMillAbbr(mill.uppercase())
+                            AppLogger.d("CMP2: $ipMill")
+
+                            AppLogger.d("CMP2: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
                             StagingApiClient.updateBaseUrl("http://$ipMill:3000")
 
                             val response =
                                 StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
-                            AppLogger.d("PPRO: API call completed, isSuccessful=${response.isSuccessful}, code=${response.code()}")
+                            AppLogger.d("CMP2: API call completed, isSuccessful=${response.isSuccessful}, code=${response.code()}")
 
                             if (response.isSuccessful) {
                                 val responseBody = response.body()
@@ -2152,8 +2137,57 @@ class UploadCMPRepository(context: Context) {
         }
     }
 
+    private fun sanitizeEspbJsonBeforeParsing(json: String): String {
+        // Fields that may contain unescaped embedded JSON objects
+        val fieldsToFix = listOf("creator_info", "app_version")
+        var result = json
+        for (field in fieldsToFix) {
+            // Match: "field_name":"{...}" where inner braces/quotes are unescaped
+            val pattern = Regex(""""($field)"\s*:\s*"\{([^}]*)\}"""")
+            result = result.replace(pattern) { match ->
+                val key = match.groupValues[1]
+                val inner = match.groupValues[2]
+                // Re-escape the inner content and wrap it back as a JSON string value
+                val escaped = inner.replace("\"", "\\\"")
+                """"$key": "{$escaped}""""
+            }
+        }
+        return result
+    }
 
+    private fun normalizeEspbJson(json: String): String {
+        try {
+            val root = JSONObject(json)
+            val table = root.optJSONArray("espb_table") ?: return json
 
+            for (i in 0 until table.length()) {
+                val row = table.getJSONObject(i)
 
+                // Fix creator_info
+                val creatorInfo = row.optString("creator_info", null)
+                if (!creatorInfo.isNullOrBlank() && creatorInfo.startsWith("{")) {
+                    try {
+                        row.put("creator_info", JSONObject(creatorInfo))
+                    } catch (_: Exception) {
+                        // leave original if malformed
+                    }
+                }
 
+                // Fix app_version
+                val appVersion = row.optString("app_version", null)
+                if (!appVersion.isNullOrBlank() && appVersion.startsWith("{")) {
+                    try {
+                        row.put("app_version", JSONObject(appVersion))
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+
+            return root.toString()
+
+        } catch (e: Exception) {
+            AppLogger.e("normalizeEspbJson failed: ${e.message}")
+            return json
+        }
+    }
 }
