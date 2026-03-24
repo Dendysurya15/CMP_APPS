@@ -2,10 +2,11 @@ package com.cbi.mobile_plantation.ui.view.weighBridge
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.LayoutInflater
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -18,17 +19,18 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.cbi.mobile_plantation.data.model.TPHNewModel
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.database.TPHDao
 import com.cbi.mobile_plantation.data.model.BlokModel
-import com.cbi.mobile_plantation.data.model.uploadCMP.CheckDuplicateResponse
+import com.cbi.mobile_plantation.data.model.TPHNewModel
+import com.cbi.mobile_plantation.data.model.uploadCMP.DuplicateData
 import com.cbi.mobile_plantation.data.model.weighBridge.wbQRData
+import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.repository.WeighBridgeRepository
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.DatasetViewModel
+import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.PanenViewModel
-
 import com.cbi.mobile_plantation.ui.viewModel.WeighBridgeViewModel
 import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
@@ -43,6 +45,7 @@ import com.cbi.mobile_plantation.utils.playSound
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -54,8 +57,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -64,6 +65,7 @@ import java.util.Locale
 @Suppress("UNREACHABLE_CODE", "UNUSED_CHANGED_VALUE")
 class ScanWeighBridgeActivity : AppCompatActivity() {
     private lateinit var weightBridgeViewModel: WeighBridgeViewModel
+    private lateinit var espbViewModel: ESPBViewModel
     private var prefManager: PrefManager? = null
 
     private lateinit var barcodeView: DecoratedBarcodeView
@@ -79,20 +81,28 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalWilayah: String = ""
     var globalCompany: Int = 0
     var globalDept: Int = 0
+    var globalDeptAbbr: String = ""
+    var globalDeptName: String = ""
     var globalDivisi: Int = 0
+    var globalDivisiAbbr: String = ""
+    var globalDivisiName: String = ""
     var globalBlokId: String = ""
     var globalTotalJjg: String = ""
     var globalCreatedById: Int? = null
-
     var globalCreatedName: String = ""
+    var globalCreatedByWB: Int? = null
+    var globalCreatedNameWB: String = ""
+    var globalCreatedAtWB: String = ""
+    var globalPemuatNama: String = ""
     var globalNopol: String = ""
     var globalDriver: String = ""
     var globalTransporterId: Int? = null
     var globalPemuatId: String = ""
-    var globalPemuatNama: String = ""
     var globalKemandoranId: String = ""
     var globalPemuatNik: String = ""
     var globalMillId: Int? = null
+    var globalMillAbbr: String? = ""
+    var globalMillName: String? = ""
     var globalTph0: String = ""
     var globalTph1: String = ""
     var globalCreatorInfo: String = ""
@@ -102,6 +112,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     var globalNoESPB: String = ""
     var globalDeptPPRO: Int = 0
     var globalDivisiPPRO: Int = 0
+    private var globalJjgArr: String = ""
+    var globalUploaderInfoWB: String = ""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -183,7 +195,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 getString(R.string.al_submit_upload_data_espb_by_krani_timbang),
                 "warning.json",
                 function = {
-                    saveAndUplaodESPB()
+                    saveAndUploadESPB()
                     btnSaveUploadESPB.isEnabled = true
                 },
                 cancelFunction = {
@@ -206,13 +218,20 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     }
 
 
-    private fun saveAndUplaodESPB() {
+    private fun saveAndUploadESPB() {
         lifecycleScope.launch(Dispatchers.Main) {
             loadingDialog.show()
             loadingDialog.setMessage(
                 "Sedang menyimpan e-SPB ke local database",
                 true
             )
+            globalCreatedByWB = prefManager!!.idUserLogin
+            globalCreatedNameWB = prefManager!!.nameUserLogin ?: ""
+            globalCreatedAtWB = SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss",
+                Locale.getDefault()
+            ).format(Date())
+
             try {
 
                 val result = withContext(Dispatchers.IO) {
@@ -221,30 +240,34 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         created_by_id = globalCreatedById ?: 0,
                         created_name = globalCreatedName,
                         created_at = globalCreatedAt,
+                        created_by_wb = globalCreatedByWB,
+                        created_name_wb = globalCreatedNameWB,
+                        created_at_wb = globalCreatedAtWB,
                         nopol = globalNopol,
                         driver = globalDriver,
                         transporter_id = globalTransporterId ?: 0,
                         pemuat_id = globalPemuatId,
                         pemuat_nama = globalPemuatNama,
-                        pemuat_nik = globalPemuatNik,
                         kemandoran_id = globalKemandoranId,
+                        pemuat_nik = globalPemuatNik,
                         mill_id = globalMillId!!,
+                        mill_abbr = globalMillAbbr!!,
+                        mill_name = globalMillName!!,
                         archive = 0,
                         tph0 = globalTph0,
                         tph1 = globalTph1,
-                        update_info_sp = "", // Changed from update_info
-                        uploaded_by_id_wb = 0, // New field for WB
-                        uploaded_at_wb = "",   // New field for WB
-                        status_upload_cmp_wb = 0, // New field for WB
-                        status_upload_ppro_wb = 0, // New field for WB
-                        creator_info = globalCreatorInfo,
-                        uploader_info_wb = "", // New field for WB
+                        uploaded_by_id_wb = globalCreatedByWB?: 0,
+                        uploaded_by_id_sp = globalCreatedById?: 0,
+                        uploader_name_wb = globalCreatedNameWB,
+                        uploader_name_sp = globalCreatedName,
+                        status_upload_cmp_wb = 0,
+                        status_upload_ppro_wb = 0,
+                        creator_info = "",
+                        uploader_info_wb = globalUploaderInfoWB,
+                        uploader_info_sp = globalCreatorInfo,
                         noESPB = globalNoESPB,
                         scan_status = 1,
-                        date_scan = SimpleDateFormat(
-                            "yyyy-MM-dd HH:mm:ss",
-                            Locale.getDefault()
-                        ).format(Date()) // Current datetime
+                        date_scan = globalCreatedAtWB
                     )
                 }
 
@@ -269,10 +292,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 "id" to savedItemId,
                                 "endpoint" to "PPRO",
                                 "uploader_info" to globalCreatorInfo,
-                                "uploaded_at" to SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                ).format(Date()),
+                                "uploaded_at" to globalCreatedAtWB,
                                 "uploaded_by_id" to (globalCreatedById ?: 0),
                                 "dept_ppro" to globalDeptPPRO,
                                 "divisi_ppro" to globalDivisiPPRO,
@@ -280,7 +300,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                 "blok_jjg" to globalBlokPPROJjg,
                                 "nopol" to globalNopol,
                                 "driver" to globalDriver,
-                                "pemuat_id" to globalPemuatId.toString(),
+                                "pemuat_id" to globalPemuatId,
                                 "transporter_id" to (globalTransporterId
                                     ?: 0).toString(),
                                 "mill_id" to globalMillId.toString(),
@@ -298,7 +318,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "Sedang membuat file .zip untuk upload",
                                     true
                                 )
-// For CMP data
                                 var number = 0
 
                                 val espbData = mapOf(
@@ -309,31 +328,50 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     "wilayah" to globalWilayah,
                                     "company" to globalCompany,
                                     "dept" to globalDept,
+                                    "dept_abbr" to globalDeptAbbr,
+                                    "dept_nama" to globalDeptName,
                                     "divisi" to globalDivisi,
+                                    "divisi_abbr" to globalDivisiAbbr,
+                                    "divisi_nama" to globalDivisiName,
                                     "blok_id" to globalBlokId,
                                     "blok_jjg" to globalBlokJjg,
                                     "jjg" to globalTotalJjg,
-                                    "created_by_id" to (globalCreatedById ?: 0),
+                                    "jjg_arr" to globalJjgArr,
+                                    "tonase" to 0,
+//                                    "created_by_id" to (globalCreatedById ?: 0),
                                     "created_at" to globalCreatedAt,
+//                                    "created_name" to globalCreatedName,
+                                    "updated_by_wb" to globalCreatedByWB,
+                                    "updated_name_wb" to globalCreatedNameWB,
+                                    "updated_date_wb" to globalCreatedAtWB,
                                     "pemuat_id" to globalPemuatId,
                                     "pemuat_nama" to globalPemuatNama,
+                                    "pemuat_nik" to globalPemuatNik,
                                     "kemandoran_id" to globalKemandoranId,
                                     "nopol" to globalNopol,
                                     "driver" to globalDriver,
-                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
+//                                    "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                     "transporter_id" to (globalTransporterId
                                         ?: 0),
                                     "mill_id" to globalMillId,
-                                    "creator_info" to globalCreatorInfo,
-                                    "no_espb" to globalNoESPB,
+                                    "mill_abbr" to globalMillAbbr,
+                                    "mill_nama" to globalMillName,
+//                                    "no_espb" to globalNoESPB,
+                                    "noESPB" to globalNoESPB,
                                     "tph0" to globalTph0,
                                     "tph1" to globalTph1,
-                                    "update_info_sp" to globalUpdateInfoSP,
-                                    "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity)
-                                        .toString(),
-                                    "jabatan" to prefManager!!.jabatanUserLogin
+                                    "jabatan" to prefManager!!.jabatanUserLogin,
+                                    "uploader_info_wb" to globalUploaderInfoWB,
+                                    "uploader_info_sp" to globalUpdateInfoSP,
+                                    "uploaded_at_wb" to "",
+                                    "uploaded_at_sp" to "",
+                                    "uploaded_by_id_wb" to globalCreatedByWB,
+                                    "uploaded_by_id_sp" to globalCreatedById,
+                                    "uploader_name_wb" to globalCreatedNameWB,
+                                    "uploader_name_sp" to globalCreatedName,
                                 )
 
+                                AppLogger.d("espbdata $espbData")
                                 val espbDataList = listOf(espbData)
 
                                 // Wrap the data in a structure as requested
@@ -347,8 +385,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     AppUtils.DatabaseTables.ESPB to espbDataList,
                                     "check_only" to false
                                 )
-
-                                AppLogger.d("testing")
 
                                 val espbJsonCheckDuplicate = Gson().toJson(wrappedEspbDataCheck)
                                 weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJsonCheckDuplicate)
@@ -399,12 +435,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         "num" to number++,
                                         "ip" to globalIpMill,
                                         "id" to savedItemId,
-                                        "endpoint" to "CMP",
+                                        "endpoint" to "STAGING_CMP",
                                         "uploader_info" to globalCreatorInfo,
-                                        "uploaded_at" to SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).format(Date()),
+                                        "uploaded_at" to globalCreatedAtWB,
                                         "uploaded_by_id" to (globalCreatedById
                                             ?: 0),
                                         "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
@@ -414,26 +447,22 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         "num" to number++,
                                         "ip" to globalIpMill,
                                         "id" to savedItemId,
-                                        "endpoint" to "CMP",
+                                        "endpoint" to "STAGING_CMP",
                                         "uploader_info" to globalCreatorInfo,
-                                        "uploaded_at" to SimpleDateFormat(
-                                            "yyyy-MM-dd HH:mm:ss",
-                                            Locale.getDefault()
-                                        ).format(Date()),
+                                        "uploaded_at" to globalCreatedAtWB,
                                         "uploaded_by_id" to (globalCreatedById
                                             ?: 0),
-                                        "data" to espbJson  // Changed from "file" to "data" and using the JSON string directly
+                                        "data" to espbJson
                                     )
                                 }
 
-                                val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                val itemsToUpload = listOf( itemToUpload,  cmpItem)
                                 val globalIdEspb = listOf(savedItemId)
 
                                 loadingDialog.setMessage(
                                     "Sedang mengupload data ke server, harap tunggu",
                                     true
                                 )
-                                AppLogger.d("test")
                                 weightBridgeViewModel.uploadESPBKraniTimbang(
                                     itemsToUpload,
                                     globalIdEspb
@@ -849,15 +878,19 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 // Convert reconstructed data back to JSON string for processing
                                         val reconstructedJsonStr = Gson().toJson(reconstructedData)
 
+
+                                        AppLogger.d("reconstructedJsonStr $reconstructedJsonStr")
 // Get the basic data needed for TPH check using reconstructed data
                                         val basicProcessingResult = withContext(Dispatchers.IO) {
                                             processBasicQRData(reconstructedJsonStr) // Use reconstructed JSON
                                         }
 
+
+                                        AppLogger.d("basicProcessingResult $basicProcessingResult ")
 // Create TPH duplicate check data
                                         val espbData = mapOf(
                                             "num" to 1,
-                                            "ip" to basicProcessingResult.millIP,
+                                            "ip" to globalIpMill,
                                             "id" to 0,
                                             "regional" to basicProcessingResult.regional,
                                             "wilayah" to basicProcessingResult.wilayah,
@@ -871,25 +904,35 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             "blok_id" to basicProcessingResult.blokId,
                                             "blok_jjg" to basicProcessingResult.blokJjg,
                                             "jjg" to basicProcessingResult.totalJjg,
-                                            "created_by_id" to (prefManager!!.idUserLogin ?: 0),
-                                            "created_at" to basicProcessingResult.createdAt,
-                                            "created_name" to basicProcessingResult.createdName,
+                                            "jjg_arr" to globalJjgArr,
+                                            "tonase" to 0,
                                             "pemuat_id" to basicProcessingResult.pemuatId,
                                             "pemuat_nama" to basicProcessingResult.pemuatNama,
                                             "kemandoran_id" to basicProcessingResult.kemandoranId,
                                             "pemuat_nik" to basicProcessingResult.pemuatNik,
                                             "nopol" to basicProcessingResult.nopol,
                                             "driver" to basicProcessingResult.driver,
-                                            "updated_nama" to prefManager!!.nameUserLogin.toString(),
+                                            "created_at" to globalCreatedAtWB,
+//                                            "updated_nama" to prefManager!!.nameUserLogin.toString(),
                                             "transporter_id" to basicProcessingResult.transporterId,
                                             "mill_id" to basicProcessingResult.millId,
-                                            "creator_info" to basicProcessingResult.creatorInfo,
-                                            "no_espb" to basicProcessingResult.noESPB,
+                                            "mill_abbr" to globalMillAbbr,
+                                            "mill_nama" to globalMillName,
+//                                            "creator_info" to basicProcessingResult.creatorInfo,
+//                                            "no_espb" to basicProcessingResult.noESPB,
+                                            "noESPB" to basicProcessingResult.noESPB,
                                             "tph0" to basicProcessingResult.tph0,
                                             "tph1" to basicProcessingResult.tph1,
-                                            "update_info_sp" to basicProcessingResult.updateInfoSP,
-                                            "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity).toString(),
-                                            "jabatan" to prefManager!!.jabatanUserLogin
+//                                            "app_version" to AppUtils.getDeviceInfo(this@ScanWeighBridgeActivity).toString(),
+                                            "jabatan" to prefManager!!.jabatanUserLogin,
+                                            "uploader_info_wb" to globalUploaderInfoWB,
+                                            "uploader_info_sp" to globalUpdateInfoSP,
+                                            "uploaded_at_wb" to "",
+                                            "uploaded_at_sp" to "",
+                                            "uploaded_by_id_wb" to globalCreatedByWB,
+                                            "uploaded_by_id_sp" to globalCreatedById,
+                                            "uploader_name_wb" to globalCreatedNameWB,
+                                            "uploader_name_sp" to globalCreatedName,
                                         )
 
                                         val espbDataList = listOf(espbData)
@@ -899,251 +942,108 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                         )
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
+
+                                        AppLogger.d("globalIpMill $globalIpMill")
                                         AppLogger.d("espbJson $espbJson")
-                                        weightBridgeViewModel.checkTPHDuplicates(basicProcessingResult.millIP, espbJson)
+                                        weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJson)
                                         delay(100)
 
 // Observe TPH duplicate result
                                         weightBridgeViewModel.tphDuplicateResult.observeOnce(this@ScanWeighBridgeActivity) { duplicateResponse ->
-                                            if (duplicateResponse?.status == "success" && !duplicateResponse.duplicates.isNullOrEmpty()) {
-                                                // TPH duplicates found - show detailed error
-                                                lifecycleScope.launch {
-                                                    try {
-                                                        loadingDialog.setMessage("Mengambil detail data duplikat...", true)
+                                            if (duplicateResponse?.status == "success") {
+                                                val hasEspbDuplicates = !duplicateResponse.espbDuplicates.isNullOrEmpty()
+                                                val hasTphDuplicates = !duplicateResponse.tphDuplicates.isNullOrEmpty()
 
-                                                        // Data class to hold duplicate info for grouping
-                                                        data class DuplicateInfo(
-                                                            val blokKode: String,
-                                                            val tphNomor: String,
-                                                            val formattedDate: String,
-                                                            val rawDate: String,
-                                                            val idTph: Int,
-                                                            val jjgCount: String
-                                                        )
+                                                if (hasEspbDuplicates || hasTphDuplicates) {
+                                                    // Found duplicates - show detailed error
+                                                    lifecycleScope.launch {
+                                                        try {
+                                                            loadingDialog.setMessage("Mengambil detail data duplikat...", true)
 
-                                                        val duplicateInfoList = mutableListOf<DuplicateInfo>()
 
-                                                        // Process each duplicate and collect info
-                                                        for (duplicate in duplicateResponse.duplicates) {
-                                                            try {
-                                                                val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+                                                            val duplicateDetails = mutableListOf<String>()
 
-                                                                // Format the datetime to Indonesian format with custom short months
-                                                                val formattedDate = try {
-                                                                    val originalDate = SimpleDateFormat(
-                                                                        "yyyy-MM-dd HH:mm:ss",
-                                                                        Locale.getDefault()
-                                                                    ).parse(duplicate.datetime)
-
-                                                                    val calendar = Calendar.getInstance()
-                                                                    calendar.time = originalDate!!
-
-                                                                    val shortMonths = arrayOf(
-                                                                        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-                                                                        "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
-                                                                    )
-
-                                                                    val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
-                                                                    val month = shortMonths[calendar.get(Calendar.MONTH)]
-                                                                    val year = calendar.get(Calendar.YEAR)
-                                                                    val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
-                                                                    val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
-                                                                    val second = String.format("%02d", calendar.get(Calendar.SECOND))
-
-                                                                    "$day $month $year $hour:$minute:$second"
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Date parsing error: ${e.message}")
-                                                                    duplicate.datetime
-                                                                }
-
-                                                                // Extract JJG count from reconstructed tph1 data
-                                                                var jjgCount = ""
-                                                                try {
-                                                                    val tph1Data = basicProcessingResult.tph1
-                                                                    if (!tph1Data.isNullOrEmpty()) {
-                                                                        val tph1Entries = tph1Data.split(";")
-                                                                        for (entry in tph1Entries) {
-                                                                            val parts = entry.split(",")
-                                                                            if (parts.size >= 4) {
-                                                                                val tphId = parts[0].trim()
-                                                                                val datetime = parts[1].trim()
-                                                                                val jjg = parts[2].trim()
-
-                                                                                // Match by TPH ID and datetime
-                                                                                if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
-                                                                                    jjgCount = jjg
-                                                                                    break
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Error extracting JJG count: ${e.message}")
-                                                                }
-
-                                                                if (tphBlokInfo != null) {
-                                                                    duplicateInfoList.add(
-                                                                        DuplicateInfo(
-                                                                            blokKode = tphBlokInfo.blokKode,
-                                                                            tphNomor = tphBlokInfo.tphNomor,
-                                                                            formattedDate = formattedDate,
-                                                                            rawDate = duplicate.datetime,
-                                                                            idTph = duplicate.idTph,
-                                                                            jjgCount = jjgCount
-                                                                        )
-                                                                    )
-                                                                } else {
-                                                                    // For unknown TPH, use a fallback group
-                                                                    duplicateInfoList.add(
-                                                                        DuplicateInfo(
-                                                                            blokKode = "Unknown",
-                                                                            tphNomor = "ID ${duplicate.idTph}",
-                                                                            formattedDate = formattedDate,
-                                                                            rawDate = duplicate.datetime,
-                                                                            idTph = duplicate.idTph,
-                                                                            jjgCount = jjgCount
-                                                                        )
-                                                                    )
-                                                                }
-
-                                                            } catch (e: Exception) {
-                                                                AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
-
-                                                                val formattedDate = try {
-                                                                    val originalDate = SimpleDateFormat(
-                                                                        "yyyy-MM-dd HH:mm:ss",
-                                                                        Locale.getDefault()
-                                                                    ).parse(duplicate.datetime)
-
-                                                                    val calendar = Calendar.getInstance()
-                                                                    calendar.time = originalDate!!
-
-                                                                    val shortMonths = arrayOf(
-                                                                        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-                                                                        "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
-                                                                    )
-
-                                                                    val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
-                                                                    val month = shortMonths[calendar.get(Calendar.MONTH)]
-                                                                    val year = calendar.get(Calendar.YEAR)
-                                                                    val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
-                                                                    val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
-                                                                    val second = String.format("%02d", calendar.get(Calendar.SECOND))
-
-                                                                    "$day $month $year $hour:$minute:$second"
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Date parsing error in fallback: ${e.message}")
-                                                                    duplicate.datetime
-                                                                }
-
-                                                                // Extract JJG count for fallback case too
-                                                                var jjgCount = ""
-                                                                try {
-                                                                    val tph1Data = basicProcessingResult.tph1
-                                                                    if (!tph1Data.isNullOrEmpty()) {
-                                                                        val tph1Entries = tph1Data.split(";")
-                                                                        for (entry in tph1Entries) {
-                                                                            val parts = entry.split(",")
-                                                                            if (parts.size >= 4) {
-                                                                                val tphId = parts[0].trim()
-                                                                                val datetime = parts[1].trim()
-                                                                                val jjg = parts[2].trim()
-
-                                                                                if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
-                                                                                    jjgCount = jjg
-                                                                                    break
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                } catch (e: Exception) {
-                                                                    AppLogger.e("Error extracting JJG count in fallback: ${e.message}")
-                                                                }
-
-                                                                duplicateInfoList.add(
-                                                                    DuplicateInfo(
-                                                                        blokKode = "Unknown",
-                                                                        tphNomor = "ID ${duplicate.idTph}",
-                                                                        formattedDate = formattedDate,
-                                                                        rawDate = duplicate.datetime,
-                                                                        idTph = duplicate.idTph,
-                                                                        jjgCount = jjgCount
-                                                                    )
-                                                                )
-                                                            }
-                                                        }
-
-                                                        // Group by blok code and sort
-                                                        val groupedDuplicates = duplicateInfoList
-                                                            .groupBy { it.blokKode }
-                                                            .toSortedMap() // Sort blok codes alphabetically
-
-                                                        // Format the grouped duplicates
-                                                        val duplicateDetails = mutableListOf<String>()
-                                                        var groupNumber = 1
-
-                                                        for ((blokKode, duplicatesInBlok) in groupedDuplicates) {
-                                                            // Add group header
-                                                            duplicateDetails.add("${groupNumber}. $blokKode")
-
-                                                            // Sort TPH within each group by TPH number
-                                                            val sortedTPH = duplicatesInBlok.sortedBy { duplicate ->
-                                                                // Extract numeric part of TPH for proper sorting
-                                                                try {
-                                                                    if (duplicate.tphNomor.startsWith("ID ")) {
-                                                                        // For unknown TPH (ID format), sort by ID number
-                                                                        duplicate.tphNomor.substring(3).toIntOrNull() ?: Int.MAX_VALUE
-                                                                    } else {
-                                                                        // For normal TPH, extract number from tphNomor
-                                                                        duplicate.tphNomor.toIntOrNull() ?: Int.MAX_VALUE
-                                                                    }
-                                                                } catch (e: Exception) {
-                                                                    Int.MAX_VALUE
-                                                                }
-                                                            }
-
-                                                            // Add TPH details for this group
-                                                            for (duplicate in sortedTPH) {
-                                                                val jjgText = if (duplicate.jjgCount.isNotEmpty()) " - ${duplicate.jjgCount} Jjg" else ""
-                                                                val tphDetail = if (duplicate.tphNomor.startsWith("ID ")) {
-                                                                    "  • ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
-                                                                } else {
-                                                                    "  • ${duplicate.blokKode} TPH ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
-                                                                }
-                                                                duplicateDetails.add(tphDetail)
-                                                            }
-
-                                                            // Add empty line after each group (except the last one)
-                                                            if (groupNumber < groupedDuplicates.size) {
+                                                            // ✅ Process ESPB duplicates (they are just strings - ESPB numbers)
+                                                            if (hasEspbDuplicates) {
+                                                                duplicateDetails.add("━━━ DUPLIKAT ESPB ━━━")
                                                                 duplicateDetails.add("")
+
+                                                                var espbNumber = 1
+                                                                for (espbNo in duplicateResponse.espbDuplicates!!) {
+                                                                    duplicateDetails.add("${espbNumber}. $espbNo")
+                                                                    espbNumber++
+                                                                }
                                                             }
 
-                                                            groupNumber++
+                                                            // ✅ Process TPH duplicates (they are objects with id_tph and datetime)
+                                                            if (hasTphDuplicates) {
+                                                                if (duplicateDetails.isNotEmpty()) {
+                                                                    duplicateDetails.add("")
+                                                                    duplicateDetails.add("━━━ DUPLIKAT TPH ━━━")
+                                                                    duplicateDetails.add("")
+                                                                }
+
+                                                                val tphDuplicateInfoList = mutableListOf<DuplicateInfo>()
+
+                                                                for (duplicate in duplicateResponse.tphDuplicates!!) {
+                                                                    tphDuplicateInfoList.add(
+                                                                        processDuplicate(duplicate, "TPH", basicProcessingResult)
+                                                                    )
+                                                                }
+
+                                                                // Add grouped TPH duplicates
+                                                                addGroupedDuplicates(duplicateDetails, tphDuplicateInfoList)
+                                                            }
+
+                                                            val duplicateListText = duplicateDetails.joinToString("\n")
+
+                                                            val espbCount = duplicateResponse.espbDuplicates?.size ?: 0
+                                                            val tphCount = duplicateResponse.tphDuplicates?.size ?: 0
+
+                                                            val countText = buildString {
+                                                                if (espbCount > 0) append("$espbCount ESPB")
+                                                                if (espbCount > 0 && tphCount > 0) append(" dan ")
+                                                                if (tphCount > 0) append("$tphCount TPH")
+                                                            }
+
+                                                            val errorMessage = "Ditemukan $countText data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
+
+                                                            loadingDialog.dismiss()
+                                                            showCombinedDuplicateError(errorMessage)
+
+                                                        } catch (e: Exception) {
+                                                            loadingDialog.dismiss()
+                                                            AppLogger.e("Error processing duplicate details: ${e.message}")
+
+                                                            // Fallback to simple duplicate message
+                                                            val espbCount = duplicateResponse.espbDuplicates?.size ?: 0
+                                                            val tphCount = duplicateResponse.tphDuplicates?.size ?: 0
+                                                            val totalCount = espbCount + tphCount
+
+                                                            val errorMessage = "Ditemukan $totalCount data duplikat ($espbCount ESPB, $tphCount TPH).\n\nData tidak dapat disimpan karena sudah ada di sistem."
+                                                            showDuplicateError(errorMessage)
                                                         }
-
-                                                        val duplicateListText = duplicateDetails.joinToString("\n")
-                                                        val duplicateCount = duplicateResponse.duplicates.size
-                                                        val errorMessage = "Ditemukan $duplicateCount data duplikat yang sudah ada di sistem/PC:\n\n$duplicateListText\n\nLaporkan informasi ini kepada Mandor1 atau Asisten"
-
-                                                        loadingDialog.dismiss()
-                                                        showTPHDuplicateError(errorMessage)
-
-                                                    } catch (e: Exception) {
-                                                        loadingDialog.dismiss()
-                                                        AppLogger.e("Error processing duplicate details: ${e.message}")
-
-                                                        // Fallback to simple duplicate message
-                                                        val duplicateCount = duplicateResponse.duplicates.size
-                                                        val firstDuplicate = duplicateResponse.duplicates.first()
-                                                        val errorMessage = "Ditemukan $duplicateCount data duplikat.\n\nDuplikat terakhir: ${firstDuplicate.datetime}\n\nData tidak dapat disimpan karena sudah ada di sistem."
-                                                        showTPHDuplicateError(errorMessage)
                                                     }
+                                                } else {
+                                                    // No duplicates - continue with full processing
+                                                    continueQRProcessing(reconstructedJsonStr)
                                                 }
                                             } else {
-                                                // No TPH duplicates - continue with full processing using reconstructed data
-                                                continueQRProcessing(reconstructedJsonStr) // Pass reconstructed JSON
+                                                // Handle error or no_data status
+                                                if (duplicateResponse?.status == "no_data") {
+                                                    showError("Tidak ada data valid untuk diproses")
+                                                } else {
+                                                    continueQRProcessing(reconstructedJsonStr)
+                                                }
                                             }
                                         }
+
+                                        // ========== HELPER FUNCTIONS (ADD THESE IN ScanWeighBridgeActivity.kt) ==========
+
+
+
+                                        // Define DuplicateInfo data class at the class level (outside functions)
+
 
                                     } catch (e: Exception) {
                                         loadingDialog.dismiss()
@@ -1222,7 +1122,211 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         })
     }
 
+    private fun showCombinedDuplicateError(errorMessage: String) {
+        showBottomSheetWithData(
+            parsedData = null,
+            distinctDeptAbbr = "-",
+            distinctDivisiAbbr = "-",
+            formattedBlokList = "-",
+            pemuat = "-",
+            totalJjgSum = 0,
+            millAbbr = "-",
+            transporterName = "-",
+            createAtFormatted = "-",
+            hasError = true,
+            errorMessage = errorMessage
+        )
+    }
+
+
+    data class DuplicateInfo(
+        val blokKode: String,
+        val tphNomor: String,
+        val formattedDate: String,
+        val rawDate: String,
+        val idTph: Int,
+        val jjgCount: String,
+        val type: String // "ESPB" or "TPH"
+    )
+
+    suspend fun processDuplicate(
+        duplicate: DuplicateData,
+        type: String,
+        basicProcessingResult: BasicProcessingResult // Replace with your actual type
+    ): DuplicateInfo {
+        return try {
+            val tphBlokInfo = panenViewModel.getTPHAndBlokInfo(duplicate.idTph)
+
+            val formattedDate = formatDateTime(duplicate.datetime)
+            val jjgCount = extractJjgCount(duplicate, basicProcessingResult)
+
+            if (tphBlokInfo != null) {
+                DuplicateInfo(
+                    blokKode = tphBlokInfo.blokKode,
+                    tphNomor = tphBlokInfo.tphNomor,
+                    formattedDate = formattedDate,
+                    rawDate = duplicate.datetime,
+                    idTph = duplicate.idTph,
+                    jjgCount = jjgCount,
+                    type = type
+                )
+            } else {
+                DuplicateInfo(
+                    blokKode = "Unknown",
+                    tphNomor = "ID ${duplicate.idTph}",
+                    formattedDate = formattedDate,
+                    rawDate = duplicate.datetime,
+                    idTph = duplicate.idTph,
+                    jjgCount = jjgCount,
+                    type = type
+                )
+            }
+        } catch (e: Exception) {
+            AppLogger.e("Error fetching TPH info for ID ${duplicate.idTph}: ${e.message}")
+
+            DuplicateInfo(
+                blokKode = "Unknown",
+                tphNomor = "ID ${duplicate.idTph}",
+                formattedDate = formatDateTime(duplicate.datetime),
+                rawDate = duplicate.datetime,
+                idTph = duplicate.idTph,
+                jjgCount = extractJjgCount(duplicate, basicProcessingResult),
+                type = type
+            )
+        }
+    }
+
+    fun formatDateTime(datetime: String): String {
+        return try {
+            val originalDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(datetime)
+            val calendar = Calendar.getInstance()
+            calendar.time = originalDate!!
+
+            val shortMonths = arrayOf(
+                "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+                "Jul", "Ags", "Sep", "Okt", "Nov", "Des"
+            )
+
+            val day = String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH))
+            val month = shortMonths[calendar.get(Calendar.MONTH)]
+            val year = calendar.get(Calendar.YEAR)
+            val hour = String.format("%02d", calendar.get(Calendar.HOUR_OF_DAY))
+            val minute = String.format("%02d", calendar.get(Calendar.MINUTE))
+            val second = String.format("%02d", calendar.get(Calendar.SECOND))
+
+            "$day $month $year $hour:$minute:$second"
+        } catch (e: Exception) {
+            AppLogger.e("Date parsing error: ${e.message}")
+            datetime
+        }
+    }
+
+
+
+    fun extractJjgCount(
+        duplicate: DuplicateData,
+        basicProcessingResult: BasicProcessingResult // Replace with your actual type
+    ): String {
+        return try {
+            val tph1Data = basicProcessingResult.tph1
+            if (!tph1Data.isNullOrEmpty()) {
+                val tph1Entries = tph1Data.split(";")
+                for (entry in tph1Entries) {
+                    val parts = entry.split(",")
+                    if (parts.size >= 4) {
+                        val tphId = parts[0].trim()
+                        val datetime = parts[1].trim()
+                        val jjg = parts[2].trim()
+
+                        if (tphId == duplicate.idTph.toString() && datetime == duplicate.datetime) {
+                            return jjg
+                        }
+                    }
+                }
+            }
+            ""
+        } catch (e: Exception) {
+            AppLogger.e("Error extracting JJG count: ${e.message}")
+            ""
+        }
+    }
+
+    fun addGroupedDuplicates(
+        duplicateDetails: MutableList<String>,
+        duplicates: List<DuplicateInfo>
+    ) {
+        val groupedDuplicates = duplicates
+            .groupBy { it.blokKode }
+            .toSortedMap()
+
+        var groupNumber = 1
+
+        for ((blokKode, duplicatesInBlok) in groupedDuplicates) {
+            duplicateDetails.add("${groupNumber}. $blokKode")
+
+            val sortedTPH = duplicatesInBlok.sortedBy { duplicate ->
+                try {
+                    if (duplicate.tphNomor.startsWith("ID ")) {
+                        duplicate.tphNomor.substring(3).toIntOrNull() ?: Int.MAX_VALUE
+                    } else {
+                        duplicate.tphNomor.toIntOrNull() ?: Int.MAX_VALUE
+                    }
+                } catch (e: Exception) {
+                    Int.MAX_VALUE
+                }
+            }
+
+            for (duplicate in sortedTPH) {
+                val jjgText = if (duplicate.jjgCount.isNotEmpty()) " - ${duplicate.jjgCount} Jjg" else ""
+                val tphDetail = if (duplicate.tphNomor.startsWith("ID ")) {
+                    "  • ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
+                } else {
+                    "  • ${duplicate.blokKode} TPH ${duplicate.tphNomor}$jjgText (${duplicate.formattedDate})"
+                }
+                duplicateDetails.add(tphDetail)
+            }
+
+            if (groupNumber < groupedDuplicates.size) {
+                duplicateDetails.add("")
+            }
+
+            groupNumber++
+        }
+    }
+
+    fun showDuplicateError(message: String) {
+        // Use your existing error dialog
+        showTPHDuplicateError(message)
+    }
+
     private fun continueQRProcessing(jsonStr: String) {
+        val appVersion: String = try {
+            this.packageManager.getPackageInfo(this.packageName, 0).versionName
+        } catch (e: Exception) {
+            Log.e("DeviceInfo", "Failed to get app version", e)
+            "Unknown"
+        }
+
+        val osVersion: String = try {
+            Build.VERSION.RELEASE
+        } catch (e: Exception) {
+            Log.e("DeviceInfo", "Failed to get OS version", e)
+            "Unknown"
+        }
+
+        val phoneModel: String = try {
+            "${Build.MANUFACTURER} ${Build.MODEL}"
+        } catch (e: Exception) {
+            Log.e("DeviceInfo", "Failed to get phone model", e)
+            "Unknown"
+        }
+
+        globalUploaderInfoWB = createCreatorInfo(
+            appVersion = appVersion,
+            osVersion = osVersion,
+            phoneModel = phoneModel
+        ).toString()
+
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
                 loadingDialog.setMessage("Sedang mempersiapkan data e-SPB ", true)
@@ -1252,7 +1356,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         if (parts.isNotEmpty()) {
                             val tphId = parts[0].toIntOrNull()
                             if (tphId != null) {
-
+                                // Wait for tphDetails to be fetched first
                                 withContext(Dispatchers.Main) {
                                     val blokDeferred = CompletableDeferred<List<BlokModel>>()
 
@@ -1262,8 +1366,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                             tphDetails = datasetViewModel.getTPHDetailsByID(tphId)
                                             AppLogger.d("tphDetail $tphDetails")
 
-                                            val est = tphDetails?.dept_abbr
-                                            val afd = tphDetails?.divisi_abbr
+                                            val est = tphDetails!!.dept_ppro
+                                            val afd = tphDetails!!.divisi_ppro
 
                                             AppLogger.d("est $est")
                                             AppLogger.d("afd $afd")
@@ -1276,7 +1380,6 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                                 try {
                                                     // Access repository through the ViewModel instance
                                                     val result = withContext(Dispatchers.IO) {
-                                                        AppLogger.d("blokinfo $blockId est: $est afd: $afd")
                                                         weightBridgeViewModel.repository.fetchBlokbyParams(blockId, est, afd)
                                                     }
 
@@ -1335,30 +1438,52 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                     AppLogger.d("pemuatNama $pemuatNama")
 
+                    val firstBlok = try {
+                        blokData.firstOrNull { blok ->
+                            blok.id_ppro != null && blok.id_ppro != 0 &&
+                                    blok.regional != null && blok.regional != 0 &&
+                                    blok.wilayah != null && blok.wilayah != 0 &&
+                                    blok.dept_ppro != null && blok.dept_ppro != 0 &&
+                                    blok.divisi_ppro != null && blok.divisi_ppro != 0 &&
+                                    blok.kode != null && blok.kode.isNotBlank() &&
+                                    blok.tahun != null && blok.tahun != 0
+                        }
+                    } catch (e: Exception) {
+                        throw Exception("Terjadi kesalahan. Blok tidak ditemukan. $e")
+                        null
+                    }
 
-// Get dept and divisi info from first block
-                    val firstBlok = blokData.firstOrNull()
+                    globalDeptPPRO = firstBlok?.dept_ppro ?: 0
+                    globalDivisiPPRO = firstBlok?.divisi_ppro ?: 0
                     val deptAbbr = firstBlok?.dept_abbr ?: "-"
                     val divisiAbbr = firstBlok?.divisi_abbr ?: "-"
 
-                    try {
-                        // Check if first item exists and has dept_ppro and divisi_ppro
-                        val validFirstBlok = firstBlok ?: throw Exception("Terjadi kesalahan. Blok tidak ditemukan.")
-
-                        val deptPpro = validFirstBlok.dept_ppro
-                            ?: throw Exception("Terjadi kesalahan. Estate tidak ditemukan.")
-
-                        val divisiPpro = validFirstBlok.divisi_ppro
-                            ?: throw Exception("Terjadi kesalahan. Afdeling tidak ditemukan.")
-
-                        // Assign only if we didn't throw any exceptions
-                        globalDeptPPRO = deptPpro
-                        globalDivisiPPRO = divisiPpro
-                    } catch (e: Exception) {
-                        // Log and rethrow with your custom message
-                        AppLogger.e(e.message ?: "Unknown error")
-                        throw e  // This will be caught by your outer catch block
+                    val afdelingDeffered = async {
+                        try {
+                            datasetViewModel.getAfdelingById(firstBlok?.divisi ?: 0)
+                        } catch (e: Exception) {
+                            AppLogger.e("Gagal mendapatkan data afdeling")
+                            null
+                        }
                     }
+
+                    val estateDeferred = async {
+                        try {
+                            datasetViewModel.getEstateById(firstBlok?.dept ?: 0)
+                        } catch (e: Exception) {
+                            AppLogger.e("Gagal mendapatkan data afdeling: ${e.message}")
+                            null
+                        }
+                    }
+
+                    val estate = estateDeferred.await()
+                    val estateName = estate?.nama ?: ""
+
+                    val afdeling = afdelingDeffered.await()
+                    val divisiName = afdeling?.nama
+
+//                    globalDeptPPRO =
+//                    globalDivisiPPRO =
 
                     val formattedBlokList = blokJjgList.mapNotNull { (blockKey, totalJjg) ->
                         // Try to find by id_ppro first, then by id
@@ -1387,6 +1512,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         }
                     }.joinToString(";")
 
+                    val jjgArr = blokJjgList.mapNotNull { (_, jjg) -> jjg }.joinToString(",")
+
                     AppLogger.d("formattedBlokList:\n$formattedBlokList")
                     AppLogger.d("BlokPPROJjg: $BlokPPROJjg")
                     AppLogger.d("firstBlok $firstBlok")
@@ -1397,18 +1524,26 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     val createdAt = modifiedParsedData?.espb?.createdAt ?: "-"
                     val createAtFormatted = formatToIndonesianDate(createdAt)
 
+
+                    val userMillAbbr = extractMillAbbrFromName(prefManager!!.nameUserLogin)
+                    AppLogger.d("Extracted Mill Abbr = $userMillAbbr")
+
                     val millDataDeferred = async {
                         try {
-                            weightBridgeViewModel.getMillName(millId)
+                            espbViewModel.getMillByAbbr(userMillAbbr)
                         } catch (e: Exception) {
                             AppLogger.e("Gagal mendapatkan data mill")
                             null
                         }
                     }
 
-                    val millData = millDataDeferred.await() ?: emptyList()
-                    val millAbbr = millData.firstOrNull()?.let { "${it.abbr} (${it.nama})" } ?: "-"
-                    val millIP = millData.firstOrNull()?.let { "${it.ip_address}" } ?: "-"
+                    val millData = millDataDeferred.await()
+
+                    val millAbbr = millData?.let { "${it.abbr} (${it.nama})" } ?: "-"
+                    val millAbbr2 = millData?.abbr ?: "-"
+                    val millName = millData?.nama ?: "-"
+                    val millIP = millData?.ip_address ?: "-"
+
 
                     val transporterName = if (transporterId == 0) {
                         "Internal"
@@ -1428,42 +1563,48 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     }
                     val totalJjg = blokJjgList.mapNotNull { it.second }.sum()
 
-//                    val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
-//                        // Split by comma, trim whitespace, filter empty values, then rejoin
-//                        nikString.split(",")
-//                            .map { it.trim() }
-//                            .filter { it.isNotEmpty() }
-//                            .joinToString(",")
-//                    } ?: ""
+                    val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
+                        // Split by comma, trim whitespace, filter empty values, then rejoin
+                        nikString.split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .joinToString(",")
+                    } ?: ""
 
                     globalRegional = firstBlok?.regional.toString() ?: ""
                     globalWilayah = firstBlok?.wilayah.toString() ?: ""
                     globalCompany = firstBlok?.company ?: 0
                     globalDept = firstBlok?.dept ?: 0
+                    globalDeptAbbr = firstBlok?.dept_abbr ?: ""
+                    globalDeptName = estateName
                     globalDivisi = firstBlok?.divisi ?: 0
+                    globalDivisiAbbr = firstBlok?.divisi_abbr ?: ""
+                    globalDivisiName = divisiName ?: ""
                     globalBlokId = idBlokString
                     globalTotalJjg = totalJjg.toString()
                     globalBlokPPROJjg = BlokPPROJjg
-                    globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: "-"
-                    globalCreatedById = prefManager!!.idUserLogin
-                    globalCreatedName = prefManager!!.nameUserLogin!!
-                    globalNopol = modifiedParsedData?.espb?.nopol ?: "-"
-                    globalDriver = modifiedParsedData?.espb?.driver ?: "-"
+                    globalJjgArr = jjgArr
+                    globalBlokJjg = modifiedParsedData?.espb?.blokJjg ?: ""
+                    globalCreatedById = modifiedParsedData?.espb?.createdById ?: 0
+                    globalCreatedName = modifiedParsedData?.espb?.createdName ?: ""
+                    globalNopol = modifiedParsedData?.espb?.nopol ?: ""
+                    globalDriver = modifiedParsedData?.espb?.driver ?: ""
                     globalTransporterId = transporterId
-                    globalPemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-"
-                    globalPemuatNama = modifiedParsedData?.espb?.pemuat_nama ?: "-"
-                    globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-"
-                    globalPemuatNik =  modifiedParsedData?.espb?.pemuat_nik ?: "-"
+                    globalPemuatId = modifiedParsedData?.espb?.pemuat_id ?: ""
+                    globalPemuatNama = modifiedParsedData?.espb?.pemuat_nama ?: ""
+                    globalKemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: ""
+                    globalPemuatNik = nikValues
                     globalMillId = millId
+                    globalMillAbbr = millAbbr2
+                    globalMillName = millName
                     globalTph0 = modifiedParsedData?.tph0 ?: "-"
                     globalTph1 = modifiedParsedData?.tph1 ?: "-"
                     globalCreatedAt = modifiedParsedData?.espb?.createdAt.toString() ?: "-"
                     globalCreatorInfo = modifiedParsedData?.espb?.creatorInfo?.toString() ?: "-"
                     globalNoESPB = modifiedParsedData?.espb?.noEspb ?: "-"
-                    globalUpdateInfoSP = modifiedParsedData?.espb?.update_info_sp ?: "-"
+                    globalUpdateInfoSP = globalCreatorInfo
                     globalIpMill = millIP
 
-                    // REMOVED TPH DUPLICATE CHECK CODE FROM HERE - IT'S NOW IN processQRResult
 
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
@@ -1669,6 +1810,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
         val millData = weightBridgeViewModel.getMillName(millId) ?: emptyList()
         val millIP = millData.firstOrNull()?.ip_address ?: "-"
+        globalIpMill = millIP
 
         val nikValues = modifiedParsedData?.espb?.pemuat_nik?.toString()?.let { nikString ->
             nikString.split(",")
@@ -1692,9 +1834,9 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             blokJjg = modifiedParsedData?.espb?.blokJjg ?: "-",
             totalJjg = totalJjg.toString(),
             createdAt = modifiedParsedData?.espb?.createdAt.toString() ?: "-",
-            createdName = modifiedParsedData?.espb?.createdName.toString() ?: "-",
+            createdName = modifiedParsedData?.espb?.createdName ?: "-",
             pemuatId = modifiedParsedData?.espb?.pemuat_id ?: "-",
-            pemuatNama = modifiedParsedData?.espb?.pemuat_nama!!,
+            pemuatNama = modifiedParsedData?.espb?.pemuat_nama ?: "-",
             kemandoranId = modifiedParsedData?.espb?.kemandoran_id ?: "-",
             pemuatNik = nikValues,
             nopol = modifiedParsedData?.espb?.nopol ?: "-",
@@ -1744,11 +1886,57 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
             errorMessage = "ESPB dengan nomor $noEspb sudah pernah dipindai sebelumnya ($formattedDate)"
         )
     }
+    private fun showError(errorMessage: String) {
+        showBottomSheetWithData(
+            parsedData = null,
+            distinctDeptAbbr = "-",
+            distinctDivisiAbbr = "-",
+            formattedBlokList = "-",
+            pemuat = "-",
+            totalJjgSum = 0,
+            millAbbr = "-",
+            transporterName = "-",
+            createAtFormatted = "-",
+            hasError = true,
+            errorMessage = errorMessage
+        )
+    }
+
+    private fun extractMillAbbrFromName(name: String?): String {
+        if (name.isNullOrBlank()) return "-"
+
+        val clean = name.trim()
+
+        val emailMatch = Regex("@([A-Za-z]{2,4})$").find(clean)
+        if (emailMatch != null) {
+            return emailMatch.groupValues[1].uppercase()
+        }
+
+        val upperTokens = clean.split(" ")
+            .filter { it.length in 2..4 && it.uppercase() == it }
+        if (upperTokens.isNotEmpty()) {
+            return upperTokens.last().uppercase()   // take last uppercase token
+        }
+
+        val letters = clean.split(" ")
+            .map { it.replace("[^A-Za-z]".toRegex(), "") }
+            .filter { it.length in 2..4 }
+        if (letters.isNotEmpty()) {
+            return letters.last().uppercase()
+        }
+
+        val last = clean.split(" ").last()
+        return last.take(4).uppercase()
+    }
+
 
 
     private fun initViewModel() {
         val factory = WeighBridgeViewModel.WeightBridgeViewModelFactory(application)
         weightBridgeViewModel = ViewModelProvider(this, factory)[WeighBridgeViewModel::class.java]
+        val appRepository = AppRepository(application)
+        val factory4 = ESPBViewModel.ESPBViewModelFactory(appRepository)
+        espbViewModel = ViewModelProvider(this, factory4)[ESPBViewModel::class.java]
         val factory2 = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory2)[DatasetViewModel::class.java]
         val factory3 = PanenViewModel.PanenViewModelFactory(application)
@@ -1765,6 +1953,14 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                 delay(100)
                 resumeScanner()
             }
+        }
+    }
+
+    fun createCreatorInfo(appVersion: String, osVersion: String, phoneModel: String): JsonObject {
+        return JsonObject().apply {
+            addProperty("app_version", appVersion)
+            addProperty("os_version", osVersion)
+            addProperty("device_model", phoneModel)
         }
     }
 

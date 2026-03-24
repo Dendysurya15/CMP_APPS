@@ -2218,7 +2218,9 @@ class FormESPBActivity : AppCompatActivity() {
                     pemuat_nik = pemuat_nik,
                     pemuat_nama = pemuat_nama,
                     ids_to_update = idsToUpdate.joinToString(","),
-                    date_scan = ""
+                    date_scan = "",
+                    mill_abbr = "",
+                    mill_name = ""
                 )
 
                 // Insert ESPB and get the ID

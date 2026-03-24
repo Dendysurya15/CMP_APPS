@@ -458,8 +458,8 @@ class UploadCMPViewModelAdmTimbang(application: Application) : AndroidViewModel(
         private val application: Application
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(UploadCMPViewModel::class.java)) {
-                return UploadCMPViewModel(application) as T
+            if (modelClass.isAssignableFrom(UploadCMPViewModelAdmTimbang::class.java)) { // ✅
+                return UploadCMPViewModelAdmTimbang(application) as T                     // ✅
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

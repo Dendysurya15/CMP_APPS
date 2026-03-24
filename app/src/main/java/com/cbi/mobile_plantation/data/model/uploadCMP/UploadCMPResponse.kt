@@ -38,7 +38,6 @@ data class PhotoResult(
     val uploadDate: String
 )
 
-
 data class checkStatusUploadedData(
     val success: Boolean,
     val data: List<StatusData>
@@ -88,11 +87,28 @@ data class SkipErrorDetail(
 
 data class CheckDuplicateResponse(
     @SerializedName("status") val status: String,
-    @SerializedName("processed") val processed: Int,
-    @SerializedName("duplicates") val duplicates: List<DuplicateData>?
+    @SerializedName("mode") val mode: String? = null,
+    @SerializedName("espb_duplicates") val espbDuplicates: List<String>? = null,
+    @SerializedName("tph_duplicates") val tphDuplicates: List<DuplicateData>? = null,
+    @SerializedName("tph_new_records") val tphNewRecords: List<DuplicateData>? = null,
+    @SerializedName("message") val message: String? = null
 )
 
 data class DuplicateData(
     @SerializedName("id_tph") val idTph: Int,
     @SerializedName("datetime") val datetime: String
+)
+
+data class UploadHarvestResponse(
+    @SerializedName("status")
+    val status: String,  // ← "success" bukan Int!
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("id")
+    val id: Int,
+
+    @SerializedName("noESPB")
+    val noESPB: String
 )

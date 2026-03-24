@@ -1488,8 +1488,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         val factory2 = DatasetViewModel.DatasetViewModelFactory(application)
         datasetViewModel = ViewModelProvider(this, factory2)[DatasetViewModel::class.java]
 
-        val factory4 = UploadCMPViewModel.UploadCMPViewModelFactory(application)
-        uploadCMPViewModel = ViewModelProvider(this, factory4)[UploadCMPViewModel::class.java]
+        val factory4 = UploadCMPViewModelAdmTimbang.UploadCMPViewModelFactory(application)
+        uploadCMPViewModel = ViewModelProvider(this, factory4)[UploadCMPViewModelAdmTimbang::class.java]
     }
 
     private fun getDatasetsToDownload(
