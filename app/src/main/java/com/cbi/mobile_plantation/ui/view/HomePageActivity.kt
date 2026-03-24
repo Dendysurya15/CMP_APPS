@@ -2913,14 +2913,13 @@ class HomePageActivity : AppCompatActivity() {
                             val jjg_arr = blokJjgList.mapNotNull { it.second }.joinToString(",")
                             val concatenatedIds = idBlokList.joinToString(",").trimEnd(',')
                             val firstBlockId = idBlokList.firstOrNull()
-
                             // Create a CompletableDeferred to handle the async operation
                             val tphDeferred = CompletableDeferred<TPHNewModel?>()
 
 
                             // Fetch the TPH data if we have a block ID
                             firstBlockId?.let { blockId ->
-                                weightBridgeViewModel.fetchTPHByBlockId(blockId)
+                                weightBridgeViewModel.fetchTPHByBlockIdPPRO(blockId)
 
                                 // Set up a one-time observer for the LiveData
                                 weightBridgeViewModel.tphData.observeOnce(this@HomePageActivity) { tphModel ->
