@@ -326,44 +326,44 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                             hadirAlokasiMap[kemandoranIdStr] = hadirList.map { it.alokasiKerja ?: "Panen" }
                                         }
 
-                                        // Store Mangkir
+// Store Mangkir
                                         if (mangkirList.isNotEmpty()) {
                                             mangkirIdMap[kemandoranIdStr] = mangkirList.map { it.id.toString() }
                                             mangkirNikMap[kemandoranIdStr] = mangkirList.map { it.nik }
                                             mangkirNamaMap[kemandoranIdStr] = mangkirList.map { it.namaOnly }
-                                            mangkirAlokasiMap[kemandoranIdStr] = mangkirList.map { it.alokasiKerja ?: "Panen" }
+                                            mangkirAlokasiMap[kemandoranIdStr] = mangkirList.map { it.alokasiKerja ?: "Mangkir" }
                                         }
 
-                                        // Store Sakit
+// Store Sakit
                                         if (sakitList.isNotEmpty()) {
                                             sakitIdMap[kemandoranIdStr] = sakitList.map { it.id.toString() }
                                             sakitNikMap[kemandoranIdStr] = sakitList.map { it.nik }
                                             sakitNamaMap[kemandoranIdStr] = sakitList.map { it.namaOnly }
-                                            sakitAlokasiMap[kemandoranIdStr] = sakitList.map { it.alokasiKerja ?: "Panen" }
+                                            sakitAlokasiMap[kemandoranIdStr] = sakitList.map { it.alokasiKerja ?: "Sakit" }
                                         }
 
-                                        // Store Izin
+// Store Izin
                                         if (izinList.isNotEmpty()) {
                                             izinIdMap[kemandoranIdStr] = izinList.map { it.id.toString() }
                                             izinNikMap[kemandoranIdStr] = izinList.map { it.nik }
                                             izinNamaMap[kemandoranIdStr] = izinList.map { it.namaOnly }
-                                            izinAlokasiMap[kemandoranIdStr] = izinList.map { it.alokasiKerja ?: "Panen" }
+                                            izinAlokasiMap[kemandoranIdStr] = izinList.map { it.alokasiKerja ?: "Izin" }
                                         }
 
-                                        // Store Cuti
+// Store Cuti
                                         if (cutiList.isNotEmpty()) {
                                             cutiIdMap[kemandoranIdStr] = cutiList.map { it.id.toString() }
                                             cutiNikMap[kemandoranIdStr] = cutiList.map { it.nik }
                                             cutiNamaMap[kemandoranIdStr] = cutiList.map { it.namaOnly }
-                                            cutiAlokasiMap[kemandoranIdStr] = cutiList.map { it.alokasiKerja ?: "Panen" }
+                                            cutiAlokasiMap[kemandoranIdStr] = cutiList.map { it.alokasiKerja ?: "Cuti" }
                                         }
 
-                                        // Store Tidak Absen
+// Store Tidak Absen
                                         if (tidakAbsenList.isNotEmpty()) {
                                             tidakAbsenIdMap[kemandoranIdStr] = tidakAbsenList.map { it.id.toString() }
                                             tidakAbsenNikMap[kemandoranIdStr] = tidakAbsenList.map { it.nik }
                                             tidakAbsenNamaMap[kemandoranIdStr] = tidakAbsenList.map { it.namaOnly }
-                                            tidakAbsenAlokasiMap[kemandoranIdStr] = tidakAbsenList.map { it.alokasiKerja ?: "Panen" }
+                                            tidakAbsenAlokasiMap[kemandoranIdStr] = tidakAbsenList.map { it.alokasiKerja ?: "TA" }
                                         }
                                     }
 
@@ -473,35 +473,35 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
                                         if (sakitListLocal.isNotEmpty()) {
                                             AppLogger.d("  Sakit (${sakitListLocal.size}):")
                                             sakitListLocal.forEach {
-                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Sakit"}")
                                             }
                                         }
 
                                         if (izinListLocal.isNotEmpty()) {
                                             AppLogger.d("  Izin (${izinListLocal.size}):")
                                             izinListLocal.forEach {
-                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Izin"}")
                                             }
                                         }
 
                                         if (cutiListLocal.isNotEmpty()) {
                                             AppLogger.d("  Cuti (${cutiListLocal.size}):")
                                             cutiListLocal.forEach {
-                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Cuti"}")
                                             }
                                         }
 
                                         if (mangkirListLocal.isNotEmpty()) {
                                             AppLogger.d("  Mangkir (${mangkirListLocal.size}):")
                                             mangkirListLocal.forEach {
-                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Mangkir"}")
                                             }
                                         }
 
                                         if (tidakAbsenListLocal.isNotEmpty()) {
                                             AppLogger.d("  Tidak Absen (${tidakAbsenListLocal.size}):")
                                             tidakAbsenListLocal.forEach {
-                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "Panen"}")
+                                                AppLogger.d("    - ${it.nik} | ${it.namaOnly} | ${it.alokasiKerja ?: "TA"}")
                                             }
                                         }
                                     }

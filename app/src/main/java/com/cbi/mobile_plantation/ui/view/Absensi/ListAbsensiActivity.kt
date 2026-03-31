@@ -560,7 +560,12 @@ class ListAbsensiActivity : AppCompatActivity() {
                                 cancelFunction = {}
                             )
                         }
-                        AppLogger.d("test $mappedData")
+                        AppLogger.d("=== RAW MAPPED DATA ===")
+                        AppLogger.d("Total items: ${mappedData.size}")
+                        mappedData.forEachIndexed { index, item ->
+                            AppLogger.d("Item[$index]: $item")
+                        }
+                        AppLogger.d("=======================")
                         val jsonData = formatPanenDataForQR(mappedData)
                         AppLogger.d("data json $jsonData")
 
@@ -979,7 +984,7 @@ class ListAbsensiActivity : AppCompatActivity() {
                 if (mappedData.isNotEmpty()) {
                     val data = mappedData[0]  // Take only first item to avoid duplicates
 
-                    val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
+//                    val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
                     val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
                     val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
                     val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
@@ -1548,7 +1553,7 @@ class ListAbsensiActivity : AppCompatActivity() {
             val datetimeSet = mutableSetOf<String>()
 
             // ✅ Gunakan List untuk semua data agar urutan dan duplikat terjaga
-            val mergedKaryawanMskNama = mutableListOf<String>()
+//            val mergedKaryawanMskNama = mutableListOf<String>()
             val mergedKaryawanMskNik = mutableListOf<String>()
 //            val mergedKaryawanTdkMskNik = mutableListOf<String>()
             val mergedKaryawanMskId = mutableListOf<String>()
@@ -1570,27 +1575,14 @@ class ListAbsensiActivity : AppCompatActivity() {
                 val dateAbsen = data["datetime"]?.toString() ?: ""
                 val info = data["info"]?.toString() ?: ""
 
-                val karyawanMskNama = data["karyawan_msk_nama"]?.toString() ?: ""
                 val karyawanMskNik = data["karyawan_msk_nik"]?.toString() ?: ""
-//                val karyawanTdkMskNik = data["karyawan_tdk_msk_nik"]?.toString() ?: ""
-                val karyawanMskId = data["karyawan_msk_id"]?.toString() ?: ""
-//                val karyawanTdkMskId = data["karyawan_tdk_msk_id"]?.toString() ?: ""
                 val karyawanMskWorkLocation = data["karyawan_msk_work_location"]?.toString() ?: ""
-//                val karyawanTdkMskWorkLocation = data["karyawan_tdk_msk_work_location"]?.toString() ?: ""
 
                 idKemandoran.removeSurrounding("[", "]").split(",")
                     .forEach { allKemandoran.add(it.trim()) }
 
-                // ✅ TIDAK PAKAI FILTER - ambil SEMUA data untuk yang masuk
-                extractValuesFromNestedJsonAsList(karyawanMskNama, mergedKaryawanMskNama)
                 extractValuesFromNestedJsonAsList(karyawanMskNik, mergedKaryawanMskNik)
-                extractValuesFromNestedJsonAsList(karyawanMskId, mergedKaryawanMskId)
                 extractValuesFromNestedJsonAsList(karyawanMskWorkLocation, mergedKaryawanMskWorkLocation)
-
-                // Tidak pakai filter untuk yang tidak masuk
-//                extractValuesFromNestedJsonAsList(karyawanTdkMskNik, mergedKaryawanTdkMskNik)
-//                extractValuesFromNestedJsonAsList(karyawanTdkMskId, mergedKaryawanTdkMskId)
-//                extractValuesFromNestedJsonAsList(karyawanTdkMskWorkLocation, mergedKaryawanTdkMskWorkLocation)
 
                 if (dept.isNotEmpty()) deptSet.add(dept)
                 if (deptAbbr.isNotEmpty()) deptAbbrSet.add(deptAbbr)
@@ -1616,26 +1608,25 @@ class ListAbsensiActivity : AppCompatActivity() {
                 put("divisi_abbr", JSONArray(divisiAbbrSet))
                 put("created_by", JSONArray(createdBySet))
 
-                put("karyawan_msk_nama", JSONArray(mergedKaryawanMskNama))
                 put("karyawan_msk_nik", JSONArray(mergedKaryawanMskNik))
-//                put("karyawan_tdk_msk_nik", JSONArray(mergedKaryawanTdkMskNik))
-                put("karyawan_msk_id", JSONArray(mergedKaryawanMskId))
-//                put("karyawan_tdk_msk_id", JSONArray(mergedKaryawanTdkMskId))
                 put("karyawan_msk_work_location", JSONArray(mergedKaryawanMskWorkLocation))
-//                put("karyawan_tdk_msk_work_location", JSONArray(mergedKaryawanTdkMskWorkLocation))
 
                 put("info", JSONArray(infoSet))
             }
 
             AppLogger.d("=== QR JSON SUMMARY ===")
-            AppLogger.d("Total present (ALL): ${mergedKaryawanMskNik.size}")
-            AppLogger.d("Total present names: ${mergedKaryawanMskNama.size}")
-            AppLogger.d("Total present IDs: ${mergedKaryawanMskId.size}")
-            AppLogger.d("Total present work locations: ${mergedKaryawanMskWorkLocation.size}")
-            AppLogger.d("Work locations detail: $mergedKaryawanMskWorkLocation")
-//            AppLogger.d("Total absent: ${mergedKaryawanTdkMskNik.size}")
-//            AppLogger.d("Total absent work locations: ${mergedKaryawanTdkMskWorkLocation.size}")
-            AppLogger.d("JSON: $jsonObject")
+            AppLogger.d("id_kemandoran: $allKemandoran")
+            AppLogger.d("datetime: $datetimeSet")
+            AppLogger.d("dept: $deptSet | dept_abbr: $deptAbbrSet")
+            AppLogger.d("divisi: $divisiSet | divisi_abbr: $divisiAbbrSet")
+            AppLogger.d("created_by: $createdBySet")
+            AppLogger.d("info: $infoSet")
+            AppLogger.d("--- Karyawan Masuk ---")
+            AppLogger.d("karyawan_msk_nik  (${mergedKaryawanMskNik.size}): $mergedKaryawanMskNik")
+            AppLogger.d("karyawan_msk_work_location (${mergedKaryawanMskWorkLocation.size}): $mergedKaryawanMskWorkLocation")
+            AppLogger.d("--- Full JSON ---")
+            AppLogger.d("JSON Result: ${jsonObject.toString(2)}") // toString(2) = pretty print
+            AppLogger.d("JSON size: ${jsonObject.toString().toByteArray(Charsets.UTF_8).size} bytes")
             AppLogger.d("=======================")
 
             jsonObject.toString()

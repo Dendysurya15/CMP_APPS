@@ -183,7 +183,7 @@
             android:textColor="#FFFFFF"
             android:textSize="@dimen/m" />
 
-        <Button
+        <!--<Button
             android:id="@+id/btnEditAbsensi"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -194,7 +194,7 @@
             android:text="Edit Absensi"
             android:textColor="#FFFFFF"
             android:visibility="visible"
-            android:textSize="@dimen/m" />
+            android:textSize="@dimen/m" />-->
 
     </LinearLayout>
 
