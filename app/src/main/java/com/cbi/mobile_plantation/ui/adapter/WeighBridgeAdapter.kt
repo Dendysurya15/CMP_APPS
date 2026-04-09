@@ -120,7 +120,7 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             val statusContainer = view.findViewById<LinearLayout>(R.id.statusContainer)
 
             setStatusCard("CMP", statusContainer, item.status_upload_cmp_wb!!, item.uploaded_at_wb ?: "", item.uploaded_wb_response ?:"")
-            setStatusCard("PPRO", statusContainer, item.status_upload_ppro_wb!!, item.uploaded_at_ppro_wb ?: "", item.uploaded_ppro_response ?:"")
+//            setStatusCard("PPRO", statusContainer, item.status_upload_ppro_wb!!, item.uploaded_at_ppro_wb ?: "", item.uploaded_ppro_response ?:"")
 
             infoItems.forEach { (type, value) ->
                 val itemView = view.findViewById<View>(type.id)
@@ -162,9 +162,8 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             }
         }
 
-        if ((item.status_upload_cmp_wb in 1..3) && (item.status_upload_ppro_wb in 1..3)) {
+        if (item.status_upload_cmp_wb in 1..3) {
             holder.checkbox.apply {
-//      isChecked = true
                 isEnabled = false
                 alpha = 0.5f
             }
@@ -228,47 +227,47 @@ class WeighBridgeAdapter(private var items: List<WBData>) :
             })
 
             // PPRO Row
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-
-                // PPRO Text
-                addView(TextView(context).apply {
-                    text = "PPRO"
-                    gravity = Gravity.START
-                    typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
-                    setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        marginEnd = 4.dpToPx(context)
-                    }
-                })
-
-                // PPRO Icon
-                addView(ImageView(context).apply {
-                    setImageResource(
-                        if (item.status_upload_ppro_wb == 1) R.drawable.baseline_check_box_24
-                        else R.drawable.baseline_close_24
-                    )
-                    layoutParams = LinearLayout.LayoutParams(
-                        24.dpToPx(context),
-                        24.dpToPx(context)
-                    )
-                    val color = if (item.status_upload_ppro_wb == 1) {
-                        ContextCompat.getColor(context, R.color.greendarkerbutton)
-                    } else {
-                        ContextCompat.getColor(context, R.color.colorRedDark)
-                    }
-                    setColorFilter(color)
-                })
-            })
+//            addView(LinearLayout(context).apply {
+//                orientation = LinearLayout.HORIZONTAL
+//                gravity = Gravity.CENTER_VERTICAL
+//                layoutParams = LinearLayout.LayoutParams(
+//                    LinearLayout.LayoutParams.MATCH_PARENT,
+//                    LinearLayout.LayoutParams.WRAP_CONTENT
+//                )
+//
+//                // PPRO Text
+//                addView(TextView(context).apply {
+//                    text = "PPRO"
+//                    gravity = Gravity.START
+//                    typeface = ResourcesCompat.getFont(context, R.font.manrope_extrabold) // Add font family and make it bold
+//                    setTextColor(ResourcesCompat.getColor(resources, R.color.black, null))
+//                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+//                    layoutParams = LinearLayout.LayoutParams(
+//                        LinearLayout.LayoutParams.WRAP_CONTENT,
+//                        LinearLayout.LayoutParams.WRAP_CONTENT
+//                    ).apply {
+//                        marginEnd = 4.dpToPx(context)
+//                    }
+//                })
+//
+//                // PPRO Icon
+//                addView(ImageView(context).apply {
+//                    setImageResource(
+//                        if (item.status_upload_ppro_wb == 1) R.drawable.baseline_check_box_24
+//                        else R.drawable.baseline_close_24
+//                    )
+//                    layoutParams = LinearLayout.LayoutParams(
+//                        24.dpToPx(context),
+//                        24.dpToPx(context)
+//                    )
+//                    val color = if (item.status_upload_ppro_wb == 1) {
+//                        ContextCompat.getColor(context, R.color.greendarkerbutton)
+//                    } else {
+//                        ContextCompat.getColor(context, R.color.colorRedDark)
+//                    }
+//                    setColorFilter(color)
+//                })
+//            })
         }
 
         holder.td5.removeAllViews()

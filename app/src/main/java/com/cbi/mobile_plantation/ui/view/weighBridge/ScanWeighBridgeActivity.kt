@@ -456,7 +456,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                                     )
                                 }
 
-                                val itemsToUpload = listOf( itemToUpload,  cmpItem)
+//                                val itemsToUpload = listOf(itemToUpload, cmpItem)
+                                val itemsToUpload = listOf( cmpItem)
                                 val globalIdEspb = listOf(savedItemId)
 
                                 loadingDialog.setMessage(
@@ -943,7 +944,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
                                         val espbJson = Gson().toJson(wrappedEspbData)
 
-                                        AppLogger.d("globalIpMill $globalIpMill")
+
                                         AppLogger.d("espbJson $espbJson")
                                         weightBridgeViewModel.checkTPHDuplicates(globalIpMill, espbJson)
                                         delay(100)
@@ -1453,6 +1454,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                         null
                     }
 
+                    AppLogger.d( "firstblok bro $firstBlok")
+
+
+
                     globalDeptPPRO = firstBlok?.dept_ppro ?: 0
                     globalDivisiPPRO = firstBlok?.divisi_ppro ?: 0
                     val deptAbbr = firstBlok?.dept_abbr ?: "-"
@@ -1606,6 +1611,13 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
                     globalIpMill = millIP
 
 
+                    AppLogger.d("global dept $globalDept")
+
+                    AppLogger.d("global dept name $globalDeptName")
+                    AppLogger.d("global dept abbr $globalDeptAbbr")
+                    AppLogger.d("global divisi $globalDivisi")
+                    AppLogger.d("global divisi abbr $globalDivisiAbbr")
+                    AppLogger.d("globalIpMill $globalIpMill")
                     withContext(Dispatchers.Main) {
                         showBottomSheetWithData(
                             parsedData = modifiedParsedData,

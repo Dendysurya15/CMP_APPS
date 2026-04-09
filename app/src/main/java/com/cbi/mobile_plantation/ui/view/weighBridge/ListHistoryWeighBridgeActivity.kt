@@ -245,7 +245,8 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
             )
         }
 
-        val allUploadItems = pproItems + cmpItems
+        val allUploadItems =  cmpItems
+//        val allUploadItems =  pproItems + cmpItems
         uploadCMPViewModel.resetState()
         loadingDialog.dismiss()
 
@@ -1491,72 +1492,6 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         val factory4 = UploadCMPViewModelAdmTimbang.UploadCMPViewModelFactory(application)
         uploadCMPViewModel = ViewModelProvider(this, factory4)[UploadCMPViewModelAdmTimbang::class.java]
     }
-
-    private fun getDatasetsToDownload(
-        regionalId: Int,
-        estateId: Int,
-        lastModifiedDatasetTPH: String?,
-        lastModifiedDatasetBlok: String?,
-        lastModifiedDatasetPemanen: String?,
-        lastModifiedDatasetKemandoran: String?,
-        lastModifiedDatasetTransporter: String?,
-        lastModifiedDatasetKendaraan: String?,
-        lastModifiedSettingJSON: String?
-    ): List<DatasetRequest> {
-        val datasets = mutableListOf<DatasetRequest>()
-
-        val jabatan = prefManager!!.jabatanUserLogin
-        val regionalUser = prefManager!!.regionalIdUserLogin!!.toInt()
-        if (jabatan!!.contains(AppUtils.ListFeatureByRoleUser.KeraniTimbang, ignoreCase = true)) {
-            datasets.add(
-                DatasetRequest(
-                    regional = regionalUser,
-                    lastModified = lastModifiedDatasetBlok,
-                    dataset = AppUtils.DatasetNames.blok
-                )
-            )
-        }
-
-        datasets.addAll(
-            listOf(
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetTPH,
-                    dataset = AppUtils.DatasetNames.tph
-                ),
-                DatasetRequest(
-                    regional = regionalId,
-                    lastModified = null,
-                    dataset = AppUtils.DatasetNames.mill
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetPemanen,
-                    dataset = AppUtils.DatasetNames.pemanen
-                ),
-                DatasetRequest(
-                    estate = estateId,
-                    lastModified = lastModifiedDatasetKemandoran,
-                    dataset = AppUtils.DatasetNames.kemandoran
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetTransporter,
-                    dataset = AppUtils.DatasetNames.transporter
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedDatasetKendaraan,
-                    dataset = AppUtils.DatasetNames.kendaraan
-                ),
-                DatasetRequest(
-                    lastModified = lastModifiedSettingJSON,
-                    dataset = AppUtils.DatasetNames.settingJSON
-                )
-            )
-        )
-
-        return datasets
-    }
-
 
     private fun setupHeader() {
         featureName = intent.getStringExtra("FEATURE_NAME").toString()
