@@ -1952,45 +1952,46 @@ class FormESPBActivity : AppCompatActivity() {
         pemuat_nik: String,
         pemuat_nama: String
     ): String {
+
         val gson = Gson()
 
-        val nikList = pemuat_nik
-
-        // Extract unique dates from tph1 and prepare optimized string
-        val dateMap = JsonObject()
+        val dateIndexMap = LinkedHashMap<String, Int>() // date -> index
         val optimizedTph1 = StringBuilder()
 
-        // Process tph1 if not empty
         if (tph1.isNotEmpty()) {
             val entries = tph1.split(";")
-            entries.forEachIndexed { index, entry ->
+
+            entries.forEach { entry ->
                 if (entry.isNotEmpty()) {
+
                     val parts = entry.split(",")
+
                     if (parts.size >= 2) {
-                        // Extract date and time
+
                         val dateTime = parts[1]
                         val dateParts = dateTime.split(" ")
+
                         if (dateParts.size >= 2) {
+
                             val date = dateParts[0]
                             val time = dateParts[1]
 
-                            // Add date to dateMap with index 0 (instead of 1)
-                            if (!dateMap.has("0")) {
-                                dateMap.addProperty("0", date)
+                            // 🔥 dynamic index per unique date
+                            val dateIndex = dateIndexMap.getOrPut(date) {
+                                dateIndexMap.size
                             }
 
-                            // Create optimized entry: ID,0,TIME,VALUE1,VALUE2...
-                            // Note: using 0 instead of 1 for the index
-                            val newEntry = StringBuilder("${parts[0]},0,${time}")
+                            // 🔥 build tph_1 with correct index
+                            val newEntry = StringBuilder("${parts[0]},$dateIndex,$time")
 
-                            // Add remaining values (starting from index 2)
                             for (i in 2 until parts.size) {
                                 newEntry.append(",${parts[i]}")
                             }
 
-                            if (index > 0) {
+                            if (optimizedTph1.isNotEmpty()) {
                                 optimizedTph1.append(";")
                             }
+
                             optimizedTph1.append(newEntry)
                         }
                     }
@@ -1998,7 +1999,13 @@ class FormESPBActivity : AppCompatActivity() {
             }
         }
 
-        // Create the nested ESPB object
+        // 🔥 build tgl mapping (index -> date)
+        val dateMap = JsonObject()
+        dateIndexMap.forEach { (date, index) ->
+            dateMap.addProperty(index.toString(), date)
+        }
+
+        // ESPB object
         val espbObject = JsonObject().apply {
             addProperty("blok_jjg", blok_jjg)
             addProperty("nopol", nopol)
@@ -2007,7 +2014,7 @@ class FormESPBActivity : AppCompatActivity() {
             addProperty("transporter_id", transporter_id)
             addProperty("mill_id", mill_id)
             addProperty("kemandoran_id", kemandoran_id)
-            addProperty("pemuat_nik", nikList.toString()) // Use the extracted NIKs only
+            addProperty("pemuat_nik", pemuat_nik)
             addProperty("pemuat_nama", pemuat_nama)
             addProperty("created_by_id", created_by_id)
             addProperty("created_name", created_name)
@@ -2016,7 +2023,7 @@ class FormESPBActivity : AppCompatActivity() {
             addProperty("created_at", getCurrentDateTime())
         }
 
-        // Create the root object
+        // root
         val rootObject = JsonObject().apply {
             add("espb", espbObject)
             addProperty("tph_0", tph0)
@@ -2024,7 +2031,9 @@ class FormESPBActivity : AppCompatActivity() {
             add("tgl", dateMap)
         }
 
-        return gson.toJson(rootObject)
+        val jsonResult = gson.toJson(rootObject)
+        AppLogger.d("ESPB JSON: $jsonResult")
+        return jsonResult
     }
 
     private fun getFormattedBlokDisplay(tph1: String): String {
