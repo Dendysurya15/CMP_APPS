@@ -1035,7 +1035,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 .inflate(R.layout.layout_bottom_sheet_edit_nama_pemanen, null)
 
             val titleDialogDetailTable= editView.findViewById<TextView>(R.id.titleDialogDetailTable)
-            titleDialogDetailTable.text = "Edit Nama Pemanen"
+            titleDialogDetailTable.text = " Edit Nama Pemanen"
             val selectedPemanenAdapter = SelectedWorkerAdapter()
 
             // Get the included layout
@@ -1067,10 +1067,19 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
             // Get available workers from data (Worker objects from current data)
             val availableWorkers = data["available_workers"] as? List<Worker> ?: emptyList()
+
+            AppLogger.d("availableWorkers $availableWorkers")
             selectedPemanenAdapter.setAvailableWorkers(availableWorkers)
 
+
+            AppLogger.d("data")
+
             // Get dropdown options from absensi data (simple strings)
-            val dropdownOptions = data["dropdown_absensi_edit"] as? List<String> ?: emptyList()
+            val fullDataList = data["dropdown_absensi_full_data"] as? List<KaryawanModel> ?: emptyList()
+
+            val dropdownOptions = fullDataList.map {
+                "${it.nama} - ${it.nik}"
+            }
 
             // Setup existing workers (parse from current data and add to adapter)
             setupExistingWorkers(data, selectedPemanenAdapter)
