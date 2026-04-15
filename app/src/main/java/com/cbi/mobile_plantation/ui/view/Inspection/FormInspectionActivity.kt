@@ -967,6 +967,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                         .sortedBy { it.divisi_nama }
 
                     if (divisiList.isEmpty()) {
+
+                        val calendar = Calendar.getInstance()
+                        val day = calendar.get(Calendar.DAY_OF_MONTH)
+                        val month = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("id", "ID"))
+
+                        if (featureName == AppUtils.ListFeatureNames.InspeksiPanen &&
+                            panenTPH.isEmpty() &&
+                            day in 1..5
+                        ) {
+                            throw Exception(
+                                "Tidak terdapat data panen dibulan $month ini.\n\n" +
+                                        "Pastikan Transfer atau Sinkronisasi data panen terbaru dari Krani panen untuk memulai Inspeksi Panen"
+                            )
+                        }
+
                         throw Exception("Divisi tidak ditemukan, periksa kembali dataset dengan melakukan Sinkronisasi Data!")
                     }
                 } else {
