@@ -91,7 +91,7 @@ class detailESPBListTPHAdapter(
         // Format date
         try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID"))
+            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm:ss", Locale("id", "ID"))
             val date = inputFormat.parse(tphItem.dateCreated)
             holder.tvJam.text = if (date != null) {
                 outputFormat.format(date)

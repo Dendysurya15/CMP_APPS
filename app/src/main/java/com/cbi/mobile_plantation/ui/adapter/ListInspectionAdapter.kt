@@ -290,7 +290,7 @@ class ListInspectionAdapter(
                     if (dateTime.contains(" ")) {
                         val datePart = dateTime.split(" ")[0] // Get just the date part
                         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                        val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+                        val outputFormat = SimpleDateFormat("dd MMM yyyy\n HH:mm:ss", Locale("id", "ID"))
                         val date = inputFormat.parse(datePart)
                         outputFormat.format(date ?: Date())
                     } else {

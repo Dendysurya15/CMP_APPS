@@ -179,16 +179,5 @@ class ListHektarPanenAdapter(
         }
     }
 
-    fun formatToIndonesianDateTime(dateTimeStr: String): String {
-        try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val date = inputFormat.parse(dateTimeStr) ?: return dateTimeStr
-            val outputFormat = SimpleDateFormat("d MMM yy\nHH:mm", Locale("id"))
-            return outputFormat.format(date)
-        } catch (e: Exception) {
-            return dateTimeStr
-        }
-    }
-
     override fun getItemCount() = items.size
 }

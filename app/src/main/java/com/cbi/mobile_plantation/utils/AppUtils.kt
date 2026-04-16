@@ -1531,7 +1531,7 @@ object AppUtils {
     fun formatSelectedDateForDisplay(backendDate: String): String {
         try {
             val backendFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID"))
-            val displayFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+            val displayFormat = SimpleDateFormat("dd MMM yyyy\n HH:mm:ss", Locale("id", "ID"))
 
             val date = backendFormat.parse(backendDate)
             return date?.let { displayFormat.format(it) } ?: backendDate

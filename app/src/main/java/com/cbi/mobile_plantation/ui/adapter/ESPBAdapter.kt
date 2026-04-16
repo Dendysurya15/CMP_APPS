@@ -137,7 +137,7 @@ class ESPBAdapter(private var items: List<ESPBData>, private val context: Activi
         try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val date = inputFormat.parse(dateTimeStr) ?: return dateTimeStr
-            val outputFormat = SimpleDateFormat("d MMM yy\nHH:mm", Locale("id"))
+            val outputFormat = SimpleDateFormat("d MMM yy\nHH:mm:ss", Locale("id"))
             return outputFormat.format(date)
         } catch (e: Exception) {
             return dateTimeStr

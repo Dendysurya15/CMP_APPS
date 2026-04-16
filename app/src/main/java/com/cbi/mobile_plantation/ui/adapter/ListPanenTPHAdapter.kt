@@ -167,7 +167,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
         val formattedTime = try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm", Locale("id", "ID"))
+            val outputFormat = SimpleDateFormat("dd MMM yy\nHH:mm:ss", Locale("id", "ID"))
             val date = inputFormat.parse(dateCreated)
             outputFormat.format(date ?: "-")
         } catch (e: Exception) {
@@ -436,6 +436,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
             binding.td1.visibility = View.VISIBLE
             binding.td2.visibility = View.VISIBLE
             binding.td3.visibility = View.VISIBLE
+
+            AppLogger.d("archivestate $archiveState")
             if (featureName == AppUtils.ListFeatureNames.DetailESPB && archiveState ==1){
                 binding.td4.visibility = View.GONE
             }else{
@@ -508,7 +510,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                             bottomSheet.layoutParams?.height = maxHeight
                         }
                 }
-            } else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah){
+            }
+            else if (featureName == AppUtils.ListFeatureNames.RekapMutuBuah){
                 binding.td1.text = extractedData.blokText
                 binding.td2.text = extractedData.tphText
                 binding.td3.text = extractedData.gradingText
@@ -592,7 +595,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                     val originalFormat =
                         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     val displayFormat =
-                        SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+                        SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault())
 
                     val formattedDate = try {
                         val date = originalFormat.parse(dateCreatedRaw)
@@ -748,6 +751,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                 binding.td2.text = extractedData.tphText
                 binding.td3.text = extractedData.gradingText
                 binding.td4.text = extractedData.tanggalText
+
+                AppLogger.d("extractedData.tanggalText ${extractedData.tanggalText}")
                 val checkedColor = if (isScannedItem) {
                     ContextCompat.getColor(context, R.color.greenDarker)
                 } else {
@@ -861,7 +866,7 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
                         val originalFormat =
                             SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                         val displayFormat =
-                            SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+                            SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault())
 
                         val formattedDate = try {
                             val date = originalFormat.parse(dateCreatedRaw)
@@ -946,6 +951,8 @@ class ListPanenTPHAdapter : RecyclerView.Adapter<ListPanenTPHAdapter.ListPanenTP
 
 
             if (archiveState == 1 || featureName == "Rekap panen dan restan" || featureName == "Detail eSPB") {
+
+                AppLogger.d("archive state $archiveState")
                 if(binding.flCheckBoxItemTph.visibility  == View.GONE){
                     binding.flCheckBoxItemTph.visibility = View.VISIBLE
                 }

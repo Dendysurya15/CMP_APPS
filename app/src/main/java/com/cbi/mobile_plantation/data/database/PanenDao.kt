@@ -392,7 +392,7 @@ WHERE tph_id = :tphId
       AND date(p.date_created) >= date('now', 'start of month')
       AND p.karyawan_nik IS NOT NULL 
       AND p.karyawan_nik != '' 
-      AND p.karyawan_nik != 'NULL' 
+      AND p.karyawan_nik != 'NULL'  
       AND p.karyawan_nama IS NOT NULL 
       AND p.karyawan_nama != '' 
       AND p.karyawan_nama != 'NULL' 
