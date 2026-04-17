@@ -4909,8 +4909,10 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         var isPrimaryGroupFilled = true
         var isSecondaryGroupFilled = true
 
+        val isMutuBuah = featureName!!.contains(AppUtils.ListFeatureNames.MutuBuah, ignoreCase = true)
+
         inputMappings.forEach { (layout, key, inputType) ->
-            // Skip validation for kemandoran and pemanen fields initially
+
             if (layout.id == R.id.layoutKemandoran || layout.id == R.id.layoutPemanen ||
                 layout.id == R.id.layoutKemandoranLain || layout.id == R.id.layoutPemanenLain
             ) {
@@ -4936,9 +4938,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 InputType.EDITTEXT -> {
                     when (key) {
                         getString(R.string.field_ancak) -> ancakInput.trim().isEmpty()
-                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim()
-                            .isEmpty()
-
+                        getString(R.string.field_nomor_pemanen) -> nomorPemanenInput.trim().isEmpty()
                         else -> editText.text.toString().trim().isEmpty()
                     }
                 }
@@ -4946,13 +4946,26 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 else -> false
             }
 
-            val shouldValidate = featureName != AppUtils.ListFeatureNames.MutuBuah ||
+
+
+            val shouldValidate = !isMutuBuah ||
                     key == getString(R.string.field_nomor_pemanen)
 
-            AppLogger.d("shouldValidate $shouldValidate")
+            // 🔥 LOG FULL CONTEXT
+            AppLogger.d(
+                "[VALIDATION] key=$key | type=$inputType | isEmpty=$isEmpty | shouldValidate=$shouldValidate | feature=$featureName"
+            )
+
+            if (!shouldValidate) {
+                AppLogger.w("[SKIPPED] key=$key skipped (MutuBuah rule)")
+            }
+
             if (isEmpty && shouldValidate) {
+                AppLogger.e("[ERROR] Field INVALID -> key=$key | EMPTY")
+
                 tvError.visibility = View.VISIBLE
                 mcvSpinner.strokeColor = ContextCompat.getColor(this, R.color.colorRedDark)
+
                 missingFields.add(key)
                 isValid = false
             } else {
@@ -4977,7 +4990,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         // Primary group is valid if pemanen is selected with at least one worker
         isPrimaryGroupFilled = !isPemanenEmpty && arePemanenWorkersSelected
 
-        if (isAsistensiEnabled) {
+        if (isAsistensiEnabled && !isMutuBuah) {
             // Reset error indicators for secondary group
             layoutPemanenLain.findViewById<TextView>(R.id.tvErrorFormPanenTBS).visibility =
                 View.GONE
@@ -5015,8 +5028,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                         errorMessages.add(stringXML(R.string.al_select_at_least_one_pemanen_lain))
                     }
 
-                    // Only add this error message if feature is NOT MutuBuah
-                    if (featureName != AppUtils.ListFeatureNames.MutuBuah) {
+                    if (!isMutuBuah) {
                         errorMessages.add("Anda harus mengisi salah satu pemanen maupun asistensi")
                     }
                 }
@@ -5028,7 +5040,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         }
 
         // Check if at least one group is properly filled
-        if (!isPrimaryGroupFilled && (!isSecondaryGroupFilled || !isAsistensiEnabled) && (featureName != AppUtils.ListFeatureNames.MutuBuah)) {
+        if (!isPrimaryGroupFilled && (!isSecondaryGroupFilled || !isAsistensiEnabled) && !isMutuBuah) {
             isValid = false
 
             // Show errors for primary group if it's not properly filled
@@ -5185,6 +5197,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                 R.color.colorRedDark
             ) {}
         }
+
 
         return isValid
     }
@@ -7096,34 +7109,6 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         } else {
             // Fallback (if pref not available)
             switchAsistensi.isChecked = false
-        }
-    }
-
-
-    private fun resetSelfiePhoto() {
-        if (featureName == AppUtils.ListFeatureNames.MutuBuah) {
-            // Reset selfie photo data
-            photoCountSelfie = 0
-            photoFilesSelfie.clear()
-            selfiePhotoFile = null
-
-            // Reset selfie UI
-            val imageView = layoutSelfiePhoto.findViewById<ImageView>(R.id.ivAddFoto)
-
-            // Clear Glide cache first
-            Glide.with(this).clear(imageView)
-
-            // Set back to original camera icon
-            imageView.setImageResource(R.drawable.baseline_camera_front_24)
-            imageView.setColorFilter(
-                ContextCompat.getColor(this, R.color.colorRedDark),
-                PorterDuff.Mode.SRC_IN
-            )
-
-            // Ensure proper scale type
-            imageView.scaleType = ImageView.ScaleType.FIT_CENTER
-
-            AppLogger.d("Selfie photo UI reset successfully")
         }
     }
 
