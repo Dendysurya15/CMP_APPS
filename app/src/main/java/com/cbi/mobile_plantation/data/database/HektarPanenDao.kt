@@ -114,6 +114,10 @@ abstract class HektarPanenDao {
     @Query("UPDATE hektar_panen SET luas_panen = :luas_panen WHERE id = :id")
     abstract fun updateLuasPanen(id: Int, luas_panen: Float): Int
 
+    //updateJenisPanenPanenbyid
+    @Query("UPDATE hektar_panen SET jenis_panen = :jenis_panen WHERE id = :id")
+    abstract fun updateJenisPanen(id: Int, jenis_panen: Int): Int
+
     //getluasblokbyblok
     @Query("SELECT luas_blok FROM hektar_panen WHERE blok = :blok")
     abstract fun getLuasBlokByBlok(blok: Int): Float

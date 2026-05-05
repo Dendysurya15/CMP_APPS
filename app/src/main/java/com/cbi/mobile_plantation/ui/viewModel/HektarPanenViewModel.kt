@@ -36,6 +36,10 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
         return repository.updateLuasPanen(id,luasPanen)
     }
 
+    suspend fun updateJenisPanen(id:Int, jenisPanen: Int):Int {
+        return repository.updateJenisPanen(id,jenisPanen)
+    }
+
     suspend fun getLuasBlokByBlok(blok: Int):Float {
         return repository.getLuasBlokByBlok(blok)
     }

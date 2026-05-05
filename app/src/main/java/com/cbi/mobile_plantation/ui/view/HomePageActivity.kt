@@ -1148,7 +1148,7 @@ class HomePageActivity : AppCompatActivity() {
         }
 
         // Existing date/time validity check
-        if (!AppUtils.isDateTimeValid(this)) {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
             dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
             AppUtils.showDateTimeNetworkWarning(this)
         } else if (!activityInitialized) {
@@ -1176,7 +1176,7 @@ class HomePageActivity : AppCompatActivity() {
 
         checkDateTimeSettings()
         FeatureStateManager.checkAndUpdateAppVersion(this, prefManager!!)
-        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
             startPeriodicDateTimeChecking()
         }
 
@@ -2568,35 +2568,27 @@ class HomePageActivity : AppCompatActivity() {
                                 Log.d("HektarPanen", "all data count: ${hektarPanenData.size}")
 
                                 // Get data with luas_panen = 0 and get distinct dates only
-                                val zeroLuasPanenData =
-                                    hektarPanenData.filter { it.luas_panen == 0f }
+                                val zeroLuasPanenData = hektarPanenData.filter { it.luas_panen == 0f }
+                                val jenisBelumPilihData = hektarPanenData.filter { it.jenis_panen == -1 }
 
                                 if (zeroLuasPanenData.isNotEmpty()) {
-                                    // Found data with luas_panen = 0, don't run upload flow
-                                    Log.d(
-                                        "HektarPanen", "Cannot upload: Some data has luas_panen = 0"
-                                    )
 
-                                    // Extract distinct dates from date_created_panen and format to Indonesian
                                     val distinctDates = zeroLuasPanenData.flatMap { entity ->
-                                            // Split by semicolon and extract date part from each datetime
-                                            entity.date_created_panen.split(";").map { datetime ->
-                                                    val dateString = datetime.trim()
-                                                        .split(" ")[0] // Get "2025-05-13"
-                                                    try {
-                                                        // Parse the date and format to Indonesian
-                                                        val date = SimpleDateFormat(
-                                                            "yyyy-MM-dd", Locale.getDefault()
-                                                        ).parse(dateString)
-                                                        indonesianDateFormat.format(date!!)
-                                                    } catch (e: Exception) {
-                                                        dateString // Fallback to original if parsing fails
-                                                    }
-                                                }
-                                        }.distinct() // Remove duplicates
-                                        .joinToString(", ")
+                                        entity.date_created_panen.split(";").map { datetime ->
+                                            val dateString = datetime.trim().split(" ")[0]
+                                            try {
+                                                val date = SimpleDateFormat(
+                                                    "yyyy-MM-dd",
+                                                    Locale.getDefault()
+                                                ).parse(dateString)
 
-                                    // Create message with distinct dates only
+                                                SimpleDateFormat("d MMMM yyyy", Locale("id", "ID")).format(date!!)
+                                            } catch (e: Exception) {
+                                                dateString
+                                            }
+                                        }
+                                    }.distinct().joinToString(", ")
+
                                     val detailMessage =
                                         "Terdapat data dengan luas panen 0 pada tanggal:\n\n$distinctDates\n\nMohon lengkapi luasan Hektar Panen terlebih dahulu."
 
@@ -2607,9 +2599,38 @@ class HomePageActivity : AppCompatActivity() {
                                         detailMessage,
                                         "warning.json",
                                         R.color.colorRedDark
-                                    ) {
-                                        // Do nothing or navigate to edit screen
-                                    }
+                                    ) {}
+
+                                } else if (jenisBelumPilihData.isNotEmpty()) {
+
+                                    val distinctDates = jenisBelumPilihData.flatMap { entity ->
+                                        entity.date_created_panen.split(";").map { datetime ->
+                                            val dateString = datetime.trim().split(" ")[0]
+                                            try {
+                                                val date = SimpleDateFormat(
+                                                    "yyyy-MM-dd",
+                                                    Locale.getDefault()
+                                                ).parse(dateString)
+
+                                                SimpleDateFormat("d MMMM yyyy", Locale("id", "ID")).format(date!!)
+                                            } catch (e: Exception) {
+                                                dateString
+                                            }
+                                        }
+                                    }.distinct().joinToString(", ")
+
+                                    val detailMessage =
+                                        "Terdapat jenis panen yang belum dipilih pada tanggal:\n\n$distinctDates\n\nMohon lengkapi Jenis Panen terlebih dahulu."
+
+                                    AlertDialogUtility.withSingleAction(
+                                        this@HomePageActivity,
+                                        "Kembali",
+                                        "Jenis Panen Belum Dipilih",
+                                        detailMessage,
+                                        "warning.json",
+                                        R.color.colorRedDark
+                                    ) {}
+
                                 } else {
                                     val result = checkAndPrepareUploadData()
 
@@ -2623,7 +2644,7 @@ class HomePageActivity : AppCompatActivity() {
                                             stringXML(R.string.al_no_data_for_upload_cmp_description),
                                             "success.json",
                                             R.color.greendarkerbutton
-                                        ) { }
+                                        ) {}
                                     }
                                 }
 
@@ -3319,7 +3340,8 @@ class HomePageActivity : AppCompatActivity() {
                             )
                         }
 
-                    } else if (panenESPBMandor1Asisten.isNotEmpty()) {
+                    }
+                    else if (panenESPBMandor1Asisten.isNotEmpty()) {
 
                         val espbMap = parseEspbEntries(espbList)
 
@@ -3692,7 +3714,7 @@ class HomePageActivity : AppCompatActivity() {
 
                                             // Create detail entry - ALWAYS add it
                                             val detailEntry = mapOf<String, Any>(
-                                                "tipe" to "",
+                                                "tipe" to (data.jenis_panen ?: 0),
                                                 "blok" to (data.blok ?: 0),
                                                 "kemandoran_id" to (data.kemandoran_id ?: ""),
                                                 "kemandoran_nama" to (data.kemandoran_nama ?: ""),
@@ -3797,23 +3819,23 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("Generated JSON length: ${hektaranJson.length} characters")
 
                         // ALWAYS save to temp file for debugging
-//                                try {
-//                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
-//                                        if (!exists()) mkdirs()
-//                                    }
-//
-//                                    val filename = "hektaran_data_${System.currentTimeMillis()}.json"
-//                                    val tempFile = File(tempDir, filename)
-//
-//                                    FileOutputStream(tempFile).use { fos ->
-//                                        fos.write(hektaranJson.toByteArray())
-//                                    }
-//
-//                                    AppLogger.d("✓ Saved JSON to: ${tempFile.absolutePath}")
-//                                } catch (e: Exception) {
-//                                    AppLogger.e("Failed to save temp JSON: ${e.message}")
-//                                    e.printStackTrace()
-//                                }
+                                try {
+                                    val tempDir = File(getExternalFilesDir(null), "TEMP").apply {
+                                        if (!exists()) mkdirs()
+                                    }
+
+                                    val filename = "hektaran_data_${System.currentTimeMillis()}.json"
+                                    val tempFile = File(tempDir, filename)
+
+                                    FileOutputStream(tempFile).use { fos ->
+                                        fos.write(hektaranJson.toByteArray())
+                                    }
+
+                                    AppLogger.d("✓ Saved JSON to: ${tempFile.absolutePath}")
+                                } catch (e: Exception) {
+                                    AppLogger.e("Failed to save temp JSON: ${e.message}")
+                                    e.printStackTrace()
+                                }
 
                         // Extract all IDs for tracking
                         val hektaranIds = hektarPanenToUpload.mapNotNull { it.id }

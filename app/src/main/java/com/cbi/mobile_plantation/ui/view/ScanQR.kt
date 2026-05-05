@@ -13,6 +13,7 @@ import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.ui.view.ListTPHApproval.Companion.EXTRA_QR_RESULT
 import com.cbi.mobile_plantation.ui.view.panenTBS.ListPanenTBSActivity
 import com.cbi.mobile_plantation.utils.AppUtils
+import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -28,6 +29,8 @@ class ScanQR : AppCompatActivity() {
     private var previousTph0 = ""
     private var previousTph1IdPanen = ""
     private var activityInitialized = false
+
+    private var prefManager: PrefManager? = null
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
     private val dateTimeCheckRunnable = object : Runnable {
         override fun run() {
@@ -83,7 +86,7 @@ class ScanQR : AppCompatActivity() {
     }
 
     private fun checkDateTimeSettings() {
-        if (!AppUtils.isDateTimeValid(this)) {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
             dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
             AppUtils.showDateTimeNetworkWarning(this)
         } else if (!activityInitialized) {
@@ -98,7 +101,7 @@ class ScanQR : AppCompatActivity() {
         previousTph1 = intent.getStringExtra("tph_1") ?: ""
         previousTph0 = intent.getStringExtra("tph_0") ?: ""
         previousTph1IdPanen = intent.getStringExtra("tph_1_id_panen") ?: ""
-
+        prefManager = PrefManager(this)
         Log.d("ScanQR", "Previous tph1: $previousTph1")
         Log.d("ScanQR", "Previous tph0: $previousTph0")
         Log.d("ScanQR", "Previous tph1IdPanen: $previousTph1IdPanen")
@@ -138,7 +141,7 @@ class ScanQR : AppCompatActivity() {
         barcodeView.resume() // ✅ Resume scanning when back to activity
 
         checkDateTimeSettings()
-        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
             startPeriodicDateTimeChecking()
         }
     }

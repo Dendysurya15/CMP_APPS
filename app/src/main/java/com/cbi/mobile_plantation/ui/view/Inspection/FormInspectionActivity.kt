@@ -4148,7 +4148,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         // Remove this line: startLiveLocationTracking()
 
         checkDateTimeSettings()
-        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
             startPeriodicDateTimeChecking()
         }
     }
@@ -11705,7 +11705,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     }
 
     private fun checkDateTimeSettings() {
-        if (!AppUtils.isDateTimeValid(this)) {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
             dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
             AppUtils.showDateTimeNetworkWarning(this)
         } else if (!activityInitialized) {

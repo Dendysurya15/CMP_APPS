@@ -8,6 +8,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
 data class HektarPanenEntity(
     @PrimaryKey val id: Int?,
     val nik: String,
+    val jenis_panen: Int = -1,
     val pemanen_nama: String,
     val kemandoran_id: String,
     val kemandoran_nama: String,

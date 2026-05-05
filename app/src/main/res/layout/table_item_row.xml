@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/constraint_table_item_row"
     android:layout_height="wrap_content">
 
@@ -115,11 +116,44 @@
             android:id="@+id/td5"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center"
+            android:paddingVertical="4dp"
             android:orientation="horizontal"
-            android:padding="5dp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:padding="3dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="3dp"
+                android:layout_marginBottom="3dp"
+                app:cardCornerRadius="8dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/grayBorder"
+                app:cardBackgroundColor="@color/white">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <com.jaredrummler.materialspinner.MaterialSpinner
+                        android:id="@+id/spJenisPanen"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        app:ms_hint="-- Pilih --"
+                        app:ms_hint_color="@color/black"
+                        app:ms_text_color="@color/black"
+                        app:ms_dropdown_height="wrap_content"/>
+                </FrameLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/td6"

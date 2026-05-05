@@ -48,7 +48,8 @@ import java.util.Calendar
 
 @Suppress("UNREACHABLE_CODE")
 class ListHistoryESPBActivity : AppCompatActivity(),
-    ListHektarPanenAdapter.OnLuasPanenChangeListener {
+    ListHektarPanenAdapter.OnLuasPanenChangeListener,
+    ListHektarPanenAdapter.OnJenisPanenChangeListener {
     private lateinit var recyclerView: RecyclerView
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var hektarPanenViewModel: HektarPanenViewModel
@@ -207,7 +208,7 @@ class ListHistoryESPBActivity : AppCompatActivity(),
 
 
     private fun checkDateTimeSettings() {
-        if (!AppUtils.isDateTimeValid(this)) {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
             dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
             AppUtils.showDateTimeNetworkWarning(this)
         } else if (!activityInitialized) {
@@ -224,7 +225,7 @@ class ListHistoryESPBActivity : AppCompatActivity(),
     override fun onResume() {
         super.onResume()
         checkDateTimeSettings()
-        if (activityInitialized && AppUtils.isDateTimeValid(this)) {
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
             startPeriodicDateTimeChecking()
         }
     }
@@ -459,6 +460,40 @@ class ListHistoryESPBActivity : AppCompatActivity(),
         handler.postDelayed(updateRunnable, 4000)
     }
 
+    // Add the function — same debounce pattern as onLuasPanenChanged
+    override fun onJenisPanenChanged(id: Int, newValue: Int) {
+        updateRunnables[id]?.let { runnable ->
+            handler.removeCallbacks(runnable)
+        }
+
+        val updateRunnable = Runnable {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val result = hektarPanenViewModel.updateJenisPanen(id, newValue)
+
+                    withContext(Dispatchers.Main) {
+                        if (result > 0) {
+                            Log.d("ListHistoryESPBActivity", "Jenis panen updated for id: $id")
+
+                            // ✅ THIS IS THE KEY LINE
+                            adapterHektarPanen.updateJenisPanen(id, newValue)
+
+                        } else {
+                            Log.d("ListHistoryESPBActivity", "Jenis panen update failed for id: $id")
+                        }
+                    }
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Log.e("ListHistoryESPBActivity", "Error updating jenis panen: ${e.message}")
+                }
+            }
+        }
+
+        updateRunnables[id] = updateRunnable
+        handler.postDelayed(updateRunnable, 4000)
+    }
+
     private fun setupObserveDataDaftarHektarPanen() {
 
         hektarPanenViewModel.historyHektarPanen.observe(this) { data ->
@@ -512,6 +547,7 @@ class ListHistoryESPBActivity : AppCompatActivity(),
                         luas_blok = luasBlok,
                         dibayar_arr = dibayarArr,
                         nik = item.nik.toString(),
+                        jenis_panen = item.jenis_panen,
                         id = item.id!!
                     )
                 }
@@ -612,12 +648,13 @@ class ListHistoryESPBActivity : AppCompatActivity(),
             adapterESPB = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
             recyclerView.adapter = adapterESPB
         } else if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
-            val headers = listOf("NAMA", "BLOK", "DIBAYAR", "HEKTAR", "")
+            val headers = listOf("NAMA", "BLOK", "DIBAYAR", "HEKTAR", "JENIS PANEN")
             updateTableHeaders(headers)
 
             // Create adapter without passing in ViewModel
             adapterHektarPanen = ListHektarPanenAdapter(emptyList(), this@ListHistoryESPBActivity)
             adapterHektarPanen.setOnLuasPanenChangeListener(this) // Set the listener
+            adapterHektarPanen.setOnJenisPanenChangeListener(this)
             recyclerView.adapter = adapterHektarPanen
         }
     }
@@ -628,14 +665,15 @@ class ListHistoryESPBActivity : AppCompatActivity(),
         for (i in headerNames.indices) {
             val textView = tableHeader.findViewById<TextView>(headerIds[i])
             textView.apply {
-                visibility = View.VISIBLE  // Make all headers visible
+                visibility = View.VISIBLE
                 text = headerNames[i]
             }
         }
         val th5 = tableHeader.findViewById<TextView>(R.id.th5)
         val layoutParamsTh5 = th5.layoutParams as LinearLayout.LayoutParams
-        layoutParamsTh5.weight = 0.3f
+        layoutParamsTh5.weight = if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) 1.5f else 0.3f
         th5.layoutParams = layoutParamsTh5
+
         val flCheckBoxTableHeaderLayout =
             tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
         flCheckBoxTableHeaderLayout.visibility = View.GONE

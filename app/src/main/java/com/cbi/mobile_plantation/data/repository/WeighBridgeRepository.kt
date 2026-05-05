@@ -133,7 +133,7 @@ class WeighBridgeRepository(context: Context) {
             }
 
             if (blokData == null && estID != 0 && afdID != 0) {
-                blokData = blokDao.getBlokByIdEstAfd(blockId, estID, afdID)
+                blokData = blokDao.getBlokByIdEstAfd(blockId, estID)
                 if (blokData != null) {
                     AppLogger.d("Blok found using ID search - blockId: $blockId, est: $estID, afd: $afdID")
                     AppLogger.d("Found BlokModel: ${blokData.nama} (id: ${blokData.id})")

@@ -1707,6 +1707,10 @@ class AppRepository(context: Context) {
         return hektarPanenDao.updateLuasPanen(id, luasPanen)
     }
 
+    suspend fun updateJenisPanen(id: Int, jenisPanen: Int): Int {
+        return hektarPanenDao.updateJenisPanen(id, jenisPanen)
+    }
+
     suspend fun getLuasBlokByBlok(blok: Int): Float {
         return hektarPanenDao.getLuasBlokByBlok(blok)
     }
@@ -2152,20 +2156,21 @@ class AppRepository(context: Context) {
         try {
             var blokData: BlokModel? = null
 
-            // Try with blok_ppro first if available
-            if (blokPpro != null && dept != null && divisi != null) {
-                blokData = blokDao.getBlokByEstAfdKode(blokPpro.toString(), dept, divisi)
+            // ✅ FIXED: correct mapping
+            if (blokPpro != null && dept != null) {
+                blokData = blokDao.getBlokByEstAfdKode(
+                    dept,                    // est = "NBE"
+                    blokPpro.toString()     // blokId = "1465"
+                )
+
                 if (blokData != null) {
-                    AppLogger.d("Blok found using blok_ppro: $blokPpro, dept: $dept, divisi: $divisi")
+                    AppLogger.d("Blok found using dept_abbr + id_ppro")
                 }
             }
 
-            // If not found and we have blockId, try with blockId
-            if (blokData == null && dept != null && divisi != null) {
-                blokData = blokDao.getBlokByIdEstAfd(blockId, dept, divisi)
-                if (blokData != null) {
-                    AppLogger.d("Blok found using blockId: $blockId, dept: $dept, divisi: $divisi")
-                }
+            // fallback
+            if (blokData == null) {
+                blokData = blokDao.getBlokByPpro(blokPpro ?: -1)
             }
 
             if (blokData == null) {
@@ -2174,7 +2179,7 @@ class AppRepository(context: Context) {
 
             Result.success(blokData)
         } catch (e: Exception) {
-            AppLogger.e("Error in fetchBlokbyParams: ${e.message}")
+            AppLogger.e("Error: ${e.message}")
             Result.failure(e)
         }
     }
