@@ -196,6 +196,15 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         private const val REQUEST_ENABLE_BT = 1
     }
 
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private var activityInitialized = false
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -212,12 +221,33 @@ class ListFollowUpInspeksi : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_list_inspection)
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+    private fun setupUI(){
 
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
+
 
         afdelingId = prefManager!!.afdelingIdUserLogin?.toIntOrNull()
         userName = prefManager!!.nameUserLogin
@@ -271,6 +301,14 @@ class ListFollowUpInspeksi : AppCompatActivity() {
                 finishAffinity()
             }
         })
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_list_inspection)
+
+        prefManager = PrefManager(this)
+        checkDateTimeSettings()
     }
 
     private fun setupVisibilityStatusHorizontalCard() {
@@ -2997,6 +3035,22 @@ class ListFollowUpInspeksi : AppCompatActivity() {
     }
 
 
+    override fun onResume() {
+        super.onResume()
+
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+    }
+
+
     private fun updateTableHeaders(headerNames: List<String>) {
         val checkboxFrameLayout =
             tableHeader.findViewById<FrameLayout>(R.id.flCheckBoxTableHeaderLayout)
@@ -3023,7 +3077,8 @@ class ListFollowUpInspeksi : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         AppUtils.resetSelectedDate()
-
+// Ensure handler callbacks are removed
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
 

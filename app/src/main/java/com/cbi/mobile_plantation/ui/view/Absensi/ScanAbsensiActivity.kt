@@ -3,6 +3,8 @@ package com.cbi.mobile_plantation.ui.view.Absensi
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Html
 import android.view.Gravity
 import android.view.View
@@ -78,15 +80,51 @@ class ScanAbsensiActivity : AppCompatActivity() {
     var globalKaryawanMskNik : String = ""
     var globalKaryawanTdkMskNik : String = ""
 
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private var activityInitialized = false
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+    private fun setupUI() {
+        initViewModel()
+        setupBottomSheet()
+        setupQRScanner()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
         setContentView(R.layout.activity_scan_absensi)
 
         loadingDialog = LoadingDialog(this)
-        initViewModel()
-        setupBottomSheet()
-        setupQRScanner()
+        checkDateTimeSettings()
     }
 
     private fun initViewModel() {
@@ -966,6 +1004,11 @@ class ScanAbsensiActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
+            startPeriodicDateTimeChecking()
+        }
+
         if (barcodeView.visibility == View.VISIBLE) {
             setMaxBrightness(this@ScanAbsensiActivity, true)
             isScanning = false
@@ -974,10 +1017,12 @@ class ScanAbsensiActivity : AppCompatActivity() {
                 resumeScanner()
             }
         }
+
     }
 
     override fun onPause() {
         super.onPause()
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         pauseScanner()
     }
 
@@ -986,6 +1031,8 @@ class ScanAbsensiActivity : AppCompatActivity() {
         barcodeView.pause()
         barcodeView.barcodeView?.cameraInstance?.close() // Release camera
         setMaxBrightness(this@ScanAbsensiActivity, false)
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 
     @Deprecated("Use onBackPressedDispatcher instead")

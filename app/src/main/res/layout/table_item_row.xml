@@ -116,7 +116,7 @@
             android:id="@+id/td5"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
+            android:layout_height="60dp"
             android:gravity="center"
             android:paddingVertical="4dp"
             android:orientation="horizontal"
@@ -130,6 +130,8 @@
                 android:layout_marginBottom="3dp"
                 app:cardCornerRadius="8dp"
                 app:strokeWidth="1dp"
+                android:id="@+id/cardJenisPanen"
+                android:visibility="gone"
                 app:strokeColor="@color/grayBorder"
                 app:cardBackgroundColor="@color/white">
 

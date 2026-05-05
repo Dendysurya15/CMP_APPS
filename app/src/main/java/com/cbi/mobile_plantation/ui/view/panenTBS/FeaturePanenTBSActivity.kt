@@ -402,6 +402,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_panen_tbs)
         //cek tanggal otomatis
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
         initializeAutoScan()
     }
@@ -432,7 +433,7 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
     @SuppressLint("ClickableViewAccessibility")
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
+
         radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager, this)
         boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager, this)
 

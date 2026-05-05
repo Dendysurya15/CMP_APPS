@@ -138,6 +138,7 @@ class ListTPHApproval : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_panen_tbs)
         //cek tanggal otomatis
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
     }
 
@@ -189,7 +190,7 @@ class ListTPHApproval : AppCompatActivity() {
             }
         })
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
+
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin
         estateName = prefManager!!.estateUserLogin

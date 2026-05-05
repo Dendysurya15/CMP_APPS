@@ -188,12 +188,13 @@ open class FeatureAbsensiActivity : AppCompatActivity(),WorkerRemovalListener,Ta
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_feature_absensi)
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
     }
 
     private fun setupUI(){
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
+
         radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager, this)
         boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager, this)
         initViewModel()

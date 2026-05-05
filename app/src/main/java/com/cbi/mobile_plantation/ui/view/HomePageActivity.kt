@@ -260,7 +260,7 @@ class HomePageActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        prefManager = PrefManager(this)
         // Initialize notification scheduler
         notificationScheduler = NotificationScheduler(this)
 
@@ -1247,7 +1247,7 @@ class HomePageActivity : AppCompatActivity() {
 
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
+
         radiusMinimum = 10F
         boundaryAccuracy = 15F
 

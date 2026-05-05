@@ -32,7 +32,7 @@ data class ESPBData(
     val id: Int?
 )
 
-class ESPBAdapter(private var items: List<ESPBData>, private val context: Activity) :
+class ESPBAdapter(private var items: List<ESPBData>, private val context: Activity,) :
     RecyclerView.Adapter<ESPBAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {

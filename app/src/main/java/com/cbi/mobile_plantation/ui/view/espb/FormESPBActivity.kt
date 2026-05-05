@@ -163,7 +163,7 @@ class FormESPBActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_espbactivity)
-
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
     }
 
@@ -371,7 +371,7 @@ class FormESPBActivity : AppCompatActivity() {
             adapter = selectedPemuatAdapter
         }
 
-        prefManager = PrefManager(this)
+
 
         regionalId = prefManager!!.regionalIdUserLogin
         estateId = prefManager!!.estateIdUserLogin

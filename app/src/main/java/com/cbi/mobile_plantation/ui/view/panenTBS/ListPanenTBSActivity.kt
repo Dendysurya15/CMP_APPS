@@ -243,6 +243,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_panen_tbs)
         //cek tanggal otomatis
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
     }
 
@@ -444,7 +445,7 @@ class ListPanenTBSActivity : AppCompatActivity() {
 
         Log.d("listTPHDriver", listTPHDriver.toString())
 
-        prefManager = PrefManager(this)
+
         userName = prefManager!!.nameUserLogin
         estateName = prefManager!!.estateUserLogin
         jabatanUser = prefManager!!.jabatanUserLogin

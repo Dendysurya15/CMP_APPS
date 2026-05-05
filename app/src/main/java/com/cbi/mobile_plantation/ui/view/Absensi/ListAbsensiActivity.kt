@@ -135,6 +135,9 @@ class ListAbsensiActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_absensi)
+        prefManager = PrefManager(this)
+        //cek tanggal otomatis
+        checkDateTimeSettings()
     }
 
     private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
@@ -146,7 +149,7 @@ class ListAbsensiActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        prefManager = PrefManager(this)
+
         loadingDialog = LoadingDialog(this)
         infoApp = AppUtils.getDeviceInfo(this@ListAbsensiActivity).toString()
 

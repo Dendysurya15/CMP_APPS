@@ -115,12 +115,48 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
     private var globalJjgArr: String = ""
     var globalUploaderInfoWB: String = ""
 
+    private val dateTimeCheckHandler = Handler(Looper.getMainLooper())
+    private var activityInitialized = false
+    private val dateTimeCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDateTimeSettings()
+            dateTimeCheckHandler.postDelayed(this, AppUtils.DATE_TIME_CHECK_INTERVAL)
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefManager = PrefManager(this)
         setContentView(R.layout.activity_scan_weigh_bridge)
         loadingDialog = LoadingDialog(this)
+        checkDateTimeSettings()
+    }
+
+    private fun checkDateTimeSettings() {
+        if (!AppUtils.isDateTimeValid(this, prefManager!!)) {
+            dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
+            AppUtils.showDateTimeNetworkWarning(this)
+        } else if (!activityInitialized) {
+            initializeActivity()
+            startPeriodicDateTimeChecking()
+        }
+    }
+
+
+    private fun startPeriodicDateTimeChecking() {
+        dateTimeCheckHandler.postDelayed(dateTimeCheckRunnable, AppUtils.DATE_TIME_INITIAL_DELAY)
+
+    }
+
+    private fun initializeActivity() {
+        if (!activityInitialized) {
+            activityInitialized = true
+            setupUI()
+        }
+    }
+
+    private fun setupUI() {
         initViewModel()
         setupBottomSheet()
         setupQRScanner()
@@ -1958,6 +1994,10 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        checkDateTimeSettings()
+        if (activityInitialized && AppUtils.isDateTimeValid(this, prefManager!!)) {
+            startPeriodicDateTimeChecking()
+        }
         if (barcodeView.visibility == View.VISIBLE) {
             setMaxBrightness(this@ScanWeighBridgeActivity, false)
             isScanning = false
@@ -1978,6 +2018,8 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
         pauseScanner()
     }
 
@@ -1987,5 +2029,7 @@ class ScanWeighBridgeActivity : AppCompatActivity() {
         SoundPlayer.releaseMediaPlayer()
         barcodeView.barcodeView?.cameraInstance?.close() // Release camera
         setMaxBrightness(this@ScanWeighBridgeActivity, false)
+
+        dateTimeCheckHandler.removeCallbacks(dateTimeCheckRunnable)
     }
 }

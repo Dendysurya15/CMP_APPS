@@ -101,7 +101,7 @@ class LoginActivity : AppCompatActivity() {
 
         // Initialize location client
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
+        prefManager = PrefManager(this)
         // Check date/time
         checkDateTimeSettings()
     }
@@ -124,7 +124,7 @@ class LoginActivity : AppCompatActivity() {
     private fun initializeActivity() {
         if (!activityInitialized) {
             activityInitialized = true
-            prefManager = PrefManager(this)
+
 
             // Check if the current year is before 2025
             val calendar = Calendar.getInstance()

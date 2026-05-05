@@ -525,6 +525,7 @@ open class FormInspectionActivity : AppCompatActivity(),
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_form_inspection)
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
     }
 
@@ -808,7 +809,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     private fun setupUI() {
         loadingDialog = LoadingDialog(this)
-        prefManager = PrefManager(this)
+
         radiusMinimum = AppUtils.getBoundaryAccuracy(prefManager, this)
         boundaryAccuracy = AppUtils.getBoundaryAccuracy(prefManager, this)
 

@@ -43,6 +43,7 @@ class ScanQR : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_generate_espb)
         //cek tanggal otomatis
+        prefManager = PrefManager(this)
         checkDateTimeSettings()
     }
 
@@ -101,7 +102,7 @@ class ScanQR : AppCompatActivity() {
         previousTph1 = intent.getStringExtra("tph_1") ?: ""
         previousTph0 = intent.getStringExtra("tph_0") ?: ""
         previousTph1IdPanen = intent.getStringExtra("tph_1_id_panen") ?: ""
-        prefManager = PrefManager(this)
+
         Log.d("ScanQR", "Previous tph1: $previousTph1")
         Log.d("ScanQR", "Previous tph0: $previousTph0")
         Log.d("ScanQR", "Previous tph1IdPanen: $previousTph1IdPanen")

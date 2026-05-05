@@ -22,13 +22,14 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.displayHektarPanenTanggalBlok
+import com.google.android.material.card.MaterialCardView
 import com.jaredrummler.materialspinner.MaterialSpinner
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 class ListHektarPanenAdapter(
     private var items: List<displayHektarPanenTanggalBlok>,
-    private val context: Activity
+    private val context: Activity,
 ) : RecyclerView.Adapter<ListHektarPanenAdapter.ViewHolder>() {
 
     // Interface for callback to Activity
@@ -65,6 +66,8 @@ class ListHektarPanenAdapter(
         val checkbox: CheckBox = view.findViewById(R.id.checkBoxPanen)
         val flCheckBoxItemTph = view.findViewById<FrameLayout>(R.id.flCheckBoxItemTph)
         val spJenisPanen: MaterialSpinner = view.findViewById(R.id.spJenisPanen)
+
+        val cardJenisPanen: MaterialCardView = view.findViewById(R.id.cardJenisPanen)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -82,6 +85,7 @@ class ListHektarPanenAdapter(
         holder.td3.visibility = View.VISIBLE
         holder.et4.visibility = View.VISIBLE
         holder.td5.visibility = View.VISIBLE
+        holder.cardJenisPanen.visibility = View.VISIBLE
         holder.td6.visibility = View.GONE
 
         val dibayar = item.dibayar_arr.split(";").sumOf {
