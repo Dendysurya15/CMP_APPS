@@ -182,63 +182,93 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun handleUpload(selectedItems: List<Map<String, Any>>) {
+    private fun handleUpload(selectedItems: List<Map<String, Any>>,  originalSelectedItems: List<Map<String, Any>>) {
 
-        var number = 0
-        val ip = selectedItems.firstOrNull()?.get("ip")?.toString() ?: ""
+//        var number = 0
+//        val ip = selectedItems.firstOrNull()?.get("ip")?.toString() ?: ""
 
-        val pproItems = selectedItems.map { item ->
+
+//        AppLogger.d("selectedItems $selectedItems")
+//        val pproItems = selectedItems.map { item ->
+//            UploadCMPItem(
+//                id = item["id"] as Int,
+//                title = "PPRO (${item["no_espb"]})",
+//                fullPath = "",
+//                baseFilename = "",
+//                data = Gson().toJson(
+//                    mapOf(
+//                        "id" to item["id"] as Int,
+//                        "ip" to item["ip"].toString(),
+//                        "num" to number++,
+//                        "dept_ppro" to (item["dept_ppro"] as Number).toInt(),
+//                        "divisi_ppro" to (item["divisi_ppro"] as Number).toInt(),
+//                        "commodity" to (item["commodity"] as Number).toInt(),
+//                        "blok_jjg" to item["blok_jjg"] as String,
+//                        "nopol" to item["nopol"] as String,
+//                        "driver" to item["driver"] as String,
+//                        "pemuat_id" to item["pemuat_id"].toString(),
+//                        "transporter_id" to (item["transporter_id"] as Number).toInt(),
+//                        "mill_id" to (item["mill_id"] as Number).toInt(),
+//                        "created_by_id" to (item["created_by_id"] as Number).toInt(),
+//                        "created_at" to item["created_at"] as String,
+//                        "no_espb" to item["no_espb"] as String,
+//                        "uploader_info" to infoApp,
+//                        "uploaded_at" to SimpleDateFormat(
+//                            "yyyy-MM-dd HH:mm:ss",
+//                            Locale.getDefault()
+//                        ).format(Date()),
+//                        "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
+//                    )
+//                ),
+//                type = AppUtils.DatabaseServer.PPRO,
+//                databaseTable = "",
+//            )
+//        }
+
+        val cmpItems = selectedItems.mapIndexed { index, item ->
+
+            val currentDate = SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss",
+                Locale.getDefault()
+            ).format(Date())
+
+            val noEspb = item["noESPB"]?.toString() ?: item["no_espb"]?.toString() ?: "UNKNOWN"
+
+            val wrappedJson = mapOf(
+                "espb_table" to listOf(item)
+            )
+
+
+            val id = item["id"]
+
+            val originalItem = originalSelectedItems.find {
+                it["id"] == id
+            }
+
+            val ip = originalItem?.get("ip")?.toString() ?: ""
+
+            val jsonString = Gson().toJson(wrappedJson)
+
+            AppLogger.d("═══════════════════════════════")
+            AppLogger.d("UPLOAD ESPB: $noEspb")
+            AppLogger.d(jsonString)
+            AppLogger.d("═══════════════════════════════")
+
             UploadCMPItem(
-                id = item["id"] as Int,
-                title = "PPRO (${item["no_espb"]})",
+                id = index + 1,
+                title = "ESPB $noEspb",
                 fullPath = "",
                 baseFilename = "",
                 data = Gson().toJson(
                     mapOf(
-                        "id" to item["id"] as Int,
-                        "ip" to item["ip"].toString(),
-                        "num" to number++,
-                        "dept_ppro" to (item["dept_ppro"] as Number).toInt(),
-                        "divisi_ppro" to (item["divisi_ppro"] as Number).toInt(),
-                        "commodity" to (item["commodity"] as Number).toInt(),
-                        "blok_jjg" to item["blok_jjg"] as String,
-                        "nopol" to item["nopol"] as String,
-                        "driver" to item["driver"] as String,
-                        "pemuat_id" to item["pemuat_id"].toString(),
-                        "transporter_id" to (item["transporter_id"] as Number).toInt(),
-                        "mill_id" to (item["mill_id"] as Number).toInt(),
-                        "created_by_id" to (item["created_by_id"] as Number).toInt(),
-                        "created_at" to item["created_at"] as String,
-                        "no_espb" to item["no_espb"] as String,
+                        "espb_json" to jsonString,
+                        "espb_ids" to globalESPBIds,
+                        "ip" to ip,
                         "uploader_info" to infoApp,
-                        "uploaded_at" to SimpleDateFormat(
-                            "yyyy-MM-dd HH:mm:ss",
-                            Locale.getDefault()
-                        ).format(Date()),
-                        "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt()
+                        "uploaded_at" to currentDate,
+                        "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),
                     )
                 ),
-                type = AppUtils.DatabaseServer.PPRO,
-                databaseTable = "",
-            )
-        }
-
-        val cmpItems = allJsonData.mapIndexed { index, jsonData ->
-            val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-
-            UploadCMPItem(
-                id = pproItems.maxByOrNull { it.id }?.id?.plus(index + 1) ?: (index + 1),
-                title = "CMP STAGING ESPB (${allJsonData.size} item)", // Use the noESPB in the title
-                fullPath = "", // Empty since we don't have filePath
-                baseFilename = "", // Empty since we don't have fileName
-                data = Gson().toJson(mapOf(
-                    "espb_json" to jsonData.data,
-                    "espb_ids" to globalESPBIds,
-                    "ip" to ip,
-                    "uploader_info" to infoApp,
-                    "uploaded_at" to currentDate,
-                    "uploaded_by_id" to prefManager!!.idUserLogin!!.toInt(),
-                )),
                 type = AppUtils.DatabaseServer.STAGING_CMP,
                 databaseTable = "",
                 endpoint = "harvest"
@@ -246,6 +276,9 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
         }
 
         val allUploadItems =  cmpItems
+
+
+//        AppLogger.d("allupload items ${cmpItems.size}")
 //        val allUploadItems =  pproItems + cmpItems
         uploadCMPViewModel.resetState()
         loadingDialog.dismiss()
@@ -1203,7 +1236,7 @@ class ListHistoryWeighBridgeActivity : AppCompatActivity() {
 
                                     val zipSuccess = zipDeferred.await()
 
-                                    handleUpload(selectedItems)
+                                    handleUpload(mappedESPBData,selectedItems)
                                 }
 
 

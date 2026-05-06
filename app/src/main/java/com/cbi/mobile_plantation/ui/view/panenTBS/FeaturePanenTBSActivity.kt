@@ -561,17 +561,33 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
                     loadingDialog.dismiss()
                     setupLayout()
                 }
-            }  catch (e: Exception) {
+            } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     loadingDialog.dismiss()
 
-                    val errorMessage = e.toString()
+                    // Get exact crash location
+                    val crashLocation = e.stackTrace
+                        .firstOrNull { it.className.contains("FeaturePanenTBS") }
+                        ?: e.stackTrace.firstOrNull()
+
+                    val errorDetail = buildString {
+                        appendLine("Type: ${e.javaClass.simpleName}")
+                        appendLine("Message: ${e.message}")
+                        appendLine("At: ${crashLocation?.className?.substringAfterLast(".")}.${crashLocation?.methodName}:${crashLocation?.lineNumber}")
+                        appendLine("---")
+                        // Full stack trace top 5
+                        e.stackTrace.take(5).forEach {
+                            appendLine("${it.className.substringAfterLast(".")}.${it.methodName}:${it.lineNumber}")
+                        }
+                    }
+
+                    AppLogger.e("CRASH DETAIL:\n$errorDetail")
 
                     AlertDialogUtility.withSingleAction(
                         this@FeaturePanenTBSActivity,
                         stringXML(R.string.al_back),
-                        stringXML(R.string.al_failed_fetch_data),
-                        errorMessage,
+                        "Terjadi Kesalahan!",
+                        errorDetail,  // show full detail on screen too
                         "warning.json",
                         R.color.colorRedDark
                     ) {
@@ -1068,49 +1084,42 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
         val tphDataMap = mutableMapOf<Int, TPHData>()
 
         list.forEach { panen ->
-            val tphId = panen.tph?.id
-            val jenisTPHId = panen.tph?.jenis_tph_id?.toInt()
+            // FIX: skip records where tph relation is missing (orphaned)
+            val tph = panen.tph ?: run {
+                AppLogger.w("Skipping panen id=${panen.panen.id} — tph is null (orphaned record)")
+                return@forEach
+            }
+
+            val tphId = tph.id ?: return@forEach
+            val jenisTPHId = tph.jenis_tph_id?.toInt() ?: return@forEach
             val workerNiks = panen.panen.karyawan_nik?.split(",")?.map { it.trim() } ?: emptyList()
-            val blokKode = panen.tph!!.blok_kode
-            val nomor = panen.tph.nomor
+            val blokKode = tph.blok_kode  // safe now
+            val nomor = tph.nomor         // safe now
 
-            if (tphId != null && jenisTPHId != null) {
-                val jenisLimit = jenisTPHListGlobal
-                    .find { it.id == jenisTPHId }
-                    ?.limit
-                    ?.toString() ?: "1"
-                val existingData = tphDataMap[tphId]
+            val jenisLimit = jenisTPHListGlobal
+                .find { it.id == jenisTPHId }
+                ?.limit
+                ?.toString() ?: "1"
 
-                if (nomor == "72") {
-                    AppLogger.d( "TPH nomor 72 → jenisTPHId=$jenisTPHId, limit=$jenisLimit, tphId=$tphId")
-                }
-
-                if (existingData != null) {
-                    val mergedNiks = (existingData.workerNiks + workerNiks).distinct()
-                    tphDataMap[tphId] = existingData.copy(
-                        count = existingData.count + 1,
-                        workerNiks = mergedNiks,
-                        blokKode = blokKode,
-                        nomor = nomor
-                    )
-                } else {
-
-                    if (nomor == "72") {
-                        AppLogger.d( "TPH nomor 72 → jenisTPHId=$jenisTPHId, limit=$jenisLimit, tphId=$tphId")
-                    }
-
-                    tphDataMap[tphId] = TPHData(
-                        count = 1,
-                        jenisTPHId = jenisTPHId,
-                        limitTPH = jenisLimit,
-                        workerNiks = workerNiks,
-                        blokKode = blokKode,
-                        nomor = nomor
-                    )
-                }
+            val existingData = tphDataMap[tphId]
+            if (existingData != null) {
+                tphDataMap[tphId] = existingData.copy(
+                    count = existingData.count + 1,
+                    workerNiks = (existingData.workerNiks + workerNiks).distinct(),
+                    blokKode = blokKode,
+                    nomor = nomor
+                )
+            } else {
+                tphDataMap[tphId] = TPHData(
+                    count = 1,
+                    jenisTPHId = jenisTPHId,
+                    limitTPH = jenisLimit,
+                    workerNiks = workerNiks,
+                    blokKode = blokKode,
+                    nomor = nomor
+                )
             }
         }
-
 
         panenStoredLocal.clear()
         panenStoredLocal.putAll(tphDataMap)
@@ -1156,7 +1165,9 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
 
         val newPresentNikSet = mutableSetOf<String>()
         absensiData.forEach { absensiRelation ->
-            val niks = absensiRelation.absensi.karyawan_msk_nik.split(",")
+            // FIX: guard against null karyawan_msk_nik
+            val nikString = absensiRelation.absensi.karyawan_msk_nik ?: return@forEach
+            val niks = nikString.split(",")
             newPresentNikSet.addAll(niks.filter { it.isNotEmpty() && it.trim().isNotEmpty() })
         }
 
@@ -1192,13 +1203,13 @@ open class FeaturePanenTBSActivity : AppCompatActivity(),
             }
 
             allKaryawan.forEach {
+                val id = it.id ?: run {
+                    AppLogger.w("Skipping karyawan '${it.nama}' — id is null")
+                    return@forEach
+                }
                 it.nama?.trim()?.let { nama ->
-                    val key = if (nameCounts[nama]!! > 1) {
-                        "$nama - ${it.nik}"
-                    } else {
-                        nama
-                    }
-                    karyawanIdMap[key] = it.id!!
+                    val key = if ((nameCounts[nama] ?: 0) > 1) "$nama - ${it.nik}" else nama
+                    karyawanIdMap[key] = id  // safe now
                     if (it.kemandoran_id != null) {
                         kemandoranIdMap[key] = it.kemandoran_id!!
                     }
