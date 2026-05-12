@@ -74,6 +74,19 @@
                 android:textColor="@color/black"
                 android:fontFamily="@font/manrope_semibold"
                 android:textSize="@dimen/m" />
+
+            <Button
+                android:id="@+id/btnIsiJenisPanen"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/greenDarker"
+                android:fontFamily="@font/manrope_bold"
+                android:text=""
+                android:visibility="gone"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/white"
+                android:textSize="@dimen/m" />
         </LinearLayout>
 
         <HorizontalScrollView

@@ -30,7 +30,7 @@ abstract class HektarPanenDao {
     abstract fun getAllYesterday(): List<HektarPanenEntity>
 
     @Query("UPDATE hektar_panen SET dataIsZipped = :status WHERE id IN (:ids)")
-    abstract  suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
+    abstract suspend fun updateDataIsZippedHP(ids: List<Int>, status: Int)
 
     @Query("UPDATE hektar_panen SET status_upload = :status WHERE id IN (:ids)")
     abstract suspend fun updateStatusUploadHektarPanen(ids: List<Int>, status: Int)
@@ -77,13 +77,20 @@ abstract class HektarPanenDao {
 
     //count where luas_panen is 0 and date today
     @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0.0 AND date_created_panen LIKE '%' || :date || '%'")
-    abstract fun countWhereLuasPanenIsZeroAndDate(date: String= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Int
+    abstract fun countWhereLuasPanenIsZeroAndDate(
+        date: String = SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(Date())
+    ): Int
 
-    @Query("""
+    @Query(
+        """
     SELECT DISTINCT blok, blok_ppro, dept, divisi, dept_abbr, divisi_abbr , blok_kode
     FROM hektar_panen 
     WHERE date_created_panen LIKE '%' || :date || '%'
-""")
+"""
+    )
     abstract fun getDistinctBlokParamsByDate(date: String): List<BlokParams>
 
     data class BlokParams(
@@ -91,14 +98,17 @@ abstract class HektarPanenDao {
         val blok_ppro: Int?,
         val dept: Int?,
         val divisi: Int?,
-        val dept_abbr:String?,
-        val divisi_abbr:String?,
-        val blok_kode:String?,
+        val dept_abbr: String?,
+        val divisi_abbr: String?,
+        val blok_kode: String?,
     )
 
     //select nik, luas_panen, luas_blok, dibayar from hektar_panen where date_created_panen like '%' || :date || '%' and blok = :blok
     @Query("SELECT * FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%' AND blok = :blok")
-    abstract fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(date: String, blok: Int): List<HektarPanenEntity>
+    abstract fun getNikLuasPanenLuasBlokDibayarByDateAndBlok(
+        date: String,
+        blok: Int
+    ): List<HektarPanenEntity>
 
     //select nik, luas_panen, luas_blok, dibayar from hektar_panen where date_created_panen like '%' || :date || '%' and blok = :blok
     @Query("SELECT * FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%'")
@@ -114,18 +124,70 @@ abstract class HektarPanenDao {
     @Query("UPDATE hektar_panen SET luas_panen = :luas_panen WHERE id = :id")
     abstract fun updateLuasPanen(id: Int, luas_panen: Float): Int
 
-    //updateJenisPanenPanenbyid
-    @Query("UPDATE hektar_panen SET jenis_panen = :jenis_panen WHERE id = :id")
-    abstract fun updateJenisPanen(id: Int, jenis_panen: Int): Int
+    @Query(
+        """
+SELECT jenis_panen 
+FROM hektar_panen
+WHERE blok = :blok
+LIMIT 1
+"""
+    )
+    abstract suspend fun getJenisPanenByBlok(
+        blok: Int
+    ): Int?
 
+    //updateJenisPanenPanenbyid
+    @Query(
+        """
+UPDATE hektar_panen 
+SET jenis_panen = :jenis_panen 
+WHERE blok = :blok
+"""
+    )
+    abstract fun updateJenisPanen(
+        blok: Int,
+        jenis_panen: Int
+    ): Int
+
+
+    @Query("""
+SELECT COUNT(DISTINCT blok)
+FROM hektar_panen
+WHERE DATE(date_created_panen) = :tanggal
+""")
+    abstract suspend fun countTotalBlokJenisPanen(
+        tanggal: String
+    ): Int
+
+    @Query("""
+SELECT COUNT(DISTINCT blok)
+FROM hektar_panen
+WHERE DATE(date_created_panen) = :tanggal
+AND jenis_panen IS NOT NULL
+""")
+    abstract suspend fun countFilledBlokJenisPanen(
+        tanggal: String
+    ): Int
     //getluasblokbyblok
     @Query("SELECT luas_blok FROM hektar_panen WHERE blok = :blok")
     abstract fun getLuasBlokByBlok(blok: Int): Float
 
     @Query("SELECT COUNT(*) FROM hektar_panen WHERE luas_panen = 0.0 AND date_created_panen LIKE '%' || :date || '%' AND blok = :blok")
-    abstract fun countWhereLuasPanenIsZeroAndDateAndBlok(blok: Int, date: String?= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Int
+    abstract fun countWhereLuasPanenIsZeroAndDateAndBlok(
+        blok: Int,
+        date: String? = SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(Date())
+    ): Int
 
     //luas_blok - sum luas panen where date_created_panen like '%' || :date || '%' and blok = :blok
     @Query("SELECT SUM(luas_panen) FROM hektar_panen WHERE date_created_panen LIKE '%' || :date || '%' AND blok = :blok")
-    abstract fun getSumLuasPanen(blok: Int, date: String= SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())): Float
+    abstract fun getSumLuasPanen(
+        blok: Int,
+        date: String = SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(Date())
+    ): Float
 }

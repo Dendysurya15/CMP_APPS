@@ -2569,7 +2569,8 @@ class HomePageActivity : AppCompatActivity() {
 
                                 // Get data with luas_panen = 0 and get distinct dates only
                                 val zeroLuasPanenData = hektarPanenData.filter { it.luas_panen == 0f }
-                                val jenisBelumPilihData = hektarPanenData.filter { it.jenis_panen == -1 }
+                                val jenisBelumPilihData =
+                                    hektarPanenData.filter { it.jenis_panen == null }
 
                                 if (zeroLuasPanenData.isNotEmpty()) {
 

@@ -1707,8 +1707,44 @@ class AppRepository(context: Context) {
         return hektarPanenDao.updateLuasPanen(id, luasPanen)
     }
 
-    suspend fun updateJenisPanen(id: Int, jenisPanen: Int): Int {
-        return hektarPanenDao.updateJenisPanen(id, jenisPanen)
+    suspend fun updateJenisPanenBulk(
+        data: Map<Int, Int>
+    ) {
+
+        database.runInTransaction {
+
+            data.forEach { (id, jenisPanen) ->
+
+                hektarPanenDao.updateJenisPanen(
+                    id,
+                    jenisPanen
+                )
+            }
+        }
+    }
+
+    suspend fun getJenisPanenByBlok(
+        blok: Int
+    ): Int? {
+
+        return hektarPanenDao
+            .getJenisPanenByBlok(blok)
+    }
+
+    suspend fun countTotalJenisPanen(
+        date: String
+    ): Int {
+
+        return hektarPanenDao
+            .countTotalBlokJenisPanen(date)
+    }
+
+    suspend fun countFilledJenisPanen(
+        date: String
+    ): Int {
+
+        return hektarPanenDao
+            .countFilledBlokJenisPanen(date)
     }
 
     suspend fun getLuasBlokByBlok(blok: Int): Float {

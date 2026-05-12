@@ -9,42 +9,27 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.cbi.mobile_plantation.R
 import com.cbi.mobile_plantation.data.model.displayHektarPanenTanggalBlok
-import com.google.android.material.card.MaterialCardView
-import com.jaredrummler.materialspinner.MaterialSpinner
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 class ListHektarPanenAdapter(
     private var items: List<displayHektarPanenTanggalBlok>,
-    private val context: Activity,
+    private val context: Activity
 ) : RecyclerView.Adapter<ListHektarPanenAdapter.ViewHolder>() {
 
     // Interface for callback to Activity
     interface OnLuasPanenChangeListener {
         fun onLuasPanenChanged(id: Int, newValue: Float)
-    }
-
-    interface OnJenisPanenChangeListener {
-        fun onJenisPanenChanged(id: Int, newValue: Int)
-    }
-
-    private var jenisPanenListener: OnJenisPanenChangeListener? = null
-
-    fun setOnJenisPanenChangeListener(listener: OnJenisPanenChangeListener) {
-        this.jenisPanenListener = listener
     }
 
     // Reference to the listener
@@ -65,9 +50,6 @@ class ListHektarPanenAdapter(
         val td6: LinearLayout = view.findViewById(R.id.td6)
         val checkbox: CheckBox = view.findViewById(R.id.checkBoxPanen)
         val flCheckBoxItemTph = view.findViewById<FrameLayout>(R.id.flCheckBoxItemTph)
-        val spJenisPanen: MaterialSpinner = view.findViewById(R.id.spJenisPanen)
-
-        val cardJenisPanen: MaterialCardView = view.findViewById(R.id.cardJenisPanen)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -79,87 +61,56 @@ class ListHektarPanenAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
 
+        // Configure view visibility
         holder.flCheckBoxItemTph.visibility = View.GONE
         holder.td1.visibility = View.VISIBLE
         holder.td2.visibility = View.VISIBLE
         holder.td3.visibility = View.VISIBLE
         holder.et4.visibility = View.VISIBLE
         holder.td5.visibility = View.VISIBLE
-        holder.cardJenisPanen.visibility = View.VISIBLE
         holder.td6.visibility = View.GONE
 
+// Calculate sum of dibayar values
         val dibayar = item.dibayar_arr.split(";").sumOf {
-            it.replace(" ", "").toDoubleOrNull() ?: 0.0
+            it.replace(" ","").toDoubleOrNull() ?: 0.0
         }
+        Log.d("ListHektarPanenAdapter", "dibayar_arr: ${item.dibayar_arr}")
+        Log.d("ListHektarPanenAdapter", "dibayar: $dibayar")
 
+        // Set text data
         holder.td1.text = item.nama
         holder.td2.text = item.blok
         holder.td3.text = dibayar.toString()
 
-        // Track both conditions
-        var isHektarFilled = item.luas_panen != 0.0f
-        var isJenisFilled = item.jenis_panen != -1
-
-        // Helper to update row color based on BOTH conditions
-        fun updateRowColor() {
-            val color = if (isHektarFilled && isJenisFilled) R.color.black else R.color.colorRed
-            holder.td1.setTextColor(ContextCompat.getColor(context, color))
-            holder.td2.setTextColor(ContextCompat.getColor(context, color))
-        }
-
-        updateRowColor()
-
-        holder.et4.setTag(R.id.item_id_tag, item.id)
-        if (item.luas_panen == 0.0f) {
+        // Set current value and tag with the item id
+        holder.et4.setTag(R.id.item_id_tag, item.id) // You'll need to define this ID in res/values/ids.xml
+        if (item.luas_panen == 0.0f){
             holder.et4.setText("")
-        } else {
+            holder.td1.setTextColor(ContextCompat.getColor(context, R.color.colorRed))
+            holder.td2.setTextColor(ContextCompat.getColor(context, R.color.colorRed))
+        }else{
             holder.et4.setText(item.luas_panen.toString())
+            holder.td1.setTextColor(ContextCompat.getColor(context, R.color.black))
+            holder.td2.setTextColor(ContextCompat.getColor(context, R.color.black))
         }
-//        updateRowColor()
 
+        // Remove existing TextWatcher if there is one
         if (holder.et4.getTag(R.id.text_watcher_tag) != null) {
             val oldTextWatcher = holder.et4.getTag(R.id.text_watcher_tag) as TextWatcher
             holder.et4.removeTextChangedListener(oldTextWatcher)
         }
 
-
-
-        val jenisOptions = listOf("-- Pilih --", "Normal", "Cut & Carry")
-        holder.spJenisPanen.setItems(jenisOptions)
-
-
-        val selectedIndex = when (item.jenis_panen) {
-            -1 -> 0 // -- Pilih --
-            0 -> 1  // Normal
-            1 -> 2  // Cut & Carry
-            else -> 0
-        }
-
-
-        holder.spJenisPanen.setTextSize(9f)
-        holder.spJenisPanen.selectedIndex = selectedIndex
-
-        holder.spJenisPanen.setOnItemSelectedListener { _, pos, _, _ ->
-
-            val selectedValue = when (pos) {
-                1 -> 0
-                2 -> 1
-                else -> -1
-            }
-
-            isJenisFilled = selectedValue != -1
-            jenisPanenListener?.onJenisPanenChanged(item.id, selectedValue)
-        }
-
-
         val textWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
             override fun afterTextChanged(s: Editable?) {
+                // Check if the input contains more than 2 digits after decimal point
                 val input = s.toString()
                 if (input.isNotEmpty()) {
                     val decimalIndex = input.indexOf('.')
                     if (decimalIndex != -1 && input.length > decimalIndex + 3) {
+                        // More than 2 digits after decimal point, truncate the input
                         val truncated = input.substring(0, decimalIndex + 3)
                         holder.et4.removeTextChangedListener(this)
                         holder.et4.setText(truncated)
@@ -169,10 +120,9 @@ class ListHektarPanenAdapter(
                 }
 
                 val newValue = s.toString().toFloatOrNull() ?: 0f
-                isHektarFilled = newValue != 0f
-                updateRowColor() // recheck both conditions
-
                 val itemId = holder.et4.getTag(R.id.item_id_tag) as Int
+
+                // Notify the activity about the change
                 listener?.onLuasPanenChanged(itemId, newValue)
             }
         }
@@ -181,19 +131,34 @@ class ListHektarPanenAdapter(
             val builder = StringBuilder(dest)
             builder.replace(dstart, dend, source.subSequence(start, end).toString())
             val resultString = builder.toString()
-            if (resultString.isEmpty()) return@InputFilter null
-            if (resultString == "-") return@InputFilter null
+
+            if (resultString.isEmpty()) {
+                return@InputFilter null
+            }
+
+            // Allow negative sign at the beginning
+            if (resultString == "-") {
+                return@InputFilter null
+            }
+
+            // Check if it matches the pattern: optional negative sign, digits, optional decimal point and up to 2 digits
             val regex = "^-?\\d*(\\.\\d{0,2})?$".toRegex()
-            if (!regex.matches(resultString)) return@InputFilter ""
+            if (!regex.matches(resultString)) {
+                return@InputFilter ""
+            }
+
             null
         }
 
         holder.et4.filters = arrayOf(decimalDigitsInputFilter)
+
+        // Store the TextWatcher as a tag to be able to remove it later
         holder.et4.setTag(R.id.text_watcher_tag, textWatcher)
         holder.et4.addTextChangedListener(textWatcher)
 
+        // Adjust layout parameters for td5
         val layoutParamsTd5 = holder.td5.layoutParams as LinearLayout.LayoutParams
-        layoutParamsTd5.weight = 1.5f
+        layoutParamsTd5.weight = 0.3f
         holder.td5.layoutParams = layoutParamsTd5
     }
 
@@ -210,19 +175,6 @@ class ListHektarPanenAdapter(
             val mutableItems = items.toMutableList()
             mutableItems[index] = updatedItem
             items = mutableItems
-            notifyItemChanged(index)
-        }
-    }
-
-    fun updateJenisPanen(id: Int, newValue: Int) {
-        val index = items.indexOfFirst { it.id == id }
-        if (index != -1) {
-            val updatedItem = items[index].copy(jenis_panen = newValue)
-
-            val mutableItems = items.toMutableList()
-            mutableItems[index] = updatedItem
-            items = mutableItems
-
             notifyItemChanged(index)
         }
     }

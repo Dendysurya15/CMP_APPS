@@ -36,8 +36,34 @@ class HektarPanenViewModel(private val repository: AppRepository) : ViewModel() 
         return repository.updateLuasPanen(id,luasPanen)
     }
 
-    suspend fun updateJenisPanen(id:Int, jenisPanen: Int):Int {
-        return repository.updateJenisPanen(id,jenisPanen)
+    suspend fun getJenisPanenByBlok(
+        blok: Int
+    ): Int? {
+
+        return repository
+            .getJenisPanenByBlok(blok)
+    }
+    suspend fun updateJenisPanenBulk(
+        data: Map<Int, Int>
+    ) {
+
+        repository.updateJenisPanenBulk(data)
+    }
+
+    suspend fun countTotalJenisPanen(
+        date: String
+    ): Int {
+
+        return repository
+            .countTotalJenisPanen(date)
+    }
+
+    suspend fun countFilledJenisPanen(
+        date: String
+    ): Int {
+
+        return repository
+            .countFilledJenisPanen(date)
     }
 
     suspend fun getLuasBlokByBlok(blok: Int):Float {

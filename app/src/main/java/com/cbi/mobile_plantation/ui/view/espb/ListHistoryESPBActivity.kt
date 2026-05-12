@@ -2,6 +2,7 @@ package com.cbi.mobile_plantation.ui.view.espb
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -28,15 +30,19 @@ import com.cbi.mobile_plantation.ui.adapter.ListHektarPanenAdapter
 import com.cbi.mobile_plantation.ui.view.HomePageActivity
 import com.cbi.mobile_plantation.ui.viewModel.ESPBViewModel
 import com.cbi.mobile_plantation.ui.viewModel.HektarPanenViewModel
+import com.cbi.mobile_plantation.utils.AlertDialogUtility
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.AppUtils.vibrate
 import com.cbi.mobile_plantation.utils.MathFun
 import com.cbi.mobile_plantation.utils.PrefManager
 import com.cbi.mobile_plantation.utils.SoundPlayer
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.jaredrummler.materialspinner.MaterialSpinner
 import es.dmoral.toasty.Toasty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -48,8 +54,7 @@ import java.util.Calendar
 
 @Suppress("UNREACHABLE_CODE")
 class ListHistoryESPBActivity : AppCompatActivity(),
-    ListHektarPanenAdapter.OnLuasPanenChangeListener,
-    ListHektarPanenAdapter.OnJenisPanenChangeListener {
+    ListHektarPanenAdapter.OnLuasPanenChangeListener{
     private lateinit var recyclerView: RecyclerView
     private lateinit var espbViewModel: ESPBViewModel
     private lateinit var hektarPanenViewModel: HektarPanenViewModel
@@ -155,7 +160,7 @@ class ListHistoryESPBActivity : AppCompatActivity(),
             AppUtils.setSelectedDate(formattedDate)
 
             processSelectedDate(formattedDate)
-            setupBlokFilter()
+//            setupBlokFilter()
         }
         datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER")
     }
@@ -179,8 +184,10 @@ class ListHistoryESPBActivity : AppCompatActivity(),
         if (featureName == AppUtils.ListFeatureNames.RekapESPB) {
             espbViewModel.loadHistoryESPBNonScan(selectedDate)
         } else if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
-            hektarPanenViewModel.loadHektarPanenData(selectedDate)
-            setupBlokFilter()
+//            hektarPanenViewModel.loadHektarPanenData(selectedDate)
+//            setupBlokFilter()
+            selectedBlokId = null
+            refreshHektarPanenUI()
         }
 
         removeFilterDate.setOnClickListener {
@@ -199,11 +206,26 @@ class ListHistoryESPBActivity : AppCompatActivity(),
             if (featureName == AppUtils.ListFeatureNames.RekapESPB) {
                 espbViewModel.loadHistoryESPBNonScan(todayBackendDate)
             } else if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
-                hektarPanenViewModel.loadHektarPanenData(todayBackendDate)
-                setupBlokFilter()
+                refreshHektarPanenUI()
             }
         }
         filterDateContainer.visibility = View.VISIBLE
+    }
+
+
+    private fun refreshHektarPanenUI() {
+
+        lifecycleScope.launch(Dispatchers.Main) {
+
+            hektarPanenViewModel.loadHektarPanenData(
+                globalFormattedDate,
+                selectedBlokId
+            )
+
+            setupBlokFilter()
+
+            updateJenisPanenIndicator()
+        }
     }
 
 
@@ -338,10 +360,19 @@ class ListHistoryESPBActivity : AppCompatActivity(),
                             if (selectedBlokId != null && selectedBlokId > 0) {
                                 ll_HektarPanenSum.visibility = View.VISIBLE
                                 // Filter by both date and blok
+//                                hektarPanenViewModel.loadHektarPanenData(
+//                                    globalFormattedDate,
+//                                    selectedBlokId
+//                                )
+
                                 hektarPanenViewModel.loadHektarPanenData(
                                     globalFormattedDate,
                                     selectedBlokId
                                 )
+
+                                updateJenisPanenIndicator()
+
+//                                refreshHektarPanenUI()
 
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     val luasPanen = try {
@@ -375,10 +406,12 @@ class ListHistoryESPBActivity : AppCompatActivity(),
                             } else {
                                 ll_HektarPanenSum.visibility = View.GONE
                                 // Just filter by date (all bloks)
-                                hektarPanenViewModel.loadHektarPanenData(
-                                    globalFormattedDate,
-                                    selectedBlokId
-                                )
+//                                hektarPanenViewModel.loadHektarPanenData(
+//                                    globalFormattedDate,
+//                                    selectedBlokId
+//                                )
+
+                                refreshHektarPanenUI()
                             }
                         }
                     }
@@ -460,39 +493,7 @@ class ListHistoryESPBActivity : AppCompatActivity(),
         handler.postDelayed(updateRunnable, 4000)
     }
 
-    // Add the function — same debounce pattern as onLuasPanenChanged
-    override fun onJenisPanenChanged(id: Int, newValue: Int) {
-        updateRunnables[id]?.let { runnable ->
-            handler.removeCallbacks(runnable)
-        }
 
-        val updateRunnable = Runnable {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val result = hektarPanenViewModel.updateJenisPanen(id, newValue)
-
-                    withContext(Dispatchers.Main) {
-                        if (result > 0) {
-                            Log.d("ListHistoryESPBActivity", "Jenis panen updated for id: $id")
-
-                            // ✅ THIS IS THE KEY LINE
-                            adapterHektarPanen.updateJenisPanen(id, newValue)
-
-                        } else {
-                            Log.d("ListHistoryESPBActivity", "Jenis panen update failed for id: $id")
-                        }
-                    }
-
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    Log.e("ListHistoryESPBActivity", "Error updating jenis panen: ${e.message}")
-                }
-            }
-        }
-
-        updateRunnables[id] = updateRunnable
-        handler.postDelayed(updateRunnable, 4000)
-    }
 
     private fun setupObserveDataDaftarHektarPanen() {
 
@@ -648,13 +649,12 @@ class ListHistoryESPBActivity : AppCompatActivity(),
             adapterESPB = ESPBAdapter(emptyList(), this@ListHistoryESPBActivity)
             recyclerView.adapter = adapterESPB
         } else if (featureName == AppUtils.ListFeatureNames.DaftarHektarPanen) {
-            val headers = listOf("NAMA", "BLOK", "DIBAYAR", "HEKTAR", "JENIS PANEN")
+            val headers = listOf("NAMA", "BLOK", "DIBAYAR", "HEKTAR")
             updateTableHeaders(headers)
 
             // Create adapter without passing in ViewModel
             adapterHektarPanen = ListHektarPanenAdapter(emptyList(), this@ListHistoryESPBActivity)
             adapterHektarPanen.setOnLuasPanenChangeListener(this) // Set the listener
-            adapterHektarPanen.setOnJenisPanenChangeListener(this)
             recyclerView.adapter = adapterHektarPanen
         }
     }
@@ -691,8 +691,87 @@ class ListHistoryESPBActivity : AppCompatActivity(),
         }
     }
 
+    private fun updateJenisPanenIndicator() {
+
+        val btnIsiJenisPanen =
+            findViewById<Button>(R.id.btnIsiJenisPanen)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+
+            val total =
+                hektarPanenViewModel
+                    .countTotalJenisPanen(
+                        globalFormattedDate!!
+                    )
+
+
+
+            val filled =
+                hektarPanenViewModel
+                    .countFilledJenisPanen(
+                        globalFormattedDate!!
+                    )
+
+            withContext(Dispatchers.Main) {
+
+                if (total == 0) {
+
+                    btnIsiJenisPanen.visibility = View.GONE
+
+                } else {
+
+                    btnIsiJenisPanen.visibility = View.VISIBLE
+
+                    btnIsiJenisPanen.text =
+                        "$filled/$total Jenis Panen Blok"
+
+                    when {
+
+                        filled == 0 -> {
+
+                            btnIsiJenisPanen.setBackgroundTintList(
+                                ColorStateList.valueOf(
+                                    ContextCompat.getColor(
+                                        this@ListHistoryESPBActivity,
+                                        R.color.colorRedDark
+                                    )
+                                )
+                            )
+                        }
+
+                        filled < total -> {
+
+                            btnIsiJenisPanen.setBackgroundTintList(
+                                ColorStateList.valueOf(
+                                    ContextCompat.getColor(
+                                        this@ListHistoryESPBActivity,
+                                        R.color.yellowbutton
+                                    )
+                                )
+                            )
+                        }
+
+                        else -> {
+
+                            btnIsiJenisPanen.setBackgroundTintList(
+                                ColorStateList.valueOf(
+                                    ContextCompat.getColor(
+                                        this@ListHistoryESPBActivity,
+                                        R.color.greenDarker
+                                    )
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
     // Add this after your dateButton setup in setupUI() method
     private fun setupFilterAllData() {
+
+        val btnIsiJenisPanen = findViewById<Button>(R.id.btnIsiJenisPanen)
+
         val filterAllData = findViewById<CheckBox>(R.id.calendarCheckbox)
         val filterDateContainer = findViewById<LinearLayout>(R.id.filterDateContainer)
         val nameFilterDate = findViewById<TextView>(R.id.name_filter_date)
@@ -701,6 +780,14 @@ class ListHistoryESPBActivity : AppCompatActivity(),
             filterAllData.visibility = View.GONE
             val calendarCheckboxCaption = findViewById<TextView>(R.id.calendarCheckboxCaption)
             calendarCheckboxCaption.visibility = View.GONE
+            btnIsiJenisPanen.visibility = View.VISIBLE
+
+            updateJenisPanenIndicator()
+        }
+
+
+        btnIsiJenisPanen.setOnClickListener {
+            showJenisPanenBottomSheet()
         }
 
         filterAllData.setOnCheckedChangeListener { _, isChecked ->
@@ -781,6 +868,272 @@ class ListHistoryESPBActivity : AppCompatActivity(),
             }
         }
     }
+
+    private fun showJenisPanenBottomSheet() {
+
+        val bottomSheetDialog = BottomSheetDialog(this)
+
+        val view = layoutInflater.inflate(
+            R.layout.layout_bottom_sheet_edit_nama_pemanen,
+            null
+        )
+
+        bottomSheetDialog.setContentView(view)
+
+        val title =
+            view.findViewById<TextView>(R.id.titleDialogDetailTable)
+
+        title.text = "Jenis Panen Blok"
+
+        val contentContainer =
+            view.findViewById<LinearLayout>(R.id.contentContainer)
+
+        view.findViewById<Button>(R.id.btnUpdatePemanen).text = "Simpan"
+
+        // HIDE DEFAULT INCLUDE
+        val existingLayout =
+            view.findViewById<View>(R.id.layoutPemanen)
+
+        existingLayout.visibility = View.GONE
+        val changedJenisPanenMap = mutableMapOf<Int, Int>()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+
+            try {
+
+                val blokParamsList =
+                    hektarPanenViewModel
+                        .getDistinctBlokParamsByDate(globalFormattedDate!!)
+
+                val blokDataWithCounts = blokParamsList.map { blokParams ->
+
+                    val blokData =
+                        espbViewModel.getBlokByParams(
+                            blokParams.blok,
+                            blokParams.blok_ppro,
+                            blokParams.dept_abbr,
+                            blokParams.divisi_abbr
+                        )
+
+                    Triple(blokParams, blokData, 0)
+                }
+
+                withContext(Dispatchers.Main) {
+
+                    blokDataWithCounts.forEach { (blokParams, blokData, _) ->
+
+                        // INFLATE NEW DROPDOWN LAYOUT
+                        val spinnerLayout = layoutInflater.inflate(
+                            R.layout.pertanyaan_spinner_layout,
+                            contentContainer,
+                            false
+                        )
+
+                        val tvTitle =
+                            spinnerLayout.findViewById<TextView>(
+                                R.id.tvTitleFormPanenTBS
+                            )
+
+                        val spinner =
+                            spinnerLayout.findViewById<MaterialSpinner>(
+                                R.id.spPanenTBS
+                            )
+
+                        // BLOK NAME
+                        val blokCode =
+                            blokData?.kode
+                                ?: blokParams.blok.toString()
+
+                        tvTitle.text = blokCode
+
+                        // DROPDOWN ITEMS
+                        val jenisPanenList = listOf(
+                            "-- Pilih Jenis Panen --",
+                            "Normal",
+                            "Cut & Carry"
+                        )
+
+                        spinner.setItems(jenisPanenList)
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+
+                            val currentJenisPanen =
+                                hektarPanenViewModel
+                                    .getJenisPanenByBlok(
+                                        blokParams.blok
+                                    )
+
+                            withContext(Dispatchers.Main) {
+
+                                spinner.selectedIndex =
+                                    when(currentJenisPanen) {
+
+                                        null -> 0 // Placeholder
+
+                                        0 -> 1 // Normal
+
+                                        1 -> 2 // Cut & Carry
+
+                                        else -> 0
+                                    }
+
+                                AppLogger.d(
+                                    "Blok $blokCode currentJenisPanen $currentJenisPanen"
+                                )
+                            }
+                        }
+
+                        // LISTENER
+                        spinner.setOnItemSelectedListener { view, position, _, item ->
+
+                            // Prevent selecting placeholder
+                            if (position == 0) {
+
+                                // If user tries to re-select placeholder
+                                // restore previous valid value
+
+                                val currentJenisPanen =
+                                    changedJenisPanenMap[blokParams.blok]
+
+                                spinner.selectedIndex =
+                                    when(currentJenisPanen) {
+
+                                        0 -> 1 // Normal
+
+                                        1 -> 2 // Cut & Carry
+
+                                        else -> 0
+                                    }
+
+                                Toast.makeText(
+                                    this@ListHistoryESPBActivity,
+                                    "Pilih jenis panen yang valid",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                return@setOnItemSelectedListener
+                            }
+
+                            val selectedValue =
+                                when(position) {
+
+                                    1 -> 0 // Normal
+
+                                    2 -> 1 // Cut & Carry
+
+                                    else -> null
+                                }
+
+                            if (selectedValue != null) {
+
+                                changedJenisPanenMap[blokParams.blok] =
+                                    selectedValue
+
+                                AppLogger.d(
+                                    "Changed blok $blokCode -> $selectedValue"
+                                )
+                            }
+                        }
+
+                        // ADD TO CONTAINER
+                        contentContainer.addView(spinnerLayout)
+                    }
+                }
+
+            } catch (e: Exception) {
+
+                withContext(Dispatchers.Main) {
+
+                    Toast.makeText(
+                        this@ListHistoryESPBActivity,
+                        e.message,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+
+        // BUTTON
+        view.findViewById<Button>(R.id.btnCancel)
+            .setOnClickListener {
+                bottomSheetDialog.dismiss()
+            }
+
+        view.findViewById<Button>(R.id.btnUpdatePemanen)
+            .setOnClickListener {
+
+                AlertDialogUtility.withTwoActions(
+                    this,
+                    getString(R.string.al_yes),
+                    getString(R.string.confirmation_dialog_title),
+                    "Apakah anda yakin ingin mengubah jenis panen blok?",
+                    "warning.json",
+                    ContextCompat.getColor(this, R.color.greenDarker),
+
+                    function = {
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+
+                            try {
+
+                                hektarPanenViewModel
+                                    .updateJenisPanenBulk(
+                                        changedJenisPanenMap
+                                    )
+
+                                withContext(Dispatchers.Main) {
+
+                                    Toast.makeText(
+                                        this@ListHistoryESPBActivity,
+                                        "Berhasil update jenis panen",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+//                                    updateJenisPanenIndicator()
+
+                                    refreshHektarPanenUI()
+                                    bottomSheetDialog.dismiss()
+                                }
+
+                            } catch (e: Exception) {
+
+                                withContext(Dispatchers.Main) {
+
+                                    Toast.makeText(
+                                        this@ListHistoryESPBActivity,
+                                        e.message,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+
+                ) {
+
+                }
+            }
+
+
+        val maxHeight =
+            (resources.displayMetrics.heightPixels * 0.70).toInt()
+
+        bottomSheetDialog.findViewById<View>(
+            com.google.android.material.R.id.design_bottom_sheet
+        )?.let { bottomSheet ->
+
+            val behavior = BottomSheetBehavior.from(bottomSheet)
+
+            behavior.apply {
+                peekHeight = maxHeight
+                state = BottomSheetBehavior.STATE_EXPANDED
+                isFitToContents = true
+            }
+
+            bottomSheet.layoutParams.height = maxHeight
+        }
+        bottomSheetDialog.show()
+    }
+
 
     @SuppressLint("SetTextI18n")
     private fun setupHeader() {
