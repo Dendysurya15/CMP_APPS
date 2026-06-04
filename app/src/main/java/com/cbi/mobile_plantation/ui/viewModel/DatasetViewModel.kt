@@ -2534,6 +2534,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val statusEspb = item.optInt("status_espb", -1)
                             val jjgKirim = item.optInt("jjg_kirim", 0)
                             val nomorPemanen = item.optInt("nomor_pemanen", 0)
+                            val ancak = item.optInt("ancak", 0)
                             val createdName = item.optString("created_name_kp", "")
                             val spbKode: String? =
                                 if (item.has("spb_kode") && !item.isNull("spb_kode")) {
@@ -2602,7 +2603,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 lat = 0.0,
                                 lon = 0.0,
                                 jenis_panen = 0,
-                                ancak = 0,
+                                ancak = ancak,
                                 info = "",
                                 archive = 0,
                                 nomor_pemanen = nomorPemanen,
@@ -2685,11 +2686,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     },
 
 
-                                                            no_espb = if (existingRecord.no_espb.isNullOrEmpty() || existingRecord.no_espb == "NULL") {
-                                                        panen.no_espb
-                                                    } else {
-                                                        existingRecord.no_espb
-                                                    },
+                                                    no_espb = panen.no_espb,
 
                                                     username = if (existingRecord.username.isNullOrEmpty() || existingRecord.username == "NULL") {
                                                         panen.username
@@ -2708,6 +2705,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                     } else {
                                                         existingRecord.nomor_pemanen
                                                     },
+
+                                                    ancak = panen.ancak,
 
                                                     status_espb = if (existingRecord.status_espb == 0) {
                                                         panen.status_espb
@@ -3527,6 +3526,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                             val createdDate = item.optString("created_date", "")
                             val createdBy = item.optInt("created_by", 0)
                             val ancak = item.optInt("ancak", 0)
+                            val nomor_pemanen = item.optInt("nomor_pemanen", 0)
                             val asistensi = item.optInt("asistensi", 0)
 
                             // Extract new asistensi fields with proper null handling
@@ -3688,7 +3688,7 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                 status_scan_mpanen = 0,
                                 jumlah_pemanen = karyawanNikList.size,
                                 archive_mpanen = 0,
-                                nomor_pemanen = 0,
+                                nomor_pemanen = nomor_pemanen,
                                 isPushedToServer = 1
                             )
 
@@ -3775,6 +3775,11 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                                                         panen.ancak
                                                     } else {
                                                         existingRecord.ancak
+                                                    },
+                                                    nomor_pemanen = if (existingRecord.nomor_pemanen == 0 && panen.nomor_pemanen != 0) {
+                                                        panen.nomor_pemanen
+                                                    } else {
+                                                        existingRecord.nomor_pemanen
                                                     },
                                                     jjg_json = if ((existingRecord.jjg_json.isNullOrEmpty() ||
                                                                 existingRecord.jjg_json == "NULL" ||

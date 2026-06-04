@@ -8,8 +8,7 @@ data class LoginResponse(
 
 data class LoginData(
     val user: User?,
-    val accessToken: String?,
-    val refreshToken: String?
+    val token: String?,
 )
 
 

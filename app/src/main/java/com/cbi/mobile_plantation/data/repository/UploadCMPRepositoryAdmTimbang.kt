@@ -374,6 +374,10 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
 
                         // ✅ Get the first object from the espb_table array
                         val unwrappedJson = espbTableArray.getJSONObject(0)
+                        
+                        // Extract the specific local ID for this record to avoid overwriting other records in the batch
+                        val currentRecordId = unwrappedJson.optInt("id", 0)
+                        val actualIdsToUpdate = if (currentRecordId != 0) listOf(currentRecordId) else espbIds
 
                         // ✅ CLEAN DOUBLE-ESCAPED JSON FIELDS
                         val fieldsToClean = listOf("creator_info", "app_version", "update_info_sp")
@@ -404,8 +408,8 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
                         )
 
                         // ✅ Update base URL
-//                        StagingApiClient.updateBaseUrl("http://10.9.116.125:37891")
-                        StagingApiClient.updateBaseUrl("http://$ipFromData:37891")
+                        StagingApiClient.updateBaseUrl("http://192.168.1.34:37891")
+//                        StagingApiClient.updateBaseUrl("http://$ipFromData:37891")
 
                         onProgressUpdate(40, false, null)
 
@@ -443,13 +447,13 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
                                 harvestResponse.message
                             }
 
-                            // ✅ Update database for all ESPB IDs
+                            // ✅ Update database for the specific ESPB IDs
                             if (isSuccess) {
-                                AppLogger.d("🌾 Updating database for ${espbIds.size} ESPB IDs...")
+                                AppLogger.d("🌾 Updating database for ${actualIdsToUpdate.size} ESPB IDs...")
 
                                 // Generate random tracking ID
                                 val randomTrackingId = (100000000..999999999).random().toString()
-                                val jsonResultTableIds = createJsonTableNameMapping(espbIds)
+                                val jsonResultTableIds = createJsonTableNameMapping(actualIdsToUpdate)
 
                                 val uploadData = UploadCMPModel(
                                     tracking_id = randomTrackingId,
@@ -485,8 +489,8 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
 
                                     delay(100)
 
-                                    // Update status for all ESPB IDs
-                                    for (id in espbIds) {
+                                    // Update status for the specific ESPB IDs
+                                    for (id in actualIdsToUpdate) {
                                         try {
                                             withContext(Dispatchers.IO) {
                                                 updateUploadStatusCMP(
@@ -507,9 +511,9 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
                                     AppLogger.e("🌾 Failed to update database: ${e.message}")
                                 }
                             } else {
-                                // Update with error status
-                                AppLogger.d("🌾 Updating database with error status for ${espbIds.size} ESPB IDs...")
-                                for (id in espbIds) {
+                                // Update with error status for the specific ESPB IDs
+                                AppLogger.d("🌾 Updating database with error status for ${actualIdsToUpdate.size} ESPB IDs...")
+                                for (id in actualIdsToUpdate) {
                                     try {
                                         withContext(Dispatchers.IO) {
                                             updateUploadStatusCMP(
@@ -556,9 +560,9 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
 
                             AppLogger.e("🌾 HARVEST Upload failed: $errorMsg")
 
-                            // Update database with error for all ESPB IDs
-                            AppLogger.d("🌾 Updating database with error for ${espbIds.size} ESPB IDs...")
-                            for (id in espbIds) {
+                            // Update database with error for the specific ESPB IDs
+                            AppLogger.d("🌾 Updating database with error for ${actualIdsToUpdate.size} ESPB IDs...")
+                            for (id in actualIdsToUpdate) {
                                 try {
                                     withContext(Dispatchers.IO) {
                                         updateUploadStatusCMP(
@@ -686,7 +690,8 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
 
                         try {
                             AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
-                            StagingApiClient.updateBaseUrl("http://$ipMillFromData:3000")
+                            StagingApiClient.updateBaseUrl("http://192.168.1.34:37891")
+//                            StagingApiClient.updateBaseUrl("http://$ipMillFromData:3000")
 
                             val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
 

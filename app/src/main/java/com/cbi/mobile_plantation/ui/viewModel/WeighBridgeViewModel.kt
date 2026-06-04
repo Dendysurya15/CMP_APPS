@@ -148,8 +148,9 @@ class WeighBridgeViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             try {
 
-                StagingApiClient.updateBaseUrl("http://$millIP:37891")
+//                StagingApiClient.updateBaseUrl("http://$millIP:37891")
 //                StagingApiClient.updateBaseUrl("http://10.9.116.125:37891")
+                StagingApiClient.updateBaseUrl("http://192.168.1.34:37891/")
 
                 val requestBody = espbJson.toRequestBody("application/json".toMediaTypeOrNull())
                 val response = StagingApiClient.instance.checkTPHDuplicates(requestBody)

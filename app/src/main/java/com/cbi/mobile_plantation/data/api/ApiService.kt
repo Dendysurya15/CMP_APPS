@@ -82,7 +82,7 @@ interface ApiService {
         @SerializedName("password") val password: String
     )
 
-    @POST("auth/v2/login")
+    @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
     @Streaming

@@ -499,7 +499,7 @@ class LoginActivity : AppCompatActivity() {
                 if (loginResponse.success == true) {
                     AppLogger.d("Login successful")
 
-                    val token = loginResponse.data?.accessToken ?: ""
+                    val token = loginResponse.data?.token ?: ""
 
                     if (token.isNotEmpty()) {
                         prefManager!!.isFirstTimeLaunch = true
