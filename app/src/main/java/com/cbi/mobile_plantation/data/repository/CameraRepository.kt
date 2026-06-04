@@ -110,88 +110,83 @@ class CameraRepository(
     private lateinit var textureViewCam: TextureView
     private var isCameraOpen = false
     private var isFlashlightOn = false
-
+    private var savedRotationAngle: Int = 0
+    private var savedIsLeftHanded: Boolean = false
     private var isCapturing = false
-
+    private var frozenFrameView: ImageView? = null
 
     fun setPhotoCallback(callback: PhotoCallback) {
         this.photoCallback = callback
     }
+    private fun freezeCameraPreview() {
+        val frozenBitmap = textureViewCam.bitmap ?: return
 
-    private fun rotateBitmapWithOrientation(photoFilePath: String?, cameraId: Int, orientationHandler: CameraOrientationHandler): Bitmap {
-        val TAG = "BitmapRotation"
+        val frozenView = ImageView(context).apply {
+            setImageBitmap(frozenBitmap)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.MATCH_PARENT
+            )
+        }
 
+        val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+        rlCamera.addView(frozenView)
+        frozenFrameView = frozenView
+    }
+
+    private fun unfreezeCameraPreview() {
+        val rlCamera = view.findViewById<RelativeLayout>(R.id.rlCamera)
+        frozenFrameView?.let { rlCamera.removeView(it) }
+        frozenFrameView = null
+    }
+    private fun rotateBitmapWithOrientation(photoFilePath: String?, cameraId: Int, rotationAngle: Int, isLeftHanded: Boolean): Bitmap {
         val originalBitmap = BitmapFactory.decodeFile(photoFilePath)
 
-        // Get rotation angle and hand detection
-        val rotationAngle = orientationHandler.getImageRotation(cameraId)
-        val isLeftHanded = orientationHandler.isLikelyLeftHanded()
-
-        Log.d(TAG, "Original rotation from handler: $rotationAngle°")
-        Log.d(TAG, "Hand detection: ${if (isLeftHanded) "LEFT" else "RIGHT"}")
-        Log.d(TAG, "Camera ID: $cameraId")
-
-        // Adjust rotation based on hand detection
+        // No longer calling orientationHandler here — using snapshot values
         val correctedRotation = when {
-            // Right-handed use - keep the current working logic
             !isLeftHanded -> {
                 when {
-                    cameraId == 1 -> {
-                        when (rotationAngle) {
-                            180 -> 0    // Don't rotate if handler says 180°
-                            0 -> 180    // Rotate 180° if handler says 0°
-                            90 -> 270   // Invert 90° rotation
-                            270 -> 90   // Invert 270° rotation
-                            else -> rotationAngle
-                        }
+                    cameraId == 1 -> when (rotationAngle) {
+                        180 -> 0
+                        0 -> 180
+                        90 -> 270
+                        270 -> 90
+                        else -> rotationAngle
                     }
-                    else -> {
-                        when (rotationAngle) {
-                            180 -> 0    // Don't rotate if handler says 180°
-                            0 -> 0      // Keep as is
-                            90 -> 90    // Keep as is
-                            270 -> 270  // Keep as is
-                            else -> rotationAngle
-                        }
+                    else -> when (rotationAngle) {
+                        180 -> 0
+                        0 -> 0
+                        90 -> 90
+                        270 -> 270
+                        else -> rotationAngle
                     }
                 }
             }
-            // Left-handed use - adjust the rotation
             else -> {
                 when {
-                    cameraId == 1 -> {
-                        // Front camera + left hand needs special handling
-                        when (rotationAngle) {
-                            180 -> 0     // Don't rotate (same as right-handed logic)
-                            0 -> 180     // Rotate 180° (same as right-handed logic)
-                            90 -> 270    // Invert rotation (same as right-handed logic)
-                            270 -> 90    // Invert rotation (same as right-handed logic)
-                            else -> rotationAngle
-                        }
+                    cameraId == 1 -> when (rotationAngle) {
+                        180 -> 0
+                        0 -> 180
+                        90 -> 270
+                        270 -> 90
+                        else -> rotationAngle
                     }
-                    else -> {
-                        when (rotationAngle) {
-                            180 -> 180   // Apply 180° rotation (opposite of right-handed)
-                            0 -> 180     // Rotate 180° when handler says 0°
-                            90 -> 270    // Invert to 270°
-                            270 -> 90    // Invert to 90°
-                            else -> rotationAngle
-                        }
+                    else -> when (rotationAngle) {
+                        180 -> 180
+                        0 -> 180
+                        90 -> 270
+                        270 -> 90
+                        else -> rotationAngle
                     }
                 }
             }
         }
 
-        Log.d(TAG, "Corrected rotation for ${if (isLeftHanded) "LEFT" else "RIGHT"} hand: $correctedRotation°")
+        if (correctedRotation == 0) return originalBitmap
 
-        if (correctedRotation == 0) {
-            return originalBitmap
-        }
-
-        // Apply the corrected rotation
         val matrix = Matrix()
         matrix.setRotate(correctedRotation.toFloat(), originalBitmap.width / 2f, originalBitmap.height / 2f)
-
         return Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.width, originalBitmap.height, matrix, true)
     }
 
@@ -560,7 +555,12 @@ class CameraRepository(
                                             closeCamera()
                                         }
 
-                                            val takenImage = rotateBitmapWithOrientation(file.path, lastCameraId, orientationHandler)
+                                        val takenImage = rotateBitmapWithOrientation(
+                                            file.path,
+                                            lastCameraId,
+                                            savedRotationAngle,   // ← snapshot from capture moment
+                                            savedIsLeftHanded     // ← snapshot from capture moment
+                                        )
                                         val dateWM = SimpleDateFormat(
                                             "dd MMMM yyyy HH:mm:ss",
                                             Locale("id", "ID")
@@ -684,6 +684,8 @@ class CameraRepository(
                                             closeCamera()
 
 
+                                            unfreezeCameraPreview() // 🔓 unfreeze
+
                                             loadingDialog.dismiss()
                                             isCapturing = false
 
@@ -782,12 +784,20 @@ class CameraRepository(
         captureCam.apply {
             setOnClickListener {
 
-                if (isCapturing) {
-//                    Toast.makeText(context, "Sedang memproses foto...", Toast.LENGTH_SHORT).show()
-                    AppLogger.d("Sedang Memproses foto" )
-                    return@setOnClickListener
-                }
+                if (isCapturing) return@setOnClickListener
                 isCapturing = true
+
+                // ✅ Check portrait FIRST before doing anything
+                if (isInPortraitMode(orientationHandler)) {
+                    Toast.makeText(context, "Mohon putar HP ke mode landscape...", Toast.LENGTH_SHORT).show()
+                    isCapturing = false
+                    return@setOnClickListener  // exit clean, nothing frozen
+                }
+
+                // ✅ Only freeze AFTER confirmed landscape
+                savedRotationAngle = orientationHandler.getImageRotation(lastCameraId)
+                savedIsLeftHanded = orientationHandler.isLikelyLeftHanded()
+                freezeCameraPreview()
                 loadingDialog.show()
                 loadingDialog.setMessage("Sedang memproses foto...")
 
