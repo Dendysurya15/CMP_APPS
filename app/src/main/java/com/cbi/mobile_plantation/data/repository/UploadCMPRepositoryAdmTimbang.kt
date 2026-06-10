@@ -408,8 +408,8 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
                         )
 
                         // ✅ Update base URL
-                        StagingApiClient.updateBaseUrl("http://192.168.1.34:37891")
-//                        StagingApiClient.updateBaseUrl("http://$ipFromData:37891")
+//                        StagingApiClient.updateBaseUrl("http://192.168.1.34:37891")
+                        StagingApiClient.updateBaseUrl("http://$ipFromData:37891")
 
                         onProgressUpdate(40, false, null)
 
@@ -690,8 +690,8 @@ class UploadCMPRepositoryAdmTimbang(context: Context) {
 
                         try {
                             AppLogger.d("PPRO: Making API call to StagingApiClient.insertESPBKraniTimbangPPRO")
-                            StagingApiClient.updateBaseUrl("http://192.168.1.34:37891")
-//                            StagingApiClient.updateBaseUrl("http://$ipMillFromData:3000")
+//                            StagingApiClient.updateBaseUrl("http://192.168.1.34:37891")
+                            StagingApiClient.updateBaseUrl("http://$ipMillFromData:3000")
 
                             val response = StagingApiClient.instance.insertESPBKraniTimbangPPRO(apiData)
 

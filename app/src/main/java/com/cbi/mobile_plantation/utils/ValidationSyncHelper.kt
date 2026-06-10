@@ -91,7 +91,8 @@ object ValidationSyncHelper {
         return jabatanUser?.lowercase()?.let { jabatan ->
             jabatan.contains(AppUtils.ListFeatureByRoleUser.GM.lowercase()) ||
                     jabatan.contains(AppUtils.ListFeatureByRoleUser.Manager.lowercase()) ||
-                    jabatan.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase())
+                    jabatan.contains(AppUtils.ListFeatureByRoleUser.RH.lowercase()) ||
+                    jabatan.contains(AppUtils.ListFeatureByRoleUser.ASKEP.lowercase())
         } ?: false
     }
 
