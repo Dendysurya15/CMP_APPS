@@ -451,6 +451,20 @@ open class FormInspectionActivity : AppCompatActivity(),
     private var cachedSelectedTPH: ScannedTPHSelectionItem? = null
     private var hasValidTPHSelection = false
 
+    /** Snapshot of confirmed TPH selection — survives GPS rescan without wiping display/save fields. */
+    private data class CommittedTPHData(
+        val tphId: Int,
+        val tphNomor: Int,
+        val estate: String,
+        val afdeling: String,
+        val blok: String,
+        val ancak: String?,
+        val tanggalPanen: String?,
+        val idPanen: String?
+    )
+
+    private var committedTPHData: CommittedTPHData? = null
+
     data class KaryawanInfo(
         val nik: String,
         val nama: String,
@@ -584,15 +598,18 @@ open class FormInspectionActivity : AppCompatActivity(),
 
         if (autoScanEnabled) {
             btnScanTPHRadius.visibility = View.GONE
-            selectedIdPanenByScan = null
-            selectedEstateByScan = null
-            selectedAfdelingByScan = null
-            selectedBlokByScan = null
-            selectedTPHIdByScan = null
-            selectedTPHNomorByScan = null
-            selectedAncakByScan = null
-            selectedTanggalPanenByScan = null
-            selectedTPHValue = null
+            // Keep confirmed TPH data when auto-scan starts — rescan only refreshes the list.
+            if (!hasValidTPHSelection && committedTPHData == null) {
+                selectedIdPanenByScan = null
+                selectedEstateByScan = null
+                selectedAfdelingByScan = null
+                selectedBlokByScan = null
+                selectedTPHIdByScan = null
+                selectedTPHNomorByScan = null
+                selectedAncakByScan = null
+                selectedTanggalPanenByScan = null
+                selectedTPHValue = null
+            }
         } else {
             btnScanTPHRadius.visibility = View.VISIBLE
         }
@@ -5216,6 +5233,21 @@ open class FormInspectionActivity : AppCompatActivity(),
                 return@setOnClickListener
             }
 
+            ensureTPHSelectionIntegrity()
+
+            if (!isTPHSelectionCompleteForSave()) {
+                AppLogger.e("TPH selection incomplete for save")
+                AlertDialogUtility.withSingleAction(
+                    this,
+                    stringXML(R.string.al_back),
+                    "Error",
+                    "Data TPH tidak lengkap. Silakan kembali ke menu Info Blok dan pastikan TPH sudah dipilih.",
+                    "warning.json",
+                    R.color.colorRedDark
+                ) {}
+                return@setOnClickListener
+            }
+
             // CRITICAL: Ensure TPH ID is available from cache if needed
             if (selectedTPHIdByScan == null) {
                 AppLogger.w("selectedTPHIdByScan is null, attempting to restore from cache")
@@ -5385,7 +5417,8 @@ open class FormInspectionActivity : AppCompatActivity(),
                                         created_name = prefManager!!.nameUserLogin ?: "",
                                         tph_id = selectedTPHIdByScan!!, // Safe to use !! here due to checks above
                                         id_panen = selectedIdPanenByScan ?: "0",
-                                        date_panen = selectedTanggalPanenByScan!!,
+                                        date_panen = selectedTanggalPanenByScan
+                                            ?: throw Exception("Tanggal panen TPH tidak tersedia"),
                                         foto_user = photoSelfie ?: "",
                                         jjg_panen = totalHarvestTree,
                                         inspeksi_putaran = inspeksiPutaran,
@@ -6427,18 +6460,10 @@ open class FormInspectionActivity : AppCompatActivity(),
                     AppLogger.d("GPS is within boundary - proceeding with scan")
 
                     try {
-                        // GPS is within boundary - proceed directly
+                        // GPS is within boundary - refresh TPH list only; do not wipe confirmed selection.
                         isTriggeredBtnScanned = true
-                        selectedEstateByScan = null
-                        selectedIdPanenByScan = null
-                        selectedAfdelingByScan = null
-                        selectedBlokByScan = null
-                        selectedTPHNomorByScan = null
-                        selectedAncakByScan = null
-                        selectedTanggalPanenByScan = null
-                        selectedTPHValue = null
 
-                        AppLogger.d("Reset selection values and set trigger flag")
+                        AppLogger.d("Refreshing TPH scan list (keeping confirmed selection if any)")
 
                         // Validate progress bar exists
                         if (::progressBarScanTPHManual.isInitialized) {
@@ -7083,6 +7108,7 @@ open class FormInspectionActivity : AppCompatActivity(),
 
     @SuppressLint("SetTextI18n")
     private fun setupSummaryPage() {
+        ensureTPHSelectionIntegrity()
 
         fun createRowTextView(
             text: String,
@@ -7180,7 +7206,11 @@ open class FormInspectionActivity : AppCompatActivity(),
         desTPHEstateAfd.text = if (featureName == AppUtils.ListFeatureNames.FollowUpInspeksi) {
             "${currentInspectionData?.tph?.dept_abbr} ${currentInspectionData?.tph?.divisi_abbr} ${currentInspectionData?.tph?.blok_kode}"
         } else {
-            "${prefManager!!.estateUserLogin} ${selectedAfdeling} ${selectedBlokByScan}"
+            listOf(
+                prefManager!!.estateUserLogin,
+                selectedAfdeling,
+                selectedBlokByScan ?: committedTPHData?.blok
+            ).filter { !it.isNullOrBlank() }.joinToString(" ")
         }
 
         val desTPH = findViewById<TextView>(R.id.desTPH)
@@ -9400,6 +9430,7 @@ open class FormInspectionActivity : AppCompatActivity(),
         selectedTPHNomorByScan = selectedTPHInLIst.number.toInt()
 
         AppLogger.d("Set selectedTPHIdByScan=$selectedTPHIdByScan, selectedTPHNomorByScan=$selectedTPHNomorByScan")
+        commitTPHSelection()
 
         //sph * 0.55 = total pages
         // Dynamic calculation based on tipeArea
@@ -9587,6 +9618,7 @@ open class FormInspectionActivity : AppCompatActivity(),
                 AppLogger.d("Set panen IDs: $selectedIdPanenByScan")
                 AppLogger.d("Set ancak: $selectedAncakByScan")
                 AppLogger.d("Set dates: $selectedTanggalPanenByScan")
+                commitTPHSelection()
 
                 val today = LocalDate.now()
 
@@ -9653,7 +9685,55 @@ open class FormInspectionActivity : AppCompatActivity(),
         }, 200)
     }
 
-    // Add the restore function
+    private fun commitTPHSelection() {
+        val tphId = selectedTPHIdByScan ?: return
+        val tphNomor = selectedTPHNomorByScan ?: return
+
+        committedTPHData = CommittedTPHData(
+            tphId = tphId,
+            tphNomor = tphNomor,
+            estate = selectedEstateByScan ?: cachedSelectedTPH?.deptCode ?: "",
+            afdeling = selectedAfdelingByScan ?: cachedSelectedTPH?.divisiCode ?: "",
+            blok = selectedBlokByScan ?: cachedSelectedTPH?.blockCode ?: "",
+            ancak = selectedAncakByScan,
+            tanggalPanen = selectedTanggalPanenByScan,
+            idPanen = selectedIdPanenByScan
+        )
+        AppLogger.d("Committed TPH snapshot: id=$tphId, nomor=$tphNomor")
+    }
+
+    private fun restoreCommittedTPHDataIfNeeded() {
+        val committed = committedTPHData ?: return
+
+        if (selectedTPHIdByScan == null) selectedTPHIdByScan = committed.tphId
+        if (selectedTPHNomorByScan == null) selectedTPHNomorByScan = committed.tphNomor
+        if (selectedEstateByScan.isNullOrBlank()) selectedEstateByScan = committed.estate
+        if (selectedAfdelingByScan.isNullOrBlank()) selectedAfdelingByScan = committed.afdeling
+        if (selectedBlokByScan.isNullOrBlank()) selectedBlokByScan = committed.blok
+        if (selectedAncakByScan.isNullOrBlank()) selectedAncakByScan = committed.ancak
+        if (selectedTanggalPanenByScan.isNullOrBlank()) {
+            selectedTanggalPanenByScan = committed.tanggalPanen
+        }
+        if (selectedIdPanenByScan.isNullOrBlank()) selectedIdPanenByScan = committed.idPanen
+    }
+
+    private fun ensureTPHSelectionIntegrity() {
+        restoreCommittedTPHDataIfNeeded()
+
+        if (selectedTPHIdByScan == null && hasValidTPHSelection && cachedSelectedTPH != null) {
+            restoreTPHDataFromCache()
+        }
+
+        restoreCommittedTPHDataIfNeeded()
+    }
+
+    private fun isTPHSelectionCompleteForSave(): Boolean {
+        ensureTPHSelectionIntegrity()
+        return selectedTPHIdByScan != null &&
+            selectedTPHNomorByScan != null &&
+            !selectedTanggalPanenByScan.isNullOrBlank()
+    }
+
     private fun restoreTPHDataFromCache() {
         if (hasValidTPHSelection && cachedSelectedTPH != null) {
             AppLogger.d("Restoring TPH data from cache")
@@ -9671,6 +9751,7 @@ open class FormInspectionActivity : AppCompatActivity(),
             AppLogger.d("- Estate: $selectedEstateByScan")
             AppLogger.d("- Afdeling: $selectedAfdelingByScan")
             AppLogger.d("- Blok: $selectedBlokByScan")
+            commitTPHSelection()
             return
         }
         AppLogger.w("No cached TPH data to restore")
@@ -11607,11 +11688,16 @@ open class FormInspectionActivity : AppCompatActivity(),
                 AppLogger.d("✅ TPH scan validation passed (current or cached)")
                 tvErrorScannedNotSelected.visibility = View.GONE
 
-                // Restore from cache if current is null but cache exists
-                if (selectedTPHIdByScan == null && hasValidTPHSelection && cachedSelectedTPH != null) {
-                    AppLogger.d("Restoring TPH data from cache during validation")
-                    restoreTPHDataFromCache()
-                }
+                ensureTPHSelectionIntegrity()
+            }
+
+            if (hasTPHSelection && !isTPHSelectionCompleteForSave()) {
+                AppLogger.d("❌ VALIDATION FAILED: TPH selection incomplete (missing panen metadata)")
+                tvErrorScannedNotSelected.text =
+                    "Data TPH tidak lengkap. Silakan pilih ulang TPH di daftar scan."
+                tvErrorScannedNotSelected.visibility = View.VISIBLE
+                errorMessages.add("Data TPH tidak lengkap, pilih ulang TPH")
+                isValid = false
             }
 
             // BARIS VALIDATION
