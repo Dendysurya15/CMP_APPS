@@ -433,6 +433,7 @@ object AppUtils {
         const val HEKTARAN_DETAIL = "hektaran_detail"
 
         const val ABSENSI_DETAIL = "absensi_detail"
+        const val PEMANEN_FACE = "pemanen_face"
     }
 
     object ListFeatureByRoleUser {
@@ -482,6 +483,7 @@ object AppUtils {
         const val ScanTransferInspeksiPanen = "Scan Transfer Inspeksi Panen"
 
         const val CheckMissingPhotos  = "Cek & Upload Ulang Foto"
+        const val IdentifikasiPemanen = "Identifikasi Pemanen"
     }
 
     object ExemptFeatures {

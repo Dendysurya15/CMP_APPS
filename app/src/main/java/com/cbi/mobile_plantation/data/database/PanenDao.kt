@@ -497,4 +497,20 @@ AND (t.divisi = :afdelingId OR (p.asistensi = 2 AND p.asistensi_divisi = :afdeli
     )
     abstract suspend fun getCountScanMPanen(archive_mpanen: Int, afdelingId: Int): Int
 
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM panen_table
+        WHERE strftime('%Y-%m-%d', date_created) = :date
+        AND (
+            trim(karyawan_nik) = :nik
+            OR karyawan_nik LIKE :nik || ',%'
+            OR karyawan_nik LIKE '%,' || :nik || ',%'
+            OR karyawan_nik LIKE '%,' || :nik
+        )
+        ORDER BY date_created DESC
+        """
+    )
+    abstract suspend fun getPanenByNikAndDate(nik: String, date: String): List<PanenEntityWithRelations>
+
 }

@@ -141,5 +141,48 @@
         <item>17sp</item>
     </array>
     <string name="title_activity_follow_up_inspeksi">FollowUpInspeksi</string>
+    <string name="identify_pemanen_instruction">Arahkan wajah pemanen ke dalam bingkai, lalu tekan Identifikasi</string>
+    <string name="instruksi_daftar_wajah">Arahkan wajah %1$s ke dalam bingkai untuk pendaftaran</string>
+    <string name="daftar_wajah_pemanen">Daftar Wajah</string>
+    <string name="identifikasi_sekarang">Identifikasi</string>
+    <string name="wajah_terdaftar_count">Wajah terdaftar: %1$d</string>
+    <string name="pilih_pemanen_daftar_wajah">Pilih Pemanen untuk Daftar Wajah</string>
+    <string name="cari_pemanen">Cari nama atau NIK pemanen</string>
+    <string name="daftar_wajah_berhasil">Wajah pemanen berhasil didaftarkan</string>
+    <string name="enroll_step_label">Langkah %1$d dari 5</string>
+    <string name="enroll_step_front">Foto wajah depan — hadapkan wajah %1$s lurus ke kamera</string>
+    <string name="enroll_step_left">Foto wajah kiri — putar wajah %1$s ke kiri</string>
+    <string name="enroll_step_right">Foto wajah kanan — putar wajah %1$s ke kanan</string>
+    <string name="enroll_step_test">Uji identifikasi — hadapkan wajah %1$s ke kamera lalu tekan Uji Identifikasi</string>
+    <string name="enroll_one_face_required">Hanya satu wajah yang boleh ada di bingkai</string>
+    <string name="enroll_no_face_detected">Tidak ada wajah terdeteksi</string>
+    <string name="enroll_faces_detected">Terdeteksi %1$d wajah — hanya satu wajah yang diperbolehkan</string>
+    <string name="enroll_ambil_foto">Ambil Foto</string>
+    <string name="enroll_uji_identifikasi">Uji Identifikasi</string>
+    <string name="enroll_batal">Batal Daftar</string>
+    <string name="enroll_foto_berhasil">Foto %1$s berhasil diambil</string>
+    <string name="enroll_foto_depan">depan</string>
+    <string name="enroll_foto_kiri">kiri</string>
+    <string name="enroll_foto_kanan">kanan</string>
+    <string name="enroll_test_berhasil">Uji identifikasi berhasil. Pendaftaran selesai.</string>
+    <string name="enroll_test_gagal">Uji Identifikasi Gagal</string>
+    <string name="enroll_ulangi_test">Ulangi Uji</string>
+    <string name="enroll_ulangi_dari_awal">Daftar Ulang</string>
+    <string name="data_pemanen_kosong">Data pemanen belum tersedia. Sinkronisasi data terlebih dahulu.</string>
+    <string name="pemanen_dikenali">Pemanen Dikenali</string>
+    <string name="pemanen_tidak_dikenali">Pemanen Tidak Dikenali</string>
+    <string name="nik_label">NIK: %1$s</string>
+    <string name="kemandoran_label">Kemandoran: %1$s</string>
+    <string name="tingkat_kecocokan">Tingkat kecocokan: %1$d%%</string>
+    <string name="ganti_kamera">Ganti kamera</string>
+    <string name="info_panen_pemanen">Informasi Panen</string>
+    <string name="tanggal_panen_label">Tanggal: %1$s</string>
+    <string name="data_panen_tanggal">Data panen: %1$s</string>
+    <string name="janjang_to_label">Janjang Panen (TO): %1$d</string>
+    <string name="blok_panen_label">Blok yang dipanen</string>
+    <string name="blok_panen_kosong">Tidak ada data blok pada tanggal ini</string>
+    <string name="tts_janjang_panen">Janjang panen, %1$d</string>
+    <string name="tts_blok_panen">Blok panen, %1$s</string>
+    <string name="pilih_tanggal_panen">Pilih Tanggal Panen</string>
 
 </resources>

@@ -26,6 +26,7 @@ import com.cbi.mobile_plantation.data.model.JenisTPHModel
 import com.cbi.mobile_plantation.data.model.KendaraanModel
 import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.ParameterModel
+import com.cbi.mobile_plantation.data.model.PemanenFaceEntity
 import com.cbi.mobile_plantation.utils.AppUtils
 
 /**
@@ -76,9 +77,10 @@ import com.cbi.mobile_plantation.utils.AppUtils
         AfdelingModel::class,
         JenisTPHModel::class,
         ParameterModel::class,
-        MutuBuahEntity::class
+        MutuBuahEntity::class,
+        PemanenFaceEntity::class
     ],
-    version = 51
+    version = 52
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -101,6 +103,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun jenisTPHDao(): JenisTPHDao
     abstract fun mutuBuahDao(): MutuBuahDao
     abstract fun parameterDao(): ParameterDao
+    abstract fun pemanenFaceDao(): PemanenFaceDao
 
     // Function to restore data from backup tables if needed
 //    fun restoreFromBackups() {

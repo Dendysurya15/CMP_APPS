@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/tvResultTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/manrope_bold"
+        android:textColor="@color/black"
+        android:textSize="@dimen/m"
+        tools:text="Pemanen Dikenali" />
+
+    <TextView
+        android:id="@+id/tvResultNama"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/manrope_extrabold"
+        android:textColor="@color/greenBorder"
+        android:textSize="@dimen/l"
+        tools:text="BUDI SANTOSO" />
+
+    <TextView
+        android:id="@+id/tvResultNik"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="@font/manrope_medium"
+        android:textColor="@color/black"
+        android:textSize="@dimen/s"
+        tools:text="NIK: 1234567890" />
+
+    <TextView
+        android:id="@+id/tvResultKemandoran"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="@font/manrope_medium"
+        android:textColor="@color/graytextdark"
+        android:textSize="@dimen/s"
+        tools:text="Kemandoran: A" />
+
+    <TextView
+        android:id="@+id/tvResultConfidence"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/manrope_medium"
+        android:textColor="@color/greytext"
+        android:textSize="@dimen/s"
+        tools:text="Tingkat kecocokan: 92%" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="@color/greytext" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/manrope_bold"
+        android:text="@string/info_panen_pemanen"
+        android:textColor="@color/black"
+        android:textSize="@dimen/s" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSelectPanenDate"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/manrope_semibold"
+        android:textAllCaps="false"
+        app:icon="@drawable/baseline_calendar_month_24"
+        app:strokeColor="@color/greenBorder"
+        tools:text="Tanggal: 10 Jun 2026" />
+
+    <TextView
+        android:id="@+id/tvJanjangTo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/manrope_bold"
+        android:textColor="@color/bluedarklight"
+        android:textSize="@dimen/m"
+        tools:text="Janjang Panen (TO): 7" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/manrope_semibold"
+        android:text="@string/blok_panen_label"
+        android:textColor="@color/black"
+        android:textSize="@dimen/s" />
+
+    <TextView
+        android:id="@+id/tvBlokPanen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="@font/manrope_medium"
+        android:textColor="@color/graytextdark"
+        android:textSize="@dimen/s"
+        tools:text="A01 - Blok A01" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCloseResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="@color/greenBorder"
+        android:fontFamily="@font/manrope_bold"
+        android:text="@string/al_yes"
+        android:textAllCaps="false"
+        android:textColor="@color/white" />
+
+</LinearLayout>

@@ -87,6 +87,7 @@ import com.cbi.mobile_plantation.ui.view.HektarPanen.TransferHektarPanenActivity
 import com.cbi.mobile_plantation.ui.view.Inspection.ListInspectionActivity
 import com.cbi.mobile_plantation.ui.view.espb.ListHistoryESPBActivity
 import com.cbi.mobile_plantation.ui.view.panenTBS.FeaturePanenTBSActivity
+import com.cbi.mobile_plantation.ui.view.faceRecognition.IdentifyPemanenActivity
 import com.cbi.mobile_plantation.ui.view.followUpInspeksi.ListFollowUpInspeksi
 import com.cbi.mobile_plantation.ui.view.weighBridge.ListHistoryWeighBridgeActivity
 import com.cbi.mobile_plantation.ui.view.weighBridge.ScanWeighBridgeActivity
@@ -898,6 +899,15 @@ class HomePageActivity : AppCompatActivity() {
                 functionDescription = "Scan data panen untuk proses Inspeksi H+0",
                 displayType = DisplayType.ICON,
                 isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.ScanTransferInspeksiPanen)
+            ), FeatureCard(
+                cardBackgroundColor = R.color.greenDarkerLight,
+                featureName = AppUtils.ListFeatureNames.IdentifikasiPemanen,
+                featureNameBackgroundColor = R.color.bluedarklight,
+                iconResource = R.drawable.baseline_camera_front_24,
+                functionDescription = "Identifikasi pemanen menggunakan pengenalan wajah",
+                displayType = DisplayType.ICON,
+                subTitle = "Face Recognition",
+                isDisabled = FeatureStateManager.isFeatureDisabled(AppUtils.ListFeatureNames.IdentifikasiPemanen)
             )
 
         )
@@ -905,6 +915,7 @@ class HomePageActivity : AppCompatActivity() {
         fun getFilteredFeaturesByJabatan(jabatan: String): List<FeatureCard> {
             val commonFeatures = listOf(
                 features.find { it.featureName == AppUtils.ListFeatureNames.SinkronisasiData },
+                features.find { it.featureName == AppUtils.ListFeatureNames.IdentifikasiPemanen },
 //                features.find { it.featureName == AppUtils.ListFeatureNames.UploadDataCMP }
             ).filterNotNull()
 
@@ -2727,6 +2738,14 @@ class HomePageActivity : AppCompatActivity() {
             AppUtils.ListFeatureNames.RekapMutuBuah -> {
                 if (feature.displayType == DisplayType.COUNT) {
                     val intent = Intent(this, ListPanenTBSActivity::class.java)
+                    intent.putExtra("FEATURE_NAME", feature.featureName)
+                    startActivity(intent)
+                }
+            }
+
+            AppUtils.ListFeatureNames.IdentifikasiPemanen -> {
+                if (feature.displayType == DisplayType.ICON) {
+                    val intent = Intent(this, IdentifyPemanenActivity::class.java)
                     intent.putExtra("FEATURE_NAME", feature.featureName)
                     startActivity(intent)
                 }
