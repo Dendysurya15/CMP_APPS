@@ -126,7 +126,6 @@ object FaceRecognitionHelper {
   }
 
   data class FaceMatchResult(
-    val karyawanId: Int,
     val nik: String,
     val nama: String,
     val kemandoranNama: String,
@@ -230,30 +229,25 @@ object FaceRecognitionHelper {
   fun findBestMatch(
     context: Context,
     probeEmbedding: FloatArray,
-    enrolledFaces: List<Triple<Int, String, FloatArray>>,
-    metadata: Map<Int, Triple<String, String, String>>
+    enrolledFaces: List<Pair<String, FloatArray>>,
+    metadata: Map<String, String>
   ): FaceMatchResult? {
     if (enrolledFaces.isEmpty()) return null
 
-    val candidates = enrolledFaces.map { (karyawanId, _, storedEmbedding) ->
-      karyawanId to storedEmbedding
-    }
-
-    val bestId = FaceEmbeddingMatcher.findBestMatchId(context, probeEmbedding, candidates)
+    val bestNik = FaceEmbeddingMatcher.findBestMatchKey(context, probeEmbedding, enrolledFaces)
       ?: return null
     val bestScore = FaceEmbeddingMatcher.matchScoreForCandidate(
       probeEmbedding,
-      candidates.first { it.first == bestId }.second
+      enrolledFaces.first { it.first == bestNik }.second
     )
 
-    val info = metadata[bestId] ?: return null
+    val nama = metadata[bestNik] ?: return null
     val confidence = FaceEmbeddingMatcher.matchConfidence(context, bestScore)
 
     return FaceMatchResult(
-      karyawanId = bestId,
-      nik = info.first,
-      nama = info.second,
-      kemandoranNama = info.third,
+      nik = bestNik,
+      nama = nama,
+      kemandoranNama = "",
       confidence = confidence
     )
   }

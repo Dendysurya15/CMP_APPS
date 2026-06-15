@@ -1293,15 +1293,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
                             response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataWajahPemanen) {
-                        val deptId = when (val estate = request.estate) {
-                            is Int -> estate
-                            is String -> estate.split(",").firstOrNull()?.trim()?.toIntOrNull()
-                            is List<*> -> (estate.firstOrNull() as? Int)
-                            else -> null
-                        }
-
                         val syncResult = withContext(Dispatchers.IO) {
-                            pemanenFaceRepository.syncFromServer(deptId)
+                            pemanenFaceRepository.syncFromServer()
                         }
 
                         progressMap[itemId] = 100
@@ -5191,15 +5184,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         )
                     }
                     else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataWajahPemanen) {
-                        val deptId = when (val estate = request.estate) {
-                            is Int -> estate
-                            is String -> estate.split(",").firstOrNull()?.trim()?.toIntOrNull()
-                            is List<*> -> (estate.firstOrNull() as? Int)
-                            else -> null
-                        }
-
                         val syncResult = withContext(Dispatchers.IO) {
-                            pemanenFaceRepository.syncFromServer(deptId)
+                            pemanenFaceRepository.syncFromServer()
                         }
 
                         results[request.dataset] = if (syncResult.success) {

@@ -15,14 +15,14 @@ interface PemanenFaceDao {
     @Query("SELECT * FROM pemanen_face")
     suspend fun getAll(): List<PemanenFaceEntity>
 
-    @Query("SELECT * FROM pemanen_face WHERE karyawan_id = :karyawanId LIMIT 1")
-    suspend fun getByKaryawanId(karyawanId: Int): PemanenFaceEntity?
+    @Query("SELECT * FROM pemanen_face WHERE nik = :nik LIMIT 1")
+    suspend fun getByNik(nik: String): PemanenFaceEntity?
 
     @Query("SELECT * FROM pemanen_face WHERE status_upload = 0")
     suspend fun getPendingUpload(): List<PemanenFaceEntity>
 
-    @Query("UPDATE pemanen_face SET status_upload = :status WHERE karyawan_id IN (:karyawanIds)")
-    suspend fun updateStatusUpload(karyawanIds: List<Int>, status: Int)
+    @Query("UPDATE pemanen_face SET status_upload = :status WHERE nik IN (:niks)")
+    suspend fun updateStatusUpload(niks: List<String>, status: Int)
 
     @Query("SELECT COUNT(*) FROM pemanen_face WHERE embedding LIKE :prefix")
     suspend fun getCountByEmbeddingPrefix(prefix: String): Int
@@ -30,6 +30,6 @@ interface PemanenFaceDao {
     @Query("SELECT COUNT(*) FROM pemanen_face")
     suspend fun getCount(): Int
 
-    @Query("DELETE FROM pemanen_face WHERE karyawan_id = :karyawanId")
-    suspend fun deleteByKaryawanId(karyawanId: Int)
+    @Query("DELETE FROM pemanen_face WHERE nik = :nik")
+    suspend fun deleteByNik(nik: String)
 }

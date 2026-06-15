@@ -233,7 +233,6 @@ interface ApiService {
     @GET("face")
     @Headers("Accept: application/json")
     suspend fun downloadPemanenFaces(
-        @Query("dept") dept: Int? = null,
         @Query("limit") limit: Int = 5000,
         @Query("offset") offset: Int = 0
     ): Response<FaceApiResponse<FaceListData>>

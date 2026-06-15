@@ -214,7 +214,7 @@
     <string name="info_panen_pemanen">Informasi Panen</string>
     <string name="tanggal_panen_label">Tanggal: %1$s</string>
     <string name="data_panen_tanggal">Data panen: %1$s</string>
-    <string name="janjang_to_label">Janjang Panen (TO): %1$d</string>
+    <string name="janjang_to_label">Janjang Panen: %1$d</string>
     <string name="blok_panen_label">Blok yang dipanen</string>
     <string name="blok_panen_kosong">Tidak ada data blok pada tanggal ini</string>
     <string name="tts_janjang_panen">Janjang panen, %1$d</string>

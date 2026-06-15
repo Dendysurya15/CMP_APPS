@@ -265,15 +265,14 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
   }
 
   private suspend fun saveEnrolledFace(karyawan: KaryawanModel, embedding: FloatArray) {
-    val kemandoranName = karyawan.kemandoran_id?.let { id ->
-      database.kemandoranDao().getKemandoranByTheId(id)?.nama
-    }.orEmpty()
+    val nik = karyawan.nik?.trim().orEmpty()
+    if (nik.isEmpty()) {
+      throw IllegalStateException("NIK karyawan tidak valid")
+    }
 
     val entity = PemanenFaceEntity(
-      karyawan_id = karyawan.id ?: throw IllegalStateException("ID karyawan tidak valid"),
-      nik = karyawan.nik.orEmpty(),
+      nik = nik,
       nama = karyawan.nama.orEmpty(),
-      kemandoran_nama = kemandoranName,
       embedding = FaceRecognitionHelper.embeddingToString(embedding),
       updated_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
       status_upload = 0
@@ -285,6 +284,12 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
     }
   }
 
+  private suspend fun resolveKemandoranNama(nik: String): String {
+    val karyawan = karyawanDao.getKaryawanByNikList(listOf(nik)).firstOrNull() ?: return ""
+    val kemandoranId = karyawan.kemandoran_id ?: return ""
+    return database.kemandoranDao().getKemandoranByTheId(kemandoranId)?.nama.orEmpty()
+  }
+
   private suspend fun processIdentifyEmbedding(embedding: FloatArray): IdentifyState {
     val enrolledFaces = pemanenFaceDao.getAll()
     if (enrolledFaces.isEmpty()) {
@@ -293,13 +298,11 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
       )
     }
 
-    val metadata = enrolledFaces.associate {
-      it.karyawan_id to Triple(it.nik, it.nama, it.kemandoran_nama)
-    }
+    val metadata = enrolledFaces.associate { it.nik to it.nama }
     val candidates = enrolledFaces.mapNotNull { entity ->
       val storedEmbedding = FaceRecognitionHelper.stringToEmbedding(entity.embedding)
         ?: return@mapNotNull null
-      Triple(entity.karyawan_id, entity.nik, storedEmbedding)
+      entity.nik to storedEmbedding
     }
 
     if (candidates.isEmpty()) {
@@ -313,7 +316,10 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
         "Pemanen tidak dikenali. Pastikan wajah sudah terdaftar dan pencahayaan cukup."
       )
 
-    return IdentifyState.Success(match)
+    val kemandoranNama = resolveKemandoranNama(match.nik)
+    return IdentifyState.Success(
+      match.copy(kemandoranNama = kemandoranNama)
+    )
   }
 
   fun identifyFromBitmap(bitmap: Bitmap, rotationDegrees: Int) {

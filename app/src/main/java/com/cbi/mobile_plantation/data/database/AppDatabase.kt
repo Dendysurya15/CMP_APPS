@@ -80,7 +80,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         MutuBuahEntity::class,
         PemanenFaceEntity::class
     ],
-    version = 53
+    version = 55
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -164,7 +164,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_44_45,
                         MIGRATION_46_47,
                         MIGRATION_47_48,
-                        MIGRATION_52_53
+                        MIGRATION_52_53,
+                        MIGRATION_53_54,
+                        MIGRATION_54_55
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -736,6 +738,67 @@ abstract class AppDatabase : RoomDatabase() {
                     ALTER TABLE ${AppUtils.DatabaseTables.PEMANEN_FACE}
                     ADD COLUMN status_upload INTEGER NOT NULL DEFAULT 0
                     """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_53_54 = object : Migration(53, 54) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS pemanen_face_new (
+                        nik TEXT NOT NULL PRIMARY KEY,
+                        karyawan_id INTEGER,
+                        nama TEXT NOT NULL,
+                        kemandoran_nama TEXT NOT NULL DEFAULT '',
+                        embedding TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        status_upload INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO pemanen_face_new (
+                        nik, karyawan_id, nama, kemandoran_nama, embedding, updated_at, status_upload
+                    )
+                    SELECT nik, karyawan_id, nama, kemandoran_nama, embedding, updated_at, status_upload
+                    FROM ${AppUtils.DatabaseTables.PEMANEN_FACE}
+                    WHERE nik IS NOT NULL AND TRIM(nik) != ''
+                    """.trimIndent()
+                )
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.PEMANEN_FACE}")
+                database.execSQL(
+                    "ALTER TABLE pemanen_face_new RENAME TO ${AppUtils.DatabaseTables.PEMANEN_FACE}"
+                )
+            }
+        }
+
+
+        val MIGRATION_54_55 = object : Migration(54, 55) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS pemanen_face_new (
+                        nik TEXT NOT NULL PRIMARY KEY,
+                        nama TEXT NOT NULL,
+                        embedding TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        status_upload INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO pemanen_face_new (nik, nama, embedding, updated_at, status_upload)
+                    SELECT nik, nama, embedding, updated_at, status_upload
+                    FROM ${AppUtils.DatabaseTables.PEMANEN_FACE}
+                    WHERE nik IS NOT NULL AND TRIM(nik) != ''
+                    """.trimIndent()
+                )
+                database.execSQL("DROP TABLE ${AppUtils.DatabaseTables.PEMANEN_FACE}")
+                database.execSQL(
+                    "ALTER TABLE pemanen_face_new RENAME TO ${AppUtils.DatabaseTables.PEMANEN_FACE}"
                 )
             }
         }

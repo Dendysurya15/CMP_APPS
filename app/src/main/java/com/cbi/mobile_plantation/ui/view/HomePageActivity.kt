@@ -5934,7 +5934,7 @@ class HomePageActivity : AppCompatActivity() {
                 combinedUploadData[AppUtils.DatabaseTables.PEMANEN_FACE] = mapOf(
                     "data" to faceJson,
                     "filename" to "Data Wajah Pemanen ${prefManager!!.estateUserLogin}",
-                    "ids" to faceToUpload.map { it.karyawan_id }
+                    "ids" to faceToUpload.map { it.nik }
                 )
             }
 
@@ -6399,7 +6399,7 @@ class HomePageActivity : AppCompatActivity() {
                 if (faceInfo != null) {
                     val faceData = faceInfo["data"] as? String
                     val faceFilename = faceInfo["filename"] as? String
-                    val faceIds = faceInfo["ids"] as? List<Int> ?: emptyList()
+                    val faceIds = (faceInfo["ids"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
 
                     if (!faceData.isNullOrEmpty()) {
                         val dataSize = faceData.length.toLong()

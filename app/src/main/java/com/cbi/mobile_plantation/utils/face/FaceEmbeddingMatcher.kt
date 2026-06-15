@@ -13,11 +13,11 @@ object FaceEmbeddingMatcher {
     return cosineSimilarity(probe, reference) >= thresholds.enrollPrimary
   }
 
-  fun findBestMatchId(
+  fun findBestMatchKey(
     context: Context,
     probeEmbedding: FloatArray,
-    candidates: List<Pair<Int, FloatArray>>
-  ): Int? {
+    candidates: List<Pair<String, FloatArray>>
+  ): String? {
     if (candidates.isEmpty()) return null
     val thresholds = FaceThresholdConfig.getModelThresholds(context)
 
@@ -25,7 +25,7 @@ object FaceEmbeddingMatcher {
       .map { (id, embedding) -> id to cosineSimilarity(probeEmbedding, embedding) }
       .sortedByDescending { it.second }
 
-    val (bestId, bestScore) = ranked.first()
+    val (bestKey, bestScore) = ranked.first()
     if (bestScore < thresholds.identifyPrimary) return null
 
     if (ranked.size > 1) {
@@ -35,7 +35,7 @@ object FaceEmbeddingMatcher {
       }
     }
 
-    return bestId
+    return bestKey
   }
 
   fun matchConfidence(context: Context, score: Float): Float {

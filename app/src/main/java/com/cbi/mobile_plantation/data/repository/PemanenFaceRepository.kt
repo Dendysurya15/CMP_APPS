@@ -11,7 +11,6 @@ import com.cbi.mobile_plantation.data.model.pemanenFace.FaceUploadRequest
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.utils.AppLogger
 import com.cbi.mobile_plantation.utils.AppUtils
-import com.cbi.mobile_plantation.utils.PrefManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +26,6 @@ class PemanenFaceRepository(
     private val appContext = context.applicationContext
     private val database = AppDatabase.getDatabase(appContext)
     private val pemanenFaceDao = database.pemanenFaceDao()
-    private val prefManager = PrefManager(appContext)
     private val gson = Gson()
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -43,32 +41,18 @@ class PemanenFaceRepository(
         pemanenFaceDao.getPendingUpload()
     }
 
-    suspend fun markUploaded(karyawanIds: List<Int>) = withContext(Dispatchers.IO) {
-        if (karyawanIds.isNotEmpty()) {
-            pemanenFaceDao.updateStatusUpload(karyawanIds, 1)
+    suspend fun markUploaded(niks: List<String>) = withContext(Dispatchers.IO) {
+        if (niks.isNotEmpty()) {
+            pemanenFaceDao.updateStatusUpload(niks, 1)
         }
-    }
-
-    private fun resolveDeptId(): Int? {
-        val raw = prefManager.estateIdUserLogin?.trim().orEmpty()
-        if (raw.isEmpty()) return null
-        return raw.split(",").firstOrNull()?.trim()?.toIntOrNull()
-    }
-
-    private fun resolveCompanyId(): Int? {
-        return prefManager.companyIdUserLogin?.trim()?.toIntOrNull()
     }
 
     private fun toUploadRequest(entity: PemanenFaceEntity): FaceUploadRequest {
         return FaceUploadRequest(
-            karyawanId = entity.karyawan_id,
             nik = entity.nik,
             nama = entity.nama,
-            kemandoranNama = entity.kemandoran_nama,
             embedding = entity.embedding,
-            updatedAt = entity.updated_at,
-            dept = resolveDeptId(),
-            company = resolveCompanyId()
+            updatedAt = entity.updated_at
         )
     }
 
@@ -76,7 +60,7 @@ class PemanenFaceRepository(
         try {
             val response = apiService.uploadPemanenFace(toUploadRequest(entity))
             if (response.isSuccessful && response.body()?.success == true) {
-                pemanenFaceDao.updateStatusUpload(listOf(entity.karyawan_id), 1)
+                pemanenFaceDao.updateStatusUpload(listOf(entity.nik), 1)
                 Result.success(Unit)
             } else {
                 val message = response.body()?.message ?: response.errorBody()?.string() ?: "Upload gagal"
@@ -86,12 +70,6 @@ class PemanenFaceRepository(
             AppLogger.e("Face upload single error: ${e.message}")
             Result.failure(e)
         }
-    }
-
-    suspend fun uploadPendingBatch(
-        onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit = { _, _, _ -> }
-    ): Result<UploadV3Response> = withContext(Dispatchers.IO) {
-        uploadBatchFromEntities(getPendingUpload(), onProgressUpdate)
     }
 
     suspend fun uploadBatchFromJson(
@@ -116,23 +94,13 @@ class PemanenFaceRepository(
         }
     }
 
-    private suspend fun uploadBatchFromEntities(
-        entities: List<PemanenFaceEntity>,
-        onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
-    ): Result<UploadV3Response> {
-        if (entities.isEmpty()) {
-            return Result.failure(Exception("Tidak ada data wajah yang perlu diupload"))
-        }
-        return uploadBatchRequests(entities.map { toUploadRequest(it) }, onProgressUpdate)
-    }
-
     private suspend fun uploadBatchRequests(
         faces: List<FaceUploadRequest>,
         onProgressUpdate: (progress: Int, isSuccess: Boolean, errorMsg: String?) -> Unit
     ): Result<UploadV3Response> {
         withContext(Dispatchers.Main) { onProgressUpdate(10, false, null) }
 
-        val uploadedIds = mutableListOf<Int>()
+        val uploadedNiks = mutableListOf<String>()
         var totalSaved = 0
         var totalFailed = 0
 
@@ -152,14 +120,14 @@ class PemanenFaceRepository(
             totalFailed += summary?.failed ?: 0
 
             summary?.results?.forEach { item ->
-                if (item.status == "success" && item.karyawanId != null) {
-                    uploadedIds.add(item.karyawanId)
+                if (item.status == "success" && !item.nik.isNullOrBlank()) {
+                    uploadedNiks.add(item.nik)
                 }
             }
         }
 
-        if (uploadedIds.isNotEmpty()) {
-            pemanenFaceDao.updateStatusUpload(uploadedIds.distinct(), 1)
+        if (uploadedNiks.isNotEmpty()) {
+            pemanenFaceDao.updateStatusUpload(uploadedNiks.distinct(), 1)
         }
 
         val isSuccess = totalFailed == 0 && totalSaved > 0
@@ -172,7 +140,7 @@ class PemanenFaceRepository(
         withContext(Dispatchers.Main) { onProgressUpdate(100, isSuccess, message) }
 
         val tableIdsJson = gson.toJson(
-            mapOf(AppUtils.DatabaseTables.PEMANEN_FACE to uploadedIds.distinct())
+            mapOf(AppUtils.DatabaseTables.PEMANEN_FACE to uploadedNiks.distinct())
         )
 
         return Result.success(
@@ -190,7 +158,7 @@ class PemanenFaceRepository(
         )
     }
 
-    suspend fun syncFromServer(dept: Int? = resolveDeptId()): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun syncFromServer(): SyncResult = withContext(Dispatchers.IO) {
         try {
             var offset = 0
             val limit = 5000
@@ -199,7 +167,7 @@ class PemanenFaceRepository(
             var skipped = 0
 
             while (true) {
-                val response = apiService.downloadPemanenFaces(dept = dept, limit = limit, offset = offset)
+                val response = apiService.downloadPemanenFaces(limit = limit, offset = offset)
                 if (!response.isSuccessful || response.body()?.success != true) {
                     val message = response.body()?.message ?: response.errorBody()?.string() ?: "Gagal sinkron data wajah"
                     return@withContext SyncResult(false, message)
@@ -237,7 +205,7 @@ class PemanenFaceRepository(
     }
 
     private suspend fun mergeServerFace(face: FaceSyncItem): Boolean {
-        val local = pemanenFaceDao.getByKaryawanId(face.karyawanId)
+        val local = pemanenFaceDao.getByNik(face.nik)
         val serverUpdatedAt = parseDate(face.updatedAt)
         val localUpdatedAt = local?.updated_at?.let { parseDate(it) }
 
@@ -249,10 +217,8 @@ class PemanenFaceRepository(
         }
 
         val entity = PemanenFaceEntity(
-            karyawan_id = face.karyawanId,
             nik = face.nik,
             nama = face.nama,
-            kemandoran_nama = face.kemandoranNama.orEmpty(),
             embedding = face.embedding,
             updated_at = normalizeDate(face.updatedAt),
             status_upload = 1
