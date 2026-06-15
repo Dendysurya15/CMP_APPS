@@ -11,5 +11,6 @@ data class PemanenFaceEntity(
     val nama: String,
     val kemandoran_nama: String = "",
     val embedding: String,
-    val updated_at: String
+    val updated_at: String,
+    val status_upload: Int = 0
 )

@@ -69,6 +69,7 @@ import com.cbi.mobile_plantation.data.model.MutuBuahEntity
 import com.cbi.mobile_plantation.data.model.PanenEntityWithRelations
 import com.cbi.mobile_plantation.data.model.dataset.DatasetRequest
 import com.cbi.mobile_plantation.data.repository.AppRepository
+import com.cbi.mobile_plantation.data.repository.PemanenFaceRepository
 import com.cbi.mobile_plantation.databinding.ActivityHomePageBinding
 import com.cbi.mobile_plantation.ui.adapter.DisplayType
 import com.cbi.mobile_plantation.ui.adapter.DownloadItem
@@ -5924,6 +5925,19 @@ class HomePageActivity : AppCompatActivity() {
                 it.status_upload == 0
             }
 
+            val faceRepository = PemanenFaceRepository(this@HomePageActivity)
+            val faceToUpload = withContext(Dispatchers.IO) {
+                faceRepository.getPendingUpload().filter { it.embedding.startsWith("mfn:") }
+            }
+            if (faceToUpload.isNotEmpty()) {
+                val faceJson = faceRepository.buildUploadJson(faceToUpload)
+                combinedUploadData[AppUtils.DatabaseTables.PEMANEN_FACE] = mapOf(
+                    "data" to faceJson,
+                    "filename" to "Data Wajah Pemanen ${prefManager!!.estateUserLogin}",
+                    "ids" to faceToUpload.map { it.karyawan_id }
+                )
+            }
+
 
             AppLogger.d("panenToUPload $panenToUpload")
             AppLogger.d("espbToUpload $espbToUpload")
@@ -5939,7 +5953,7 @@ class HomePageActivity : AppCompatActivity() {
             AppLogger.d("hasSelfiesMutuBuahToUpload $hasSelfiesMutuBuahToUpload")
             AppLogger.d("hasPhotosPanenToUpload $hasPhotosPanenToUpload")
             val hasItemsToUpload =
-                panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty() || hasPhotosInspeksiToUpload || mutuBuahToUpload.isNotEmpty() || hasPhotosMutuBuahToUpload || hasSelfiesMutuBuahToUpload
+                panenToUpload.isNotEmpty() || espbToUpload.isNotEmpty() || hasPhotosPanenToUpload || hektarPanenToUpload.isNotEmpty() || absensiPanenToUpload.isNotEmpty() || hasPhotosAbsensiToUpload || inspeksiPanenToUpload.isNotEmpty() || hasPhotosInspeksiToUpload || mutuBuahToUpload.isNotEmpty() || hasPhotosMutuBuahToUpload || hasSelfiesMutuBuahToUpload || faceToUpload.isNotEmpty()
 
             AppLogger.d("inspeksiPanenToUpload $inspeksiPanenToUpload")
             AppLogger.d("hasPhotosInspeksiToUpload $hasPhotosInspeksiToUpload")
@@ -6378,6 +6392,35 @@ class HomePageActivity : AppCompatActivity() {
                         AppLogger.d("Added MutuBuah to upload items (size: $dataSize bytes)")
                     } else {
                         AppLogger.d("MutuBuah data is missing required fields: data=$mutuBuahData, filename=$mutuBuahFilename")
+                    }
+                }
+
+                val faceInfo = dataMap[AppUtils.DatabaseTables.PEMANEN_FACE] as? Map<*, *>
+                if (faceInfo != null) {
+                    val faceData = faceInfo["data"] as? String
+                    val faceFilename = faceInfo["filename"] as? String
+                    val faceIds = faceInfo["ids"] as? List<Int> ?: emptyList()
+
+                    if (!faceData.isNullOrEmpty()) {
+                        val dataSize = faceData.length.toLong()
+                        val tableIdsJson = JSONObject().apply {
+                            put(AppUtils.DatabaseTables.PEMANEN_FACE, JSONArray(faceIds))
+                        }.toString()
+
+                        val uploadItem = UploadCMPItem(
+                            id = itemId++,
+                            title = "Data Wajah Pemanen (${faceIds.size} pemanen)",
+                            fullPath = "",
+                            baseFilename = faceFilename ?: "Data Wajah Pemanen",
+                            data = faceData,
+                            type = "face",
+                            tableIds = tableIdsJson,
+                            databaseTable = AppUtils.DatabaseTables.PEMANEN_FACE
+                        )
+
+                        uploadItems.add(uploadItem)
+                        adapter.setFileSize(uploadItem.id, dataSize)
+                        AppLogger.d("Added pemanen_face to upload items (count: ${faceIds.size})")
                     }
                 }
 
@@ -7546,8 +7589,8 @@ class HomePageActivity : AppCompatActivity() {
                 continue
             }
 
-            if (responseInfo.type == "image") {
-                AppLogger.d("Detected image type for response, returning true early")
+            if (responseInfo.type == "image" || responseInfo.type == "face") {
+                AppLogger.d("Detected ${responseInfo.type} type for response, returning true early")
                 return true
             }
             // Check if the status code indicates success

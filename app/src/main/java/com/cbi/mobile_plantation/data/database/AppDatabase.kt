@@ -80,7 +80,7 @@ import com.cbi.mobile_plantation.utils.AppUtils
         MutuBuahEntity::class,
         PemanenFaceEntity::class
     ],
-    version = 52
+    version = 53
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun kemandoranDao(): KemandoranDao
@@ -163,7 +163,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_43_44,
                         MIGRATION_44_45,
                         MIGRATION_46_47,
-                        MIGRATION_47_48
+                        MIGRATION_47_48,
+                        MIGRATION_52_53
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -725,6 +726,17 @@ abstract class AppDatabase : RoomDatabase() {
                 // Drop old table and rename new one
                 database.execSQL("DROP TABLE inspeksi")
                 database.execSQL("ALTER TABLE inspeksi_new RENAME TO inspeksi")
+            }
+        }
+
+        val MIGRATION_52_53 = object : Migration(52, 53) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    ALTER TABLE ${AppUtils.DatabaseTables.PEMANEN_FACE}
+                    ADD COLUMN status_upload INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
             }
         }
 

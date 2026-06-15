@@ -12,6 +12,11 @@ import com.cbi.mobile_plantation.data.model.uploadCMP.UploadV3Response
 import com.cbi.mobile_plantation.data.model.uploadCMP.UploadWBCMPResponse
 import com.cbi.mobile_plantation.data.model.uploadCMP.checkStatusUploadedData
 import com.cbi.mobile_plantation.data.model.weighBridge.UploadStagingResponse
+import com.cbi.mobile_plantation.data.model.pemanenFace.FaceApiResponse
+import com.cbi.mobile_plantation.data.model.pemanenFace.FaceListData
+import com.cbi.mobile_plantation.data.model.pemanenFace.FaceUploadBatchRequest
+import com.cbi.mobile_plantation.data.model.pemanenFace.FaceUploadBatchSummary
+import com.cbi.mobile_plantation.data.model.pemanenFace.FaceUploadRequest
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -212,5 +217,25 @@ interface ApiService {
     suspend fun uploadHarvest(
         @Body jsonData: RequestBody
     ): Response<UploadHarvestResponse>
+
+    @POST("face/upload")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadPemanenFace(
+        @Body request: FaceUploadRequest
+    ): Response<FaceApiResponse<Map<String, Any>>>
+
+    @POST("face/upload-batch")
+    @Headers("Content-Type: application/json")
+    suspend fun uploadPemanenFaceBatch(
+        @Body request: FaceUploadBatchRequest
+    ): Response<FaceApiResponse<FaceUploadBatchSummary>>
+
+    @GET("face")
+    @Headers("Accept: application/json")
+    suspend fun downloadPemanenFaces(
+        @Query("dept") dept: Int? = null,
+        @Query("limit") limit: Int = 5000,
+        @Query("offset") offset: Int = 0
+    ): Response<FaceApiResponse<FaceListData>>
 
 }

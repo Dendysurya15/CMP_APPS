@@ -43,6 +43,7 @@ import com.cbi.mobile_plantation.data.repository.AppRepository
 import com.cbi.mobile_plantation.data.repository.DataPanenInspectionRepository
 import com.cbi.mobile_plantation.data.repository.DownloadIDMapRepository
 import com.cbi.mobile_plantation.data.repository.HektaranPanenRepository
+import com.cbi.mobile_plantation.data.repository.PemanenFaceRepository
 import com.cbi.mobile_plantation.data.repository.RestanRepository
 import com.cbi.mobile_plantation.data.repository.SaveTPHResult
 import com.cbi.mobile_plantation.data.repository.SyncDataUserRepository
@@ -94,6 +95,8 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
         VersioningAppRepository(application)
     private val dataPanenInspectionRepository: DataPanenInspectionRepository =
         DataPanenInspectionRepository(application)
+    private val pemanenFaceRepository: PemanenFaceRepository =
+        PemanenFaceRepository(application)
     private val prefManager = PrefManager(application)
 
     private val downloadMapRepository = DownloadIDMapRepository()
@@ -1289,6 +1292,36 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         }
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataUser) {
                             response = syncDataUserRepository.getDataUser(request.idUser ?: 0)
+                    } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataWajahPemanen) {
+                        val deptId = when (val estate = request.estate) {
+                            is Int -> estate
+                            is String -> estate.split(",").firstOrNull()?.trim()?.toIntOrNull()
+                            is List<*> -> (estate.firstOrNull() as? Int)
+                            else -> null
+                        }
+
+                        val syncResult = withContext(Dispatchers.IO) {
+                            pemanenFaceRepository.syncFromServer(deptId)
+                        }
+
+                        progressMap[itemId] = 100
+                        statusMap[itemId] = if (syncResult.success) {
+                            AppUtils.UploadStatusUtils.SUCCESS
+                        } else {
+                            AppUtils.UploadStatusUtils.FAILED
+                        }
+                        errorMap[itemId] = if (syncResult.success) {
+                            syncResult.message
+                        } else {
+                            syncResult.message
+                        }
+
+                        _itemProgressMap.postValue(progressMap.toMap())
+                        _itemStatusMap.postValue(statusMap.toMap())
+                        _itemErrorMap.postValue(errorMap.toMap())
+
+                        incrementCompletedCount()
+                        continue
                     } else if (request.dataset == AppUtils.DatasetNames.checkAppVersion) {
                         response = versioningAppRepository.getDataAppVersion(request.idUser ?: 0)
                     } else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataPanen) {
@@ -5156,6 +5189,26 @@ class DatasetViewModel(application: Application) : AndroidViewModel(application)
                         response = dataPanenInspectionRepository.getDataPanen(
                             request.estate!!,
                         )
+                    }
+                    else if (request.dataset == AppUtils.DatasetNames.sinkronisasiDataWajahPemanen) {
+                        val deptId = when (val estate = request.estate) {
+                            is Int -> estate
+                            is String -> estate.split(",").firstOrNull()?.trim()?.toIntOrNull()
+                            is List<*> -> (estate.firstOrNull() as? Int)
+                            else -> null
+                        }
+
+                        val syncResult = withContext(Dispatchers.IO) {
+                            pemanenFaceRepository.syncFromServer(deptId)
+                        }
+
+                        results[request.dataset] = if (syncResult.success) {
+                            Resource.Success(Response.success(null))
+                        } else {
+                            Resource.Error(syncResult.message)
+                        }
+                        _downloadStatuses.postValue(results.toMap())
+                        return@forEach
                     }
                     else if (request.dataset == AppUtils.DatasetNames.sinkronisasiFollowUpInspeksi) {
                         response = dataPanenInspectionRepository.getDataInspeksi(

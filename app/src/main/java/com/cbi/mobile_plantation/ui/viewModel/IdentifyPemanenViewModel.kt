@@ -10,7 +10,9 @@ import com.cbi.mobile_plantation.data.database.AppDatabase
 import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.PemanenFaceEntity
 import com.cbi.mobile_plantation.data.model.PemanenPanenInfo
+import com.cbi.mobile_plantation.data.repository.PemanenFaceRepository
 import com.cbi.mobile_plantation.utils.FaceRecognitionHelper
+import com.cbi.mobile_plantation.utils.AppUtils
 import com.cbi.mobile_plantation.utils.face.FaceEmbeddingModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,6 +47,7 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
   private val karyawanDao = database.karyawanDao()
   private val pemanenFaceDao = database.pemanenFaceDao()
   private val panenDao = database.panenDao()
+  private val pemanenFaceRepository = PemanenFaceRepository(application)
 
   private val backendDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
@@ -128,6 +131,10 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
 
   fun loadPemanenData(modelPrefix: String) {
     viewModelScope.launch(Dispatchers.IO) {
+      if (AppUtils.isNetworkAvailable(getApplication())) {
+        pemanenFaceRepository.syncFromServer()
+      }
+
       val karyawanList = karyawanDao.getAllKaryawan()
       val enrolled = pemanenFaceDao.getCountByEmbeddingPrefix("$modelPrefix%")
       withContext(Dispatchers.Main) {
@@ -268,9 +275,14 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
       nama = karyawan.nama.orEmpty(),
       kemandoran_nama = kemandoranName,
       embedding = FaceRecognitionHelper.embeddingToString(embedding),
-      updated_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+      updated_at = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+      status_upload = 0
     )
     pemanenFaceDao.insertOrUpdate(entity)
+
+    if (AppUtils.isNetworkAvailable(getApplication())) {
+      pemanenFaceRepository.uploadSingle(entity)
+    }
   }
 
   private suspend fun processIdentifyEmbedding(embedding: FloatArray): IdentifyState {

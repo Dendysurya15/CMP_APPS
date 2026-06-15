@@ -48,6 +48,7 @@ class UploadCMPRepository(context: Context) {
     private val espbDao = database.espbDao()
     private val inspeksiDao = database.inspectionDao()
     private val mutuBuahDao = database.mutuBuahDao()
+    private val pemanenFaceRepository = PemanenFaceRepository(context)
 
 
     suspend fun UpdateOrInsertDataUpload(data: UploadCMPModel) {
@@ -157,6 +158,10 @@ class UploadCMPRepository(context: Context) {
 
                 AppLogger.d("====== UPLOAD START ======")
                 AppLogger.d("Starting upload for type: $type")
+
+                if (type == "face") {
+                    return@withContext pemanenFaceRepository.uploadBatchFromJson(data, onProgressUpdate)
+                }
 
                 if (type == "image") {
                     try {

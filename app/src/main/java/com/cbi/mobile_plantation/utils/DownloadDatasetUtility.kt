@@ -282,6 +282,14 @@ class DownloadDatasetUtility(
                 dataset = AppUtils.DatasetNames.sinkronisasiDataUser
             )
         )
+
+        datasets.add(
+            DatasetRequest(
+                lastModified = null,
+                estate = prefManager.estateIdUserLogin,
+                dataset = AppUtils.DatasetNames.sinkronisasiDataWajahPemanen
+            )
+        )
     }
 
     private fun addRoleSpecificDatasets(

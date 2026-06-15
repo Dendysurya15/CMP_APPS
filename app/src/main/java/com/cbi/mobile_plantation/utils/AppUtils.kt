@@ -551,6 +551,7 @@ object AppUtils {
         const val sinkronisasiDataUser = "Sinkronisasi Data User"
         const val sinkronisasiDataPanen = "Data Panen (H+1 hingga H+3)"
         const val sinkronisasiFollowUpInspeksi = "Data Inspeksi (H+1 hingga H+3)"
+        const val sinkronisasiDataWajahPemanen = "Sinkronisasi Data Wajah Pemanen"
         const val settingJSON = "setting.json"
         const val checkAppVersion = "Cek Versi Aplikasi"
     }
