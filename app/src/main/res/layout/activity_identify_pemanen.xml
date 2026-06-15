@@ -2,28 +2,30 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootIdentifyPemanen"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/black"
     tools:context=".ui.view.faceRecognition.IdentifyPemanenActivity">
 
-    <include
-        android:id="@+id/headerIdentifyPemanen"
-        layout="@layout/header_feature_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/previewControlsBar"
+        app:layout_constraintBottom_toTopOf="@+id/instructionBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/headerIdentifyPemanen" />
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.cbi.mobile_plantation.ui.view.faceRecognition.FaceAlignmentGuideOverlay
+        android:id="@+id/faceGuideOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:elevation="4dp"
+        app:layout_constraintBottom_toBottomOf="@id/previewView"
+        app:layout_constraintEnd_toEndOf="@id/previewView"
+        app:layout_constraintStart_toStartOf="@id/previewView"
+        app:layout_constraintTop_toTopOf="@id/previewView" />
 
     <com.cbi.mobile_plantation.ui.view.faceRecognition.FaceBoundingBoxOverlay
         android:id="@+id/faceOverlay"
@@ -35,100 +37,145 @@
         app:layout_constraintStart_toStartOf="@id/previewView"
         app:layout_constraintTop_toTopOf="@id/previewView" />
 
-    <TextView
-        android:id="@+id/tvEnrolledCount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        android:background="@drawable/rounded_label_background"
-        android:fontFamily="@font/manrope_semibold"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="6dp"
-        android:textColor="@color/black"
-        android:textSize="@dimen/s"
-        app:layout_constraintStart_toStartOf="@id/previewView"
-        app:layout_constraintTop_toTopOf="@id/previewView"
-        tools:text="Wajah terdaftar: 0" />
-
-    <ImageView
-        android:id="@+id/btnSwitchCamera"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_margin="12dp"
-        android:background="@drawable/circle_white_background"
-        android:clickable="true"
-        android:contentDescription="@string/ganti_kamera"
-        android:focusable="true"
-        android:padding="10dp"
-        android:src="@drawable/baseline_cameraswitch_24"
-        app:layout_constraintEnd_toEndOf="@id/previewView"
-        app:layout_constraintTop_toTopOf="@id/previewView"
-        app:tint="@color/black" />
-
-    <TextView
-        android:id="@+id/tvEnrollStep"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="4dp"
-        android:fontFamily="@font/manrope_bold"
-        android:gravity="center"
-        android:textColor="@color/greenBorder"
-        android:textSize="@dimen/s"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/tvInstruction"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:text="Langkah 2 dari 5"
-        tools:visibility="visible" />
-
-    <TextView
-        android:id="@+id/tvInstruction"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="12dp"
-        android:fontFamily="@font/manrope_medium"
-        android:gravity="center"
-        android:text="@string/identify_pemanen_instruction"
-        android:textColor="@color/white"
-        android:textSize="@dimen/s"
-        app:layout_constraintBottom_toBottomOf="@id/previewView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
     <LinearLayout
-        android:id="@+id/previewControlsBar"
+        android:id="@+id/cameraControlsTop"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#CC000000"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="12dp"
-        android:paddingVertical="10dp"
-        app:layout_constraintBottom_toTopOf="@id/actionContainer"
+        android:paddingTop="12dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSelectPanenDateMain"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/circle_white_background"
+            android:clickable="true"
+            android:contentDescription="@string/al_back"
+            android:focusable="true"
+            android:padding="10dp"
+            android:src="@drawable/baseline_arrow_back_24"
+            app:tint="@color/black" />
+
+        <TextView
+            android:id="@+id/tvEnrolledCount"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
+            android:background="@drawable/rounded_label_background"
             android:fontFamily="@font/manrope_semibold"
-            android:gravity="start|center_vertical"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:minHeight="44dp"
-            android:textAllCaps="false"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s"
+            tools:text="Wajah terdaftar: 0" />
+
+        <ImageView
+            android:id="@+id/btnSwitchCamera"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/circle_white_background"
+            android:clickable="true"
+            android:contentDescription="@string/ganti_kamera"
+            android:focusable="true"
+            android:padding="10dp"
+            android:src="@drawable/baseline_cameraswitch_24"
+            app:tint="@color/black" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cameraControlsSide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="12dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cameraControlsTop">
+
+        <ImageView
+            android:id="@+id/btnPanenDate"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/circle_white_background"
+            android:clickable="true"
+            android:contentDescription="@string/pilih_tanggal_panen"
+            android:focusable="true"
+            android:padding="10dp"
+            android:src="@drawable/baseline_calendar_month_24"
+            app:tint="@color/black" />
+
+        <ImageView
+            android:id="@+id/btnThresholdSettings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/circle_white_background"
+            android:clickable="true"
+            android:contentDescription="@string/atur_threshold_wajah"
+            android:focusable="true"
+            android:padding="10dp"
+            android:src="@drawable/baseline_tune_24"
+            app:tint="@color/black" />
+
+        <ImageView
+            android:id="@+id/btnEnrollFace"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/circle_white_background"
+            android:clickable="true"
+            android:contentDescription="@string/daftar_wajah_pemanen"
+            android:focusable="true"
+            android:padding="10dp"
+            android:src="@drawable/baseline_add_a_photo_24"
+            app:tint="@color/black" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/instructionBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/black"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        app:layout_constraintBottom_toTopOf="@id/actionContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/previewView">
+
+        <TextView
+            android:id="@+id/tvEnrollStep"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_bold"
+            android:gravity="center"
+            android:textColor="@color/greenBorder"
+            android:textSize="@dimen/s"
+            android:visibility="gone"
+            tools:text="Langkah 2 dari 3"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tvInstruction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/manrope_semibold"
+            android:gravity="center"
+            android:minHeight="40dp"
+            android:text="@string/identify_pemanen_instruction"
             android:textColor="@color/white"
-            app:icon="@drawable/baseline_calendar_month_24"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:iconTint="@color/white"
-            app:strokeColor="@color/white"
-            tools:text="Data panen: 10 Jun 2026" />
+            android:textSize="@dimen/m" />
     </LinearLayout>
 
     <LinearLayout
@@ -146,32 +193,9 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnEnrollFace"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:backgroundTint="#F0F8E8"
-            android:fontFamily="@font/manrope_bold"
-            android:minHeight="52dp"
-            android:text="@string/daftar_wajah_pemanen"
-            android:textAllCaps="false"
-            android:textColor="@color/greenBorder"
-            app:cornerRadius="12dp"
-            app:icon="@drawable/baseline_add_a_photo_24"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:iconTint="@color/greenBorder"
-            app:strokeColor="@color/greenBorder"
-            app:strokeWidth="2dp" />
-
-        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnIdentify"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
             android:backgroundTint="@color/greenBorder"
             android:fontFamily="@font/manrope_bold"
             android:minHeight="52dp"

@@ -3,10 +3,15 @@ package com.cbi.mobile_plantation.utils
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.content.Context
+import com.cbi.mobile_plantation.utils.face.FaceEmbeddingMatcher
+import com.cbi.mobile_plantation.utils.face.FaceEmbeddingModelManager
+import com.cbi.mobile_plantation.utils.face.FaceThresholdConfig
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.face.FaceLandmark
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -16,6 +21,15 @@ object FaceRecognitionHelper {
   private const val MAX_L2_DISTANCE = 0.72f
   private const val MIN_MATCH_MARGIN = 0.04f
   private const val ENROLL_TEST_MAX_L2_DISTANCE = 0.75f
+
+  /** Defaults; overridden by [FaceThresholdConfig] preview sliders. */
+  const val MIN_DISPLAY_CONFIDENCE = 0.30f
+  const val MIN_ACTION_CONFIDENCE = 0.50f
+
+  data class ScoredFace(
+    val face: Face,
+    val confidence: Float
+  )
 
   sealed class SingleFaceValidation {
     object NoFace : SingleFaceValidation()
@@ -34,23 +48,81 @@ object FaceRecognitionHelper {
   private val faceDetector by lazy { FaceDetection.getClient(detectorOptions) }
 
   private val streamDetectorOptions = FaceDetectorOptions.Builder()
-    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-    .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
-    .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
-    .setMinFaceSize(0.15f)
-    .enableTracking()
+    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+    .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+    .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+    .setMinFaceSize(0.12f)
     .build()
 
   private val streamFaceDetector by lazy { FaceDetection.getClient(streamDetectorOptions) }
 
   fun detectFacesAsync(
+    context: Context,
     image: InputImage,
-    onSuccess: (List<Face>) -> Unit,
+    imageWidth: Int,
+    imageHeight: Int,
+    onSuccess: (List<ScoredFace>) -> Unit,
     onFailure: () -> Unit = {}
   ) {
     streamFaceDetector.process(image)
-      .addOnSuccessListener(onSuccess)
+      .addOnSuccessListener { faces ->
+        onSuccess(scoreStreamFaces(context, faces, imageWidth, imageHeight))
+      }
       .addOnFailureListener { onFailure() }
+  }
+
+  fun scoreStreamFaces(
+    context: Context,
+    faces: List<Face>,
+    imageWidth: Int,
+    imageHeight: Int
+  ): List<ScoredFace> {
+    val displayMin = FaceThresholdConfig.getPreviewThresholds(context).displayMin
+    return faces
+      .map { face -> ScoredFace(face, computeStreamConfidence(face, imageWidth, imageHeight)) }
+      .filter { it.confidence >= displayMin }
+      .sortedByDescending { it.confidence }
+  }
+
+  fun countActionableFaces(context: Context, scoredFaces: List<ScoredFace>): Int {
+    val actionMin = FaceThresholdConfig.getPreviewThresholds(context).actionMin
+    return scoredFaces.count { it.confidence >= actionMin }
+  }
+
+  /**
+   * ML Kit does not expose a native detection confidence. This heuristic blends face size,
+   * aspect ratio, landmark presence, and eye-open probabilities into a 0–1 quality score.
+   */
+  fun computeStreamConfidence(face: Face, imageWidth: Int, imageHeight: Int): Float {
+    val box = face.boundingBox
+    val faceArea = box.width() * box.height().toFloat()
+    val imageArea = (imageWidth * imageHeight).toFloat().coerceAtLeast(1f)
+    val areaRatio = faceArea / imageArea
+
+    val sizeScore = ((areaRatio - 0.015f) / 0.28f).coerceIn(0f, 1f)
+
+    val aspect = box.width().toFloat() / box.height().coerceAtLeast(1)
+    val aspectScore = when {
+      aspect in 0.55f..1.15f -> 1f
+      aspect in 0.45f..1.35f -> 0.55f
+      else -> 0.15f
+    }
+
+    var landmarkHits = 0
+    if (face.getLandmark(FaceLandmark.LEFT_EYE) != null) landmarkHits++
+    if (face.getLandmark(FaceLandmark.RIGHT_EYE) != null) landmarkHits++
+    if (face.getLandmark(FaceLandmark.NOSE_BASE) != null) landmarkHits++
+    val landmarkScore = landmarkHits / 3f
+
+    val classificationScore = listOfNotNull(
+      face.leftEyeOpenProbability,
+      face.rightEyeOpenProbability
+    ).takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0.5f
+
+    return (sizeScore * 0.35f +
+      aspectScore * 0.25f +
+      landmarkScore * 0.25f +
+      classificationScore * 0.15f).coerceIn(0f, 1f)
   }
 
   data class FaceMatchResult(
@@ -82,7 +154,7 @@ object FaceRecognitionHelper {
     return try {
       val upright = uprightBitmap(bitmap, rotationDegrees)
       val aligned = FaceEmbedder.alignAndCropFace(upright, face)
-      FaceEmbedder.computeEmbedding(aligned)
+      FaceEmbeddingModelManager.computeEmbedding(aligned)
     } catch (_: Exception) {
       null
     }
@@ -132,8 +204,16 @@ object FaceRecognitionHelper {
     return FaceEmbedder.l2Normalize(averaged)
   }
 
-  fun matchesEnrollment(probeEmbedding: FloatArray, referenceEmbedding: FloatArray): Boolean {
-    return FaceEmbedder.l2Distance(probeEmbedding, referenceEmbedding) <= ENROLL_TEST_MAX_L2_DISTANCE
+  fun matchesEnrollment(
+    context: Context,
+    probeEmbedding: FloatArray,
+    referenceEmbedding: FloatArray
+  ): Boolean {
+    return FaceEmbeddingMatcher.isEnrollmentMatch(
+      context,
+      probeEmbedding,
+      referenceEmbedding
+    )
   }
 
   suspend fun buildEmbedding(bitmap: Bitmap, rotationDegrees: Int): FloatArray? {
@@ -142,37 +222,32 @@ object FaceRecognitionHelper {
   }
 
   fun embeddingToString(embedding: FloatArray): String =
-    FaceEmbedder.serializeEmbedding(embedding)
+    FaceEmbeddingModelManager.embeddingToString(embedding)
 
   fun stringToEmbedding(value: String): FloatArray? =
-    FaceEmbedder.deserializeEmbedding(value)
+    FaceEmbeddingModelManager.stringToEmbedding(value)
 
   fun findBestMatch(
+    context: Context,
     probeEmbedding: FloatArray,
     enrolledFaces: List<Triple<Int, String, FloatArray>>,
     metadata: Map<Int, Triple<String, String, String>>
   ): FaceMatchResult? {
     if (enrolledFaces.isEmpty()) return null
 
-    val ranked = enrolledFaces
-      .map { (karyawanId, _, storedEmbedding) ->
-        karyawanId to FaceEmbedder.l2Distance(probeEmbedding, storedEmbedding)
-      }
-      .sortedBy { it.second }
-
-    val (bestId, bestDistance) = ranked.first()
-    if (bestDistance > MAX_L2_DISTANCE) return null
-
-    if (ranked.size > 1) {
-      val secondDistance = ranked[1].second
-      val secondIsAlsoValid = secondDistance <= MAX_L2_DISTANCE
-      if (secondIsAlsoValid && secondDistance - bestDistance < MIN_MATCH_MARGIN) {
-        return null
-      }
+    val candidates = enrolledFaces.map { (karyawanId, _, storedEmbedding) ->
+      karyawanId to storedEmbedding
     }
 
+    val bestId = FaceEmbeddingMatcher.findBestMatchId(context, probeEmbedding, candidates)
+      ?: return null
+    val bestScore = FaceEmbeddingMatcher.matchScoreForCandidate(
+      probeEmbedding,
+      candidates.first { it.first == bestId }.second
+    )
+
     val info = metadata[bestId] ?: return null
-    val confidence = ((MAX_L2_DISTANCE - bestDistance) / MAX_L2_DISTANCE).coerceIn(0f, 1f)
+    val confidence = FaceEmbeddingMatcher.matchConfidence(context, bestScore)
 
     return FaceMatchResult(
       karyawanId = bestId,

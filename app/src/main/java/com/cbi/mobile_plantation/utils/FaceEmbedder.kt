@@ -23,7 +23,7 @@ object FaceEmbedder {
   private const val OUTPUT_SIZE = 112
   private const val GRID_SIZE = 7
   private const val BINS_PER_CELL = 8
-  private const val EMBEDDING_SIZE = GRID_SIZE * GRID_SIZE * BINS_PER_CELL
+  const val EMBEDDING_SIZE = GRID_SIZE * GRID_SIZE * BINS_PER_CELL
 
   fun embeddingVersionPrefix(): String = "v$EMBEDDING_VERSION:"
 

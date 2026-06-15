@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_bold"
+            android:text="@string/atur_threshold_wajah"
+            android:textColor="@color/black"
+            android:textSize="@dimen/m" />
+
+        <TextView
+            android:id="@+id/tvThresholdModelName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/manrope_medium"
+            android:textColor="@color/greytext"
+            android:textSize="@dimen/s"
+            tools:text="Model: MobileFaceNet (192D)" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/manrope_bold"
+            android:text="@string/threshold_identifikasi"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s" />
+
+        <TextView
+            android:id="@+id/tvIdentifyThresholdValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_semibold"
+            android:textColor="@color/greenBorder"
+            android:textSize="@dimen/s"
+            tools:text="55" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderIdentifyThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="1000"
+            app:thumbColor="@color/greenBorder"
+            app:trackColorActive="@color/greenBorder" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/manrope_bold"
+            android:text="@string/threshold_daftar_uji"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s" />
+
+        <TextView
+            android:id="@+id/tvEnrollThresholdValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_semibold"
+            android:textColor="@color/greenBorder"
+            android:textSize="@dimen/s"
+            tools:text="52" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderEnrollThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="1000"
+            app:thumbColor="@color/greenBorder"
+            app:trackColorActive="@color/greenBorder" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/manrope_bold"
+            android:text="@string/threshold_margin"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s" />
+
+        <TextView
+            android:id="@+id/tvMarginThresholdValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_semibold"
+            android:textColor="@color/greenBorder"
+            android:textSize="@dimen/s"
+            tools:text="0.04" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderMarginThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="1000"
+            app:thumbColor="@color/greenBorder"
+            app:trackColorActive="@color/greenBorder" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="16dp"
+            android:background="@color/greytext" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_bold"
+            android:text="@string/threshold_preview_section"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/manrope_medium"
+            android:text="@string/threshold_preview_tampil"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s" />
+
+        <TextView
+            android:id="@+id/tvPreviewDisplayValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_semibold"
+            android:textColor="@color/greenBorder"
+            android:textSize="@dimen/s"
+            tools:text="30" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderPreviewDisplay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="1000"
+            app:thumbColor="@color/greenBorder"
+            app:trackColorActive="@color/greenBorder" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/manrope_medium"
+            android:text="@string/threshold_preview_aksi"
+            android:textColor="@color/black"
+            android:textSize="@dimen/s" />
+
+        <TextView
+            android:id="@+id/tvPreviewActionValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/manrope_semibold"
+            android:textColor="@color/greenBorder"
+            android:textSize="@dimen/s"
+            tools:text="50" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderPreviewAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="1000"
+            app:thumbColor="@color/greenBorder"
+            app:trackColorActive="@color/greenBorder" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetThresholds"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="@string/threshold_reset_default"
+                android:textAllCaps="false" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveThresholds"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/greenBorder"
+                android:text="@string/threshold_simpan"
+                android:textAllCaps="false"
+                android:textColor="@color/white" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -141,22 +141,46 @@
         <item>17sp</item>
     </array>
     <string name="title_activity_follow_up_inspeksi">FollowUpInspeksi</string>
-    <string name="identify_pemanen_instruction">Arahkan wajah pemanen ke dalam bingkai, lalu tekan Identifikasi</string>
+    <string name="identify_pemanen_instruction">Posisikan wajah di dalam oval hijau, lalu tekan Identifikasi</string>
+    <string name="identify_no_face_detected">Tidak ada wajah terdeteksi</string>
+    <string name="identify_multiple_faces">Terdeteksi %1$d wajah — identifikasi hanya untuk satu wajah (skor ≥ 50%%)</string>
+    <string name="identify_one_face_required">Identifikasi hanya untuk satu wajah dengan skor ≥ 50%%</string>
+    <string name="face_confidence_hint">Skor di kotak: kualitas deteksi wajah (hijau ≥70%%, kuning ≥50%%, oranye &lt;50%%)</string>
+    <string name="pilih_model_wajah">Pilih Model Identifikasi Wajah</string>
+    <string name="face_model_selected">Model: %1$s</string>
+    <string name="face_model_histogram">Histogram (Legacy)</string>
+    <string name="face_model_mobilefacenet">MobileFaceNet (192D)</string>
+    <string name="face_model_arcface">ArcFace TFLite (512D)</string>
+    <string name="face_model_terapkan">Terapkan</string>
+    <string name="face_model_ganti_perlu_daftar_ulang">Model diubah. Daftarkan ulang wajah pemanen untuk model ini.</string>
+    <string name="atur_threshold_wajah">Atur Threshold Wajah</string>
+    <string name="threshold_identifikasi">Threshold identifikasi</string>
+    <string name="threshold_daftar_uji">Threshold daftar / uji wajah</string>
+    <string name="threshold_margin">Margin antar kandidat</string>
+    <string name="threshold_preview_section">Preview kamera</string>
+    <string name="threshold_preview_tampil">Min. skor tampil bounding box</string>
+    <string name="threshold_preview_aksi">Min. skor aktifkan tombol foto</string>
+    <string name="threshold_reset_default">Reset Default</string>
+    <string name="threshold_simpan">Simpan</string>
+    <string name="threshold_disimpan">Pengaturan threshold disimpan</string>
+    <string name="threshold_histogram_identify_hint">Nilai lebih kecil = lebih ketat (max L2)</string>
+    <string name="threshold_cosine_identify_hint">Nilai lebih besar = lebih ketat (min cosine)</string>
     <string name="instruksi_daftar_wajah">Arahkan wajah %1$s ke dalam bingkai untuk pendaftaran</string>
     <string name="daftar_wajah_pemanen">Daftar Wajah</string>
     <string name="identifikasi_sekarang">Identifikasi</string>
     <string name="wajah_terdaftar_count">Wajah terdaftar: %1$d</string>
+    <string name="wajah_terdaftar_model_count">Wajah (%2$s): %1$d</string>
     <string name="pilih_pemanen_daftar_wajah">Pilih Pemanen untuk Daftar Wajah</string>
     <string name="cari_pemanen">Cari nama atau NIK pemanen</string>
     <string name="daftar_wajah_berhasil">Wajah pemanen berhasil didaftarkan</string>
-    <string name="enroll_step_label">Langkah %1$d dari 5</string>
-    <string name="enroll_step_front">Foto wajah depan — hadapkan wajah %1$s lurus ke kamera</string>
+    <string name="enroll_step_label">Langkah %1$d dari 3</string>
+    <string name="enroll_step_front">Foto wajah depan — posisikan wajah %1$s di dalam oval hijau</string>
     <string name="enroll_step_left">Foto wajah kiri — putar wajah %1$s ke kiri</string>
     <string name="enroll_step_right">Foto wajah kanan — putar wajah %1$s ke kanan</string>
-    <string name="enroll_step_test">Uji identifikasi — hadapkan wajah %1$s ke kamera lalu tekan Uji Identifikasi</string>
-    <string name="enroll_one_face_required">Hanya satu wajah yang boleh ada di bingkai</string>
+    <string name="enroll_step_test">Uji identifikasi — posisikan wajah %1$s di oval hijau lalu tekan Uji Identifikasi</string>
+    <string name="enroll_one_face_required">Hanya satu wajah dengan skor ≥ 50%% yang boleh ada di bingkai</string>
     <string name="enroll_no_face_detected">Tidak ada wajah terdeteksi</string>
-    <string name="enroll_faces_detected">Terdeteksi %1$d wajah — hanya satu wajah yang diperbolehkan</string>
+    <string name="enroll_faces_detected">Terdeteksi %1$d wajah — hanya satu wajah dengan skor ≥ 50%% yang diperbolehkan</string>
     <string name="enroll_ambil_foto">Ambil Foto</string>
     <string name="enroll_uji_identifikasi">Uji Identifikasi</string>
     <string name="enroll_batal">Batal Daftar</string>
@@ -168,6 +192,18 @@
     <string name="enroll_test_gagal">Uji Identifikasi Gagal</string>
     <string name="enroll_ulangi_test">Ulangi Uji</string>
     <string name="enroll_ulangi_dari_awal">Daftar Ulang</string>
+    <string name="align_no_face">Posisikan wajah di dalam oval</string>
+    <string name="align_multiple_faces">Hanya satu wajah di dalam oval</string>
+    <string name="align_too_small">Dekatkan wajah ke kamera</string>
+    <string name="align_too_large">Jauhkan sedikit dari kamera</string>
+    <string name="align_off_center">Geser wajah ke tengah oval</string>
+    <string name="align_head_tilted">Luruskan kepala — jangan miring</string>
+    <string name="align_turn_more_left">Putar wajah lebih ke kiri</string>
+    <string name="align_turn_more_right">Putar wajah lebih ke kanan</string>
+    <string name="align_turn_to_front">Hadapkan wajah lebih lurus ke kamera</string>
+    <string name="align_almost">Hampir pas — tahan posisi sebentar</string>
+    <string name="align_ready">Posisi pas — tekan tombol sekarang</string>
+    <string name="align_not_ready">Sesuaikan posisi wajah di dalam oval terlebih dahulu</string>
     <string name="data_pemanen_kosong">Data pemanen belum tersedia. Sinkronisasi data terlebih dahulu.</string>
     <string name="pemanen_dikenali">Pemanen Dikenali</string>
     <string name="pemanen_tidak_dikenali">Pemanen Tidak Dikenali</string>
@@ -183,6 +219,7 @@
     <string name="blok_panen_kosong">Tidak ada data blok pada tanggal ini</string>
     <string name="tts_janjang_panen">Janjang panen, %1$d</string>
     <string name="tts_blok_panen">Blok panen, %1$s</string>
+    <string name="tts_blok_panen_count">Blok panen, %1$d blok</string>
     <string name="pilih_tanggal_panen">Pilih Tanggal Panen</string>
 
 </resources>

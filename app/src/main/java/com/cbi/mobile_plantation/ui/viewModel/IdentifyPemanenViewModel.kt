@@ -11,6 +11,7 @@ import com.cbi.mobile_plantation.data.model.KaryawanModel
 import com.cbi.mobile_plantation.data.model.PemanenFaceEntity
 import com.cbi.mobile_plantation.data.model.PemanenPanenInfo
 import com.cbi.mobile_plantation.utils.FaceRecognitionHelper
+import com.cbi.mobile_plantation.utils.face.FaceEmbeddingModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,26 +25,18 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
 
   enum class EnrollStep {
     FRONT,
-    LEFT,
-    RIGHT,
     TEST
   }
 
   data class EnrollSession(
     val karyawan: KaryawanModel,
     val step: EnrollStep,
-    val frontEmbedding: FloatArray? = null,
-    val leftEmbedding: FloatArray? = null,
-    val rightEmbedding: FloatArray? = null
+    val frontEmbedding: FloatArray? = null
   ) {
-    fun sampleEmbeddings(): List<FloatArray> = listOfNotNull(frontEmbedding, leftEmbedding, rightEmbedding)
-
     fun withStep(step: EnrollStep): EnrollSession = copy(step = step)
 
     fun withSample(step: EnrollStep, embedding: FloatArray): EnrollSession = when (step) {
-      EnrollStep.FRONT -> copy(frontEmbedding = embedding, step = EnrollStep.LEFT)
-      EnrollStep.LEFT -> copy(leftEmbedding = embedding, step = EnrollStep.RIGHT)
-      EnrollStep.RIGHT -> copy(rightEmbedding = embedding, step = EnrollStep.TEST)
+      EnrollStep.FRONT -> copy(frontEmbedding = embedding, step = EnrollStep.TEST)
       EnrollStep.TEST -> this
     }
   }
@@ -106,15 +99,7 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
       val records = panenDao.getPanenByNikAndDate(nik.trim(), date)
       val totalTo = records.sumOf { parseToFromJjgJson(it.panen.jjg_json) }
       val bloks = records.mapNotNull { relation ->
-        val tph = relation.tph ?: return@mapNotNull null
-        val kode = tph.blok_kode?.trim().orEmpty()
-        val nama = tph.blok_nama?.trim().orEmpty()
-        when {
-          kode.isNotEmpty() && nama.isNotEmpty() -> "$kode - $nama"
-          kode.isNotEmpty() -> kode
-          nama.isNotEmpty() -> nama
-          else -> null
-        }
+        relation.tph?.blok_kode?.trim()?.takeIf { it.isNotEmpty() }
       }.distinct().sorted()
 
       val info = PemanenPanenInfo(
@@ -141,10 +126,10 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
     }
   }
 
-  fun loadPemanenData() {
+  fun loadPemanenData(modelPrefix: String) {
     viewModelScope.launch(Dispatchers.IO) {
       val karyawanList = karyawanDao.getAllKaryawan()
-      val enrolled = pemanenFaceDao.getCount()
+      val enrolled = pemanenFaceDao.getCountByEmbeddingPrefix("$modelPrefix%")
       withContext(Dispatchers.Main) {
         _pemanenList.value = karyawanList
         _enrolledCount.value = enrolled
@@ -174,7 +159,7 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
       _enrollEvent.value = EnrollEvent.Processing
       try {
         when (session.step) {
-          EnrollStep.FRONT, EnrollStep.LEFT, EnrollStep.RIGHT -> {
+          EnrollStep.FRONT -> {
             val result = withContext(Dispatchers.Default) {
               captureSample(session, bitmap, rotationDegrees)
             }
@@ -188,8 +173,10 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
             }
             if (event is EnrollEvent.TestPassed) {
               _enrollSession.value = null
+              FaceEmbeddingModelManager.init(getApplication())
+              val prefix = FaceEmbeddingModelManager.getActiveModelType().versionPrefix
               _enrolledCount.value = withContext(Dispatchers.IO) {
-                pemanenFaceDao.getCount()
+                pemanenFaceDao.getCountByEmbeddingPrefix("$prefix%")
               }
             }
             _enrollEvent.value = event
@@ -242,10 +229,8 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
     bitmap: Bitmap,
     rotationDegrees: Int
   ): EnrollEvent {
-    val samples = session.sampleEmbeddings()
-    if (samples.size < 3) {
-      return EnrollEvent.Error("Data wajah belum lengkap. Ulangi pendaftaran dari awal.")
-    }
+    val reference = session.frontEmbedding
+      ?: return EnrollEvent.Error("Data wajah belum lengkap. Ulangi pendaftaran dari awal.")
 
     when (val validation = FaceRecognitionHelper.validateSingleFace(bitmap, rotationDegrees)) {
       FaceRecognitionHelper.SingleFaceValidation.NoFace ->
@@ -260,8 +245,7 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
         val probe = FaceRecognitionHelper.extractEmbedding(bitmap, validation.face, rotationDegrees)
           ?: return EnrollEvent.Error("Tidak dapat membaca fitur wajah untuk uji identifikasi.")
 
-        val reference = FaceRecognitionHelper.averageEmbeddings(samples)
-        if (!FaceRecognitionHelper.matchesEnrollment(probe, reference)) {
+        if (!FaceRecognitionHelper.matchesEnrollment(getApplication(), probe, reference)) {
           return EnrollEvent.TestFailed(
             "Uji identifikasi gagal. Pastikan pencahayaan cukup dan posisi wajah sama seperti saat pendaftaran."
           )
@@ -289,44 +273,65 @@ class IdentifyPemanenViewModel(application: Application) : AndroidViewModel(appl
     pemanenFaceDao.insertOrUpdate(entity)
   }
 
+  private suspend fun processIdentifyEmbedding(embedding: FloatArray): IdentifyState {
+    val enrolledFaces = pemanenFaceDao.getAll()
+    if (enrolledFaces.isEmpty()) {
+      return IdentifyState.NotFound(
+        "Belum ada data wajah pemanen terdaftar. Daftarkan wajah pemanen terlebih dahulu."
+      )
+    }
+
+    val metadata = enrolledFaces.associate {
+      it.karyawan_id to Triple(it.nik, it.nama, it.kemandoran_nama)
+    }
+    val candidates = enrolledFaces.mapNotNull { entity ->
+      val storedEmbedding = FaceRecognitionHelper.stringToEmbedding(entity.embedding)
+        ?: return@mapNotNull null
+      Triple(entity.karyawan_id, entity.nik, storedEmbedding)
+    }
+
+    if (candidates.isEmpty()) {
+      return IdentifyState.NotFound(
+        "Belum ada wajah terdaftar dengan MobileFaceNet. Daftarkan ulang wajah pemanen."
+      )
+    }
+
+    val match = FaceRecognitionHelper.findBestMatch(getApplication(), embedding, candidates, metadata)
+      ?: return IdentifyState.NotFound(
+        "Pemanen tidak dikenali. Pastikan wajah sudah terdaftar dan pencahayaan cukup."
+      )
+
+    return IdentifyState.Success(match)
+  }
+
   fun identifyFromBitmap(bitmap: Bitmap, rotationDegrees: Int) {
     viewModelScope.launch {
       _identifyResult.value = IdentifyState.Processing
       try {
         val result = withContext(Dispatchers.Default) {
-          val embedding = FaceRecognitionHelper.buildEmbedding(bitmap, rotationDegrees)
-            ?: return@withContext IdentifyState.Error(
-              "Wajah tidak terdeteksi atau tidak dapat dibaca. Pastikan wajah berada di dalam bingkai dengan pencahayaan cukup."
-            )
+          when (val validation = FaceRecognitionHelper.validateSingleFace(bitmap, rotationDegrees)) {
+            FaceRecognitionHelper.SingleFaceValidation.NoFace ->
+              return@withContext IdentifyState.Error(
+                "Wajah tidak terdeteksi. Pastikan wajah berada di dalam bingkai dengan pencahayaan cukup."
+              )
 
-          val enrolledFaces = pemanenFaceDao.getAll()
-          if (enrolledFaces.isEmpty()) {
-            return@withContext IdentifyState.NotFound(
-              "Belum ada data wajah pemanen terdaftar. Daftarkan wajah pemanen terlebih dahulu."
-            )
+            is FaceRecognitionHelper.SingleFaceValidation.MultipleFaces ->
+              return@withContext IdentifyState.Error(
+                "Terdeteksi ${validation.count} wajah. Identifikasi hanya untuk satu wajah dalam bingkai."
+              )
+
+            is FaceRecognitionHelper.SingleFaceValidation.Valid -> {
+              val embedding = FaceRecognitionHelper.extractEmbedding(
+                bitmap,
+                validation.face,
+                rotationDegrees
+              ) ?: return@withContext IdentifyState.Error(
+                "Wajah tidak terdeteksi atau tidak dapat dibaca. Pastikan wajah berada di dalam bingkai dengan pencahayaan cukup."
+              )
+
+              processIdentifyEmbedding(embedding)
+            }
           }
-
-          val metadata = enrolledFaces.associate {
-            it.karyawan_id to Triple(it.nik, it.nama, it.kemandoran_nama)
-          }
-          val candidates = enrolledFaces.mapNotNull { entity ->
-            val storedEmbedding = FaceRecognitionHelper.stringToEmbedding(entity.embedding)
-              ?: return@mapNotNull null
-            Triple(entity.karyawan_id, entity.nik, storedEmbedding)
-          }
-
-          if (candidates.isEmpty()) {
-            return@withContext IdentifyState.NotFound(
-              "Data wajah terdaftar menggunakan format lama. Silakan daftar ulang wajah semua pemanen."
-            )
-          }
-
-          val match = FaceRecognitionHelper.findBestMatch(embedding, candidates, metadata)
-            ?: return@withContext IdentifyState.NotFound(
-              "Pemanen tidak dikenali. Pastikan wajah sudah terdaftar dan pencahayaan cukup."
-            )
-
-          IdentifyState.Success(match)
         }
         if (result is IdentifyState.Success) {
           val panenDate = _selectedPanenDate.value ?: getYesterdayDate()

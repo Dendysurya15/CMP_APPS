@@ -15,6 +15,9 @@ interface PemanenFaceDao {
     @Query("SELECT * FROM pemanen_face")
     suspend fun getAll(): List<PemanenFaceEntity>
 
+    @Query("SELECT COUNT(*) FROM pemanen_face WHERE embedding LIKE :prefix")
+    suspend fun getCountByEmbeddingPrefix(prefix: String): Int
+
     @Query("SELECT COUNT(*) FROM pemanen_face")
     suspend fun getCount(): Int
 

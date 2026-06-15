@@ -457,6 +457,20 @@ class PrefManager(_context: Context) {
             editor.commit()
         }
 
+    var faceEmbeddingModelId: String?
+        get() = pref.getString(FACE_EMBEDDING_MODEL_ID, FaceEmbeddingModelIdDefault)
+        set(value) {
+            editor.putString(FACE_EMBEDDING_MODEL_ID, value)
+            editor.commit()
+        }
+
+    fun getFloatPreference(key: String, default: Float): Float = pref.getFloat(key, default)
+
+    fun putFloatPreference(key: String, value: Float) {
+        editor.putFloat(key, value)
+        editor.commit()
+    }
+
 
 
 
@@ -476,6 +490,8 @@ class PrefManager(_context: Context) {
 
         private const val REGISTERED_DEVICE_USERNAME = "registered_device_username"
         private const val IS_DOWNLOADED_MAP_OFFLINE = "is_downloaded_map_offline"
+        private const val FACE_EMBEDDING_MODEL_ID = "face_embedding_model_id"
+        const val FaceEmbeddingModelIdDefault = "mfn"
     }
 
     init {
