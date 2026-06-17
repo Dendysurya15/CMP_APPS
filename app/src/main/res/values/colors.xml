@@ -73,4 +73,10 @@
 
     <color name="grayDefault">#5a5a5a</color>
 
+    <color name="face_status_neutral">#B0BEC5</color>
+    <color name="face_status_warning">#FFB74D</color>
+    <color name="face_status_almost">#FFD54F</color>
+    <color name="face_status_ready">#7CFC4A</color>
+    <color name="face_status_error">#FF5252</color>
+
 </resources>

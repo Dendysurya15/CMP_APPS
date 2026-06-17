@@ -33,6 +33,15 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/manrope_medium"
+            android:text="@string/threshold_model_section_hint"
+            android:textColor="@color/greytext"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:fontFamily="@font/manrope_bold"
             android:text="@string/threshold_identifikasi"
@@ -120,10 +129,20 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:fontFamily="@font/manrope_bold"
             android:text="@string/threshold_preview_section"
             android:textColor="@color/black"
             android:textSize="@dimen/s" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/manrope_medium"
+            android:text="@string/threshold_preview_section_hint"
+            android:textColor="@color/greytext"
+            android:textSize="12sp" />
 
         <TextView
             android:layout_width="match_parent"

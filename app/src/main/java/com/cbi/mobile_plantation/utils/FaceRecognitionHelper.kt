@@ -57,29 +57,40 @@ object FaceRecognitionHelper {
   private val streamFaceDetector by lazy { FaceDetection.getClient(streamDetectorOptions) }
 
   fun detectFacesAsync(
-    context: Context,
     image: InputImage,
     imageWidth: Int,
     imageHeight: Int,
+    isFrontCamera: Boolean,
+    previewThresholds: FaceThresholdConfig.PreviewThresholds,
     onSuccess: (List<ScoredFace>) -> Unit,
     onFailure: () -> Unit = {}
   ) {
     streamFaceDetector.process(image)
       .addOnSuccessListener { faces ->
-        onSuccess(scoreStreamFaces(context, faces, imageWidth, imageHeight))
+        onSuccess(
+          scoreStreamFaces(
+            faces = faces,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            isFrontCamera = isFrontCamera,
+            displayMin = previewThresholds.displayMin
+          )
+        )
       }
       .addOnFailureListener { onFailure() }
   }
 
   fun scoreStreamFaces(
-    context: Context,
     faces: List<Face>,
     imageWidth: Int,
-    imageHeight: Int
+    imageHeight: Int,
+    isFrontCamera: Boolean,
+    displayMin: Float
   ): List<ScoredFace> {
-    val displayMin = FaceThresholdConfig.getPreviewThresholds(context).displayMin
     return faces
-      .map { face -> ScoredFace(face, computeStreamConfidence(face, imageWidth, imageHeight)) }
+      .map { face ->
+        ScoredFace(face, computeStreamConfidence(face, imageWidth, imageHeight, isFrontCamera))
+      }
       .filter { it.confidence >= displayMin }
       .sortedByDescending { it.confidence }
   }
@@ -93,19 +104,31 @@ object FaceRecognitionHelper {
    * ML Kit does not expose a native detection confidence. This heuristic blends face size,
    * aspect ratio, landmark presence, and eye-open probabilities into a 0–1 quality score.
    */
-  fun computeStreamConfidence(face: Face, imageWidth: Int, imageHeight: Int): Float {
+  fun computeStreamConfidence(
+    face: Face,
+    imageWidth: Int,
+    imageHeight: Int,
+    isFrontCamera: Boolean
+  ): Float {
     val box = face.boundingBox
     val faceArea = box.width() * box.height().toFloat()
     val imageArea = (imageWidth * imageHeight).toFloat().coerceAtLeast(1f)
     val areaRatio = faceArea / imageArea
+    val faceWidthRatio = box.width().toFloat() / imageWidth.coerceAtLeast(1)
 
-    val sizeScore = ((areaRatio - 0.015f) / 0.28f).coerceIn(0f, 1f)
+    val (areaOffset, areaSpan) = if (isFrontCamera) {
+      0.015f to 0.28f
+    } else {
+      // Back camera: favor medium-close faces; penalize very small (far) detections.
+      0.04f to 0.22f
+    }
+    val sizeScore = ((areaRatio - areaOffset) / areaSpan).coerceIn(0f, 1f)
 
     val aspect = box.width().toFloat() / box.height().coerceAtLeast(1)
     val aspectScore = when {
       aspect in 0.55f..1.15f -> 1f
-      aspect in 0.45f..1.35f -> 0.55f
-      else -> 0.15f
+      aspect in 0.40f..1.45f -> 0.65f
+      else -> 0.20f
     }
 
     var landmarkHits = 0
@@ -117,12 +140,23 @@ object FaceRecognitionHelper {
     val classificationScore = listOfNotNull(
       face.leftEyeOpenProbability,
       face.rightEyeOpenProbability
-    ).takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0.5f
+    ).takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0.55f
 
-    return (sizeScore * 0.35f +
-      aspectScore * 0.25f +
+    var confidence = (sizeScore * 0.40f +
+      aspectScore * 0.20f +
       landmarkScore * 0.25f +
       classificationScore * 0.15f).coerceIn(0f, 1f)
+
+    if (!isFrontCamera) {
+      confidence = when {
+        faceWidthRatio < 0.11f -> confidence * 0.45f
+        faceWidthRatio < 0.16f -> confidence * 0.72f
+        faceWidthRatio >= 0.20f -> (confidence * 1.12f).coerceAtMost(1f)
+        else -> confidence
+      }
+    }
+
+    return confidence
   }
 
   data class FaceMatchResult(

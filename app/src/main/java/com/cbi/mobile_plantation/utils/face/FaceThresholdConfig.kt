@@ -14,7 +14,25 @@ object FaceThresholdConfig {
   data class PreviewThresholds(
     val displayMin: Float,
     val actionMin: Float
-  )
+  ) {
+    fun normalized(): PreviewThresholds {
+      val display = displayMin.coerceIn(previewDisplayRange())
+      val action = actionMin.coerceIn(previewActionRange())
+      return PreviewThresholds(
+        displayMin = display.coerceAtMost(action),
+        actionMin = maxOf(display, action)
+      )
+    }
+
+    /** Back camera preview is noisier; use lower gates without changing saved prefs. */
+    fun forCamera(isFrontCamera: Boolean): PreviewThresholds {
+      if (isFrontCamera) return normalized()
+      return PreviewThresholds(
+        displayMin = (displayMin * 0.70f).coerceAtLeast(0.12f),
+        actionMin = (actionMin * 0.50f).coerceAtLeast(0.20f)
+      ).normalized()
+    }
+  }
 
   fun getModelThresholds(context: Context): ModelMatchThresholds {
     val p = PrefManager(context)
@@ -41,9 +59,10 @@ object FaceThresholdConfig {
   }
 
   fun savePreviewThresholds(context: Context, thresholds: PreviewThresholds) {
+    val normalized = thresholds.normalized()
     val p = PrefManager(context)
-    p.putFloatPreference(KEY_PREVIEW_DISPLAY, thresholds.displayMin)
-    p.putFloatPreference(KEY_PREVIEW_ACTION, thresholds.actionMin)
+    p.putFloatPreference(KEY_PREVIEW_DISPLAY, normalized.displayMin)
+    p.putFloatPreference(KEY_PREVIEW_ACTION, normalized.actionMin)
   }
 
   fun resetModelThresholds(context: Context) {

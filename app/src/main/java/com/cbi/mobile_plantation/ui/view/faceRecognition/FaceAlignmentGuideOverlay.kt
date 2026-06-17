@@ -21,25 +21,41 @@ class FaceAlignmentGuideOverlay @JvmOverloads constructor(
 ) : View(context, attrs) {
 
   private val dimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-    color = Color.parseColor("#B3000000")
+    color = Color.parseColor("#99000000")
     style = Paint.Style.FILL
   }
 
   private val ovalBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     style = Paint.Style.STROKE
-    strokeWidth = 6f
+    strokeWidth = 10f
+    strokeCap = Paint.Cap.ROUND
+  }
+
+  private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    strokeWidth = 18f
+    alpha = 90
   }
 
   private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     color = Color.WHITE
-    textSize = 34f
+    textSize = 42f
     textAlign = Paint.Align.CENTER
     isFakeBoldText = true
+    setShadowLayer(6f, 0f, 2f, Color.parseColor("#CC000000"))
   }
 
   private val clipPath = Path()
   private val guideOval = RectF()
   private var alignmentState = FaceAlignmentHelper.AlignmentState.NO_FACE
+  private var lockedOvalWidth = 0f
+  private var lockedOvalHeight = 0f
+  private var isOvalSizeLocked = false
+
+  companion object {
+    private const val OVAL_ASPECT = 1.45f
+    private const val MIN_LOCK_HEIGHT_PX = 240
+  }
 
   init {
     setWillNotDraw(false)
@@ -51,7 +67,16 @@ class FaceAlignmentGuideOverlay @JvmOverloads constructor(
   fun setAlignmentState(state: FaceAlignmentHelper.AlignmentState) {
     if (alignmentState != state) {
       alignmentState = state
-      ovalBorderPaint.color = borderColor(state)
+      postInvalidateOnAnimation()
+    }
+  }
+
+  fun resetOvalLock() {
+    isOvalSizeLocked = false
+    lockedOvalWidth = 0f
+    lockedOvalHeight = 0f
+    if (width > 0 && height > 0) {
+      updateGuideOval(width, height)
       postInvalidateOnAnimation()
     }
   }
@@ -59,28 +84,43 @@ class FaceAlignmentGuideOverlay @JvmOverloads constructor(
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     super.onSizeChanged(w, h, oldw, oldh)
     if (w == 0 || h == 0) return
+    updateGuideOval(w, h)
+  }
 
-    // Portrait face oval (height/width ≈ 1.45), kept vertical even on short preview areas.
-    val aspect = 1.45f
-    val maxHeight = h * 0.62f
-    val maxWidth = w * 0.62f
-
-    var ovalHeight = maxHeight
-    var ovalWidth = ovalHeight / aspect
-    if (ovalWidth > maxWidth) {
-      ovalWidth = maxWidth
-      ovalHeight = ovalWidth * aspect
+  private fun updateGuideOval(w: Int, h: Int) {
+    if (!isOvalSizeLocked) {
+      if (h < MIN_LOCK_HEIGHT_PX) return
+      val computed = computeOvalSize(w, h)
+      lockedOvalWidth = computed.width()
+      lockedOvalHeight = computed.height()
+      isOvalSizeLocked = lockedOvalWidth > 0f && lockedOvalHeight > 0f
     }
 
-    val centerX = w / 2f
-    val centerY = h * 0.44f
+    if (!isOvalSizeLocked) return
 
+    val centerX = w / 2f
+    val centerY = h / 2f
     guideOval.set(
-      centerX - ovalWidth / 2f,
-      centerY - ovalHeight / 2f,
-      centerX + ovalWidth / 2f,
-      centerY + ovalHeight / 2f
+      centerX - lockedOvalWidth / 2f,
+      centerY - lockedOvalHeight / 2f,
+      centerX + lockedOvalWidth / 2f,
+      centerY + lockedOvalHeight / 2f
     )
+  }
+
+  private fun computeOvalSize(w: Int, h: Int): RectF {
+    val verticalMargin = h * 0.08f
+    val maxHeight = (h - verticalMargin * 2f).coerceAtMost(h * 0.78f)
+    val maxWidth = w * 0.72f
+
+    var ovalHeight = maxHeight
+    var ovalWidth = ovalHeight / OVAL_ASPECT
+    if (ovalWidth > maxWidth) {
+      ovalWidth = maxWidth
+      ovalHeight = ovalWidth * OVAL_ASPECT
+    }
+
+    return RectF(0f, 0f, ovalWidth, ovalHeight)
   }
 
   override fun onDraw(canvas: Canvas) {
@@ -93,11 +133,18 @@ class FaceAlignmentGuideOverlay @JvmOverloads constructor(
     clipPath.addOval(guideOval, Path.Direction.CCW)
     canvas.drawPath(clipPath, dimPaint)
 
-    ovalBorderPaint.color = borderColor(alignmentState)
+    val borderColor = borderColor(alignmentState)
+    ovalBorderPaint.color = borderColor
+
+    if (alignmentState == FaceAlignmentHelper.AlignmentState.ALIGNED) {
+      glowPaint.color = borderColor
+      canvas.drawOval(guideOval, glowPaint)
+    }
+
     canvas.drawOval(guideOval, ovalBorderPaint)
 
     if (alignmentState == FaceAlignmentHelper.AlignmentState.ALIGNED) {
-      hintPaint.alpha = 220
+      hintPaint.alpha = 255
       canvas.drawText(
         "✓",
         guideOval.centerX(),
@@ -110,17 +157,19 @@ class FaceAlignmentGuideOverlay @JvmOverloads constructor(
   private fun borderColor(state: FaceAlignmentHelper.AlignmentState): Int {
     return when (state) {
       FaceAlignmentHelper.AlignmentState.ALIGNED ->
-        ContextCompat.getColor(context, R.color.greenBorder)
+        ContextCompat.getColor(context, R.color.face_status_ready)
 
       FaceAlignmentHelper.AlignmentState.ALMOST ->
-        Color.parseColor("#FFC107")
+        ContextCompat.getColor(context, R.color.face_status_almost)
 
-      FaceAlignmentHelper.AlignmentState.NO_FACE,
       FaceAlignmentHelper.AlignmentState.MULTIPLE_FACES ->
-        Color.parseColor("#CCFFFFFF")
+        ContextCompat.getColor(context, R.color.face_status_error)
+
+      FaceAlignmentHelper.AlignmentState.NO_FACE ->
+        Color.WHITE
 
       else ->
-        Color.parseColor("#FF9800")
+        ContextCompat.getColor(context, R.color.face_status_warning)
     }
   }
 }

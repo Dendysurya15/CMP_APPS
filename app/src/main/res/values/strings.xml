@@ -141,7 +141,16 @@
         <item>17sp</item>
     </array>
     <string name="title_activity_follow_up_inspeksi">FollowUpInspeksi</string>
-    <string name="identify_pemanen_instruction">Posisikan wajah di dalam oval hijau, lalu tekan Identifikasi</string>
+    <string name="identify_pemanen_instruction">Posisikan wajah di dalam oval, lalu tekan Identifikasi</string>
+    <string name="face_tool_camera">Kamera</string>
+    <string name="face_tool_date">Tanggal</string>
+    <string name="face_tool_threshold">Akurasi</string>
+    <string name="face_tool_enroll">Daftar</string>
+    <string name="face_status_searching">Mencari wajah…</string>
+    <string name="face_status_adjust">Sesuaikan posisi</string>
+    <string name="face_status_almost">Hampir pas</string>
+    <string name="face_status_ready">Siap identifikasi</string>
+    <string name="face_status_multiple">Terlalu banyak wajah</string>
     <string name="identify_no_face_detected">Tidak ada wajah terdeteksi</string>
     <string name="identify_multiple_faces">Terdeteksi %1$d wajah — identifikasi hanya untuk satu wajah (skor ≥ 50%%)</string>
     <string name="identify_one_face_required">Identifikasi hanya untuk satu wajah dengan skor ≥ 50%%</string>
@@ -163,6 +172,10 @@
     <string name="threshold_reset_default">Reset Default</string>
     <string name="threshold_simpan">Simpan</string>
     <string name="threshold_disimpan">Pengaturan threshold disimpan</string>
+    <string name="threshold_disimpan_detail">Disimpan. Identifikasi: %1$s | Tombol aktif: %2$s</string>
+    <string name="threshold_reset_diterapkan">Threshold dikembalikan ke default</string>
+    <string name="threshold_model_section_hint">Berlaku setelah foto diambil (cocokkan wajah). Tidak perlu reload model.</string>
+    <string name="threshold_preview_section_hint">Berlaku langsung pada preview dan tombol Identifikasi/Daftar.</string>
     <string name="threshold_histogram_identify_hint">Nilai lebih kecil = lebih ketat (max L2)</string>
     <string name="threshold_cosine_identify_hint">Nilai lebih besar = lebih ketat (min cosine)</string>
     <string name="instruksi_daftar_wajah">Arahkan wajah %1$s ke dalam bingkai untuk pendaftaran</string>

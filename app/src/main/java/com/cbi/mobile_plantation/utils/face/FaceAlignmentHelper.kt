@@ -3,7 +3,6 @@ package com.cbi.mobile_plantation.utils.face
 import android.graphics.RectF
 import com.cbi.mobile_plantation.utils.FaceRecognitionHelper
 import com.google.mlkit.vision.face.Face
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -33,18 +32,26 @@ object FaceAlignmentHelper {
     val faceRect: RectF?
   )
 
-  private const val MIN_FILL_RATIO = 0.26f
-  private const val MAX_FILL_RATIO = 0.98f
-  private const val ALIGNED_CENTER_MAX = 0.18f
-  private const val ALMOST_CENTER_MAX = 0.28f
-  private const val FRONT_YAW_MAX = 25f
+  private const val MIN_FILL_RATIO_FRONT = 0.26f
+  /** Back camera: require a larger face in the oval (near), reject far/small faces. */
+  private const val MIN_FILL_RATIO_BACK = 0.38f
+  private const val MAX_FILL_RATIO_FRONT = 0.98f
+  /** Back camera: allow near faces that slightly overfill the oval. */
+  private const val MAX_FILL_RATIO_BACK = 1.45f
+  private const val ALIGNED_CENTER_MAX_FRONT = 0.18f
+  private const val ALIGNED_CENTER_MAX_BACK = 0.42f
+  private const val ALMOST_CENTER_MAX_FRONT = 0.28f
+  private const val ALMOST_CENTER_MAX_BACK = 0.55f
+  private const val YAW_MAX_FRONT = 25f
+  private const val YAW_MAX_BACK = 40f
 
   fun evaluate(
     scoredFaces: List<FaceRecognitionHelper.ScoredFace>,
     faceRectsInOverlay: List<RectF>,
     guideOval: RectF,
     poseMode: PoseMode,
-    actionMin: Float
+    actionMin: Float,
+    isFrontCamera: Boolean
   ): Result {
     if (guideOval.width() <= 0f || guideOval.height() <= 0f) {
       return Result(AlignmentState.NO_FACE, null, null)
@@ -64,24 +71,28 @@ object FaceAlignmentHelper {
 
     val (scored, rect) = actionable.first()
     val face = scored.face
+    val minFillRatio = if (isFrontCamera) MIN_FILL_RATIO_FRONT else MIN_FILL_RATIO_BACK
+    val maxFillRatio = if (isFrontCamera) MAX_FILL_RATIO_FRONT else MAX_FILL_RATIO_BACK
+    val alignedCenterMax = if (isFrontCamera) ALIGNED_CENTER_MAX_FRONT else ALIGNED_CENTER_MAX_BACK
+    val almostCenterMax = if (isFrontCamera) ALMOST_CENTER_MAX_FRONT else ALMOST_CENTER_MAX_BACK
 
     val fillRatio = faceFillRatio(rect, guideOval)
     when {
-      fillRatio < MIN_FILL_RATIO -> return Result(AlignmentState.TOO_SMALL, face, rect)
-      fillRatio > MAX_FILL_RATIO -> return Result(AlignmentState.TOO_LARGE, face, rect)
+      fillRatio < minFillRatio -> return Result(AlignmentState.TOO_SMALL, face, rect)
+      fillRatio > maxFillRatio -> return Result(AlignmentState.TOO_LARGE, face, rect)
     }
 
-    val poseState = evaluateFrontPose(face.headEulerAngleY)
+    val poseState = evaluateFrontPose(face.headEulerAngleY, isFrontCamera)
     if (poseState != null) {
       return Result(poseState, face, rect)
     }
 
     val centerDistance = normalizedCenterDistance(rect, guideOval)
     return when {
-      centerDistance <= ALIGNED_CENTER_MAX ->
+      centerDistance <= alignedCenterMax ->
         Result(AlignmentState.ALIGNED, face, rect)
 
-      centerDistance <= ALMOST_CENTER_MAX ->
+      centerDistance <= almostCenterMax ->
         Result(AlignmentState.ALMOST, face, rect)
 
       else ->
@@ -89,8 +100,18 @@ object FaceAlignmentHelper {
     }
   }
 
-  fun isCaptureReady(state: AlignmentState): Boolean =
-    state == AlignmentState.ALIGNED || state == AlignmentState.ALMOST
+  fun isCaptureReady(state: AlignmentState, isFrontCamera: Boolean): Boolean {
+    if (isFrontCamera) {
+      return state == AlignmentState.ALIGNED || state == AlignmentState.ALMOST
+    }
+    return when (state) {
+      AlignmentState.ALIGNED,
+      AlignmentState.ALMOST,
+      AlignmentState.OFF_CENTER,
+      AlignmentState.TOO_LARGE -> true
+      else -> false
+    }
+  }
 
   private fun faceFillRatio(faceRect: RectF, guideOval: RectF): Float {
     val faceArea = faceRect.width().coerceAtLeast(1f) * faceRect.height().coerceAtLeast(1f)
@@ -104,10 +125,11 @@ object FaceAlignmentHelper {
     return sqrt(dx * dx + dy * dy)
   }
 
-  private fun evaluateFrontPose(yaw: Float): AlignmentState? {
+  private fun evaluateFrontPose(yaw: Float, isFrontCamera: Boolean): AlignmentState? {
+    val yawMax = if (isFrontCamera) YAW_MAX_FRONT else YAW_MAX_BACK
     return when {
-      yaw > FRONT_YAW_MAX -> AlignmentState.TURN_MORE_RIGHT
-      yaw < -FRONT_YAW_MAX -> AlignmentState.TURN_MORE_LEFT
+      yaw > yawMax -> AlignmentState.TURN_MORE_RIGHT
+      yaw < -yawMax -> AlignmentState.TURN_MORE_LEFT
       else -> null
     }
   }
